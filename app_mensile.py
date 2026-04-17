@@ -370,11 +370,13 @@ for _, row in edited_df.iterrows():
     # Validita' - DUE CONDIZIONI OBBLIGATORIE:
     #   (1) saving GHG >= 80% (calcolato su biometano LORDO, cosi' anche la
     #       quota assorbita dagli ausiliari CHP+caldaia e' rinnovabile >=80%)
-    #   (2) produzione netta = 300 Sm3/h (massimo autorizzato = ricavo massimo
-    #       GSE; le biomasse dimensionano il LORDO = 300 x aux_factor)
+    #   (2) produzione netta <= 300 Sm3/h. Non deve MAI superare 300 (tetto
+    #       autorizzativo GSE). Sotto 300 e' valido ma sub-ottimale.
+    #       Le biomasse dimensionano il LORDO = 300 x aux_factor.
     net_smch = summary["nm3_net"] / hours if hours > 0 else 0.0
     saving_ok = summary["saving"] >= GHG_SAVING_THRESHOLD * 100
-    prod_ok = abs(net_smch - PLANT_NET_SMCH) < 0.5   # tolleranza +-0.5 Sm3/h
+    prod_ok = net_smch <= PLANT_NET_SMCH + 0.5   # tolleranza +0.5 Sm3/h
+    target_hit = abs(net_smch - PLANT_NET_SMCH) < 0.5
 
     if saving_ok and prod_ok:
         validita = "✅ Valido"
@@ -383,14 +385,15 @@ for _, row in edited_df.iterrows():
         if not saving_ok:
             motivi.append(f"saving {summary['saving']:.1f}% < 80%")
         if not prod_ok:
-            if net_smch > PLANT_NET_SMCH:
-                motivi.append(f"netti {net_smch:.1f} > 300 Sm³/h (over-produz.)")
-            else:
-                motivi.append(f"netti {net_smch:.1f} < 300 Sm³/h (sotto-produz.)")
+            motivi.append(f"netti {net_smch:.1f} > 300 Sm³/h (over-autorizz.)")
         validita = "❌ Non valido: " + "; ".join(motivi)
 
-    stato = ("clampato" if not feasible
-             else f"saving {summary['saving']:.1f}% · netti {net_smch:.1f}")
+    if saving_ok and prod_ok and not target_hit:
+        stato = f"⚠️ netti {net_smch:.1f} < 300 (sub-ottimale)"
+    elif not feasible:
+        stato = "clampato"
+    else:
+        stato = f"saving {summary['saving']:.1f}% · netti {net_smch:.1f}"
 
     res = {"Mese": row["Mese"], "Ore": int(hours)}
     for n in FEED_NAMES:
@@ -437,11 +440,13 @@ def highlight_cols(row):
         i = cols.index("Saving %")
         if row["Saving %"] < GHG_SAVING_THRESHOLD * 100:
             styles[i] = STYLE_ERROR
-    # Sm3/h netti != 300: evidenzia (sia sotto che sopra)
+    # Sm3/h netti > 300: rosso (over-autorizz.); < 300: arancione (sub-ottimale)
     if "Sm³/h netti" in cols:
         i = cols.index("Sm³/h netti")
-        if abs(row["Sm³/h netti"] - PLANT_NET_SMCH) >= 0.5:
+        if row["Sm³/h netti"] > PLANT_NET_SMCH + 0.5:
             styles[i] = STYLE_ERROR
+        elif row["Sm³/h netti"] < PLANT_NET_SMCH - 0.5:
+            styles[i] = STYLE_WARN
     return styles
 
 fmt = {n: "{:.1f}" for n in FEED_NAMES}
