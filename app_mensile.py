@@ -368,13 +368,13 @@ for _, row in edited_df.iterrows():
     summary = ghg_summary(all_masses, aux_factor)
 
     # Validita' - DUE CONDIZIONI OBBLIGATORIE:
-    #   (1) saving GHG >= 80% (su lordo, gli ausiliari restano rinnovabili >80%)
-    #   (2) produzione netta <= 300 Sm3/h (tetto autorizzativo GSE)
+    #   (1) saving GHG >= 80% (calcolato su biometano LORDO, cosi' anche la
+    #       quota assorbita dagli ausiliari CHP+caldaia e' rinnovabile >=80%)
+    #   (2) produzione netta = 300 Sm3/h (massimo autorizzato = ricavo massimo
+    #       GSE; le biomasse dimensionano il LORDO = 300 x aux_factor)
     net_smch = summary["nm3_net"] / hours if hours > 0 else 0.0
     saving_ok = summary["saving"] >= GHG_SAVING_THRESHOLD * 100
-    prod_ok = net_smch <= PLANT_NET_SMCH * 1.001  # tolleranza 0.1%
-    # informativo: produzione target raggiunta?
-    target_hit = abs(net_smch - PLANT_NET_SMCH) < 0.5
+    prod_ok = abs(net_smch - PLANT_NET_SMCH) < 0.5   # tolleranza +-0.5 Sm3/h
 
     if saving_ok and prod_ok:
         validita = "✅ Valido"
@@ -383,18 +383,14 @@ for _, row in edited_df.iterrows():
         if not saving_ok:
             motivi.append(f"saving {summary['saving']:.1f}% < 80%")
         if not prod_ok:
-            motivi.append(f"netti {net_smch:.1f} > 300 Sm³/h")
+            if net_smch > PLANT_NET_SMCH:
+                motivi.append(f"netti {net_smch:.1f} > 300 Sm³/h (over-produz.)")
+            else:
+                motivi.append(f"netti {net_smch:.1f} < 300 Sm³/h (sotto-produz.)")
         validita = "❌ Non valido: " + "; ".join(motivi)
 
-    # dettaglio informativo (non vincolante)
-    if saving_ok and prod_ok and not target_hit:
-        stato = f"⚠️ produz. {net_smch:.1f} Sm³/h (<300, sotto-capacita')"
-    elif feasible and target_hit:
-        stato = f"saving {summary['saving']:.1f}% · netti {net_smch:.1f}"
-    elif not feasible:
-        stato = "clampato"
-    else:
-        stato = f"saving {summary['saving']:.1f}% · netti {net_smch:.1f}"
+    stato = ("clampato" if not feasible
+             else f"saving {summary['saving']:.1f}% · netti {net_smch:.1f}")
 
     res = {"Mese": row["Mese"], "Ore": int(hours)}
     for n in FEED_NAMES:
@@ -441,10 +437,10 @@ def highlight_cols(row):
         i = cols.index("Saving %")
         if row["Saving %"] < GHG_SAVING_THRESHOLD * 100:
             styles[i] = STYLE_ERROR
-    # Sm3/h netti > 300: evidenzia
+    # Sm3/h netti != 300: evidenzia (sia sotto che sopra)
     if "Sm³/h netti" in cols:
         i = cols.index("Sm³/h netti")
-        if row["Sm³/h netti"] > PLANT_NET_SMCH * 1.001:
+        if abs(row["Sm³/h netti"] - PLANT_NET_SMCH) >= 0.5:
             styles[i] = STYLE_ERROR
     return styles
 
