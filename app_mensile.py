@@ -57,10 +57,13 @@ FEEDSTOCK_DB = {
         "color": "#8BC34A",
     },
     "Pollina ovaiole": {
-        "eec": -41.0,  # manure credit (-45) + handling (+4)
-        "esca": 0.0,
+        # Allineata a v1: la pollina ovaiole in stabulazione moderna
+        # (stoccaggio aerobico/nastro) NON riceve il manure credit RED III
+        # completo, riservato a letami/liquami stoccati anaerobicamente.
+        "eec": 5.0,    # coltivazione/handling (residuo zootecnico secco)
+        "esca": 0.0,   # nessun credito anaerobico
         "etd": 0.8,
-        "yield": 90.0,
+        "yield": 90.0, # Nm3/t FM
         "color": "#FF9800",
     },
     "Liquame suino": {
@@ -308,8 +311,8 @@ st.subheader("📆 Tabella mensile – inserimento biomasse (t/mese FM)")
 
 # Valori di default plausibili
 defaults_all = {
-    "Trinciato di mais": 2000.0,
-    "Trinciato di sorgo": 500.0,
+    "Trinciato di mais": 1800.0,
+    "Trinciato di sorgo": 400.0,
     "Pollina ovaiole": 300.0,
     "Liquame suino": 1500.0,
 }
