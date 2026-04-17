@@ -269,8 +269,11 @@ with col1:
         fixed_feeds = st.multiselect(
             "Seleziona le 2 biomasse che inserirai (le altre 2 saranno calcolate):",
             options=FEED_NAMES,
-            default=["Trinciato di mais", "Trinciato di sorgo"],
+            default=["Trinciato di mais", "Liquame suino"],
             max_selections=2,
+            help="Suggerimento: scegli 1 biomassa ad alta eec (mais/sorgo) + "
+                 "1 a credito (pollina/liquame). Se scegli entrambe dello "
+                 "stesso 'tipo' il sistema puo' diventare infeasibile.",
         )
         if len(fixed_feeds) != 2:
             st.warning("Seleziona esattamente 2 biomasse.")
@@ -305,10 +308,10 @@ st.subheader("📆 Tabella mensile – inserimento biomasse (t/mese FM)")
 
 # Valori di default plausibili
 defaults_all = {
-    "Trinciato di mais": 1500.0,
+    "Trinciato di mais": 2000.0,
     "Trinciato di sorgo": 500.0,
     "Pollina ovaiole": 300.0,
-    "Liquame suino": 2000.0,
+    "Liquame suino": 1500.0,
 }
 
 default_rows = []
@@ -364,19 +367,22 @@ for _, row in edited_df.iterrows():
 
     summary = ghg_summary(all_masses, aux_factor)
 
-    # Stato
+    # Stato (basato sui valori effettivi, non sulla sola flag feasible)
     prod_target = PLANT_NET_SMCH * aux_factor * hours
     prod_ok = abs(summary["nm3_gross"] - prod_target) < 1.0
     saving_ok = summary["saving"] >= GHG_SAVING_THRESHOLD * 100
 
-    if feasible and prod_ok and saving_ok:
-        stato = "✅ Conforme"
-    elif feasible and prod_ok and not saving_ok:
+    if prod_ok and saving_ok:
+        if feasible:
+            stato = "✅ Conforme"
+        else:
+            stato = "✅ Conforme (clampato)"
+    elif prod_ok and not saving_ok:
         stato = f"⚠️ Saving {summary['saving']:.1f}% < 80%"
-    elif feasible and not prod_ok:
-        stato = "⚠️ Produzione non chiusa"
+    elif not prod_ok and saving_ok:
+        stato = "⚠️ Produzione non raggiunta"
     else:
-        stato = "❌ Infeasibile"
+        stato = "❌ Fuori vincoli"
 
     res = {"Mese": row["Mese"], "Ore": int(hours)}
     for n in FEED_NAMES:
@@ -395,24 +401,29 @@ df_res = pd.DataFrame(results)
 # ------------------------- RISULTATI -------------------------
 st.subheader("📊 Risultati")
 
-# Evidenzia colonne calcolate
+# Evidenzia colonne calcolate (colori leggibili sia tema chiaro sia scuro:
+# sfondo scuro + testo bianco funziona in entrambi)
 unknown_set = set(unknown_feeds)
+STYLE_CALC   = "background-color: #1565C0; color: white; font-weight: 700;"
+STYLE_OK     = "background-color: #2E7D32; color: white; font-weight: 600;"
+STYLE_WARN   = "background-color: #EF6C00; color: white; font-weight: 600;"
+STYLE_ERROR  = "background-color: #C62828; color: white; font-weight: 600;"
+
 def highlight_cols(row):
     styles = [""] * len(row)
     cols = list(row.index)
     for u in unknown_set:
         if u in cols:
-            i = cols.index(u)
-            styles[i] = "background-color: #E3F2FD; font-weight: 600;"
+            styles[cols.index(u)] = STYLE_CALC
     if "Stato" in cols:
         i = cols.index("Stato")
         s = row["Stato"]
         if s.startswith("✅"):
-            styles[i] = "background-color: #C8E6C9;"
+            styles[i] = STYLE_OK
         elif s.startswith("⚠️"):
-            styles[i] = "background-color: #FFF9C4;"
+            styles[i] = STYLE_WARN
         else:
-            styles[i] = "background-color: #FFCDD2;"
+            styles[i] = STYLE_ERROR
     return styles
 
 fmt = {n: "{:.1f}" for n in FEED_NAMES}
