@@ -367,22 +367,34 @@ for _, row in edited_df.iterrows():
 
     summary = ghg_summary(all_masses, aux_factor)
 
-    # Stato (basato sui valori effettivi, non sulla sola flag feasible)
-    prod_target = PLANT_NET_SMCH * aux_factor * hours
-    prod_ok = abs(summary["nm3_gross"] - prod_target) < 1.0
+    # Validita' - DUE CONDIZIONI OBBLIGATORIE:
+    #   (1) saving GHG >= 80% (su lordo, gli ausiliari restano rinnovabili >80%)
+    #   (2) produzione netta <= 300 Sm3/h (tetto autorizzativo GSE)
+    net_smch = summary["nm3_net"] / hours if hours > 0 else 0.0
     saving_ok = summary["saving"] >= GHG_SAVING_THRESHOLD * 100
+    prod_ok = net_smch <= PLANT_NET_SMCH * 1.001  # tolleranza 0.1%
+    # informativo: produzione target raggiunta?
+    target_hit = abs(net_smch - PLANT_NET_SMCH) < 0.5
 
-    if prod_ok and saving_ok:
-        if feasible:
-            stato = "✅ Conforme"
-        else:
-            stato = "✅ Conforme (clampato)"
-    elif prod_ok and not saving_ok:
-        stato = f"⚠️ Saving {summary['saving']:.1f}% < 80%"
-    elif not prod_ok and saving_ok:
-        stato = "⚠️ Produzione non raggiunta"
+    if saving_ok and prod_ok:
+        validita = "✅ Valido"
     else:
-        stato = "❌ Fuori vincoli"
+        motivi = []
+        if not saving_ok:
+            motivi.append(f"saving {summary['saving']:.1f}% < 80%")
+        if not prod_ok:
+            motivi.append(f"netti {net_smch:.1f} > 300 Sm³/h")
+        validita = "❌ Non valido: " + "; ".join(motivi)
+
+    # dettaglio informativo (non vincolante)
+    if saving_ok and prod_ok and not target_hit:
+        stato = f"⚠️ produz. {net_smch:.1f} Sm³/h (<300, sotto-capacita')"
+    elif feasible and target_hit:
+        stato = f"saving {summary['saving']:.1f}% · netti {net_smch:.1f}"
+    elif not feasible:
+        stato = "clampato"
+    else:
+        stato = f"saving {summary['saving']:.1f}% · netti {net_smch:.1f}"
 
     res = {"Mese": row["Mese"], "Ore": int(hours)}
     for n in FEED_NAMES:
@@ -393,7 +405,9 @@ for _, row in edited_df.iterrows():
     res["MWh netti"] = summary["mwh_net"]
     res["GHG (gCO₂/MJ)"] = summary["e_w"]
     res["Saving %"] = summary["saving"]
-    res["Stato"] = stato
+    res["Sm³/h netti"] = net_smch
+    res["Validità"] = validita
+    res["Note"] = stato
     results.append(res)
 
 df_res = pd.DataFrame(results)
@@ -415,14 +429,22 @@ def highlight_cols(row):
     for u in unknown_set:
         if u in cols:
             styles[cols.index(u)] = STYLE_CALC
-    if "Stato" in cols:
-        i = cols.index("Stato")
-        s = row["Stato"]
-        if s.startswith("✅"):
+    if "Validità" in cols:
+        i = cols.index("Validità")
+        v = row["Validità"]
+        if v.startswith("✅"):
             styles[i] = STYLE_OK
-        elif s.startswith("⚠️"):
-            styles[i] = STYLE_WARN
         else:
+            styles[i] = STYLE_ERROR
+    # saving < 80%: evidenzia la cella
+    if "Saving %" in cols:
+        i = cols.index("Saving %")
+        if row["Saving %"] < GHG_SAVING_THRESHOLD * 100:
+            styles[i] = STYLE_ERROR
+    # Sm3/h netti > 300: evidenzia
+    if "Sm³/h netti" in cols:
+        i = cols.index("Sm³/h netti")
+        if row["Sm³/h netti"] > PLANT_NET_SMCH * 1.001:
             styles[i] = STYLE_ERROR
     return styles
 
@@ -434,6 +456,7 @@ fmt.update({
     "MWh netti": "{:,.1f}",
     "GHG (gCO₂/MJ)": "{:.2f}",
     "Saving %": "{:.1f}",
+    "Sm³/h netti": "{:.1f}",
 })
 
 st.dataframe(
@@ -453,10 +476,10 @@ c1.metric("Tot. biomasse (t/anno)", f"{df_res['Totale biomasse (t)'].sum():,.0f}
 c2.metric("Sm³ netti (anno)", f"{df_res['Sm³ netti'].sum():,.0f}")
 c3.metric("MWh netti (anno)", f"{df_res['MWh netti'].sum():,.0f}")
 c4.metric("Saving medio (%)", f"{df_res['Saving %'].mean():.1f}")
-compliant = (df_res["Saving %"] >= GHG_SAVING_THRESHOLD * 100).sum()
-c5.metric("Mesi ≥ 80% saving", f"{compliant}/12",
-          delta="OK" if compliant == 12 else f"{12-compliant} KO",
-          delta_color="normal" if compliant == 12 else "inverse")
+valid_months = df_res["Validità"].str.startswith("✅").sum()
+c5.metric("Mesi validi", f"{valid_months}/12",
+          delta="OK" if valid_months == 12 else f"{12-valid_months} NON validi",
+          delta_color="normal" if valid_months == 12 else "inverse")
 
 # ------------------------- GRAFICI -------------------------
 tab1, tab2, tab3, tab4 = st.tabs([
