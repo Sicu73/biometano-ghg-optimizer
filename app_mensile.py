@@ -306,8 +306,8 @@ with col2:
             f"Il saving sarà una conseguenza (verificato in tabella)."
         )
 
-# ------------------------- TABELLA INPUT -------------------------
-st.subheader("📆 Tabella mensile – inserimento biomasse (t/mese FM)")
+# ------------------------- TABELLA UNIFICATA (input + risultati) -------------------------
+st.subheader("📆 Tabella mensile – modifica le celle ✏️, il resto si ricalcola")
 
 # Valori di default plausibili
 defaults_all = {
@@ -317,38 +317,24 @@ defaults_all = {
     "Liquame suino": 1500.0,
 }
 
-default_rows = []
-for m, h in zip(MONTHS, MONTH_HOURS):
-    row = {"Mese": m, "Ore": h}
-    for f in fixed_feeds:
-        row[f] = defaults_all[f]
-    default_rows.append(row)
-df_input = pd.DataFrame(default_rows)
+# --- Stato persistente: memorizzo SOLO le colonne editabili (Mese, Ore, fisse).
+# Chiave state univoca per combinazione mode+fisse, cosi' cambio mode -> nuovo state.
+state_key = f"mens_in_{'dual' if is_dual_mode else 'single'}_{'-'.join(fixed_feeds)}"
+if state_key not in st.session_state:
+    init_rows = []
+    for m, h in zip(MONTHS, MONTH_HOURS):
+        row = {"Mese": m, "Ore": h}
+        for f in fixed_feeds:
+            row[f] = defaults_all[f]
+        init_rows.append(row)
+    st.session_state[state_key] = pd.DataFrame(init_rows)
 
-col_cfg = {
-    "Mese": st.column_config.TextColumn("Mese", disabled=True),
-    "Ore": st.column_config.NumberColumn("Ore/mese", min_value=0, max_value=744, step=1, format="%d"),
-}
-for f in fixed_feeds:
-    col_cfg[f] = st.column_config.NumberColumn(
-        f"{f} (t)",
-        min_value=0.0, step=10.0, format="%.1f",
-        help=f"Resa {FEEDSTOCK_DB[f]['yield']} Nm³/t FM",
-    )
-
-edited_df = st.data_editor(
-    df_input,
-    column_config=col_cfg,
-    hide_index=True,
-    use_container_width=True,
-    num_rows="fixed",
-    key=f"editor_{'dual' if is_dual_mode else 'single'}_{'-'.join(fixed_feeds)}",
-)
+input_df = st.session_state[state_key]
 
 # ------------------------- CALCOLI PER MESE -------------------------
 results = []
 warnings_list = []
-for _, row in edited_df.iterrows():
+for _, row in input_df.iterrows():
     fixed_map = {n: float(row[n]) for n in fixed_feeds}
     hours = float(row["Ore"])
 
@@ -414,61 +400,68 @@ for _, row in edited_df.iterrows():
 
 df_res = pd.DataFrame(results)
 
-# ------------------------- RISULTATI -------------------------
-st.subheader("📊 Risultati")
+# ------------------------- TABELLA UNICA EDITABILE -------------------------
+# Colonne editabili: Ore + biomasse fisse (label con ✏️)
+# Colonne disabled: biomasse calcolate (🧮) + tutti i risultati
+col_cfg = {
+    "Mese": st.column_config.TextColumn("Mese", disabled=True),
+    "Ore": st.column_config.NumberColumn(
+        "Ore ✏️", min_value=0, max_value=744, step=1, format="%d",
+        help="Ore operative del mese (modificabile)",
+    ),
+}
+for f in fixed_feeds:
+    col_cfg[f] = st.column_config.NumberColumn(
+        f"{f} ✏️ (t)",
+        min_value=0.0, step=10.0, format="%.1f",
+        help=f"INPUT – Resa {FEEDSTOCK_DB[f]['yield']} Nm³/t FM",
+    )
+for u in unknown_feeds:
+    col_cfg[u] = st.column_config.NumberColumn(
+        f"{u} 🧮 (t)",
+        disabled=True, format="%.1f",
+        help=f"CALCOLATA dal solver – Resa {FEEDSTOCK_DB[u]['yield']} Nm³/t FM",
+    )
+col_cfg["Totale biomasse (t)"] = st.column_config.NumberColumn("Tot. t", disabled=True, format="%.0f")
+col_cfg["Sm³ lordi"] = st.column_config.NumberColumn("Sm³ lordi", disabled=True, format="%.0f")
+col_cfg["Sm³ netti"] = st.column_config.NumberColumn("Sm³ netti", disabled=True, format="%.0f")
+col_cfg["MWh netti"] = st.column_config.NumberColumn("MWh netti", disabled=True, format="%.1f")
+col_cfg["GHG (gCO₂/MJ)"] = st.column_config.NumberColumn("e_w", disabled=True, format="%.2f", help="Emissioni pesate gCO₂eq/MJ")
+col_cfg["Saving %"] = st.column_config.NumberColumn(
+    "Saving %", disabled=True, format="%.1f",
+    help="Obbligatorio ≥ 80% (RED III)",
+)
+col_cfg["Sm³/h netti"] = st.column_config.NumberColumn(
+    "Sm³/h netti", disabled=True, format="%.1f",
+    help="Obbligatorio ≤ 300 (tetto autorizzativo)",
+)
+col_cfg["Validità"] = st.column_config.TextColumn("Validità", disabled=True, width="medium")
+col_cfg["Note"] = st.column_config.TextColumn("Note", disabled=True, width="medium")
 
-# Evidenzia colonne calcolate (colori leggibili sia tema chiaro sia scuro:
-# sfondo scuro + testo bianco funziona in entrambi)
-unknown_set = set(unknown_feeds)
-STYLE_CALC   = "background-color: #1565C0; color: white; font-weight: 700;"
-STYLE_OK     = "background-color: #2E7D32; color: white; font-weight: 600;"
-STYLE_WARN   = "background-color: #EF6C00; color: white; font-weight: 600;"
-STYLE_ERROR  = "background-color: #C62828; color: white; font-weight: 600;"
-
-def highlight_cols(row):
-    styles = [""] * len(row)
-    cols = list(row.index)
-    for u in unknown_set:
-        if u in cols:
-            styles[cols.index(u)] = STYLE_CALC
-    if "Validità" in cols:
-        i = cols.index("Validità")
-        v = row["Validità"]
-        if v.startswith("✅"):
-            styles[i] = STYLE_OK
-        else:
-            styles[i] = STYLE_ERROR
-    # saving < 80%: evidenzia la cella
-    if "Saving %" in cols:
-        i = cols.index("Saving %")
-        if row["Saving %"] < GHG_SAVING_THRESHOLD * 100:
-            styles[i] = STYLE_ERROR
-    # Sm3/h netti > 300: rosso (over-autorizz.); < 300: arancione (sub-ottimale)
-    if "Sm³/h netti" in cols:
-        i = cols.index("Sm³/h netti")
-        if row["Sm³/h netti"] > PLANT_NET_SMCH + 0.5:
-            styles[i] = STYLE_ERROR
-        elif row["Sm³/h netti"] < PLANT_NET_SMCH - 0.5:
-            styles[i] = STYLE_WARN
-    return styles
-
-fmt = {n: "{:.1f}" for n in FEED_NAMES}
-fmt.update({
-    "Totale biomasse (t)": "{:,.0f}",
-    "Sm³ lordi": "{:,.0f}",
-    "Sm³ netti": "{:,.0f}",
-    "MWh netti": "{:,.1f}",
-    "GHG (gCO₂/MJ)": "{:.2f}",
-    "Saving %": "{:.1f}",
-    "Sm³/h netti": "{:.1f}",
-})
-
-st.dataframe(
-    df_res.style.format(fmt).apply(highlight_cols, axis=1),
+edited = st.data_editor(
+    df_res,
+    column_config=col_cfg,
     hide_index=True,
     use_container_width=True,
+    num_rows="fixed",
     height=470,
+    key=f"editor_unified_{state_key}",
 )
+
+# --- Se l'utente ha modificato una cella editabile, aggiorna state e rerun
+edit_cols = ["Mese", "Ore"] + fixed_feeds
+new_input = edited[edit_cols].reset_index(drop=True).copy()
+new_input["Ore"] = new_input["Ore"].astype(int)
+for f in fixed_feeds:
+    new_input[f] = new_input[f].astype(float)
+old_input = input_df[edit_cols].reset_index(drop=True).copy()
+old_input["Ore"] = old_input["Ore"].astype(int)
+for f in fixed_feeds:
+    old_input[f] = old_input[f].astype(float)
+
+if not new_input.equals(old_input):
+    st.session_state[state_key] = new_input
+    st.rerun()
 
 if warnings_list:
     st.warning("⚠️ Mesi con problemi di fattibilità:\n\n" + "\n\n".join(f"- {w}" for w in warnings_list))
