@@ -524,15 +524,39 @@ with tab2:
     st.plotly_chart(fig2, use_container_width=True)
 
 with tab3:
+    # Etichette numeriche leggibili coerenti con la tabella (formato IT: 287.928)
+    lordi_vals = df_res["Sm³ lordi"].astype(float)
+    netti_vals = df_res["Sm³ netti"].astype(float)
+    lordi_labels = [f"{v:,.0f}".replace(",", ".") for v in lordi_vals]
+    netti_labels = [f"{v:,.0f}".replace(",", ".") for v in netti_vals]
+
     fig3 = go.Figure()
-    fig3.add_trace(go.Bar(x=df_res["Mese"], y=df_res["Sm³ lordi"],
-                          name="Sm³ lordi", marker_color="#90A4AE"))
-    fig3.add_trace(go.Bar(x=df_res["Mese"], y=df_res["Sm³ netti"],
-                          name="Sm³ netti", marker_color="#1E88E5"))
-    fig3.update_layout(title="Produzione mensile Sm³",
-                       barmode="group", height=450,
-                       yaxis_title="Sm³ / mese")
+    fig3.add_trace(go.Bar(
+        x=df_res["Mese"], y=lordi_vals,
+        name="Sm³ lordi (biomasse)", marker_color="#90A4AE",
+        text=lordi_labels, textposition="outside",
+        hovertemplate="<b>%{x}</b><br>Sm³ lordi: %{text}<extra></extra>",
+    ))
+    fig3.add_trace(go.Bar(
+        x=df_res["Mese"], y=netti_vals,
+        name="Sm³ netti (immessi in rete)", marker_color="#1E88E5",
+        text=netti_labels, textposition="outside",
+        hovertemplate="<b>%{x}</b><br>Sm³ netti: %{text}<extra></extra>",
+    ))
+    fig3.update_layout(
+        title=f"Produzione mensile Sm³  (aux_factor = {aux_factor:.2f})",
+        barmode="group", height=500,
+        yaxis_title="Sm³ / mese",
+        yaxis=dict(tickformat=",.0f", separatethousands=True),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
     st.plotly_chart(fig3, use_container_width=True)
+
+    st.caption(
+        f"📐 **Dimensionamento**: Sm³ lordi = 300 × {aux_factor:.2f} × ore_mese · "
+        f"Sm³ netti = Sm³ lordi ÷ {aux_factor:.2f} = 300 × ore_mese. "
+        "Stessi numeri riportati in tabella (colonne «Sm³ lordi» e «Sm³ netti»)."
+    )
 
 with tab4:
     annual = {n: max(df_res[n].sum(), 0) for n in FEED_NAMES}
