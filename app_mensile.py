@@ -558,12 +558,59 @@ def find_optimal_pair(aux: float, plant_net: float, ep: float,
 # UI
 # ============================================================
 st.set_page_config(
-    page_title="BioMethane Monthly Planner",
-    page_icon="📅",
+    page_title="MethaniQ - L'intelligenza del biometano",
+    page_icon="🧬",
     layout="wide",
 )
 
-st.title("📅 BioMethane Monthly Planner")
+# Brand header CSS (verde petrolio MethaniQ)
+st.markdown(
+    """
+    <style>
+    .methaniq-header {
+        background: linear-gradient(90deg, #0B8A5A 0%, #13A876 50%, #1CC491 100%);
+        padding: 22px 30px;
+        border-radius: 14px;
+        color: white;
+        margin-bottom: 8px;
+        box-shadow: 0 4px 14px rgba(11, 138, 90, 0.25);
+    }
+    .methaniq-header h1 {
+        color: white !important;
+        margin: 0;
+        font-size: 2.4rem;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+    .methaniq-header .tagline {
+        color: #e8fff5;
+        font-style: italic;
+        font-size: 1.05rem;
+        margin-top: 4px;
+        opacity: 0.95;
+    }
+    .methaniq-credit {
+        background: #f8faf9;
+        border-left: 4px solid #0B8A5A;
+        padding: 8px 14px;
+        border-radius: 4px;
+        font-size: 0.88rem;
+        color: #555;
+        margin-bottom: 18px;
+    }
+    </style>
+    <div class="methaniq-header">
+        <h1>🧬 MethaniQ</h1>
+        <div class="tagline">L'intelligenza del biometano.</div>
+    </div>
+    <div class="methaniq-credit">
+        💡 Ideato e sviluppato da <b>Carlo Sicurini</b> — © 2026. Tutti i diritti riservati.
+        &nbsp;·&nbsp; Conforme <b>RED III</b> (Dir. 2023/2413) / GSE Linee Guida 2024 / UNI-TS 11567:2024
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
 st.markdown(
     "Pianificazione mensile biomasse - solver dual-constraint "
     "**saving GHG + produzione target** con configurazione impianto (ep) ex RED III."
@@ -571,6 +618,14 @@ st.markdown(
 
 # ------------------------- SIDEBAR -------------------------
 with st.sidebar:
+    st.markdown(
+        "<div style='text-align:center; padding:8px; background:#f0f2f6; "
+        "border-radius:8px; margin-bottom:12px;'>"
+        "<b>🧬 MethaniQ</b><br>"
+        "<span style='font-size:0.75em; color:#555;'>by <b>Carlo Sicurini</b></span>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
     st.header("⚙️ Parametri impianto")
     plant_net_smch = st.number_input(
         "🎯 Netto autorizzato [Sm³/h netti]",
@@ -1438,4 +1493,14 @@ st.caption(
     "Consorzio Monviso. Manure credit -45 gCO₂/MJ incorporato in `eec` "
     "(pollina ovaiole, liquame suino). Per certificazione GSE sostituire con "
     "valori reali d'impianto."
+)
+
+st.divider()
+st.markdown(
+    "<div style='text-align:center; color:#888; font-size:0.85em; padding:10px;'>"
+    "🧬 <b>MethaniQ</b> — L'intelligenza del biometano<br>"
+    "Creato da <b>Carlo Sicurini</b> · © 2026 · Conforme RED III (Dir. 2023/2413) "
+    "/ GSE Linee Guida 2024 / UNI-TS 11567:2024"
+    "</div>",
+    unsafe_allow_html=True,
 )
