@@ -564,13 +564,90 @@ st.set_page_config(
 )
 
 # ===========================================================
+# MethaniQ Theme Switcher (light / dark)
+# ===========================================================
+if "methaniq_theme" not in st.session_state:
+    st.session_state.methaniq_theme = "light"
+
+# Mini-toggle sidebar TOP (render before CSS cosi' theme e' gia' noto)
+with st.sidebar:
+    st.markdown(
+        "<div style='font-size:0.7rem; font-weight:700; letter-spacing:1px; "
+        "text-transform:uppercase; color:#64748B; margin-bottom:6px; padding-left:2px;'>"
+        "🎨 Tema</div>",
+        unsafe_allow_html=True,
+    )
+    _tc1, _tc2 = st.columns(2)
+    with _tc1:
+        if st.button(
+            "☀️ Chiaro",
+            use_container_width=True,
+            type="primary" if st.session_state.methaniq_theme == "light" else "secondary",
+            key="btn_theme_light",
+        ):
+            st.session_state.methaniq_theme = "light"
+            st.rerun()
+    with _tc2:
+        if st.button(
+            "🌙 Scuro",
+            use_container_width=True,
+            type="primary" if st.session_state.methaniq_theme == "dark" else "secondary",
+            key="btn_theme_dark",
+        ):
+            st.session_state.methaniq_theme = "dark"
+            st.rerun()
+    st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
+
+IS_DARK = st.session_state.methaniq_theme == "dark"
+
+# Palette basata sul tema
+if IS_DARK:
+    BG_APP        = "linear-gradient(180deg, #0B1220 0%, #0F172A 100%)"
+    BG_SURFACE    = "#1E293B"
+    BG_SURFACE_2  = "#0F172A"
+    TEXT_PRIMARY  = "#F1F5F9"
+    TEXT_SECOND   = "#94A3B8"
+    TEXT_MUTED    = "#64748B"
+    BORDER        = "#334155"
+    BORDER_HOVER  = "#1CC491"
+    INPUT_BG      = "#1E293B"
+    SIDEBAR_BG    = "linear-gradient(180deg, #0F172A 0%, #1E293B 100%)"
+    HEADING_COLOR = "#F8FAFC"
+    CODE_BG       = "#334155"
+    CODE_COLOR    = "#F1F5F9"
+    SHADOW_CARD   = "0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)"
+    SHADOW_HOVER  = "0 4px 12px rgba(0,0,0,0.4)"
+    CREDIT_BG     = "#1E293B"
+    SECTION_PILL_BG = "rgba(28, 196, 145, 0.15)"
+    SECTION_PILL_COLOR = "#6EE7B7"
+else:
+    BG_APP        = "linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%)"
+    BG_SURFACE    = "#FFFFFF"
+    BG_SURFACE_2  = "#F8FAFC"
+    TEXT_PRIMARY  = "#0F172A"
+    TEXT_SECOND   = "#334155"
+    TEXT_MUTED    = "#64748B"
+    BORDER        = "#E2E8F0"
+    BORDER_HOVER  = "#1CC491"
+    INPUT_BG      = "#FFFFFF"
+    SIDEBAR_BG    = "linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)"
+    HEADING_COLOR = "#0F172A"
+    CODE_BG       = "#F1F5F9"
+    CODE_COLOR    = "#0F172A"
+    SHADOW_CARD   = "0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.03)"
+    SHADOW_HOVER  = "0 4px 12px rgba(15, 23, 42, 0.08)"
+    CREDIT_BG     = "#FFFFFF"
+    SECTION_PILL_BG = "#ECFDF5"
+    SECTION_PILL_COLOR = "#0B8A5A"
+
+# ===========================================================
 # MethaniQ Design System — Commercial SaaS grade
 # Palette:  primary #0B8A5A (verde petrolio) → #1CC491 (mint)
 #           accent  #F59E0B (amber) · slate #0F172A · bg #F8FAFC
 # Font:     Inter (Google Fonts) — standard SaaS moderno
 # ===========================================================
 st.markdown(
-    """
+    f"""
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -580,33 +657,42 @@ st.markdown(
     html, body, [class*="css"], .stApp, .stMarkdown, .stText,
     .stButton, .stSelectbox, .stNumberInput, .stSlider,
     .stCheckbox, .stRadio, .stExpander, .stDataFrame,
-    .stMetric, .stTabs, .stAlert {
+    .stMetric, .stTabs, .stAlert, p, span, div, label {{
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-    }
-    code, pre, .stCode {
+    }}
+    code, pre, .stCode {{
         font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
-    }
+        background: {CODE_BG} !important;
+        color: {CODE_COLOR} !important;
+    }}
 
     /* ---------- Page background ---------- */
-    .stApp {
-        background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
-    }
+    .stApp {{
+        background: {BG_APP};
+        color: {TEXT_PRIMARY};
+    }}
+
+    /* ---------- Body text ---------- */
+    .stMarkdown p, .stMarkdown li, .stMarkdown span,
+    .stText, [data-testid="stMarkdownContainer"] p {{
+        color: {TEXT_PRIMARY} !important;
+    }}
 
     /* ---------- Headings ---------- */
-    h1, h2, h3, h4, h5, h6 {
+    h1, h2, h3, h4, h5, h6 {{
         font-family: 'Inter', sans-serif !important;
         font-weight: 700 !important;
         letter-spacing: -0.3px !important;
-        color: #0F172A !important;
-    }
-    h2 { font-size: 1.75rem !important; margin-top: 1.5rem !important; }
-    h3 { font-size: 1.35rem !important; }
-    h4 { font-size: 1.1rem !important; }
+        color: {HEADING_COLOR} !important;
+    }}
+    h2 {{ font-size: 1.75rem !important; margin-top: 1.5rem !important; }}
+    h3 {{ font-size: 1.35rem !important; }}
+    h4 {{ font-size: 1.1rem !important; }}
 
     /* ---------- Brand header (hero) ---------- */
-    .methaniq-header {
+    .methaniq-header {{
         position: relative;
         background: linear-gradient(135deg, #0B8A5A 0%, #13A876 45%, #1CC491 100%);
         padding: 40px 30px 36px 30px;
@@ -619,24 +705,24 @@ st.markdown(
             inset 0 1px 0 rgba(255,255,255,0.15);
         text-align: center;
         overflow: hidden;
-    }
-    .methaniq-header::before {
+    }}
+    .methaniq-header::before {{
         content: "";
         position: absolute;
         top: -50%; right: -10%;
         width: 300px; height: 300px;
         background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
         pointer-events: none;
-    }
-    .methaniq-header::after {
+    }}
+    .methaniq-header::after {{
         content: "";
         position: absolute;
         bottom: -40%; left: -5%;
         width: 250px; height: 250px;
         background: radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 70%);
         pointer-events: none;
-    }
-    .methaniq-header h1 {
+    }}
+    .methaniq-header h1 {{
         color: #ffffff !important;
         margin: 0 !important;
         font-size: 3.2rem !important;
@@ -646,8 +732,8 @@ st.markdown(
         text-shadow: 0 2px 8px rgba(0,0,0,0.12);
         position: relative;
         z-index: 1;
-    }
-    .methaniq-header .tagline {
+    }}
+    .methaniq-header .tagline {{
         color: #ecfdf5;
         font-weight: 500;
         font-size: 1.25rem;
@@ -655,8 +741,8 @@ st.markdown(
         letter-spacing: 0.2px;
         position: relative;
         z-index: 1;
-    }
-    .methaniq-header .pills {
+    }}
+    .methaniq-header .pills {{
         display: flex;
         gap: 8px;
         justify-content: center;
@@ -664,8 +750,8 @@ st.markdown(
         margin-top: 18px;
         position: relative;
         z-index: 1;
-    }
-    .methaniq-header .pill {
+    }}
+    .methaniq-header .pill {{
         background: rgba(255,255,255,0.18);
         backdrop-filter: blur(8px);
         border: 1px solid rgba(255,255,255,0.28);
@@ -675,69 +761,72 @@ st.markdown(
         font-size: 0.78rem;
         font-weight: 600;
         letter-spacing: 0.3px;
-    }
+    }}
 
     /* ---------- Credit box ---------- */
-    .methaniq-credit {
-        background: white;
-        border: 1px solid #E2E8F0;
+    .methaniq-credit {{
+        background: {CREDIT_BG};
+        border: 1px solid {BORDER};
         border-left: 4px solid #0B8A5A;
         padding: 12px 18px;
         border-radius: 8px;
         font-size: 0.9rem;
-        color: #334155;
+        color: {TEXT_SECOND};
         margin-bottom: 20px;
         text-align: center;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-    }
-    .methaniq-credit b { color: #0B8A5A; }
+        box-shadow: {SHADOW_CARD};
+    }}
+    .methaniq-credit b {{ color: #1CC491; }}
 
     /* ---------- Sidebar ---------- */
-    section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
-        border-right: 1px solid #E2E8F0;
-    }
+    section[data-testid="stSidebar"] {{
+        background: {SIDEBAR_BG};
+        border-right: 1px solid {BORDER};
+    }}
+    section[data-testid="stSidebar"] * {{
+        color: {TEXT_PRIMARY};
+    }}
     section[data-testid="stSidebar"] h2,
-    section[data-testid="stSidebar"] h3 {
+    section[data-testid="stSidebar"] h3 {{
         font-size: 1rem !important;
-        color: #0F172A !important;
+        color: {HEADING_COLOR} !important;
         margin-top: 1.2rem !important;
         padding-bottom: 6px;
-        border-bottom: 1px solid #E2E8F0;
-    }
+        border-bottom: 1px solid {BORDER};
+    }}
 
     /* ---------- Metrics (KPI cards) ---------- */
-    [data-testid="stMetric"] {
-        background: white;
+    [data-testid="stMetric"] {{
+        background: {BG_SURFACE};
         padding: 16px 18px;
         border-radius: 12px;
-        border: 1px solid #E2E8F0;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.03);
+        border: 1px solid {BORDER};
+        box-shadow: {SHADOW_CARD};
         transition: all 0.2s ease;
-    }
-    [data-testid="stMetric"]:hover {
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-        border-color: #1CC491;
+    }}
+    [data-testid="stMetric"]:hover {{
+        box-shadow: {SHADOW_HOVER};
+        border-color: {BORDER_HOVER};
         transform: translateY(-1px);
-    }
-    [data-testid="stMetricLabel"] {
-        color: #64748B !important;
+    }}
+    [data-testid="stMetricLabel"] {{
+        color: {TEXT_MUTED} !important;
         font-size: 0.82rem !important;
         font-weight: 600 !important;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-    }
-    [data-testid="stMetricValue"] {
-        color: #0F172A !important;
+    }}
+    [data-testid="stMetricValue"] {{
+        color: {HEADING_COLOR} !important;
         font-weight: 700 !important;
         font-size: 1.6rem !important;
         letter-spacing: -0.5px;
-    }
+    }}
 
     /* ---------- Buttons ---------- */
-    .stButton > button {
+    .stButton > button {{
         background: linear-gradient(135deg, #0B8A5A 0%, #13A876 100%);
-        color: white;
+        color: white !important;
         border: none;
         border-radius: 10px;
         padding: 0.55rem 1.2rem;
@@ -745,109 +834,135 @@ st.markdown(
         font-size: 0.95rem;
         box-shadow: 0 2px 6px rgba(11, 138, 90, 0.25);
         transition: all 0.2s ease;
-    }
-    .stButton > button:hover {
+    }}
+    .stButton > button:hover {{
         background: linear-gradient(135deg, #0A7A50 0%, #119668 100%);
         box-shadow: 0 4px 14px rgba(11, 138, 90, 0.35);
         transform: translateY(-1px);
-    }
-    .stButton > button:active { transform: translateY(0); }
-    .stDownloadButton > button {
+    }}
+    .stButton > button:active {{ transform: translateY(0); }}
+    /* Secondary button (used by theme toggle) */
+    .stButton > button[kind="secondary"] {{
+        background: {BG_SURFACE} !important;
+        color: {TEXT_PRIMARY} !important;
+        border: 1px solid {BORDER} !important;
+        box-shadow: {SHADOW_CARD};
+    }}
+    .stButton > button[kind="secondary"]:hover {{
+        border-color: {BORDER_HOVER} !important;
+        background: {BG_SURFACE_2} !important;
+    }}
+    .stDownloadButton > button {{
         background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%);
-        color: white;
+        color: white !important;
         border: none;
         border-radius: 10px;
         font-weight: 600;
         box-shadow: 0 2px 6px rgba(245, 158, 11, 0.25);
-    }
-    .stDownloadButton > button:hover {
+    }}
+    .stDownloadButton > button:hover {{
         background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
         box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
-    }
+    }}
 
     /* ---------- Expanders ---------- */
-    .streamlit-expanderHeader, details > summary {
-        background: white !important;
+    .streamlit-expanderHeader, details > summary {{
+        background: {BG_SURFACE} !important;
+        color: {TEXT_PRIMARY} !important;
         border-radius: 10px !important;
-        border: 1px solid #E2E8F0 !important;
+        border: 1px solid {BORDER} !important;
         font-weight: 600 !important;
         padding: 10px 14px !important;
         transition: all 0.15s ease;
-    }
-    .streamlit-expanderHeader:hover {
-        border-color: #1CC491 !important;
-        background: #F0FDF4 !important;
-    }
+    }}
+    .streamlit-expanderHeader:hover {{
+        border-color: {BORDER_HOVER} !important;
+    }}
+    [data-testid="stExpander"] {{
+        background: {BG_SURFACE};
+        border: 1px solid {BORDER};
+        border-radius: 10px;
+    }}
 
     /* ---------- Tabs ---------- */
-    .stTabs [data-baseweb="tab-list"] {
+    .stTabs [data-baseweb="tab-list"] {{
         gap: 4px;
-        background: white;
+        background: {BG_SURFACE};
         padding: 6px;
         border-radius: 12px;
-        border: 1px solid #E2E8F0;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-    }
-    .stTabs [data-baseweb="tab"] {
+        border: 1px solid {BORDER};
+        box-shadow: {SHADOW_CARD};
+    }}
+    .stTabs [data-baseweb="tab"] {{
         border-radius: 8px;
         padding: 8px 16px;
         font-weight: 600;
-        color: #64748B;
+        color: {TEXT_MUTED};
         transition: all 0.15s ease;
-    }
-    .stTabs [aria-selected="true"] {
+    }}
+    .stTabs [aria-selected="true"] {{
         background: linear-gradient(135deg, #0B8A5A 0%, #13A876 100%) !important;
         color: white !important;
         box-shadow: 0 2px 6px rgba(11, 138, 90, 0.2);
-    }
+    }}
 
     /* ---------- Alerts ---------- */
-    [data-testid="stAlert"] {
+    [data-testid="stAlert"] {{
         border-radius: 10px;
         border: none;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
-    }
+        box-shadow: {SHADOW_CARD};
+    }}
 
     /* ---------- Inputs ---------- */
-    .stNumberInput input, .stTextInput input, .stSelectbox [data-baseweb="select"] {
+    .stNumberInput input, .stTextInput input,
+    .stSelectbox [data-baseweb="select"] > div {{
+        background: {INPUT_BG} !important;
+        color: {TEXT_PRIMARY} !important;
         border-radius: 8px !important;
-        border: 1px solid #CBD5E1 !important;
+        border: 1px solid {BORDER} !important;
         transition: all 0.15s ease;
-    }
-    .stNumberInput input:focus, .stTextInput input:focus {
+    }}
+    .stNumberInput input:focus, .stTextInput input:focus {{
         border-color: #0B8A5A !important;
-        box-shadow: 0 0 0 3px rgba(11, 138, 90, 0.12) !important;
-    }
+        box-shadow: 0 0 0 3px rgba(11, 138, 90, 0.18) !important;
+    }}
+    .stSlider [data-baseweb="slider"] > div > div {{
+        background: #0B8A5A !important;
+    }}
 
     /* ---------- Dataframes ---------- */
-    [data-testid="stDataFrame"] {
+    [data-testid="stDataFrame"] {{
         border-radius: 12px;
         overflow: hidden;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
-    }
+        box-shadow: {SHADOW_CARD};
+        border: 1px solid {BORDER};
+    }}
+    [data-testid="stDataFrame"] * {{
+        color: {TEXT_PRIMARY} !important;
+    }}
 
     /* ---------- Dividers ---------- */
-    hr { border-color: #E2E8F0 !important; margin: 1.5rem 0 !important; }
+    hr {{ border-color: {BORDER} !important; margin: 1.5rem 0 !important; }}
 
     /* ---------- Captions ---------- */
-    .stCaption, [data-testid="stCaptionContainer"] {
-        color: #64748B !important;
+    .stCaption, [data-testid="stCaptionContainer"] {{
+        color: {TEXT_MUTED} !important;
         font-size: 0.85rem !important;
-    }
+    }}
 
     /* ---------- Subtle section headings ---------- */
-    .section-label {
+    .section-label {{
         display: inline-block;
         font-size: 0.72rem;
         font-weight: 700;
         letter-spacing: 1px;
         text-transform: uppercase;
-        color: #0B8A5A;
-        background: #ECFDF5;
+        color: {SECTION_PILL_COLOR};
+        background: {SECTION_PILL_BG};
         padding: 3px 10px;
         border-radius: 6px;
         margin-bottom: 6px;
-    }
+    }}
     </style>
 
     <div class="methaniq-header">
@@ -869,17 +984,17 @@ st.markdown(
 )
 
 st.markdown(
-    "<div style='background:white; padding:14px 18px; border-radius:10px; "
-    "border:1px solid #E2E8F0; margin-bottom:18px; "
-    "box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);'>"
-    "<span style='font-size:0.72rem; font-weight:700; letter-spacing:1px; "
-    "text-transform:uppercase; color:#0B8A5A; background:#ECFDF5; "
-    "padding:3px 10px; border-radius:6px; margin-right:10px;'>SOLVER</span>"
-    "<span style='color:#334155; font-size:0.95rem;'>"
-    "Pianificazione mensile biomasse — solver <b>dual-constraint</b> "
-    "(saving GHG + produzione target) con configurazione impianto <code style='background:#F1F5F9; "
-    "padding:2px 6px; border-radius:4px; font-size:0.85em; color:#0F172A;'>ep</code> ex RED III."
-    "</span></div>",
+    f"<div style='background:{BG_SURFACE}; padding:14px 18px; border-radius:10px; "
+    f"border:1px solid {BORDER}; margin-bottom:18px; "
+    f"box-shadow: {SHADOW_CARD};'>"
+    f"<span style='font-size:0.72rem; font-weight:700; letter-spacing:1px; "
+    f"text-transform:uppercase; color:{SECTION_PILL_COLOR}; background:{SECTION_PILL_BG}; "
+    f"padding:3px 10px; border-radius:6px; margin-right:10px;'>SOLVER</span>"
+    f"<span style='color:{TEXT_SECOND}; font-size:0.95rem;'>"
+    f"Pianificazione mensile biomasse — solver <b>dual-constraint</b> "
+    f"(saving GHG + produzione target) con configurazione impianto <code style='background:{CODE_BG}; "
+    f"padding:2px 6px; border-radius:4px; font-size:0.85em; color:{CODE_COLOR};'>ep</code> ex RED III."
+    f"</span></div>",
     unsafe_allow_html=True,
 )
 
