@@ -721,39 +721,107 @@ with tab4:
         fig4b.update_traces(textposition="inside", textinfo="percent+label")
         st.plotly_chart(fig4b, use_container_width=True)
 
-    # Tabella di dettaglio per calcolo ricavi per biomassa
-    st.markdown("##### 💶 Dettaglio per tipologia di biomassa (per calcolo ricavi)")
+    # Tabella di dettaglio per calcolo ricavi per biomassa (tariffa editabile)
+    st.markdown("##### 💶 Dettaglio per tipologia di biomassa (tariffa €/MWh editabile ✏️)")
+
+    # Stato persistente: tariffe per biomassa
+    if "tariffs_eur_mwh" not in st.session_state:
+        st.session_state["tariffs_eur_mwh"] = {n: 120.0 for n in FEED_NAMES}
+    # Retrocompat: se mancano chiavi per nuove biomasse
+    for n in FEED_NAMES:
+        if n not in st.session_state["tariffs_eur_mwh"]:
+            st.session_state["tariffs_eur_mwh"][n] = 120.0
+
     detail_rows = []
     for n in FEED_NAMES:
         t = annual_t[n]
         nm3_lordi = t * FEEDSTOCK_DB[n]["yield"]
         nm3_netti = nm3_lordi / aux_factor
         mwh_netti = nm3_netti * NM3_TO_MWH
+        tariffa = st.session_state["tariffs_eur_mwh"][n]
+        ricavi = mwh_netti * tariffa
         detail_rows.append({
             "Biomassa": n,
             "t/anno (FM)": t,
             "Resa (Nm³/t)": FEEDSTOCK_DB[n]["yield"],
-            "Sm³ lordi/anno": nm3_lordi,
             "Sm³ netti/anno": nm3_netti,
             "MWh netti/anno": mwh_netti,
             "Quota % MWh": (mwh_netti / sum(annual_mwh.values()) * 100)
                            if sum(annual_mwh.values()) > 0 else 0,
+            "Tariffa €/MWh": tariffa,
+            "Ricavi €/anno": ricavi,
         })
     df_detail = pd.DataFrame(detail_rows)
-    st.dataframe(
-        df_detail.style.format({
-            "t/anno (FM)": "{:,.0f}",
-            "Resa (Nm³/t)": "{:.0f}",
-            "Sm³ lordi/anno": "{:,.0f}",
-            "Sm³ netti/anno": "{:,.0f}",
-            "MWh netti/anno": "{:,.1f}",
-            "Quota % MWh": "{:.1f}%",
-        }),
-        hide_index=True, use_container_width=True,
+
+    detail_col_cfg = {
+        "Biomassa": st.column_config.TextColumn("Biomassa", disabled=True),
+        "t/anno (FM)": st.column_config.NumberColumn(
+            "t/anno (FM)", disabled=True, format="%.0f"
+        ),
+        "Resa (Nm³/t)": st.column_config.NumberColumn(
+            "Resa Nm³/t", disabled=True, format="%.0f"
+        ),
+        "Sm³ netti/anno": st.column_config.NumberColumn(
+            "Sm³ netti/anno", disabled=True, format="%.0f"
+        ),
+        "MWh netti/anno": st.column_config.NumberColumn(
+            "MWh netti/anno", disabled=True, format="%.1f"
+        ),
+        "Quota % MWh": st.column_config.NumberColumn(
+            "Quota % MWh", disabled=True, format="%.1f%%"
+        ),
+        "Tariffa €/MWh": st.column_config.NumberColumn(
+            "Tariffa €/MWh ✏️",
+            min_value=0.0, max_value=1000.0, step=1.0, format="%.2f",
+            help="Tariffa incentivante/PPA per biomassa [€/MWh]. "
+                 "Modificabile per simulazioni di ricavi.",
+        ),
+        "Ricavi €/anno": st.column_config.NumberColumn(
+            "Ricavi €/anno 🧮", disabled=True, format="%.0f",
+            help="MWh netti × tariffa €/MWh (si ricalcola al variare della tariffa)",
+        ),
+    }
+
+    edited_detail = st.data_editor(
+        df_detail,
+        column_config=detail_col_cfg,
+        hide_index=True,
+        use_container_width=True,
+        num_rows="fixed",
+        key="editor_revenue_detail",
     )
+
+    # Se l'utente ha modificato una tariffa -> salva e rerun
+    new_tariffs = {
+        row["Biomassa"]: float(row["Tariffa €/MWh"])
+        for _, row in edited_detail.iterrows()
+    }
+    if new_tariffs != st.session_state["tariffs_eur_mwh"]:
+        st.session_state["tariffs_eur_mwh"] = new_tariffs
+        st.rerun()
+
+    # Totali ricavi
+    tot_mwh = sum(annual_mwh.values())
+    tot_revenue = sum(
+        annual_mwh[n] * st.session_state["tariffs_eur_mwh"][n]
+        for n in FEED_NAMES
+    )
+    tariffa_media_ponderata = (tot_revenue / tot_mwh) if tot_mwh > 0 else 0.0
+    cA, cB, cC = st.columns(3)
+    cA.metric("MWh netti totali/anno", f"{tot_mwh:,.0f}".replace(",", "."))
+    cB.metric(
+        "Tariffa media ponderata",
+        f"{tariffa_media_ponderata:,.2f} €/MWh".replace(",", "."),
+    )
+    cC.metric(
+        "💰 Ricavi totali/anno",
+        f"{tot_revenue:,.0f} €".replace(",", "."),
+    )
+
     st.caption(
-        f"📐 **Calcolo**: MWh netti per biomassa = t × resa_Nm³/t ÷ {aux_factor:.2f} (aux) × 0.00997 (LHV biometano). "
-        "Moltiplica la colonna «MWh netti/anno» per la tariffa incentivante €/MWh per avere i ricavi per tipologia."
+        f"📐 **Calcolo**: MWh netti/biomassa = t × resa_Nm³/t ÷ {aux_factor:.2f} × 0.00997. "
+        f"Ricavi/biomassa = MWh netti × tariffa €/MWh. "
+        f"Modifica la colonna «Tariffa €/MWh» per simulare scenari diversi."
     )
 
 # ------------------------- DOWNLOAD -------------------------
