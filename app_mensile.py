@@ -155,7 +155,33 @@ ELEC_DEMAND_UPGRADING = {
     "Amminico - chimico (slip ~0.1%)":                   0.15,
     "Scrubber ad acqua pressurizzata (slip ~1%)":        0.45,
 }
-ELEC_AUX_PLANT = 0.10   # kWh_e/Sm3 (pompe, agitatori, compressori ausiliari)
+# BOP - Balance of Plant: tutti gli ausiliari elettrici oltre l'upgrading core.
+# Valori in kWh_e per Sm3 biometano netto (tipici impianti IT 300-500 Sm3/h).
+#
+# PRETRATTAMENTO BIOGAS (linea gas PRIMA dell'upgrading):
+#   - Caricatore tramoggia / feeder biomasse a digestore: ~0.01
+#   - Torre desolforazione (chimica con ricircolo reagenti, o biologica
+#     con soffianti aria): ~0.03
+#   - Filtro carboni attivi (solo perdita carico, minimo): ~0.01
+ELEC_PRETREATMENT  = 0.05   # caricatore tramoggia + desolfo + carboni attivi
+# BIOLOGIA / FERMENTAZIONE:
+#   - Agitatori digestori (mesofilo, 24h): ~0.08-0.12
+#   - Pompe ricircolo substrato + carico/scarico: ~0.04-0.06
+ELEC_BIOLOGY       = 0.15   # agitatori digestori + pompe substrato
+# PLC + CONTROLLO + SERVIZI:
+#   - Quadri elettrici, UPS, strumentazione/analizzatori gas CH4/CO2/H2S
+#   - Illuminazione, HVAC sala controllo, antincendio
+ELEC_PLC_CONTROLS  = 0.03   # PLC, UPS, illuminazione, strumentazione
+ELEC_AUX_BOP       = ELEC_PRETREATMENT + ELEC_BIOLOGY + ELEC_PLC_CONTROLS  # = 0.23
+
+# Compressione per iniezione in rete gas (dipende dalla pressione di consegna)
+# [kWh_e / Sm3 biometano netto]. Booster elettrico bi-stadio tipico.
+INJECTION_PRESSURE = {
+    "Bassa pressione (distribuzione 0,5-5 bar)":         0.05,
+    "Media pressione (5-24 bar)":                        0.15,
+    "Alta pressione (SRG/Snam 24-70 bar)":               0.25,
+    "Nessuna iniezione (liquefazione/bio-CNG in loco)":  0.10,
+}
 
 # Methane slip per tecnologia (frazione di biometano lordo persa come CH4)
 METHANE_SLIP = {
@@ -167,7 +193,8 @@ METHANE_SLIP = {
 
 # Rendimenti conversione (letteratura)
 ETA_BOILER_BIOGAS = 0.88     # caldaia a biogas/biometano
-ETA_CHP_ELEC = 0.40          # cogeneratore - elettrico
+ETA_CHP_ELEC      = 0.40     # cogeneratore - efficienza elettrica
+ETA_CHP_THERM     = 0.45     # cogeneratore - efficienza termica (calore recuperato)
 LHV_BIOMETHANE_KWH = LHV_BIOMETHANE / 3.6   # 35.9 MJ/Sm3 = 9.972 kWh/Sm3
 
 HEAT_IS_INTERNAL = "Autoconsumo biogas/biometano"
@@ -175,50 +202,78 @@ ELEC_IS_INTERNAL = "Autoproduzione FV/cogenerazione"
 
 
 def compute_aux_factor(upgrading_opt: str, heat_opt: str, elec_opt: str,
+                        injection_opt: str = "Media pressione (5-24 bar)",
                         margin: float = 0.03,
-                        cogen_fraction: float = 0.6) -> dict:
+                        cogen_fraction: float = 0.6,
+                        recover_chp_heat: bool = True) -> dict:
     """
     Calcola aux_factor = Sm3_biometano_lordo / Sm3_biometano_netto
     dal bilancio materiale/energetico dell'impianto.
 
     aux_factor = 1 / (1 - f_calore - f_elettrico - f_slip - f_margine)
 
-    Parametri:
-      upgrading_opt: tecnologia upgrading (da EP_UPGRADING)
-      heat_opt:      fonte calore (da EP_HEAT). Se "Autoconsumo biogas/
-                     biometano" -> pesa come autoconsumo interno; se gas
-                     naturale/teleriscaldamento -> non pesa (fornito dall'
-                     esterno, il suo costo GHG e' gia' in ep_heat).
-      elec_opt:      fonte elettricita' (da EP_ELEC). "Autoproduzione FV/
-                     cogenerazione" -> il 60% (cogen_fraction) e' cogen
-                     biogas, il 40% FV (non pesa). "Rete" -> non pesa.
-      margin:        perdite fisse + downtime (default 3%)
-      cogen_fraction: quota dell'elettricita' autoprodotta che viene da
-                     cogeneratore biogas (resto da FV); 0.6 tipico
-                     (CHP dimensionato per coprire fabbisogno base).
-    """
-    heat_need = HEAT_DEMAND_UPGRADING[upgrading_opt] + HEAT_DIGESTORE
-    elec_need = ELEC_DEMAND_UPGRADING[upgrading_opt] + ELEC_AUX_PLANT
+    Il modello contabilizza TUTTI gli autoconsumi reali d'impianto:
+      - Pretrattamento biogas: caricatore tramoggia + desolfo + carboni attivi
+      - Biologia: agitatori digestori + pompe ricircolo substrato
+      - Upgrading core: PSA / membrane / amminico / scrubber acqua
+      - Compressione iniezione rete (dipende dalla pressione di consegna)
+      - PLC + controllo + strumentazione + servizi
+      - Riscaldamento digestori (mesofilo) + eventuale calore upgrading
 
-    # Frazione biometano lordo autoconsumato per calore
+    Parametri:
+      upgrading_opt:    tecnologia upgrading (da EP_UPGRADING)
+      heat_opt:         fonte calore (da EP_HEAT). Se interna (biogas
+                        autoconsumo) -> pesa, altrimenti no.
+      elec_opt:         fonte elettricita' (da EP_ELEC). "Autoproduzione
+                        FV/cogenerazione" -> pesa in proporzione alla
+                        cogen_fraction (resto FV, non pesa).
+      injection_opt:    pressione iniezione rete gas (da INJECTION_PRESSURE)
+      margin:           perdite fisse + downtime (default 3%)
+      cogen_fraction:   quota elettricita' autoprodotta coperta dal CHP
+                        biogas (resto da FV); tipico 0.6.
+      recover_chp_heat: se True, il calore cogenerato dal CHP copre parte
+                        del fabbisogno termico dei digestori (default ON).
+    """
+    # --- FABBISOGNO TERMICO -------------------------------------------------
+    heat_upgrading_need = HEAT_DEMAND_UPGRADING[upgrading_opt]
+    heat_digestore_need = HEAT_DIGESTORE
+    heat_need_gross = heat_upgrading_need + heat_digestore_need
+
+    # --- FABBISOGNO ELETTRICO -----------------------------------------------
+    elec_upgrading = ELEC_DEMAND_UPGRADING[upgrading_opt]
+    elec_bop       = ELEC_AUX_BOP  # pretrattamento + biologia + PLC
+    elec_injection = INJECTION_PRESSURE[injection_opt]
+    elec_need      = elec_upgrading + elec_bop + elec_injection
+
+    # --- RECUPERO CALORE COGENERATO DAL CHP ---------------------------------
+    # Il CHP biogas che produce elettricita' genera anche calore di recupero
+    # (η_term ~ 45%). In un impianto ben progettato, questo calore copre il
+    # riscaldamento digestori + una quota dell'upgrading prima di attingere
+    # alla caldaia dedicata. Si conta solo se l'elettricita' e' da cogen.
+    heat_recovered = 0.0
+    if recover_chp_heat and elec_opt == ELEC_IS_INTERNAL and cogen_fraction > 0:
+        elec_from_chp = elec_need * cogen_fraction
+        # calore cogenerato = elettr * (η_t / η_e)
+        heat_recovered = elec_from_chp * (ETA_CHP_THERM / ETA_CHP_ELEC)
+    heat_need_residual = max(heat_need_gross - heat_recovered, 0.0)
+
+    # --- FRAZIONI AUTOCONSUMO (rispetto al biometano lordo) -----------------
     if heat_opt == HEAT_IS_INTERNAL:
-        f_heat = heat_need / (LHV_BIOMETHANE_KWH * ETA_BOILER_BIOGAS)
+        # calore residuo coperto da caldaia biogas dedicata
+        f_heat = heat_need_residual / (LHV_BIOMETHANE_KWH * ETA_BOILER_BIOGAS)
     else:
         f_heat = 0.0
 
-    # Frazione biometano lordo autoconsumato per elettricita'
-    # Solo se elettricita' e' almeno in parte da cogeneratore biogas.
     if elec_opt == ELEC_IS_INTERNAL:
         f_elec = (elec_need * cogen_fraction) / (LHV_BIOMETHANE_KWH * ETA_CHP_ELEC)
     else:
         f_elec = 0.0
 
-    f_slip = METHANE_SLIP[upgrading_opt]
+    f_slip   = METHANE_SLIP[upgrading_opt]
     f_margin = max(margin, 0.0)
 
     f_tot = f_heat + f_elec + f_slip + f_margin
-    # Vincoli di sanita': non oltre il 50% altrimenti il modello esplode
-    f_tot = min(f_tot, 0.50)
+    f_tot = min(f_tot, 0.50)  # clamp di sicurezza
 
     aux = 1.0 / (1.0 - f_tot)
     return {
@@ -228,8 +283,14 @@ def compute_aux_factor(upgrading_opt: str, heat_opt: str, elec_opt: str,
         "f_slip": f_slip,
         "f_margin": f_margin,
         "f_tot": f_tot,
-        "heat_need": heat_need,
-        "elec_need": elec_need,
+        # dettaglio per breakdown UI / relazione GSE
+        "heat_need_gross":    heat_need_gross,
+        "heat_recovered_chp": heat_recovered,
+        "heat_need_residual": heat_need_residual,
+        "elec_need":          elec_need,
+        "elec_upgrading":     elec_upgrading,
+        "elec_bop":           elec_bop,
+        "elec_injection":     elec_injection,
     }
 
 # ============================================================
@@ -553,6 +614,13 @@ with st.sidebar:
                              list(EP_HEAT.keys()), index=0)
     elec_opt = st.selectbox("Elettricità ausiliari",
                              list(EP_ELEC.keys()), index=1)
+    injection_opt = st.selectbox(
+        "Iniezione biometano in rete",
+        list(INJECTION_PRESSURE.keys()), index=1,
+        help="Pressione di consegna del biometano. Determina il consumo "
+             "elettrico del booster compressore a valle dell'upgrading "
+             "(0,05-0,25 kWh_e/Sm³).",
+    )
 
     ep_digestate = EP_DIGESTATE[digestate_opt]
     ep_upgrading = EP_UPGRADING[upgrading_opt]
@@ -594,6 +662,7 @@ with st.sidebar:
     )
 
     cogen_frac = 0.6  # default: 60% elettricita' da CHP biogas, 40% FV
+    recover_chp_heat = True
     if elec_opt == ELEC_IS_INTERNAL:
         cogen_frac = st.slider(
             "Quota cogen biogas nell'autoproduzione elettrica [%]",
@@ -602,13 +671,22 @@ with st.sidebar:
                  "la quota coperta dal CHP (resto dalla FV). Il CHP biogas "
                  "consuma biometano interno, la FV no.",
         ) / 100.0
+        recover_chp_heat = st.checkbox(
+            "Recupero calore cogenerato dal CHP → digestori",
+            value=True,
+            help="Se il CHP cogenerativo recupera calore (η_t≈45%) e lo usa "
+                 "per riscaldare i digestori, la caldaia dedicata consuma "
+                 "meno biogas. Default ON (impianti ben progettati).",
+        )
 
     aux_auto_data = compute_aux_factor(
         upgrading_opt=upgrading_opt,
         heat_opt=heat_opt,
         elec_opt=elec_opt,
+        injection_opt=injection_opt,
         margin=margin_pct / 100.0,
         cogen_fraction=cogen_frac,
+        recover_chp_heat=recover_chp_heat,
     )
     aux_auto = aux_auto_data["aux_factor"]
 
@@ -638,23 +716,41 @@ with st.sidebar:
     ):
         st.markdown(
             f"**Formula**: aux = 1 / (1 − f_calore − f_elettr − f_slip − f_margine)\n\n"
-            f"- 🔥 **Calore**: fabbisogno {fmt_it(aux_auto_data['heat_need'], 2)} "
-            f"kWh_t/Sm³ (digestore {fmt_it(HEAT_DIGESTORE,2)} + upgrading "
-            f"{fmt_it(HEAT_DEMAND_UPGRADING[upgrading_opt],2)})\n"
-            f"  → f_calore = **{fmt_it(aux_auto_data['f_heat']*100, 2, '%')}** "
-            f"(fonte: {heat_opt})\n"
-            f"- ⚡ **Elettricita'**: fabbisogno {fmt_it(aux_auto_data['elec_need'], 2)} "
-            f"kWh_e/Sm³ (upgrading {fmt_it(ELEC_DEMAND_UPGRADING[upgrading_opt],2)} + "
-            f"ausiliari {fmt_it(ELEC_AUX_PLANT,2)})\n"
-            f"  → f_elettr = **{fmt_it(aux_auto_data['f_elec']*100, 2, '%')}** "
+            f"### 🔥 BILANCIO TERMICO\n"
+            f"Fabbisogno termico lordo = **{fmt_it(aux_auto_data['heat_need_gross'], 3)} kWh_t/Sm³**\n"
+            f"- Riscaldamento digestori (mesofilo): {fmt_it(HEAT_DIGESTORE, 3)}\n"
+            f"- Calore upgrading ({upgrading_opt.split(' (')[0]}): "
+            f"{fmt_it(HEAT_DEMAND_UPGRADING[upgrading_opt], 3)}\n\n"
+            f"Recupero calore dal CHP cogenerativo: "
+            f"**−{fmt_it(aux_auto_data['heat_recovered_chp'], 3)} kWh_t/Sm³** "
+            f"{'✅ attivo' if recover_chp_heat and elec_opt==ELEC_IS_INTERNAL else '⏸ non applicato'}\n\n"
+            f"→ Calore residuo caldaia: **{fmt_it(aux_auto_data['heat_need_residual'], 3)} kWh_t/Sm³**\n"
+            f"→ **f_calore = {fmt_it(aux_auto_data['f_heat']*100, 2, '%')}** "
+            f"(fonte: {heat_opt})\n\n"
+            f"### ⚡ BILANCIO ELETTRICO\n"
+            f"Fabbisogno elettrico totale = **{fmt_it(aux_auto_data['elec_need'], 3)} kWh_e/Sm³**\n"
+            f"- Upgrading core ({upgrading_opt.split(' (')[0]}): "
+            f"{fmt_it(aux_auto_data['elec_upgrading'], 3)}\n"
+            f"- BOP = pretrattamento biogas + biologia + PLC: "
+            f"{fmt_it(aux_auto_data['elec_bop'], 3)}\n"
+            f"  &nbsp;&nbsp;(caricatore tramoggia + desolfo + carb. attivi: "
+            f"{fmt_it(ELEC_PRETREATMENT, 3)}, "
+            f"agitatori+pompe substrato: {fmt_it(ELEC_BIOLOGY, 3)}, "
+            f"PLC+servizi: {fmt_it(ELEC_PLC_CONTROLS, 3)})\n"
+            f"- Compressione iniezione rete "
+            f"({injection_opt.split(' (')[0]}): "
+            f"{fmt_it(aux_auto_data['elec_injection'], 3)}\n\n"
+            f"→ **f_elettr = {fmt_it(aux_auto_data['f_elec']*100, 2, '%')}** "
             f"(fonte: {elec_opt}"
-            f"{f', cogen {fmt_it(cogen_frac*100,0,chr(37))}' if elec_opt==ELEC_IS_INTERNAL else ''})\n"
-            f"- 💨 **Methane slip** upgrading: **{fmt_it(aux_auto_data['f_slip']*100, 2, '%')}**\n"
-            f"- 🔧 **Margine perdite+downtime**: **{fmt_it(aux_auto_data['f_margin']*100, 1, '%')}**\n"
-            f"- **TOTALE autoconsumo: {fmt_it(aux_auto_data['f_tot']*100, 2, '%')}**\n\n"
-            f"Rendimenti: caldaia biogas η={fmt_it(ETA_BOILER_BIOGAS*100,0,'%')}, "
-            f"CHP elettrico η={fmt_it(ETA_CHP_ELEC*100,0,'%')}, "
-            f"LHV biometano = {fmt_it(LHV_BIOMETHANE_KWH, 2)} kWh/Sm³."
+            f"{f', quota cogen {fmt_it(cogen_frac*100,0,chr(37))}' if elec_opt==ELEC_IS_INTERNAL else ''})\n\n"
+            f"### 💨 ALTRE PERDITE\n"
+            f"- Methane slip upgrading: **{fmt_it(aux_auto_data['f_slip']*100, 2, '%')}**\n"
+            f"- Margine perdite diffuse + downtime: **{fmt_it(aux_auto_data['f_margin']*100, 1, '%')}**\n\n"
+            f"### ∑ TOTALE AUTOCONSUMO: **{fmt_it(aux_auto_data['f_tot']*100, 2, '%')}**\n\n"
+            f"*Rendimenti*: caldaia biogas η={fmt_it(ETA_BOILER_BIOGAS*100,0,'%')}, "
+            f"CHP elettr. η={fmt_it(ETA_CHP_ELEC*100,0,'%')}, "
+            f"CHP term. η={fmt_it(ETA_CHP_THERM*100,0,'%')} &nbsp;·&nbsp; "
+            f"LHV biometano = {fmt_it(LHV_BIOMETHANE_KWH, 3)} kWh/Sm³."
         )
 
     st.metric("Produzione lorda richiesta",
