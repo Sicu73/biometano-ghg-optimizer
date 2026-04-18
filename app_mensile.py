@@ -685,15 +685,76 @@ with tab3:
     )
 
 with tab4:
-    annual = {n: max(df_res[n].sum(), 0) for n in FEED_NAMES}
-    fig4 = px.pie(
-        names=list(annual.keys()),
-        values=list(annual.values()),
-        color=list(annual.keys()),
-        color_discrete_map={n: FEEDSTOCK_DB[n]["color"] for n in FEED_NAMES},
-        title="Mix annuale biomasse (t/anno)", hole=0.4,
+    # Mix in tonnellate (FM)
+    annual_t = {n: max(df_res[n].sum(), 0) for n in FEED_NAMES}
+    # Mix in MWh netti: ogni biomassa contribuisce in proporzione a (massa x yield)
+    # MWh_netti_n = massa_n x yield_n / aux_factor x NM3_TO_MWH
+    annual_mwh = {
+        n: max(df_res[n].sum(), 0) * FEEDSTOCK_DB[n]["yield"]
+           / aux_factor * NM3_TO_MWH
+        for n in FEED_NAMES
+    }
+    color_map = {n: FEEDSTOCK_DB[n]["color"] for n in FEED_NAMES}
+
+    colA, colB = st.columns(2)
+    with colA:
+        fig4a = px.pie(
+            names=list(annual_t.keys()),
+            values=list(annual_t.values()),
+            color=list(annual_t.keys()),
+            color_discrete_map=color_map,
+            title=f"Mix t/anno (totale {sum(annual_t.values()):,.0f} t)".replace(",", "."),
+            hole=0.4,
+        )
+        fig4a.update_traces(textposition="inside", textinfo="percent+label")
+        st.plotly_chart(fig4a, use_container_width=True)
+
+    with colB:
+        fig4b = px.pie(
+            names=list(annual_mwh.keys()),
+            values=list(annual_mwh.values()),
+            color=list(annual_mwh.keys()),
+            color_discrete_map=color_map,
+            title=f"Mix MWh netti/anno (totale {sum(annual_mwh.values()):,.0f} MWh)".replace(",", "."),
+            hole=0.4,
+        )
+        fig4b.update_traces(textposition="inside", textinfo="percent+label")
+        st.plotly_chart(fig4b, use_container_width=True)
+
+    # Tabella di dettaglio per calcolo ricavi per biomassa
+    st.markdown("##### 💶 Dettaglio per tipologia di biomassa (per calcolo ricavi)")
+    detail_rows = []
+    for n in FEED_NAMES:
+        t = annual_t[n]
+        nm3_lordi = t * FEEDSTOCK_DB[n]["yield"]
+        nm3_netti = nm3_lordi / aux_factor
+        mwh_netti = nm3_netti * NM3_TO_MWH
+        detail_rows.append({
+            "Biomassa": n,
+            "t/anno (FM)": t,
+            "Resa (Nm³/t)": FEEDSTOCK_DB[n]["yield"],
+            "Sm³ lordi/anno": nm3_lordi,
+            "Sm³ netti/anno": nm3_netti,
+            "MWh netti/anno": mwh_netti,
+            "Quota % MWh": (mwh_netti / sum(annual_mwh.values()) * 100)
+                           if sum(annual_mwh.values()) > 0 else 0,
+        })
+    df_detail = pd.DataFrame(detail_rows)
+    st.dataframe(
+        df_detail.style.format({
+            "t/anno (FM)": "{:,.0f}",
+            "Resa (Nm³/t)": "{:.0f}",
+            "Sm³ lordi/anno": "{:,.0f}",
+            "Sm³ netti/anno": "{:,.0f}",
+            "MWh netti/anno": "{:,.1f}",
+            "Quota % MWh": "{:.1f}%",
+        }),
+        hide_index=True, use_container_width=True,
     )
-    st.plotly_chart(fig4, use_container_width=True)
+    st.caption(
+        f"📐 **Calcolo**: MWh netti per biomassa = t × resa_Nm³/t ÷ {aux_factor:.2f} (aux) × 0.00997 (LHV biometano). "
+        "Moltiplica la colonna «MWh netti/anno» per la tariffa incentivante €/MWh per avere i ricavi per tipologia."
+    )
 
 # ------------------------- DOWNLOAD -------------------------
 st.divider()
