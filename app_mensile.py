@@ -33,7 +33,7 @@ MAX_ALLOWED_EMISSIONS = FOSSIL_COMPARATOR * (1 - GHG_SAVING_THRESHOLD)  # 18.8
 LHV_BIOMETHANE = 35.9                          # MJ/Nm3 (97% CH4)
 NM3_TO_MWH = 0.00997                           # 1 Nm3 -> MWh
 DEFAULT_AUX_FACTOR = 1.29                      # netto -> lordo (CHP+caldaia)
-PLANT_NET_SMCH = 300.0                         # Sm3/h netti autorizzati
+DEFAULT_PLANT_NET_SMCH = 300.0                 # Sm3/h netti autorizzati (default)
 
 # ============================================================
 # DATABASE FEEDSTOCK
@@ -129,12 +129,12 @@ def ghg_summary(masses: dict, aux: float):
 
 def solve_1_unknown_production(fixed_masses: dict, unknown: str,
                                 hours: float, aux: float,
-                                target_net_smch: float = PLANT_NET_SMCH) -> float:
+                                plant_net: float = DEFAULT_PLANT_NET_SMCH) -> float:
     """
     Modalita' 3+1: risolve 1 incognita soddisfando SOLO la produzione lorda.
-    target_net_smch: setpoint produzione netta (Sm3/h); default 300 = ceiling.
+    plant_net: taglia netta autorizzata (Sm3/h); default 300.
     """
-    gross_target = target_net_smch * aux * hours
+    gross_target = plant_net * aux * hours
     covered = sum((fixed_masses.get(n) or 0.0) * FEEDSTOCK_DB[n]["yield"]
                   for n in FEED_NAMES if n != unknown)
     remaining = gross_target - covered
@@ -143,11 +143,11 @@ def solve_1_unknown_production(fixed_masses: dict, unknown: str,
 
 def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
                            hours: float, aux: float,
-                           target_net_smch: float = PLANT_NET_SMCH):
+                           plant_net: float = DEFAULT_PLANT_NET_SMCH):
     """
     Modalita' 2+2: risolve sistema lineare 2x2.
       Eq.1 (produzione):
-          sum(mass_i * yield_i) = target_net_smch * aux * hours
+          sum(mass_i * yield_i) = plant_net * aux * hours
       Eq.2 (saving = TARGET_SAVING, cioe' e_w = TARGET_E_MAX):
           sum((e_i - TARGET_E_MAX) * yield_i * mass_i) = 0
     Ritorna (masses_dict, feasible_bool, message_str)
@@ -155,7 +155,7 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
       - se una soluzione e' negativa, la forza a 0 e ricalcola l'altra
         soddisfacendo la sola produzione.
     """
-    gross_target = target_net_smch * aux * hours
+    gross_target = plant_net * aux * hours
     # RHS, togliendo contributi delle 2 fisse
     rhs_prod = gross_target
     rhs_sust = 0.0
@@ -226,29 +226,20 @@ st.markdown(
 # ------------------------- SIDEBAR -------------------------
 with st.sidebar:
     st.header("⚙️ Parametri impianto")
+    plant_net_smch = st.number_input(
+        "🎯 Netto autorizzato [Sm³/h netti]",
+        min_value=10.0, max_value=2000.0,
+        value=DEFAULT_PLANT_NET_SMCH, step=5.0,
+        help="Taglia netta dell'impianto. Cambia il setpoint di produzione: "
+             "tutte le biomasse vengono ricalcolate per centrare questo valore.",
+    )
     aux_factor = st.slider(
         "Fattore netto→lordo (CHP + caldaia)",
         min_value=1.20, max_value=1.50,
         value=DEFAULT_AUX_FACTOR, step=0.01,
     )
-    st.metric("Tetto autorizzativo (ceiling)", f"{PLANT_NET_SMCH:.0f} Sm³/h netti")
-    st.caption("Il target Sm³/h netti si imposta in tabella, per ciascun mese.")
-
-    st.divider()
-    st.subheader("🎚️ Target globale (scorciatoia)")
-    global_target = st.number_input(
-        "Imposta stesso target per tutti i mesi [Sm³/h netti]",
-        min_value=0.0, max_value=PLANT_NET_SMCH, value=PLANT_NET_SMCH, step=5.0,
-    )
-    if st.button("Applica a tutti i mesi"):
-        # Propaga il valore a tutti gli state_key esistenti
-        for k in list(st.session_state.keys()):
-            if k.startswith("mens_in_") and isinstance(
-                st.session_state[k], pd.DataFrame
-            ):
-                if "Target Sm³/h netti" in st.session_state[k].columns:
-                    st.session_state[k]["Target Sm³/h netti"] = global_target
-        st.rerun()
+    st.metric("Taglia netta", f"{plant_net_smch:.0f} Sm³/h")
+    st.metric("Produzione lorda richiesta", f"{plant_net_smch*aux_factor:.1f} Sm³/h")
 
     st.divider()
     st.header("📋 Database feedstock")
@@ -336,22 +327,23 @@ defaults_all = {
     "Liquame suino": 1500.0,
 }
 
-# --- Stato persistente: memorizzo SOLO le colonne editabili
-# (Mese, Ore, Target Sm³/h netti, fisse).
+# --- Stato persistente: memorizzo SOLO le colonne editabili (Mese, Ore, fisse).
 # Chiave state univoca per combinazione mode+fisse, cosi' cambio mode -> nuovo state.
 state_key = f"mens_in_{'dual' if is_dual_mode else 'single'}_{'-'.join(fixed_feeds)}"
 if state_key not in st.session_state:
     init_rows = []
     for m, h in zip(MONTHS, MONTH_HOURS):
-        row = {"Mese": m, "Ore": h, "Target Sm³/h netti": PLANT_NET_SMCH}
+        row = {"Mese": m, "Ore": h}
         for f in fixed_feeds:
             row[f] = defaults_all[f]
         init_rows.append(row)
     st.session_state[state_key] = pd.DataFrame(init_rows)
 
-# Retrocompatibilita': se lo state esiste ma non ha la nuova colonna, la aggiungo
-if "Target Sm³/h netti" not in st.session_state[state_key].columns:
-    st.session_state[state_key]["Target Sm³/h netti"] = PLANT_NET_SMCH
+# Retrocompatibilita': se lo state esiste con vecchia colonna target per mese, rimuovo
+if "Target Sm³/h netti" in st.session_state[state_key].columns:
+    st.session_state[state_key] = st.session_state[state_key].drop(
+        columns=["Target Sm³/h netti"]
+    )
 
 input_df = st.session_state[state_key]
 
@@ -361,18 +353,17 @@ warnings_list = []
 for _, row in input_df.iterrows():
     fixed_map = {n: float(row[n]) for n in fixed_feeds}
     hours = float(row["Ore"])
-    target_net = float(row["Target Sm³/h netti"])
 
     if is_dual_mode:
         sol, feasible, msg = solve_2_unknowns_dual(
-            fixed_map, unknown_feeds, hours, aux_factor, target_net
+            fixed_map, unknown_feeds, hours, aux_factor, plant_net_smch
         )
         all_masses = {**fixed_map, **sol}
         if not feasible:
             warnings_list.append(f"**{row['Mese']}**: {msg}")
     else:
         computed = solve_1_unknown_production(
-            fixed_map, unknown_feeds[0], hours, aux_factor, target_net
+            fixed_map, unknown_feeds[0], hours, aux_factor, plant_net_smch
         )
         all_masses = dict(fixed_map)
         all_masses[unknown_feeds[0]] = max(computed, 0.0)
@@ -388,36 +379,35 @@ for _, row in input_df.iterrows():
     # Validita' - DUE CONDIZIONI OBBLIGATORIE:
     #   (1) saving GHG >= 80% (calcolato su biometano LORDO, cosi' anche la
     #       quota assorbita dagli ausiliari CHP+caldaia e' rinnovabile >=80%)
-    #   (2) produzione netta <= 300 Sm3/h (PLANT_NET_SMCH) = tetto autorizzativo
-    #       GSE, HARD CEILING. Se target_net > 300 la riga e' invalida.
-    # Inoltre: se target <= 300, le biomasse dimensionano per produrre
-    # ESATTAMENTE il target. Sub-ottimale significa che hai margine sul tetto.
+    #   (2) produzione netta <= plant_net_smch (taglia autorizzata, scelta
+    #       dall'utente in sidebar). Il solver dimensiona PER CENTRARE questa
+    #       taglia, quindi net_smch = plant_net_smch a meno di arrotondamenti.
+    #       Le biomasse dimensionano il LORDO = plant_net_smch x aux_factor.
     net_smch = summary["nm3_net"] / hours if hours > 0 else 0.0
     saving_ok = summary["saving"] >= GHG_SAVING_THRESHOLD * 100
-    # Hard ceiling autorizzativo: mai oltre 300 Sm3/h
-    ceiling_ok = net_smch <= PLANT_NET_SMCH + 0.5
-    # Target centrato: raggiungo il setpoint scelto dall'utente
-    target_hit = abs(net_smch - target_net) < 0.5
+    prod_ok = net_smch <= plant_net_smch + 0.5   # tolleranza +0.5 Sm3/h
+    target_hit = abs(net_smch - plant_net_smch) < 0.5
 
-    if saving_ok and ceiling_ok:
+    if saving_ok and prod_ok:
         validita = "✅ Valido"
     else:
         motivi = []
         if not saving_ok:
             motivi.append(f"saving {summary['saving']:.1f}% < 80%")
-        if not ceiling_ok:
-            motivi.append(f"netti {net_smch:.1f} > 300 Sm³/h (over-autorizz.)")
+        if not prod_ok:
+            motivi.append(
+                f"netti {net_smch:.1f} > {plant_net_smch:.0f} Sm³/h (over-autorizz.)"
+            )
         validita = "❌ Non valido: " + "; ".join(motivi)
 
-    if saving_ok and ceiling_ok and not target_hit:
-        stato = f"⚠️ netti {net_smch:.1f} ≠ target {target_net:.0f}"
+    if saving_ok and prod_ok and not target_hit:
+        stato = f"⚠️ netti {net_smch:.1f} < {plant_net_smch:.0f} (sub-ottimale)"
     elif not feasible:
         stato = "clampato"
     else:
         stato = f"saving {summary['saving']:.1f}% · netti {net_smch:.1f}"
 
-    res = {"Mese": row["Mese"], "Ore": int(hours),
-           "Target Sm³/h netti": target_net}
+    res = {"Mese": row["Mese"], "Ore": int(hours)}
     for n in FEED_NAMES:
         res[n] = all_masses[n]
     res["Totale biomasse (t)"] = sum(all_masses.values())
@@ -441,13 +431,6 @@ col_cfg = {
     "Ore": st.column_config.NumberColumn(
         "Ore ✏️", min_value=0, max_value=744, step=1, format="%d",
         help="Ore operative del mese (modificabile)",
-    ),
-    "Target Sm³/h netti": st.column_config.NumberColumn(
-        "Target Sm³/h ✏️",
-        min_value=0.0, max_value=PLANT_NET_SMCH, step=5.0, format="%.1f",
-        help=f"Setpoint di produzione NETTA [Sm³/h]. "
-             f"Default {PLANT_NET_SMCH:.0f}. Max {PLANT_NET_SMCH:.0f} "
-             f"(tetto autorizzativo GSE).",
     ),
 }
 for f in fixed_feeds:
@@ -489,15 +472,13 @@ edited = st.data_editor(
 )
 
 # --- Se l'utente ha modificato una cella editabile, aggiorna state e rerun
-edit_cols = ["Mese", "Ore", "Target Sm³/h netti"] + fixed_feeds
+edit_cols = ["Mese", "Ore"] + fixed_feeds
 new_input = edited[edit_cols].reset_index(drop=True).copy()
 new_input["Ore"] = new_input["Ore"].astype(int)
-new_input["Target Sm³/h netti"] = new_input["Target Sm³/h netti"].astype(float)
 for f in fixed_feeds:
     new_input[f] = new_input[f].astype(float)
 old_input = input_df[edit_cols].reset_index(drop=True).copy()
 old_input["Ore"] = old_input["Ore"].astype(int)
-old_input["Target Sm³/h netti"] = old_input["Target Sm³/h netti"].astype(float)
 for f in fixed_feeds:
     old_input[f] = old_input[f].astype(float)
 
