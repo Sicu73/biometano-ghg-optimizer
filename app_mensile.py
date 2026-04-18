@@ -486,6 +486,29 @@ st.subheader("🎯 Modalità di calcolo")
 MODE_DUAL = "2 biomasse fisse + 2 calcolate  (saving 81% + produzione 300 Sm³/h)"
 MODE_SINGLE = "3 biomasse fisse + 1 calcolata  (solo produzione 300 Sm³/h)"
 
+# --- Applica eventuali risultati ottimizzazione PRIMA di creare i widget ---
+# (Streamlit non consente di modificare session_state di una chiave-widget
+# dopo che qualunque widget e' stato renderizzato nello stesso run.)
+_pending_opt = st.session_state.pop("_pending_optimization", None)
+if _pending_opt is not None:
+    st.session_state["mode_radio"] = MODE_DUAL
+    st.session_state["fixed_multiselect"] = list(_pending_opt["unused"])
+    # Pre-popola lo state della tabella con 0 sulle 2 inutilizzate
+    new_state_key = f"mens_in_dual_{'-'.join(_pending_opt['unused'])}"
+    rows_init = []
+    for mm, hh in zip(MONTHS, MONTH_HOURS):
+        r = {"Mese": mm, "Ore": hh}
+        for f in _pending_opt["unused"]:
+            r[f] = 0.0
+        rows_init.append(r)
+    st.session_state[new_state_key] = pd.DataFrame(rows_init)
+    # Flag per banner informativo (consumato dopo il rendering dei controlli)
+    st.session_state["_optimize_info"] = {
+        "pair": _pending_opt["pair"],
+        "unused": _pending_opt["unused"],
+        "total_year": _pending_opt["total_year"],
+    }
+
 # -------- PULSANTE OTTIMIZZA (tutta larghezza, sempre visibile) ------------
 st.markdown(
     f"##### ⚡ Auto-calcolo ottimale – minimizza la somma totale delle biomasse "
@@ -504,16 +527,9 @@ optimize_clicked = st.button(
 )
 st.divider()
 
-# -------- RADIO MODALITA' --------------------------------------------------
-mode = st.radio(
-    "Scegli modalità:",
-    options=[MODE_DUAL, MODE_SINGLE],
-    index=0,
-    horizontal=False,
-    key="mode_radio",
-)
-
 # --- Gestione click OTTIMIZZA ----------------------------------------------
+# Salva solo un flag "_pending_optimization" (chiave NON-widget) e fa rerun:
+# al giro successivo il blocco sopra imposta i widget PRIMA che vengano creati.
 if optimize_clicked:
     best = find_optimal_pair(
         aux=aux_factor, plant_net=plant_net_smch,
@@ -529,30 +545,24 @@ if optimize_clicked:
             "digestato coperto, upgrading a membrane/amminico, off-gas RTO)."
         )
     else:
-        pair, total_h, masses_h = best
-        unused = [n for n in FEED_NAMES if n not in pair]  # queste restano 0
-        # Forza modalita' dual e multiselect sulle 2 inutilizzate
-        # (cosi' le 2 ottimali diventano automaticamente "calcolate")
-        st.session_state["mode_radio"] = MODE_DUAL
-        st.session_state["fixed_multiselect"] = list(unused)
-        # Pre-popola lo state della tabella con 0 sulle 2 inutilizzate
-        new_state_key = f"mens_in_dual_{'-'.join(unused)}"
-        rows_init = []
-        for mm, hh in zip(MONTHS, MONTH_HOURS):
-            r = {"Mese": mm, "Ore": hh}
-            for f in unused:
-                r[f] = 0.0
-            rows_init.append(r)
-        st.session_state[new_state_key] = pd.DataFrame(rows_init)
-        # Memorizza info per banner post-rerun
+        pair, total_h, _masses = best
+        unused = [n for n in FEED_NAMES if n not in pair]
         annual_hours = sum(MONTH_HOURS)
-        st.session_state["_optimize_info"] = {
+        st.session_state["_pending_optimization"] = {
             "pair": list(pair),
             "unused": unused,
             "total_year": total_h * annual_hours,
-            "masses_h": masses_h,
         }
         st.rerun()
+
+# -------- RADIO MODALITA' --------------------------------------------------
+mode = st.radio(
+    "Scegli modalità:",
+    options=[MODE_DUAL, MODE_SINGLE],
+    index=0,
+    horizontal=False,
+    key="mode_radio",
+)
 
 is_dual_mode = mode.startswith("2")
 
