@@ -26,14 +26,52 @@ import plotly.graph_objects as go
 # COSTANTI RED III
 # ============================================================
 FOSSIL_COMPARATOR = 94.0                       # gCO2eq/MJ (comparator fossile)
-GHG_SAVING_THRESHOLD = 0.80                    # 80% soglia RED III biometano
-TARGET_SAVING = 0.81                           # 81% target solver (margine sicurezza)
-TARGET_E_MAX = FOSSIL_COMPARATOR * (1 - TARGET_SAVING)  # 17.86 gCO2eq/MJ
-MAX_ALLOWED_EMISSIONS = FOSSIL_COMPARATOR * (1 - GHG_SAVING_THRESHOLD)  # 18.8
+# Le soglie RED III variano per uso finale: 80% elettricita'/calore, 65% trasporti
 LHV_BIOMETHANE = 35.9                          # MJ/Nm3 (97% CH4)
 NM3_TO_MWH = 0.00997                           # 1 Nm3 -> MWh
 DEFAULT_AUX_FACTOR = 1.29                      # netto -> lordo (CHP+caldaia)
 DEFAULT_PLANT_NET_SMCH = 300.0                 # Sm3/h netti autorizzati (default)
+
+# ============================================================
+# SOGLIE RED III per destinazione d'uso biometano
+# (impianti nuovi >= 20/11/2023; per vecchi vedi D.Lgs. 5/2026 art. transitorio)
+# ============================================================
+END_USE_THRESHOLDS = {
+    "Elettricità/calore/immissione rete (nuovo ≥20/11/2023)": 0.80,
+    "Elettricità/calore (esistente <10 MW, primi 15 anni)": 0.70,
+    "Trasporti (BioGNL/BioCNG)": 0.65,
+}
+
+# ============================================================
+# EP (processing) - contributi impiantistici [gCO2eq/MJ biometano]
+# Valori medi da letteratura JRC-CONCAWE v5, UNI/TS 11567:2024, default RED III.
+# NB: valori indicativi; per certificazione GSE servono misure reali d'impianto.
+# ============================================================
+EP_DIGESTATE = {
+    "Stoccaggio APERTO (no copertura)":                 +15.0,
+    "Coperto anaerobico ~20 giorni":                     +3.0,
+    "Coperto ≥30 giorni con recupero gas residuo":       -5.0,
+}
+EP_UPGRADING = {
+    "PSA (methane slip ~1.5%)":                         +12.0,
+    "Membrane (slip ~0.5%)":                             +5.0,
+    "Amminico - chimico (slip ~0.1%)":                   +3.0,
+    "Scrubber ad acqua pressurizzata (slip ~1%)":        +8.0,
+}
+EP_OFFGAS = {
+    "Sì - RTO / ossidatore termico (riduce slip)":       -8.0,
+    "Sì - Flare/torcia":                                 -4.0,
+    "No - off-gas rilasciato in atmosfera":               0.0,
+}
+EP_HEAT = {
+    "Autoconsumo biogas/biometano":                       0.0,
+    "Teleriscaldamento / biomassa solida":               +1.0,
+    "Caldaia gas naturale":                              +3.0,
+}
+EP_ELEC = {
+    "Rete nazionale (mix IT)":                           +4.0,
+    "Autoproduzione FV/cogenerazione":                   +1.0,
+}
 
 # ============================================================
 # DATABASE FEEDSTOCK
@@ -87,16 +125,23 @@ MONTH_HOURS = [744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]
 # ============================================================
 # FUNZIONI DI CALCOLO
 # ============================================================
-def e_total_feedstock(name: str) -> float:
-    """Emissioni totali gCO2eq/MJ per singolo feedstock (semplificate)."""
+def e_total_feedstock(name: str, ep: float = 0.0) -> float:
+    """
+    Emissioni totali gCO2eq/MJ biometano per singolo feedstock.
+    Formula RED III semplificata: E = eec + ep + etd - esca
+      (el, eu, eccs, eccr = 0 per biometano da residui/colture dedicate IT)
+    ep: contributo impiantistico (processing), da configuratore impianto
+        [digestato + upgrading + off-gas + calore + elettricita' ausiliari].
+    """
     d = FEEDSTOCK_DB[name]
-    return d["eec"] + d["etd"] - d["esca"]
+    return d["eec"] + ep + d["etd"] - d["esca"]
 
 
-def ghg_summary(masses: dict, aux: float):
+def ghg_summary(masses: dict, aux: float, ep: float = 0.0):
     """
     Ritorna dict con: e_w, saving_pct, nm3_gross, nm3_net, mwh_net
     masses: {feedstock: mass_t}
+    ep: contributo processing [gCO2eq/MJ] da applicare a tutto il biometano.
     """
     total_mj = 0.0
     total_e_mj = 0.0
@@ -107,7 +152,7 @@ def ghg_summary(masses: dict, aux: float):
         d = FEEDSTOCK_DB[name]
         nm3 = m * d["yield"]
         mj = nm3 * LHV_BIOMETHANE
-        e = e_total_feedstock(name)
+        e = e_total_feedstock(name, ep)
         total_mj += mj
         total_e_mj += e * mj
         total_nm3 += nm3
@@ -143,17 +188,17 @@ def solve_1_unknown_production(fixed_masses: dict, unknown: str,
 
 def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
                            hours: float, aux: float,
-                           plant_net: float = DEFAULT_PLANT_NET_SMCH):
+                           plant_net: float = DEFAULT_PLANT_NET_SMCH,
+                           ep: float = 0.0,
+                           target_e_max: float = 17.86):
     """
     Modalita' 2+2: risolve sistema lineare 2x2.
       Eq.1 (produzione):
           sum(mass_i * yield_i) = plant_net * aux * hours
-      Eq.2 (saving = TARGET_SAVING, cioe' e_w = TARGET_E_MAX):
-          sum((e_i - TARGET_E_MAX) * yield_i * mass_i) = 0
-    Ritorna (masses_dict, feasible_bool, message_str)
-      - feasible_bool = True se entrambi >= 0
-      - se una soluzione e' negativa, la forza a 0 e ricalcola l'altra
-        soddisfacendo la sola produzione.
+      Eq.2 (saving target, cioe' e_w = target_e_max):
+          sum((e_i - target_e_max) * yield_i * mass_i) = 0
+    ep: contributo processing impianto, applicato a ciascun feedstock.
+    target_e_max: emissioni target [gCO2eq/MJ] per raggiungere saving target.
     """
     gross_target = plant_net * aux * hours
     # RHS, togliendo contributi delle 2 fisse
@@ -164,15 +209,15 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
             m = 0.0
         d = FEEDSTOCK_DB[n]
         y = d["yield"]
-        e = e_total_feedstock(n)
+        e = e_total_feedstock(n, ep)
         rhs_prod -= m * y
-        rhs_sust -= m * y * (e - TARGET_E_MAX)
+        rhs_sust -= m * y * (e - target_e_max)
 
     x, y_name = unknowns
     dx = FEEDSTOCK_DB[x]; dy = FEEDSTOCK_DB[y_name]
     yx = dx["yield"]; yy = dy["yield"]
-    ex = e_total_feedstock(x) - TARGET_E_MAX
-    ey = e_total_feedstock(y_name) - TARGET_E_MAX
+    ex = e_total_feedstock(x, ep) - target_e_max
+    ey = e_total_feedstock(y_name, ep) - target_e_max
 
     A = np.array([[yx, yy],
                   [yx * ex, yy * ey]], dtype=float)
@@ -219,8 +264,8 @@ st.set_page_config(
 
 st.title("📅 BioMethane Monthly Planner")
 st.markdown(
-    "Pianificazione mensile biomasse - impianto **300 Sm³/h netti** - "
-    "solver dual-constraint **saving 81% + produzione 300 Sm³/h**"
+    "Pianificazione mensile biomasse - solver dual-constraint "
+    "**saving GHG + produzione target** con configurazione impianto (ep) ex RED III."
 )
 
 # ------------------------- SIDEBAR -------------------------
@@ -242,24 +287,81 @@ with st.sidebar:
     st.metric("Produzione lorda richiesta", f"{plant_net_smch*aux_factor:.1f} Sm³/h")
 
     st.divider()
-    st.header("📋 Database feedstock")
+    st.header("🏭 Configurazione impianto (ep)")
+    st.caption(
+        "I parametri impiantistici concorrono a `ep` (processing), "
+        "che incide direttamente sul saving GHG ex RED III."
+    )
+
+    # Destinazione d'uso -> soglia GHG saving
+    end_use = st.selectbox(
+        "🎯 Destinazione biometano (→ soglia saving)",
+        list(END_USE_THRESHOLDS.keys()),
+        index=0,
+        help="RED III + D.Lgs. 5/2026: 80% per elettricita'/calore (impianto "
+             "nuovo >=20/11/2023), 70% per esistenti <10 MW primi 15 anni, "
+             "65% per trasporti.",
+    )
+    ghg_threshold = END_USE_THRESHOLDS[end_use]
+    target_saving = ghg_threshold + 0.01  # +1 pp margine sicurezza
+    target_e_max = FOSSIL_COMPARATOR * (1 - target_saving)
+    max_allowed_e = FOSSIL_COMPARATOR * (1 - ghg_threshold)
+    st.metric("Soglia saving obbligatoria",
+              f"{ghg_threshold*100:.0f}%",
+              delta=f"target solver {target_saving*100:.0f}%")
+
+    # Configuratore ep
+    digestate_opt = st.selectbox("Stoccaggio digestato",
+                                  list(EP_DIGESTATE.keys()), index=1)
+    upgrading_opt = st.selectbox("Tecnologia upgrading",
+                                  list(EP_UPGRADING.keys()), index=1)
+    offgas_opt = st.selectbox("Combustione off-gas",
+                               list(EP_OFFGAS.keys()), index=0)
+    heat_opt = st.selectbox("Fonte calore processo",
+                             list(EP_HEAT.keys()), index=0)
+    elec_opt = st.selectbox("Elettricità ausiliari",
+                             list(EP_ELEC.keys()), index=1)
+
+    ep_digestate = EP_DIGESTATE[digestate_opt]
+    ep_upgrading = EP_UPGRADING[upgrading_opt]
+    ep_offgas = EP_OFFGAS[offgas_opt]
+    ep_heat = EP_HEAT[heat_opt]
+    ep_elec = EP_ELEC[elec_opt]
+    ep_total = ep_digestate + ep_upgrading + ep_offgas + ep_heat + ep_elec
+
+    # Breakdown ep
+    with st.expander(f"📊 Breakdown ep = {ep_total:+.1f} gCO₂/MJ", expanded=True):
+        st.markdown(
+            f"- Digestato: **{ep_digestate:+.1f}**\n"
+            f"- Upgrading: **{ep_upgrading:+.1f}**\n"
+            f"- Off-gas: **{ep_offgas:+.1f}**\n"
+            f"- Calore: **{ep_heat:+.1f}**\n"
+            f"- Elettricità: **{ep_elec:+.1f}**\n"
+            f"- **Totale ep: {ep_total:+.1f} gCO₂/MJ**"
+        )
+
+    st.divider()
+    st.header("📋 Database feedstock (con ep applicato)")
     rows = []
     for n, d in FEEDSTOCK_DB.items():
+        e_tot = e_total_feedstock(n, ep_total)
         rows.append({
             "Feedstock": n,
             "Resa (Nm³/t)": d["yield"],
             "eec": d["eec"],
-            "esca": d["esca"],
+            "ep": ep_total,
             "etd": d["etd"],
-            "e_total": round(e_total_feedstock(n), 2),
+            "esca": d["esca"],
+            "e_total": round(e_tot, 2),
             "saving %": round(
-                (FOSSIL_COMPARATOR - e_total_feedstock(n)) / FOSSIL_COMPARATOR * 100, 1
+                (FOSSIL_COMPARATOR - e_tot) / FOSSIL_COMPARATOR * 100, 1
             ),
         })
     st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
     st.caption(
-        "**Convenzione manure credit**: -45 gCO₂/MJ incorporato in `eec` "
-        "per letami/deiezioni animali (prassi GSE)."
+        "**Formula RED III**: E = eec + ep + etd − esca. "
+        "Manure credit −45 gCO₂/MJ in `eec` per liquame suino. "
+        "Per certificazione GSE: sostituire con valori reali d'impianto."
     )
 
 # ------------------------- MODE SELECTOR -------------------------
@@ -306,7 +408,7 @@ with col2:
             f"**Modalità dual-constraint**: inserisci le quantità (t/mese) di "
             f"**{fixed_feeds[0]}** e **{fixed_feeds[1]}**. "
             f"Il solver calcola **{unknown_feeds[0]}** e **{unknown_feeds[1]}** "
-            f"per ottenere saving **{TARGET_SAVING*100:.0f}%** (margine su soglia RED III 80%) "
+            f"per ottenere saving **{target_saving*100:.0f}%** (margine su soglia RED III {ghg_threshold*100:.0f}%) "
             f"e produzione **300 Sm³/h netti**."
         )
     else:
@@ -356,7 +458,8 @@ for _, row in input_df.iterrows():
 
     if is_dual_mode:
         sol, feasible, msg = solve_2_unknowns_dual(
-            fixed_map, unknown_feeds, hours, aux_factor, plant_net_smch
+            fixed_map, unknown_feeds, hours, aux_factor, plant_net_smch,
+            ep_total, target_e_max,
         )
         all_masses = {**fixed_map, **sol}
         if not feasible:
@@ -374,17 +477,15 @@ for _, row in input_df.iterrows():
                 f"Le 3 biomasse fisse gia' superano il fabbisogno lordo."
             )
 
-    summary = ghg_summary(all_masses, aux_factor)
+    summary = ghg_summary(all_masses, aux_factor, ep_total)
 
     # Validita' - DUE CONDIZIONI OBBLIGATORIE:
-    #   (1) saving GHG >= 80% (calcolato su biometano LORDO, cosi' anche la
-    #       quota assorbita dagli ausiliari CHP+caldaia e' rinnovabile >=80%)
-    #   (2) produzione netta <= plant_net_smch (taglia autorizzata, scelta
-    #       dall'utente in sidebar). Il solver dimensiona PER CENTRARE questa
-    #       taglia, quindi net_smch = plant_net_smch a meno di arrotondamenti.
-    #       Le biomasse dimensionano il LORDO = plant_net_smch x aux_factor.
+    #   (1) saving GHG >= soglia RED III (80/70/65% a seconda uso finale),
+    #       calcolato su biometano LORDO (anche la quota autoconsumata dagli
+    #       ausiliari CHP+caldaia deve essere rinnovabile per >=80%).
+    #   (2) produzione netta <= plant_net_smch (taglia autorizzata).
     net_smch = summary["nm3_net"] / hours if hours > 0 else 0.0
-    saving_ok = summary["saving"] >= GHG_SAVING_THRESHOLD * 100
+    saving_ok = summary["saving"] >= ghg_threshold * 100
     prod_ok = net_smch <= plant_net_smch + 0.5   # tolleranza +0.5 Sm3/h
     target_hit = abs(net_smch - plant_net_smch) < 0.5
 
@@ -393,7 +494,9 @@ for _, row in input_df.iterrows():
     else:
         motivi = []
         if not saving_ok:
-            motivi.append(f"saving {summary['saving']:.1f}% < 80%")
+            motivi.append(
+                f"saving {summary['saving']:.1f}% < {ghg_threshold*100:.0f}%"
+            )
         if not prod_ok:
             motivi.append(
                 f"netti {net_smch:.1f} > {plant_net_smch:.0f} Sm³/h (over-autorizz.)"
@@ -452,11 +555,11 @@ col_cfg["MWh netti"] = st.column_config.NumberColumn("MWh netti", disabled=True,
 col_cfg["GHG (gCO₂/MJ)"] = st.column_config.NumberColumn("e_w", disabled=True, format="%.2f", help="Emissioni pesate gCO₂eq/MJ")
 col_cfg["Saving %"] = st.column_config.NumberColumn(
     "Saving %", disabled=True, format="%.1f",
-    help="Obbligatorio ≥ 80% (RED III)",
+    help=f"Obbligatorio ≥ {ghg_threshold*100:.0f}% (RED III – {end_use})",
 )
 col_cfg["Sm³/h netti"] = st.column_config.NumberColumn(
     "Sm³/h netti", disabled=True, format="%.1f",
-    help="Obbligatorio ≤ 300 (tetto autorizzativo)",
+    help=f"Obbligatorio ≤ {plant_net_smch:.0f} (tetto autorizzativo)",
 )
 col_cfg["Validità"] = st.column_config.TextColumn("Validità", disabled=True, width="medium")
 col_cfg["Note"] = st.column_config.TextColumn("Note", disabled=True, width="medium")
@@ -535,11 +638,11 @@ with tab2:
         text=[f"{v:.1f}%" for v in df_res["Saving %"]],
         textposition="outside",
     ))
-    fig2.add_hline(y=80, line_dash="dash", line_color="red",
-                   annotation_text="Soglia RED III 80%",
+    fig2.add_hline(y=ghg_threshold*100, line_dash="dash", line_color="red",
+                   annotation_text=f"Soglia RED III {ghg_threshold*100:.0f}%",
                    annotation_position="top right")
-    fig2.add_hline(y=81, line_dash="dot", line_color="green",
-                   annotation_text="Target solver 81%",
+    fig2.add_hline(y=target_saving*100, line_dash="dot", line_color="green",
+                   annotation_text=f"Target solver {target_saving*100:.0f}%",
                    annotation_position="bottom right")
     fig2.update_layout(title="Saving GHG mensile (%)",
                        yaxis_title="Saving (%)", height=450,
