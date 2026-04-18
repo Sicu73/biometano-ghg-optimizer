@@ -108,10 +108,17 @@ END_USE_THRESHOLDS = {
 # Valori medi da letteratura JRC-CONCAWE v5, UNI/TS 11567:2024, default RED III.
 # NB: valori indicativi; per certificazione GSE servono misure reali d'impianto.
 # ============================================================
+# Stoccaggio digestato - RED III All. V Parte C + GSE Linee Guida 2024.
+# La normativa riconosce SOLO due stati (no soglie temporali):
+#   - APERTO:  emissioni secondo fattori IPCC 2019 Vol.4 Cap.10, tipicamente
+#              +12 / +18 gCO2eq/MJ biometano per clima mediterraneo
+#              (MCF 25-30% su digestato liquido). Default JEC WTT v5 = +15.
+#   - CHIUSO con recupero gas convogliato all'upgrading: 0 gCO2eq/MJ.
+#              Il gas recuperato NON da' un bonus negativo: semplicemente
+#              confluisce nel biogas lordo e aumenta la resa yield.
 EP_DIGESTATE = {
-    "Stoccaggio APERTO (no copertura)":                 +15.0,
-    "Coperto anaerobico ~20 giorni":                     +3.0,
-    "Coperto ≥30 giorni con recupero gas residuo":       -5.0,
+    "APERTO (no copertura) - fattore IPCC/JEC":                    +15.0,
+    "CHIUSO con recupero gas residuo all'upgrading":                 0.0,
 }
 EP_UPGRADING = {
     "PSA (methane slip ~1.5%)":                         +12.0,
@@ -604,8 +611,15 @@ with st.sidebar:
               delta=f"target solver {fmt_it(target_saving * 100, 0, '%')}")
 
     # Configuratore ep
-    digestate_opt = st.selectbox("Stoccaggio digestato",
-                                  list(EP_DIGESTATE.keys()), index=1)
+    digestate_opt = st.selectbox(
+        "Stoccaggio digestato",
+        list(EP_DIGESTATE.keys()), index=1,
+        help="RED III All.V Parte C + GSE LG 2024: riconosce solo APERTO "
+             "(fattori IPCC 2019) o CHIUSO con recupero gas al processo "
+             "(= 0). Nessuna soglia temporale nella normativa. Il gas "
+             "residuo recuperato non da' bonus negativo: confluisce nel "
+             "biogas lordo e aumenta la resa Nm³/t.",
+    )
     upgrading_opt = st.selectbox("Tecnologia upgrading",
                                   list(EP_UPGRADING.keys()), index=1)
     offgas_opt = st.selectbox("Combustione off-gas",
