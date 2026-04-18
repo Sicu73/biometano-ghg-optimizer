@@ -563,75 +563,374 @@ st.set_page_config(
     layout="wide",
 )
 
-# Brand header CSS (verde petrolio MethaniQ)
+# ===========================================================
+# MethaniQ Design System — Commercial SaaS grade
+# Palette:  primary #0B8A5A (verde petrolio) → #1CC491 (mint)
+#           accent  #F59E0B (amber) · slate #0F172A · bg #F8FAFC
+# Font:     Inter (Google Fonts) — standard SaaS moderno
+# ===========================================================
 st.markdown(
     """
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
     <style>
+    /* ---------- Global typography ---------- */
+    html, body, [class*="css"], .stApp, .stMarkdown, .stText,
+    .stButton, .stSelectbox, .stNumberInput, .stSlider,
+    .stCheckbox, .stRadio, .stExpander, .stDataFrame,
+    .stMetric, .stTabs, .stAlert {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+    code, pre, .stCode {
+        font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+    }
+
+    /* ---------- Page background ---------- */
+    .stApp {
+        background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+    }
+
+    /* ---------- Headings ---------- */
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.3px !important;
+        color: #0F172A !important;
+    }
+    h2 { font-size: 1.75rem !important; margin-top: 1.5rem !important; }
+    h3 { font-size: 1.35rem !important; }
+    h4 { font-size: 1.1rem !important; }
+
+    /* ---------- Brand header (hero) ---------- */
     .methaniq-header {
-        background: linear-gradient(90deg, #0B8A5A 0%, #13A876 50%, #1CC491 100%);
-        padding: 28px 30px;
-        border-radius: 14px;
+        position: relative;
+        background: linear-gradient(135deg, #0B8A5A 0%, #13A876 45%, #1CC491 100%);
+        padding: 40px 30px 36px 30px;
+        border-radius: 20px;
         color: white;
-        margin-bottom: 10px;
-        box-shadow: 0 4px 14px rgba(11, 138, 90, 0.25);
+        margin-bottom: 14px;
+        box-shadow:
+            0 10px 30px rgba(11, 138, 90, 0.28),
+            0 2px 6px rgba(11, 138, 90, 0.15),
+            inset 0 1px 0 rgba(255,255,255,0.15);
         text-align: center;
+        overflow: hidden;
+    }
+    .methaniq-header::before {
+        content: "";
+        position: absolute;
+        top: -50%; right: -10%;
+        width: 300px; height: 300px;
+        background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    .methaniq-header::after {
+        content: "";
+        position: absolute;
+        bottom: -40%; left: -5%;
+        width: 250px; height: 250px;
+        background: radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 70%);
+        pointer-events: none;
     }
     .methaniq-header h1 {
-        color: white !important;
-        margin: 0;
-        font-size: 2.8rem;
-        font-weight: 700;
-        letter-spacing: -0.5px;
-        text-align: center;
+        color: #ffffff !important;
+        margin: 0 !important;
+        font-size: 3.2rem !important;
+        font-weight: 800 !important;
+        letter-spacing: -1.2px !important;
+        line-height: 1.05;
+        text-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        position: relative;
+        z-index: 1;
     }
     .methaniq-header .tagline {
-        color: #e8fff5;
-        font-style: italic;
-        font-size: 1.15rem;
-        margin-top: 6px;
-        opacity: 0.95;
-        text-align: center;
+        color: #ecfdf5;
+        font-weight: 500;
+        font-size: 1.25rem;
+        margin-top: 10px;
+        letter-spacing: 0.2px;
+        position: relative;
+        z-index: 1;
     }
+    .methaniq-header .pills {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 18px;
+        position: relative;
+        z-index: 1;
+    }
+    .methaniq-header .pill {
+        background: rgba(255,255,255,0.18);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.28);
+        color: white;
+        padding: 5px 14px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+
+    /* ---------- Credit box ---------- */
     .methaniq-credit {
-        background: #f8faf9;
+        background: white;
+        border: 1px solid #E2E8F0;
         border-left: 4px solid #0B8A5A;
-        padding: 10px 14px;
-        border-radius: 4px;
-        font-size: 0.88rem;
-        color: #555;
-        margin-bottom: 18px;
+        padding: 12px 18px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        color: #334155;
+        margin-bottom: 20px;
         text-align: center;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    }
+    .methaniq-credit b { color: #0B8A5A; }
+
+    /* ---------- Sidebar ---------- */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+        border-right: 1px solid #E2E8F0;
+    }
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3 {
+        font-size: 1rem !important;
+        color: #0F172A !important;
+        margin-top: 1.2rem !important;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #E2E8F0;
+    }
+
+    /* ---------- Metrics (KPI cards) ---------- */
+    [data-testid="stMetric"] {
+        background: white;
+        padding: 16px 18px;
+        border-radius: 12px;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.03);
+        transition: all 0.2s ease;
+    }
+    [data-testid="stMetric"]:hover {
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+        border-color: #1CC491;
+        transform: translateY(-1px);
+    }
+    [data-testid="stMetricLabel"] {
+        color: #64748B !important;
+        font-size: 0.82rem !important;
+        font-weight: 600 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    [data-testid="stMetricValue"] {
+        color: #0F172A !important;
+        font-weight: 700 !important;
+        font-size: 1.6rem !important;
+        letter-spacing: -0.5px;
+    }
+
+    /* ---------- Buttons ---------- */
+    .stButton > button {
+        background: linear-gradient(135deg, #0B8A5A 0%, #13A876 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 0.55rem 1.2rem;
+        font-weight: 600;
+        font-size: 0.95rem;
+        box-shadow: 0 2px 6px rgba(11, 138, 90, 0.25);
+        transition: all 0.2s ease;
+    }
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #0A7A50 0%, #119668 100%);
+        box-shadow: 0 4px 14px rgba(11, 138, 90, 0.35);
+        transform: translateY(-1px);
+    }
+    .stButton > button:active { transform: translateY(0); }
+    .stDownloadButton > button {
+        background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        box-shadow: 0 2px 6px rgba(245, 158, 11, 0.25);
+    }
+    .stDownloadButton > button:hover {
+        background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
+        box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+    }
+
+    /* ---------- Expanders ---------- */
+    .streamlit-expanderHeader, details > summary {
+        background: white !important;
+        border-radius: 10px !important;
+        border: 1px solid #E2E8F0 !important;
+        font-weight: 600 !important;
+        padding: 10px 14px !important;
+        transition: all 0.15s ease;
+    }
+    .streamlit-expanderHeader:hover {
+        border-color: #1CC491 !important;
+        background: #F0FDF4 !important;
+    }
+
+    /* ---------- Tabs ---------- */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 4px;
+        background: white;
+        padding: 6px;
+        border-radius: 12px;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-weight: 600;
+        color: #64748B;
+        transition: all 0.15s ease;
+    }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #0B8A5A 0%, #13A876 100%) !important;
+        color: white !important;
+        box-shadow: 0 2px 6px rgba(11, 138, 90, 0.2);
+    }
+
+    /* ---------- Alerts ---------- */
+    [data-testid="stAlert"] {
+        border-radius: 10px;
+        border: none;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    }
+
+    /* ---------- Inputs ---------- */
+    .stNumberInput input, .stTextInput input, .stSelectbox [data-baseweb="select"] {
+        border-radius: 8px !important;
+        border: 1px solid #CBD5E1 !important;
+        transition: all 0.15s ease;
+    }
+    .stNumberInput input:focus, .stTextInput input:focus {
+        border-color: #0B8A5A !important;
+        box-shadow: 0 0 0 3px rgba(11, 138, 90, 0.12) !important;
+    }
+
+    /* ---------- Dataframes ---------- */
+    [data-testid="stDataFrame"] {
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    }
+
+    /* ---------- Dividers ---------- */
+    hr { border-color: #E2E8F0 !important; margin: 1.5rem 0 !important; }
+
+    /* ---------- Captions ---------- */
+    .stCaption, [data-testid="stCaptionContainer"] {
+        color: #64748B !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* ---------- Subtle section headings ---------- */
+    .section-label {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: #0B8A5A;
+        background: #ECFDF5;
+        padding: 3px 10px;
+        border-radius: 6px;
+        margin-bottom: 6px;
     }
     </style>
+
     <div class="methaniq-header">
         <h1>🧬 MethaniQ</h1>
         <div class="tagline">L'intelligenza del biometano.</div>
+        <div class="pills">
+            <span class="pill">✓ RED III Compliant</span>
+            <span class="pill">✓ GSE Linee Guida 2024</span>
+            <span class="pill">✓ UNI-TS 11567:2024</span>
+            <span class="pill">⚡ LP Optimizer</span>
+        </div>
     </div>
     <div class="methaniq-credit">
-        💡 Ideato e sviluppato da <b>Carlo Sicurini</b> — © 2026. Tutti i diritti riservati.
-        &nbsp;·&nbsp; Conforme <b>RED III</b> (Dir. 2023/2413) / GSE Linee Guida 2024 / UNI-TS 11567:2024
+        💡 Ideato e sviluppato da <b>Carlo Sicurini</b> &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp;
+        Pianificazione mensile + ottimizzazione GHG per impianti di biometano
     </div>
     """,
     unsafe_allow_html=True,
 )
 
 st.markdown(
-    "Pianificazione mensile biomasse - solver dual-constraint "
-    "**saving GHG + produzione target** con configurazione impianto (ep) ex RED III."
+    "<div style='background:white; padding:14px 18px; border-radius:10px; "
+    "border:1px solid #E2E8F0; margin-bottom:18px; "
+    "box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);'>"
+    "<span style='font-size:0.72rem; font-weight:700; letter-spacing:1px; "
+    "text-transform:uppercase; color:#0B8A5A; background:#ECFDF5; "
+    "padding:3px 10px; border-radius:6px; margin-right:10px;'>SOLVER</span>"
+    "<span style='color:#334155; font-size:0.95rem;'>"
+    "Pianificazione mensile biomasse — solver <b>dual-constraint</b> "
+    "(saving GHG + produzione target) con configurazione impianto <code style='background:#F1F5F9; "
+    "padding:2px 6px; border-radius:4px; font-size:0.85em; color:#0F172A;'>ep</code> ex RED III."
+    "</span></div>",
+    unsafe_allow_html=True,
 )
 
 # ------------------------- SIDEBAR -------------------------
 with st.sidebar:
     st.markdown(
-        "<div style='text-align:center; padding:12px 8px; "
-        "background: linear-gradient(135deg, #0B8A5A 0%, #1CC491 100%); "
-        "border-radius:10px; margin-bottom:16px; "
-        "box-shadow: 0 2px 8px rgba(11,138,90,0.3);'>"
-        "<div style='color:#ffffff; font-size:1.15em; font-weight:700; "
-        "letter-spacing:-0.3px;'>🧬 MethaniQ</div>"
-        "<div style='font-size:0.8em; color:#e8fff5; margin-top:3px;'>"
-        "by <b>Carlo Sicurini</b></div>"
-        "</div>",
+        """
+        <div style='
+            position: relative;
+            text-align: center;
+            padding: 18px 14px;
+            background: linear-gradient(135deg, #0B8A5A 0%, #13A876 50%, #1CC491 100%);
+            border-radius: 14px;
+            margin-bottom: 18px;
+            box-shadow: 0 6px 18px rgba(11,138,90,0.28), inset 0 1px 0 rgba(255,255,255,0.15);
+            overflow: hidden;
+        '>
+            <div style='
+                position: absolute; top: -30%; right: -20%;
+                width: 120px; height: 120px;
+                background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
+            '></div>
+            <div style='
+                color: #ffffff;
+                font-size: 1.35em;
+                font-weight: 800;
+                letter-spacing: -0.5px;
+                position: relative; z-index: 1;
+                text-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            '>🧬 MethaniQ</div>
+            <div style='
+                font-size: 0.75em;
+                color: #ecfdf5;
+                margin-top: 4px;
+                font-weight: 500;
+                letter-spacing: 0.3px;
+                position: relative; z-index: 1;
+            '>by <b style='color:#ffffff;'>Carlo Sicurini</b></div>
+            <div style='
+                margin-top: 10px;
+                padding-top: 10px;
+                border-top: 1px solid rgba(255,255,255,0.2);
+                font-size: 0.68em;
+                color: #d1fae5;
+                font-weight: 500;
+                letter-spacing: 0.5px;
+                text-transform: uppercase;
+                position: relative; z-index: 1;
+            '>L'intelligenza del biometano</div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
     st.header("⚙️ Parametri impianto")
@@ -1503,15 +1802,61 @@ st.caption(
     "valori reali d'impianto."
 )
 
-st.divider()
+st.markdown("<div style='margin-top:40px;'></div>", unsafe_allow_html=True)
 st.markdown(
-    "<div style='text-align:center; padding:14px; margin-top:10px; "
-    "background: linear-gradient(90deg, #0B8A5A 0%, #13A876 50%, #1CC491 100%); "
-    "border-radius:10px; color:#ffffff; font-size:0.88em; "
-    "box-shadow: 0 2px 8px rgba(11,138,90,0.25);'>"
-    "🧬 <b style='font-size:1.1em;'>MethaniQ</b> — <i>L'intelligenza del biometano</i><br>"
-    "<span style='color:#e8fff5;'>Creato da <b>Carlo Sicurini</b> · © 2026 · "
-    "Conforme RED III (Dir. 2023/2413) / GSE Linee Guida 2024 / UNI-TS 11567:2024</span>"
-    "</div>",
+    """
+    <div style='
+        position: relative;
+        text-align: center;
+        padding: 28px 24px;
+        margin-top: 20px;
+        background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+        border-radius: 16px;
+        color: #ffffff;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
+        overflow: hidden;
+    '>
+        <div style='
+            position: absolute; top: -60%; right: -10%;
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(28, 196, 145, 0.12) 0%, transparent 60%);
+            pointer-events: none;
+        '></div>
+        <div style='
+            font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #1CC491 0%, #13A876 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+            position: relative; z-index: 1;
+            display: inline-block;
+        '>🧬 MethaniQ</div>
+        <div style='
+            font-size: 0.95rem; font-style: italic; color: #94A3B8;
+            margin-top: 4px; position: relative; z-index: 1;
+        '>L'intelligenza del biometano.</div>
+        <div style='
+            margin-top: 16px; padding-top: 16px;
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+            font-size: 0.82rem; color: #CBD5E1; position: relative; z-index: 1;
+        '>
+            Creato da <b style='color:#ffffff;'>Carlo Sicurini</b> &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp;
+            Tutti i diritti riservati
+        </div>
+        <div style='
+            margin-top: 10px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;
+            position: relative; z-index: 1;
+        '>
+            <span style='background: rgba(28, 196, 145, 0.15); border: 1px solid rgba(28, 196, 145, 0.3);
+                color: #6EE7B7; padding: 4px 12px; border-radius: 999px; font-size: 0.72rem;
+                font-weight: 600; letter-spacing: 0.3px;'>RED III · Dir. 2023/2413</span>
+            <span style='background: rgba(28, 196, 145, 0.15); border: 1px solid rgba(28, 196, 145, 0.3);
+                color: #6EE7B7; padding: 4px 12px; border-radius: 999px; font-size: 0.72rem;
+                font-weight: 600; letter-spacing: 0.3px;'>GSE Linee Guida 2024</span>
+            <span style='background: rgba(28, 196, 145, 0.15); border: 1px solid rgba(28, 196, 145, 0.3);
+                color: #6EE7B7; padding: 4px 12px; border-radius: 999px; font-size: 0.72rem;
+                font-weight: 600; letter-spacing: 0.3px;'>UNI-TS 11567:2024</span>
+        </div>
+    </div>
+    """,
     unsafe_allow_html=True,
 )
