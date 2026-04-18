@@ -618,16 +618,6 @@ st.markdown(
 
 # ------------------------- SIDEBAR -------------------------
 with st.sidebar:
-    st.markdown(
-        "<div style='text-align:center; padding:10px; "
-        "background: linear-gradient(135deg, #0B8A5A 0%, #1CC491 100%); "
-        "border-radius:8px; margin-bottom:12px; "
-        "box-shadow: 0 2px 6px rgba(11,138,90,0.3);'>"
-        "<b style='color:#ffffff; font-size:1.05em;'>🧬 MethaniQ</b><br>"
-        "<span style='font-size:0.78em; color:#e8fff5;'>by <b>Carlo Sicurini</b></span>"
-        "</div>",
-        unsafe_allow_html=True,
-    )
     st.header("⚙️ Parametri impianto")
     plant_net_smch = st.number_input(
         "🎯 Netto autorizzato [Sm³/h netti]",
