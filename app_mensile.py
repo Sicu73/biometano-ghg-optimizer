@@ -619,10 +619,12 @@ st.markdown(
 # ------------------------- SIDEBAR -------------------------
 with st.sidebar:
     st.markdown(
-        "<div style='text-align:center; padding:8px; background:#f0f2f6; "
-        "border-radius:8px; margin-bottom:12px;'>"
-        "<b>🧬 MethaniQ</b><br>"
-        "<span style='font-size:0.75em; color:#555;'>by <b>Carlo Sicurini</b></span>"
+        "<div style='text-align:center; padding:10px; "
+        "background: linear-gradient(135deg, #0B8A5A 0%, #1CC491 100%); "
+        "border-radius:8px; margin-bottom:12px; "
+        "box-shadow: 0 2px 6px rgba(11,138,90,0.3);'>"
+        "<b style='color:#ffffff; font-size:1.05em;'>🧬 MethaniQ</b><br>"
+        "<span style='font-size:0.78em; color:#e8fff5;'>by <b>Carlo Sicurini</b></span>"
         "</div>",
         unsafe_allow_html=True,
     )
@@ -1497,10 +1499,13 @@ st.caption(
 
 st.divider()
 st.markdown(
-    "<div style='text-align:center; color:#888; font-size:0.85em; padding:10px;'>"
-    "🧬 <b>MethaniQ</b> — L'intelligenza del biometano<br>"
-    "Creato da <b>Carlo Sicurini</b> · © 2026 · Conforme RED III (Dir. 2023/2413) "
-    "/ GSE Linee Guida 2024 / UNI-TS 11567:2024"
+    "<div style='text-align:center; padding:14px; margin-top:10px; "
+    "background: linear-gradient(90deg, #0B8A5A 0%, #13A876 50%, #1CC491 100%); "
+    "border-radius:10px; color:#ffffff; font-size:0.88em; "
+    "box-shadow: 0 2px 8px rgba(11,138,90,0.25);'>"
+    "🧬 <b style='font-size:1.1em;'>MethaniQ</b> — <i>L'intelligenza del biometano</i><br>"
+    "<span style='color:#e8fff5;'>Creato da <b>Carlo Sicurini</b> · © 2026 · "
+    "Conforme RED III (Dir. 2023/2413) / GSE Linee Guida 2024 / UNI-TS 11567:2024</span>"
     "</div>",
     unsafe_allow_html=True,
 )
