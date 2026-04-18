@@ -22,6 +22,67 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
+
+# ============================================================
+# FORMATO ITALIANO: punto = migliaia, virgola = decimali
+# ============================================================
+def fmt_it(value, decimals: int = 0, suffix: str = "", signed: bool = False) -> str:
+    """Formatta un numero in stile italiano: 1.234.567,89
+
+    signed=True -> prefisso '+' anche per valori positivi (utile per contributi ep).
+    """
+    if value is None or (isinstance(value, float) and (np.isnan(value) or np.isinf(value))):
+        return "-"
+    if signed:
+        s = f"{value:+,.{decimals}f}"      # es. "+1,234.50" / "-4.00"
+    else:
+        s = f"{value:,.{decimals}f}"       # es. "1,234,567.89"
+    s = s.replace(",", "§").replace(".", ",").replace("§", ".")
+    return s + suffix
+
+
+def parse_it(value) -> float:
+    """Parse di un numero scritto all'italiana.
+
+    Accetta:
+      - '1.234,56'   (italiano completo: . migliaia, , decimali)
+      - '1234,56'    (italiano semplice)
+      - '1234.56'    (stile C / anglosassone)
+      - '1.800'      (italiano con migliaia, senza decimali -> 1800.0)
+      - '26.303'     (idem -> 26303.0)
+    Euristica: se non c'e' virgola e c'e' almeno un punto, e gli eventuali
+    gruppi dopo il punto hanno esattamente 3 cifre, i punti sono separatori di
+    migliaia. Altrimenti il punto e' decimale.
+    """
+    if value is None:
+        return 0.0
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        if isinstance(value, float) and (np.isnan(value) or np.isinf(value)):
+            return 0.0
+        return float(value)
+    s = str(value).strip().replace("€", "").replace("%", "").strip()
+    if not s or s == "-":
+        return 0.0
+    has_comma = "," in s
+    if has_comma:
+        # Italiano: punti = migliaia, virgola = decimali
+        s = s.replace(".", "").replace(",", ".")
+    elif "." in s:
+        parts = s.split(".")
+        # Piu' di un punto -> sicuramente migliaia (es. "1.234.567")
+        # Un solo punto + gruppo a destra di esattamente 3 cifre -> migliaia
+        # (es. "1.800", "26.303"). Altrimenti resta decimale (es. "1.5").
+        many_dots = len(parts) > 2
+        single_thousand = (len(parts) == 2 and len(parts[1]) == 3
+                           and parts[0].lstrip("-").isdigit()
+                           and parts[1].isdigit())
+        if many_dots or single_thousand:
+            s = s.replace(".", "")
+    try:
+        return float(s)
+    except ValueError:
+        return 0.0
+
 # ============================================================
 # COSTANTI RED III
 # ============================================================
@@ -236,14 +297,14 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
     # Infeasibile: forza il negativo a 0 e ricalcola l'altro con sola produzione
     note = []
     if mx < 0:
-        note.append(f"{x} richiederebbe {mx:.1f} t (<0)")
+        note.append(f"{x} richiederebbe {fmt_it(mx, 1)} t (<0)")
         mx = 0.0
         my = rhs_prod / yy
         if my < 0:
             my = 0.0
             note.append(f"anche {y_name} <0: entrambe azzerate")
     elif my < 0:
-        note.append(f"{y_name} richiederebbe {my:.1f} t (<0)")
+        note.append(f"{y_name} richiederebbe {fmt_it(my, 1)} t (<0)")
         my = 0.0
         mx = rhs_prod / yx
         if mx < 0:
@@ -251,6 +312,47 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
             note.append(f"anche {x} <0: entrambe azzerate")
     msg = "Infeasibile: " + "; ".join(note) + ". Saving e/o produzione non saranno entrambi soddisfatti."
     return {x: mx, y_name: my}, False, msg
+
+
+def find_optimal_pair(aux: float, plant_net: float, ep: float,
+                      target_e_max: float):
+    """
+    Trova la coppia di biomasse che MINIMIZZA la massa totale rispettando:
+      - produzione lorda = plant_net * aux * ore (vincolo di uguaglianza)
+      - e_w = target_e_max  (saving GHG al target solver, leggermente sopra la
+        soglia RED III)
+    Le altre 2 biomasse vengono poste a zero.
+
+    Ritorna:
+      (coppia_ottimale: tuple[str,str], masse_per_ora_riferimento: dict, note)
+    oppure None se nessuna coppia e' fattibile.
+
+    Nota: per teoria LP con 2 vincoli e 4 variabili non-negative, l'ottimo
+    giace su un vertice con al piu' 2 variabili positive -> basta enumerare le
+    C(4,2)=6 coppie. La coppia ottimale NON dipende dalle ore: la soluzione
+    scala linearmente, quindi la coppia migliore per 1h e' la stessa per ogni
+    mese.
+    """
+    from itertools import combinations
+
+    best = None  # (pair, total_per_hour, masses_per_hour)
+    for pair in combinations(FEED_NAMES, 2):
+        fixed0 = {n: 0.0 for n in FEED_NAMES if n not in pair}
+        sol, feas, _ = solve_2_unknowns_dual(
+            fixed_masses=fixed0, unknowns=list(pair),
+            hours=1.0, aux=aux, plant_net=plant_net,
+            ep=ep, target_e_max=target_e_max,
+        )
+        if not feas:
+            continue
+        if any(v < -1e-6 for v in sol.values()):
+            continue
+        masses_h = {**fixed0, **{k: max(v, 0.0) for k, v in sol.items()}}
+        total_h = sum(masses_h.values())
+        if best is None or total_h < best[1] - 1e-9:
+            best = (pair, total_h, masses_h)
+
+    return best  # (pair, total_per_hour, masses_per_hour) o None
 
 
 # ============================================================
@@ -283,8 +385,9 @@ with st.sidebar:
         min_value=1.20, max_value=1.50,
         value=DEFAULT_AUX_FACTOR, step=0.01,
     )
-    st.metric("Taglia netta", f"{plant_net_smch:.0f} Sm³/h")
-    st.metric("Produzione lorda richiesta", f"{plant_net_smch*aux_factor:.1f} Sm³/h")
+    st.metric("Taglia netta", fmt_it(plant_net_smch, 0, " Sm³/h"))
+    st.metric("Produzione lorda richiesta",
+              fmt_it(plant_net_smch * aux_factor, 1, " Sm³/h"))
 
     st.divider()
     st.header("🏭 Configurazione impianto (ep)")
@@ -307,8 +410,8 @@ with st.sidebar:
     target_e_max = FOSSIL_COMPARATOR * (1 - target_saving)
     max_allowed_e = FOSSIL_COMPARATOR * (1 - ghg_threshold)
     st.metric("Soglia saving obbligatoria",
-              f"{ghg_threshold*100:.0f}%",
-              delta=f"target solver {target_saving*100:.0f}%")
+              fmt_it(ghg_threshold * 100, 0, "%"),
+              delta=f"target solver {fmt_it(target_saving * 100, 0, '%')}")
 
     # Configuratore ep
     digestate_opt = st.selectbox("Stoccaggio digestato",
@@ -330,14 +433,17 @@ with st.sidebar:
     ep_total = ep_digestate + ep_upgrading + ep_offgas + ep_heat + ep_elec
 
     # Breakdown ep
-    with st.expander(f"📊 Breakdown ep = {ep_total:+.1f} gCO₂/MJ", expanded=True):
+    with st.expander(
+        f"📊 Breakdown ep = {fmt_it(ep_total, 1, signed=True)} gCO₂/MJ",
+        expanded=True,
+    ):
         st.markdown(
-            f"- Digestato: **{ep_digestate:+.1f}**\n"
-            f"- Upgrading: **{ep_upgrading:+.1f}**\n"
-            f"- Off-gas: **{ep_offgas:+.1f}**\n"
-            f"- Calore: **{ep_heat:+.1f}**\n"
-            f"- Elettricità: **{ep_elec:+.1f}**\n"
-            f"- **Totale ep: {ep_total:+.1f} gCO₂/MJ**"
+            f"- Digestato: **{fmt_it(ep_digestate, 1, signed=True)}**\n"
+            f"- Upgrading: **{fmt_it(ep_upgrading, 1, signed=True)}**\n"
+            f"- Off-gas: **{fmt_it(ep_offgas, 1, signed=True)}**\n"
+            f"- Calore: **{fmt_it(ep_heat, 1, signed=True)}**\n"
+            f"- Elettricità: **{fmt_it(ep_elec, 1, signed=True)}**\n"
+            f"- **Totale ep: {fmt_it(ep_total, 1, signed=True)} gCO₂/MJ**"
         )
 
     st.divider()
@@ -357,7 +463,17 @@ with st.sidebar:
                 (FOSSIL_COMPARATOR - e_tot) / FOSSIL_COMPARATOR * 100, 1
             ),
         })
-    st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+    df_feed = pd.DataFrame(rows)
+    styled_feed = df_feed.style.format({
+        "Resa (Nm³/t)": lambda v: fmt_it(v, 0),
+        "eec":          lambda v: fmt_it(v, 1, signed=True),
+        "ep":           lambda v: fmt_it(v, 1, signed=True),
+        "etd":          lambda v: fmt_it(v, 1, signed=True),
+        "esca":         lambda v: fmt_it(v, 1, signed=True),
+        "e_total":      lambda v: fmt_it(v, 2, signed=True),
+        "saving %":     lambda v: fmt_it(v, 1, "%"),
+    })
+    st.dataframe(styled_feed, hide_index=True, use_container_width=True)
     st.caption(
         "**Formula RED III**: E = eec + ep + etd − esca. "
         "Manure credit −45 gCO₂/MJ in `eec` per liquame suino. "
@@ -367,15 +483,77 @@ with st.sidebar:
 # ------------------------- MODE SELECTOR -------------------------
 st.subheader("🎯 Modalità di calcolo")
 
+MODE_DUAL = "2 biomasse fisse + 2 calcolate  (saving 81% + produzione 300 Sm³/h)"
+MODE_SINGLE = "3 biomasse fisse + 1 calcolata  (solo produzione 300 Sm³/h)"
+
+# -------- PULSANTE OTTIMIZZA (tutta larghezza, sempre visibile) ------------
+st.markdown(
+    f"##### ⚡ Auto-calcolo ottimale – minimizza la somma totale delle biomasse "
+    f"rispettando saving ≥ {fmt_it(ghg_threshold*100, 0, '%')} e produzione = "
+    f"{fmt_it(plant_net_smch, 0)} Sm³/h netti"
+)
+optimize_clicked = st.button(
+    "🚀 OTTIMIZZA  (minimizza massa totale biomasse)",
+    help="Enumera le 6 coppie di biomasse e sceglie quella con massa totale "
+         "minima che soddisfa entrambi i vincoli (produzione + saving GHG). "
+         "Le altre 2 biomasse vengono azzerate. Si imposta in modalità dual "
+         "con le 2 non-utilizzate come 'fisse a zero'.",
+    use_container_width=True,
+    type="primary",
+    key="btn_optimize",
+)
+st.divider()
+
+# -------- RADIO MODALITA' --------------------------------------------------
 mode = st.radio(
     "Scegli modalità:",
-    options=[
-        "2 biomasse fisse + 2 calcolate  (saving 81% + produzione 300 Sm³/h)",
-        "3 biomasse fisse + 1 calcolata  (solo produzione 300 Sm³/h)",
-    ],
+    options=[MODE_DUAL, MODE_SINGLE],
     index=0,
     horizontal=False,
+    key="mode_radio",
 )
+
+# --- Gestione click OTTIMIZZA ----------------------------------------------
+if optimize_clicked:
+    best = find_optimal_pair(
+        aux=aux_factor, plant_net=plant_net_smch,
+        ep=ep_total, target_e_max=target_e_max,
+    )
+    if best is None:
+        st.error(
+            "❌ Nessuna coppia di biomasse riesce a soddisfare simultaneamente "
+            f"saving ≥ {fmt_it(ghg_threshold*100, 0, '%')} e produzione "
+            f"{fmt_it(plant_net_smch, 0)} Sm³/h con la configurazione ep "
+            f"attuale ({fmt_it(ep_total, 1, signed=True)} gCO₂/MJ). "
+            "Prova a migliorare la configurazione impianto (stoccaggio "
+            "digestato coperto, upgrading a membrane/amminico, off-gas RTO)."
+        )
+    else:
+        pair, total_h, masses_h = best
+        unused = [n for n in FEED_NAMES if n not in pair]  # queste restano 0
+        # Forza modalita' dual e multiselect sulle 2 inutilizzate
+        # (cosi' le 2 ottimali diventano automaticamente "calcolate")
+        st.session_state["mode_radio"] = MODE_DUAL
+        st.session_state["fixed_multiselect"] = list(unused)
+        # Pre-popola lo state della tabella con 0 sulle 2 inutilizzate
+        new_state_key = f"mens_in_dual_{'-'.join(unused)}"
+        rows_init = []
+        for mm, hh in zip(MONTHS, MONTH_HOURS):
+            r = {"Mese": mm, "Ore": hh}
+            for f in unused:
+                r[f] = 0.0
+            rows_init.append(r)
+        st.session_state[new_state_key] = pd.DataFrame(rows_init)
+        # Memorizza info per banner post-rerun
+        annual_hours = sum(MONTH_HOURS)
+        st.session_state["_optimize_info"] = {
+            "pair": list(pair),
+            "unused": unused,
+            "total_year": total_h * annual_hours,
+            "masses_h": masses_h,
+        }
+        st.rerun()
+
 is_dual_mode = mode.startswith("2")
 
 col1, col2 = st.columns([2, 3])
@@ -389,6 +567,7 @@ with col1:
             help="Suggerimento: scegli 1 biomassa ad alta eec (mais/sorgo) + "
                  "1 a credito (pollina/liquame). Se scegli entrambe dello "
                  "stesso 'tipo' il sistema puo' diventare infeasibile.",
+            key="fixed_multiselect",
         )
         if len(fixed_feeds) != 2:
             st.warning("Seleziona esattamente 2 biomasse.")
@@ -402,14 +581,28 @@ with col1:
         fixed_feeds = [n for n in FEED_NAMES if n != unknown_feed]
         unknown_feeds = [unknown_feed]
 
+# Banner risultato ottimizzazione (mostrato 1 sola volta dopo click)
+_opt_info = st.session_state.pop("_optimize_info", None)
+if _opt_info:
+    st.success(
+        f"🚀 **Ottimo LP**: biomasse attive **{_opt_info['pair'][0]}** + "
+        f"**{_opt_info['pair'][1]}** "
+        f"(**{_opt_info['unused'][0]}** e **{_opt_info['unused'][1]}** = 0). "
+        f"Massa totale annua minima ≈ "
+        f"**{fmt_it(_opt_info['total_year'], 0)} t/anno** "
+        f"(saving target **{fmt_it(target_saving*100, 0, '%')}**, "
+        f"produzione **{fmt_it(plant_net_smch, 0)} Sm³/h netti**)."
+    )
+
 with col2:
     if is_dual_mode:
         st.info(
             f"**Modalità dual-constraint**: inserisci le quantità (t/mese) di "
             f"**{fixed_feeds[0]}** e **{fixed_feeds[1]}**. "
             f"Il solver calcola **{unknown_feeds[0]}** e **{unknown_feeds[1]}** "
-            f"per ottenere saving **{target_saving*100:.0f}%** (margine su soglia RED III {ghg_threshold*100:.0f}%) "
-            f"e produzione **300 Sm³/h netti**."
+            f"per ottenere saving **{fmt_it(target_saving*100, 0, '%')}** "
+            f"(margine su soglia RED III {fmt_it(ghg_threshold*100, 0, '%')}) "
+            f"e produzione **{fmt_it(plant_net_smch, 0)} Sm³/h netti**."
         )
     else:
         st.info(
@@ -473,7 +666,7 @@ for _, row in input_df.iterrows():
         feasible = (computed >= 0)
         if not feasible:
             warnings_list.append(
-                f"**{row['Mese']}**: {unknown_feeds[0]} = {computed:.1f} t (<0). "
+                f"**{row['Mese']}**: {unknown_feeds[0]} = {fmt_it(computed, 1)} t (<0). "
                 f"Le 3 biomasse fisse gia' superano il fabbisogno lordo."
             )
 
@@ -495,20 +688,28 @@ for _, row in input_df.iterrows():
         motivi = []
         if not saving_ok:
             motivi.append(
-                f"saving {summary['saving']:.1f}% < {ghg_threshold*100:.0f}%"
+                f"saving {fmt_it(summary['saving'], 1, '%')} < "
+                f"{fmt_it(ghg_threshold*100, 0, '%')}"
             )
         if not prod_ok:
             motivi.append(
-                f"netti {net_smch:.1f} > {plant_net_smch:.0f} Sm³/h (over-autorizz.)"
+                f"netti {fmt_it(net_smch, 1)} > "
+                f"{fmt_it(plant_net_smch, 0)} Sm³/h (over-autorizz.)"
             )
         validita = "❌ Non valido: " + "; ".join(motivi)
 
     if saving_ok and prod_ok and not target_hit:
-        stato = f"⚠️ netti {net_smch:.1f} < {plant_net_smch:.0f} (sub-ottimale)"
+        stato = (
+            f"⚠️ netti {fmt_it(net_smch, 1)} < "
+            f"{fmt_it(plant_net_smch, 0)} (sub-ottimale)"
+        )
     elif not feasible:
         stato = "clampato"
     else:
-        stato = f"saving {summary['saving']:.1f}% · netti {net_smch:.1f}"
+        stato = (
+            f"saving {fmt_it(summary['saving'], 1, '%')} · "
+            f"netti {fmt_it(net_smch, 1)}"
+        )
 
     res = {"Mese": row["Mese"], "Ore": int(hours)}
     for n in FEED_NAMES:
@@ -527,45 +728,66 @@ for _, row in input_df.iterrows():
 df_res = pd.DataFrame(results)
 
 # ------------------------- TABELLA UNICA EDITABILE -------------------------
-# Colonne editabili: Ore + biomasse fisse (label con ✏️)
-# Colonne disabled: biomasse calcolate (🧮) + tutti i risultati
+# TUTTE le colonne sono TextColumn con numeri in formato italiano (1.234,56).
+# Le celle editabili (Ore + biomasse fisse) vengono riparseate con parse_it()
+# che accetta '1.234,56', '1234,56' o '1234.56'.
+df_disp = df_res.copy()
+
+# Editabili -> pre-formattate in italiano
+df_disp["Ore"] = df_disp["Ore"].apply(lambda v: fmt_it(v, 0))
+for f in fixed_feeds:
+    df_disp[f] = df_disp[f].apply(lambda v: fmt_it(v, 1))
+
+# Read-only -> pre-formattate in italiano
+for u in unknown_feeds:
+    df_disp[u] = df_disp[u].apply(lambda v: fmt_it(v, 1))
+df_disp["Totale biomasse (t)"] = df_disp["Totale biomasse (t)"].apply(lambda v: fmt_it(v, 0))
+df_disp["Sm³ lordi"]   = df_disp["Sm³ lordi"].apply(lambda v: fmt_it(v, 0))
+df_disp["Sm³ netti"]   = df_disp["Sm³ netti"].apply(lambda v: fmt_it(v, 0))
+df_disp["MWh netti"]   = df_disp["MWh netti"].apply(lambda v: fmt_it(v, 1))
+df_disp["GHG (gCO₂/MJ)"] = df_disp["GHG (gCO₂/MJ)"].apply(lambda v: fmt_it(v, 2))
+df_disp["Saving %"]    = df_disp["Saving %"].apply(lambda v: fmt_it(v, 1, "%"))
+df_disp["Sm³/h netti"] = df_disp["Sm³/h netti"].apply(lambda v: fmt_it(v, 1))
+
 col_cfg = {
     "Mese": st.column_config.TextColumn("Mese", disabled=True),
-    "Ore": st.column_config.NumberColumn(
-        "Ore ✏️", min_value=0, max_value=744, step=1, format="%d",
-        help="Ore operative del mese (modificabile)",
+    "Ore": st.column_config.TextColumn(
+        "Ore ✏️",
+        help="Ore operative del mese (modificabile, max 744)",
     ),
 }
 for f in fixed_feeds:
-    col_cfg[f] = st.column_config.NumberColumn(
+    col_cfg[f] = st.column_config.TextColumn(
         f"{f} ✏️ (t)",
-        min_value=0.0, step=10.0, format="%.1f",
-        help=f"INPUT – Resa {FEEDSTOCK_DB[f]['yield']} Nm³/t FM",
+        help=f"INPUT – formato italiano (es. 1.800,0) – "
+             f"Resa {fmt_it(FEEDSTOCK_DB[f]['yield'], 0)} Nm³/t FM",
     )
 for u in unknown_feeds:
-    col_cfg[u] = st.column_config.NumberColumn(
+    col_cfg[u] = st.column_config.TextColumn(
         f"{u} 🧮 (t)",
-        disabled=True, format="%.1f",
-        help=f"CALCOLATA dal solver – Resa {FEEDSTOCK_DB[u]['yield']} Nm³/t FM",
+        disabled=True,
+        help=f"CALCOLATA dal solver – Resa {fmt_it(FEEDSTOCK_DB[u]['yield'], 0)} Nm³/t FM",
     )
-col_cfg["Totale biomasse (t)"] = st.column_config.NumberColumn("Tot. t", disabled=True, format="%.0f")
-col_cfg["Sm³ lordi"] = st.column_config.NumberColumn("Sm³ lordi", disabled=True, format="%.0f")
-col_cfg["Sm³ netti"] = st.column_config.NumberColumn("Sm³ netti", disabled=True, format="%.0f")
-col_cfg["MWh netti"] = st.column_config.NumberColumn("MWh netti", disabled=True, format="%.1f")
-col_cfg["GHG (gCO₂/MJ)"] = st.column_config.NumberColumn("e_w", disabled=True, format="%.2f", help="Emissioni pesate gCO₂eq/MJ")
-col_cfg["Saving %"] = st.column_config.NumberColumn(
-    "Saving %", disabled=True, format="%.1f",
-    help=f"Obbligatorio ≥ {ghg_threshold*100:.0f}% (RED III – {end_use})",
+col_cfg["Totale biomasse (t)"] = st.column_config.TextColumn("Tot. t", disabled=True)
+col_cfg["Sm³ lordi"]   = st.column_config.TextColumn("Sm³ lordi", disabled=True)
+col_cfg["Sm³ netti"]   = st.column_config.TextColumn("Sm³ netti", disabled=True)
+col_cfg["MWh netti"]   = st.column_config.TextColumn("MWh netti", disabled=True)
+col_cfg["GHG (gCO₂/MJ)"] = st.column_config.TextColumn(
+    "e_w", disabled=True, help="Emissioni pesate gCO₂eq/MJ",
 )
-col_cfg["Sm³/h netti"] = st.column_config.NumberColumn(
-    "Sm³/h netti", disabled=True, format="%.1f",
-    help=f"Obbligatorio ≤ {plant_net_smch:.0f} (tetto autorizzativo)",
+col_cfg["Saving %"] = st.column_config.TextColumn(
+    "Saving %", disabled=True,
+    help=f"Obbligatorio ≥ {fmt_it(ghg_threshold*100, 0, '%')} (RED III – {end_use})",
+)
+col_cfg["Sm³/h netti"] = st.column_config.TextColumn(
+    "Sm³/h netti", disabled=True,
+    help=f"Obbligatorio ≤ {fmt_it(plant_net_smch, 0)} (tetto autorizzativo)",
 )
 col_cfg["Validità"] = st.column_config.TextColumn("Validità", disabled=True, width="medium")
 col_cfg["Note"] = st.column_config.TextColumn("Note", disabled=True, width="medium")
 
 edited = st.data_editor(
-    df_res,
+    df_disp,
     column_config=col_cfg,
     hide_index=True,
     use_container_width=True,
@@ -575,11 +797,13 @@ edited = st.data_editor(
 )
 
 # --- Se l'utente ha modificato una cella editabile, aggiorna state e rerun
+# Le celle editabili sono TextColumn: parse_it() gestisce formato italiano.
 edit_cols = ["Mese", "Ore"] + fixed_feeds
 new_input = edited[edit_cols].reset_index(drop=True).copy()
-new_input["Ore"] = new_input["Ore"].astype(int)
+new_input["Ore"] = new_input["Ore"].apply(parse_it).astype(int)
 for f in fixed_feeds:
-    new_input[f] = new_input[f].astype(float)
+    new_input[f] = new_input[f].apply(parse_it).astype(float)
+
 old_input = input_df[edit_cols].reset_index(drop=True).copy()
 old_input["Ore"] = old_input["Ore"].astype(int)
 for f in fixed_feeds:
@@ -595,10 +819,14 @@ if warnings_list:
 # ------------------------- SINTESI -------------------------
 st.subheader("📈 Sintesi annuale")
 c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Tot. biomasse (t/anno)", f"{df_res['Totale biomasse (t)'].sum():,.0f}")
-c2.metric("Sm³ netti (anno)", f"{df_res['Sm³ netti'].sum():,.0f}")
-c3.metric("MWh netti (anno)", f"{df_res['MWh netti'].sum():,.0f}")
-c4.metric("Saving medio (%)", f"{df_res['Saving %'].mean():.1f}")
+c1.metric("Tot. biomasse (t/anno)",
+          fmt_it(df_res["Totale biomasse (t)"].sum(), 0))
+c2.metric("Sm³ netti (anno)",
+          fmt_it(df_res["Sm³ netti"].sum(), 0))
+c3.metric("MWh netti (anno)",
+          fmt_it(df_res["MWh netti"].sum(), 0))
+c4.metric("Saving medio (%)",
+          fmt_it(df_res["Saving %"].mean(), 1))
 valid_months = df_res["Validità"].str.startswith("✅").sum()
 c5.metric("Mesi validi", f"{valid_months}/12",
           delta="OK" if valid_months == 12 else f"{12-valid_months} NON validi",
@@ -622,7 +850,7 @@ with tab1:
         color_discrete_map={n: FEEDSTOCK_DB[n]["color"] for n in FEED_NAMES},
         title="Ripartizione mensile biomasse",
     )
-    fig.update_layout(barmode="stack", height=450)
+    fig.update_layout(barmode="stack", height=450, separators=",.")
     st.plotly_chart(fig, use_container_width=True)
 
 with tab2:
@@ -635,26 +863,27 @@ with tab2:
             cmin=70, cmax=100,
             colorbar=dict(title="Saving %"),
         ),
-        text=[f"{v:.1f}%" for v in df_res["Saving %"]],
+        text=[fmt_it(v, 1, "%") for v in df_res["Saving %"]],
         textposition="outside",
     ))
     fig2.add_hline(y=ghg_threshold*100, line_dash="dash", line_color="red",
-                   annotation_text=f"Soglia RED III {ghg_threshold*100:.0f}%",
+                   annotation_text=f"Soglia RED III {fmt_it(ghg_threshold*100, 0, '%')}",
                    annotation_position="top right")
     fig2.add_hline(y=target_saving*100, line_dash="dot", line_color="green",
-                   annotation_text=f"Target solver {target_saving*100:.0f}%",
+                   annotation_text=f"Target solver {fmt_it(target_saving*100, 0, '%')}",
                    annotation_position="bottom right")
     fig2.update_layout(title="Saving GHG mensile (%)",
                        yaxis_title="Saving (%)", height=450,
-                       yaxis=dict(range=[60, 160]))
+                       yaxis=dict(range=[60, 160]),
+                       separators=",.")
     st.plotly_chart(fig2, use_container_width=True)
 
 with tab3:
     # Etichette numeriche leggibili coerenti con la tabella (formato IT: 287.928)
     lordi_vals = df_res["Sm³ lordi"].astype(float)
     netti_vals = df_res["Sm³ netti"].astype(float)
-    lordi_labels = [f"{v:,.0f}".replace(",", ".") for v in lordi_vals]
-    netti_labels = [f"{v:,.0f}".replace(",", ".") for v in netti_vals]
+    lordi_labels = [fmt_it(v, 0) for v in lordi_vals]
+    netti_labels = [fmt_it(v, 0) for v in netti_vals]
 
     fig3 = go.Figure()
     fig3.add_trace(go.Bar(
@@ -670,17 +899,20 @@ with tab3:
         hovertemplate="<b>%{x}</b><br>Sm³ netti: %{text}<extra></extra>",
     ))
     fig3.update_layout(
-        title=f"Produzione mensile Sm³  (aux_factor = {aux_factor:.2f})",
+        title=f"Produzione mensile Sm³  (aux_factor = {fmt_it(aux_factor, 2)})",
         barmode="group", height=500,
         yaxis_title="Sm³ / mese",
         yaxis=dict(tickformat=",.0f", separatethousands=True),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        separators=",.",
     )
     st.plotly_chart(fig3, use_container_width=True)
 
     st.caption(
-        f"📐 **Dimensionamento**: Sm³ lordi = 300 × {aux_factor:.2f} × ore_mese · "
-        f"Sm³ netti = Sm³ lordi ÷ {aux_factor:.2f} = 300 × ore_mese. "
+        f"📐 **Dimensionamento**: Sm³ lordi = {fmt_it(plant_net_smch, 0)} × "
+        f"{fmt_it(aux_factor, 2)} × ore_mese · "
+        f"Sm³ netti = Sm³ lordi ÷ {fmt_it(aux_factor, 2)} = "
+        f"{fmt_it(plant_net_smch, 0)} × ore_mese. "
         "Stessi numeri riportati in tabella (colonne «Sm³ lordi» e «Sm³ netti»)."
     )
 
@@ -703,10 +935,11 @@ with tab4:
             values=list(annual_t.values()),
             color=list(annual_t.keys()),
             color_discrete_map=color_map,
-            title=f"Mix t/anno (totale {sum(annual_t.values()):,.0f} t)".replace(",", "."),
+            title=f"Mix t/anno (totale {fmt_it(sum(annual_t.values()), 0)} t)",
             hole=0.4,
         )
         fig4a.update_traces(textposition="inside", textinfo="percent+label")
+        fig4a.update_layout(separators=",.")
         st.plotly_chart(fig4a, use_container_width=True)
 
     with colB:
@@ -715,10 +948,11 @@ with tab4:
             values=list(annual_mwh.values()),
             color=list(annual_mwh.keys()),
             color_discrete_map=color_map,
-            title=f"Mix MWh netti/anno (totale {sum(annual_mwh.values()):,.0f} MWh)".replace(",", "."),
+            title=f"Mix MWh netti/anno (totale {fmt_it(sum(annual_mwh.values()), 0)} MWh)",
             hole=0.4,
         )
         fig4b.update_traces(textposition="inside", textinfo="percent+label")
+        fig4b.update_layout(separators=",.")
         st.plotly_chart(fig4b, use_container_width=True)
 
     # Tabella di dettaglio per calcolo ricavi per biomassa (tariffa editabile)
@@ -740,44 +974,36 @@ with tab4:
         mwh_netti = nm3_netti * NM3_TO_MWH
         tariffa = st.session_state["tariffs_eur_mwh"][n]
         ricavi = mwh_netti * tariffa
+        quota = ((mwh_netti / sum(annual_mwh.values()) * 100)
+                 if sum(annual_mwh.values()) > 0 else 0)
         detail_rows.append({
             "Biomassa": n,
-            "t/anno (FM)": t,
-            "Resa (Nm³/t)": FEEDSTOCK_DB[n]["yield"],
-            "Sm³ netti/anno": nm3_netti,
-            "MWh netti/anno": mwh_netti,
-            "Quota % MWh": (mwh_netti / sum(annual_mwh.values()) * 100)
-                           if sum(annual_mwh.values()) > 0 else 0,
-            "Tariffa €/MWh": tariffa,
-            "Ricavi €/anno": ricavi,
+            # Read-only pre-formattate in italiano
+            "t/anno (FM)":     fmt_it(t, 0),
+            "Resa (Nm³/t)":    fmt_it(FEEDSTOCK_DB[n]["yield"], 0),
+            "Sm³ netti/anno":  fmt_it(nm3_netti, 0),
+            "MWh netti/anno":  fmt_it(mwh_netti, 1),
+            "Quota % MWh":     fmt_it(quota, 1, "%"),
+            # Editabile: TextColumn con formato italiano (parse_it in scrittura)
+            "Tariffa €/MWh":   fmt_it(tariffa, 2),
+            "Ricavi €/anno":   fmt_it(ricavi, 0, " €"),
         })
     df_detail = pd.DataFrame(detail_rows)
 
     detail_col_cfg = {
-        "Biomassa": st.column_config.TextColumn("Biomassa", disabled=True),
-        "t/anno (FM)": st.column_config.NumberColumn(
-            "t/anno (FM)", disabled=True, format="%.0f"
-        ),
-        "Resa (Nm³/t)": st.column_config.NumberColumn(
-            "Resa Nm³/t", disabled=True, format="%.0f"
-        ),
-        "Sm³ netti/anno": st.column_config.NumberColumn(
-            "Sm³ netti/anno", disabled=True, format="%.0f"
-        ),
-        "MWh netti/anno": st.column_config.NumberColumn(
-            "MWh netti/anno", disabled=True, format="%.1f"
-        ),
-        "Quota % MWh": st.column_config.NumberColumn(
-            "Quota % MWh", disabled=True, format="%.1f%%"
-        ),
-        "Tariffa €/MWh": st.column_config.NumberColumn(
+        "Biomassa":       st.column_config.TextColumn("Biomassa", disabled=True),
+        "t/anno (FM)":    st.column_config.TextColumn("t/anno (FM)", disabled=True),
+        "Resa (Nm³/t)":   st.column_config.TextColumn("Resa Nm³/t", disabled=True),
+        "Sm³ netti/anno": st.column_config.TextColumn("Sm³ netti/anno", disabled=True),
+        "MWh netti/anno": st.column_config.TextColumn("MWh netti/anno", disabled=True),
+        "Quota % MWh":    st.column_config.TextColumn("Quota % MWh", disabled=True),
+        "Tariffa €/MWh": st.column_config.TextColumn(
             "Tariffa €/MWh ✏️",
-            min_value=0.0, max_value=1000.0, step=1.0, format="%.2f",
-            help="Tariffa incentivante/PPA per biomassa [€/MWh]. "
-                 "Modificabile per simulazioni di ricavi.",
+            help="Tariffa incentivante/PPA per biomassa [€/MWh] in formato "
+                 "italiano (es. 1.234,56). Modificabile per simulazioni di ricavi.",
         ),
-        "Ricavi €/anno": st.column_config.NumberColumn(
-            "Ricavi €/anno 🧮", disabled=True, format="%.0f",
+        "Ricavi €/anno": st.column_config.TextColumn(
+            "Ricavi €/anno 🧮", disabled=True,
             help="MWh netti × tariffa €/MWh (si ricalcola al variare della tariffa)",
         ),
     }
@@ -791,9 +1017,9 @@ with tab4:
         key="editor_revenue_detail",
     )
 
-    # Se l'utente ha modificato una tariffa -> salva e rerun
+    # Se l'utente ha modificato una tariffa -> salva e rerun (parse_it per IT)
     new_tariffs = {
-        row["Biomassa"]: float(row["Tariffa €/MWh"])
+        row["Biomassa"]: parse_it(row["Tariffa €/MWh"])
         for _, row in edited_detail.iterrows()
     }
     if new_tariffs != st.session_state["tariffs_eur_mwh"]:
@@ -808,18 +1034,14 @@ with tab4:
     )
     tariffa_media_ponderata = (tot_revenue / tot_mwh) if tot_mwh > 0 else 0.0
     cA, cB, cC = st.columns(3)
-    cA.metric("MWh netti totali/anno", f"{tot_mwh:,.0f}".replace(",", "."))
-    cB.metric(
-        "Tariffa media ponderata",
-        f"{tariffa_media_ponderata:,.2f} €/MWh".replace(",", "."),
-    )
-    cC.metric(
-        "💰 Ricavi totali/anno",
-        f"{tot_revenue:,.0f} €".replace(",", "."),
-    )
+    cA.metric("MWh netti totali/anno", fmt_it(tot_mwh, 0))
+    cB.metric("Tariffa media ponderata",
+              fmt_it(tariffa_media_ponderata, 2, " €/MWh"))
+    cC.metric("💰 Ricavi totali/anno", fmt_it(tot_revenue, 0, " €"))
 
     st.caption(
-        f"📐 **Calcolo**: MWh netti/biomassa = t × resa_Nm³/t ÷ {aux_factor:.2f} × 0.00997. "
+        f"📐 **Calcolo**: MWh netti/biomassa = t × resa_Nm³/t ÷ "
+        f"{fmt_it(aux_factor, 2)} × 0,00997. "
         f"Ricavi/biomassa = MWh netti × tariffa €/MWh. "
         f"Modifica la colonna «Tariffa €/MWh» per simulare scenari diversi."
     )
