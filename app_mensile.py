@@ -317,25 +317,58 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
 def find_optimal_pair(aux: float, plant_net: float, ep: float,
                       target_e_max: float):
     """
-    Trova la coppia di biomasse che MINIMIZZA la massa totale rispettando:
+    Trova il mix di biomasse (1 o 2 attive, le altre a 0) che MINIMIZZA la
+    massa totale rispettando:
       - produzione lorda = plant_net * aux * ore (vincolo di uguaglianza)
-      - e_w = target_e_max  (saving GHG al target solver, leggermente sopra la
-        soglia RED III)
-    Le altre 2 biomasse vengono poste a zero.
+      - e_w <= target_e_max  (saving GHG >= target solver, leggermente sopra
+        la soglia RED III)
 
-    Ritorna:
-      (coppia_ottimale: tuple[str,str], masse_per_ora_riferimento: dict, note)
-    oppure None se nessuna coppia e' fattibile.
+    Ritorna (pair, total_per_hour, masses_per_hour) o None se infeasibile.
+    `pair` e' sempre una tuple di 2 nomi (se mono, il 2o nome e' incluso ma
+    con massa 0) per retrocompatibilita' con il codice chiamante.
 
-    Nota: per teoria LP con 2 vincoli e 4 variabili non-negative, l'ottimo
-    giace su un vertice con al piu' 2 variabili positive -> basta enumerare le
-    C(4,2)=6 coppie. La coppia ottimale NON dipende dalle ore: la soluzione
-    scala linearmente, quindi la coppia migliore per 1h e' la stessa per ogni
-    mese.
+    Teoria LP: con 2 vincoli (produzione = equality, saving = inequality) e
+    4 variabili non-negative, l'ottimo e' su un vertice con <=2 variabili
+    positive.  Due famiglie di vertici:
+      (a) MONO: 1 sola biomassa attiva; richiede che il suo e_total sia gia'
+          <= target_e_max (saving >= target).  Massa = gross_target / yield.
+      (b) COPPIA: 2 biomasse attive, vincolo saving attivo (=target).
+          Sistema 2x2 risolto da solve_2_unknowns_dual.
+
+    NB: la coppia ottimale NON dipende dalle ore: la soluzione scala
+    linearmente, quindi il mix migliore per 1 h e' lo stesso per ogni mese.
     """
     from itertools import combinations
 
-    best = None  # (pair, total_per_hour, masses_per_hour)
+    gross_target = plant_net * aux * 1.0  # per 1 ora
+    best = None  # (pair_tuple, total_per_hour, masses_per_hour)
+
+    # --- (a) MONO: enumera 4 singole biomasse -------------------------------
+    # Con vincolo saving in forma di DISUGUAGLIANZA, se una singola biomassa
+    # ha gia' e_total <= target_e_max (over-performance rispetto alla soglia)
+    # allora soddisfa entrambi i vincoli da sola, e la sua massa e'
+    # gross_target / yield.  Candidato naturale per minima massa totale.
+    for n in FEED_NAMES:
+        e_n = e_total_feedstock(n, ep)
+        if e_n <= target_e_max + 1e-9:  # saving >= target
+            y_n = FEEDSTOCK_DB[n]["yield"]
+            if y_n <= 0:
+                continue
+            m_n = gross_target / y_n
+            masses_h = {k: 0.0 for k in FEED_NAMES}
+            masses_h[n] = m_n
+            total_h = m_n
+            # Per retrocompat col banner (2 nomi sempre), "completo" con la
+            # biomassa a massa zero che ha e_total minima (piu' amica).
+            other = min(
+                (x for x in FEED_NAMES if x != n),
+                key=lambda x: e_total_feedstock(x, ep),
+            )
+            pair_tuple = (n, other)
+            if best is None or total_h < best[1] - 1e-9:
+                best = (pair_tuple, total_h, masses_h)
+
+    # --- (b) COPPIE: enumera C(4,2)=6 vertici con saving=target -------------
     for pair in combinations(FEED_NAMES, 2):
         fixed0 = {n: 0.0 for n in FEED_NAMES if n not in pair}
         sol, feas, _ = solve_2_unknowns_dual(
@@ -491,22 +524,41 @@ MODE_SINGLE = "3 biomasse fisse + 1 calcolata  (solo produzione 300 Sm³/h)"
 # dopo che qualunque widget e' stato renderizzato nello stesso run.)
 _pending_opt = st.session_state.pop("_pending_optimization", None)
 if _pending_opt is not None:
-    st.session_state["mode_radio"] = MODE_DUAL
-    st.session_state["fixed_multiselect"] = list(_pending_opt["unused"])
-    # Pre-popola lo state della tabella con 0 sulle 2 inutilizzate
-    new_state_key = f"mens_in_dual_{'-'.join(_pending_opt['unused'])}"
-    rows_init = []
-    for mm, hh in zip(MONTHS, MONTH_HOURS):
-        r = {"Mese": mm, "Ore": hh}
-        for f in _pending_opt["unused"]:
-            r[f] = 0.0
-        rows_init.append(r)
-    st.session_state[new_state_key] = pd.DataFrame(rows_init)
+    if _pending_opt.get("is_mono"):
+        # Caso mono: 1 sola biomassa attiva -> modalita' 3+1 con la mono come
+        # incognita calcolata e le altre 3 fisse a 0 (per ogni mese).
+        mono = _pending_opt["mono"]
+        others = [n for n in FEED_NAMES if n != mono]
+        st.session_state["mode_radio"] = MODE_SINGLE
+        st.session_state["single_unknown_select"] = mono
+        new_state_key = f"mens_in_single_{'-'.join(others)}"
+        rows_init = []
+        for mm, hh in zip(MONTHS, MONTH_HOURS):
+            r = {"Mese": mm, "Ore": hh}
+            for f in others:
+                r[f] = 0.0
+            rows_init.append(r)
+        st.session_state[new_state_key] = pd.DataFrame(rows_init)
+    else:
+        # Caso coppia: 2 biomasse attive -> modalita' 2+2 con le 2 inutilizzate
+        # come "fisse a 0".
+        st.session_state["mode_radio"] = MODE_DUAL
+        st.session_state["fixed_multiselect"] = list(_pending_opt["unused"])
+        new_state_key = f"mens_in_dual_{'-'.join(_pending_opt['unused'])}"
+        rows_init = []
+        for mm, hh in zip(MONTHS, MONTH_HOURS):
+            r = {"Mese": mm, "Ore": hh}
+            for f in _pending_opt["unused"]:
+                r[f] = 0.0
+            rows_init.append(r)
+        st.session_state[new_state_key] = pd.DataFrame(rows_init)
     # Flag per banner informativo (consumato dopo il rendering dei controlli)
     st.session_state["_optimize_info"] = {
         "pair": _pending_opt["pair"],
         "unused": _pending_opt["unused"],
         "total_year": _pending_opt["total_year"],
+        "is_mono": _pending_opt.get("is_mono", False),
+        "mono": _pending_opt.get("mono"),
     }
 
 # -------- PULSANTE OTTIMIZZA (tutta larghezza, sempre visibile) ------------
@@ -545,13 +597,18 @@ if optimize_clicked:
             "digestato coperto, upgrading a membrane/amminico, off-gas RTO)."
         )
     else:
-        pair, total_h, _masses = best
+        pair, total_h, masses_h = best
+        # Se solo una biomassa ha massa > 0 -> ottimo MONO
+        active = [n for n, v in masses_h.items() if v > 1e-9]
+        is_mono = len(active) == 1
         unused = [n for n in FEED_NAMES if n not in pair]
         annual_hours = sum(MONTH_HOURS)
         st.session_state["_pending_optimization"] = {
             "pair": list(pair),
             "unused": unused,
             "total_year": total_h * annual_hours,
+            "is_mono": is_mono,
+            "mono": active[0] if is_mono else None,
         }
         st.rerun()
 
@@ -587,6 +644,7 @@ with col1:
         unknown_feed = st.selectbox(
             "Biomassa incognita (calcolata automaticamente):",
             FEED_NAMES, index=3,
+            key="single_unknown_select",
         )
         fixed_feeds = [n for n in FEED_NAMES if n != unknown_feed]
         unknown_feeds = [unknown_feed]
@@ -594,15 +652,28 @@ with col1:
 # Banner risultato ottimizzazione (mostrato 1 sola volta dopo click)
 _opt_info = st.session_state.pop("_optimize_info", None)
 if _opt_info:
-    st.success(
-        f"🚀 **Ottimo LP**: biomasse attive **{_opt_info['pair'][0]}** + "
-        f"**{_opt_info['pair'][1]}** "
-        f"(**{_opt_info['unused'][0]}** e **{_opt_info['unused'][1]}** = 0). "
-        f"Massa totale annua minima ≈ "
-        f"**{fmt_it(_opt_info['total_year'], 0)} t/anno** "
-        f"(saving target **{fmt_it(target_saving*100, 0, '%')}**, "
-        f"produzione **{fmt_it(plant_net_smch, 0)} Sm³/h netti**)."
-    )
+    if _opt_info.get("is_mono"):
+        mono = _opt_info["mono"]
+        others = [n for n in FEED_NAMES if n != mono]
+        st.success(
+            f"🚀 **Ottimo LP – MONO biomassa**: unica attiva **{mono}** "
+            f"(le altre 3 = 0). "
+            f"Massa totale annua minima ≈ "
+            f"**{fmt_it(_opt_info['total_year'], 0)} t/anno**. "
+            f"Il saving e' oltre la soglia con la sola **{mono}**; "
+            f"modalita' 3+1 impostata automaticamente "
+            f"({mono} calcolata, le altre a 0)."
+        )
+    else:
+        st.success(
+            f"🚀 **Ottimo LP**: biomasse attive **{_opt_info['pair'][0]}** + "
+            f"**{_opt_info['pair'][1]}** "
+            f"(**{_opt_info['unused'][0]}** e **{_opt_info['unused'][1]}** = 0). "
+            f"Massa totale annua minima ≈ "
+            f"**{fmt_it(_opt_info['total_year'], 0)} t/anno** "
+            f"(saving target **{fmt_it(target_saving*100, 0, '%')}**, "
+            f"produzione **{fmt_it(plant_net_smch, 0)} Sm³/h netti**)."
+        )
 
 with col2:
     if is_dual_mode:
@@ -688,7 +759,8 @@ for _, row in input_df.iterrows():
     #       ausiliari CHP+caldaia deve essere rinnovabile per >=80%).
     #   (2) produzione netta <= plant_net_smch (taglia autorizzata).
     net_smch = summary["nm3_net"] / hours if hours > 0 else 0.0
-    saving_ok = summary["saving"] >= ghg_threshold * 100
+    # tolleranza 1e-6 per evitare falsi negativi da arrotondamenti float
+    saving_ok = summary["saving"] >= ghg_threshold * 100 - 1e-6
     prod_ok = net_smch <= plant_net_smch + 0.5   # tolleranza +0.5 Sm3/h
     target_hit = abs(net_smch - plant_net_smch) < 0.5
 
@@ -810,9 +882,12 @@ edited = st.data_editor(
 # Le celle editabili sono TextColumn: parse_it() gestisce formato italiano.
 edit_cols = ["Mese", "Ore"] + fixed_feeds
 new_input = edited[edit_cols].reset_index(drop=True).copy()
-new_input["Ore"] = new_input["Ore"].apply(parse_it).astype(int)
+# Clamp: ore e masse devono essere >= 0 (niente valori negativi inseriti
+# per errore). Ore max 744 (mese piu' lungo) non applicata come hard-cap
+# per consentire future simulazioni di turni doppi/extra manutenzione.
+new_input["Ore"] = new_input["Ore"].apply(parse_it).clip(lower=0).astype(int)
 for f in fixed_feeds:
-    new_input[f] = new_input[f].apply(parse_it).astype(float)
+    new_input[f] = new_input[f].apply(parse_it).clip(lower=0).astype(float)
 
 old_input = input_df[edit_cols].reset_index(drop=True).copy()
 old_input["Ore"] = old_input["Ore"].astype(int)
@@ -1028,8 +1103,9 @@ with tab4:
     )
 
     # Se l'utente ha modificato una tariffa -> salva e rerun (parse_it per IT)
+    # Clamp: tariffe negative non hanno senso fisico -> >=0.
     new_tariffs = {
-        row["Biomassa"]: parse_it(row["Tariffa €/MWh"])
+        row["Biomassa"]: max(parse_it(row["Tariffa €/MWh"]), 0.0)
         for _, row in edited_detail.iterrows()
     }
     if new_tariffs != st.session_state["tariffs_eur_mwh"]:
