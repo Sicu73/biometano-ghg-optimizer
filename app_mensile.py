@@ -569,34 +569,38 @@ st.markdown(
     <style>
     .methaniq-header {
         background: linear-gradient(90deg, #0B8A5A 0%, #13A876 50%, #1CC491 100%);
-        padding: 22px 30px;
+        padding: 28px 30px;
         border-radius: 14px;
         color: white;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
         box-shadow: 0 4px 14px rgba(11, 138, 90, 0.25);
+        text-align: center;
     }
     .methaniq-header h1 {
         color: white !important;
         margin: 0;
-        font-size: 2.4rem;
+        font-size: 2.8rem;
         font-weight: 700;
         letter-spacing: -0.5px;
+        text-align: center;
     }
     .methaniq-header .tagline {
         color: #e8fff5;
         font-style: italic;
-        font-size: 1.05rem;
-        margin-top: 4px;
+        font-size: 1.15rem;
+        margin-top: 6px;
         opacity: 0.95;
+        text-align: center;
     }
     .methaniq-credit {
         background: #f8faf9;
         border-left: 4px solid #0B8A5A;
-        padding: 8px 14px;
+        padding: 10px 14px;
         border-radius: 4px;
         font-size: 0.88rem;
         color: #555;
         margin-bottom: 18px;
+        text-align: center;
     }
     </style>
     <div class="methaniq-header">
