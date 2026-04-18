@@ -654,15 +654,25 @@ st.markdown(
 
     <style>
     /* ---------- Global typography ---------- */
-    html, body, [class*="css"], .stApp, .stMarkdown, .stText,
-    .stButton, .stSelectbox, .stNumberInput, .stSlider,
-    .stCheckbox, .stRadio, .stExpander, .stDataFrame,
-    .stMetric, .stTabs, .stAlert, p, span, div, label {{
+    /* NB: NON applicare font su span/div/label globalmente per non rompere
+       le Material Icons/Symbols di Streamlit (collapse sidebar, ecc.) */
+    html, body, .stApp, .stMarkdown, .stText,
+    .stButton button, .stSelectbox label, .stNumberInput label,
+    .stSlider label, .stCheckbox label, .stRadio label,
+    .stExpander, .stDataFrame, .stMetric, .stTabs, .stAlert,
+    p, h1, h2, h3, h4, h5, h6 {{
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
     }}
-    code, pre, .stCode {{
+    /* Preserve Material Icons / Symbols font (Streamlit internal) */
+    [class*="material-icons"], [class*="material-symbols"],
+    .material-icons, .material-symbols-outlined, .material-symbols-rounded,
+    span[data-testid*="icon"], i[class*="icon"] {{
+        font-family: 'Material Symbols Rounded', 'Material Icons',
+                     'Material Symbols Outlined', sans-serif !important;
+    }}
+    code, pre, .stCode, code * {{
         font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
         background: {CODE_BG} !important;
         color: {CODE_COLOR} !important;
