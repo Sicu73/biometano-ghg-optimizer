@@ -86,12 +86,29 @@ def parse_it(value) -> float:
 # ============================================================
 # COSTANTI RED III
 # ============================================================
-FOSSIL_COMPARATOR = 94.0                       # gCO2eq/MJ (comparator fossile)
+# Comparator fossile dinamico per tipologia impianto:
+#   - Biometano (in rete / trasporti): 94 gCO2eq/MJ (NG sostituito - RED III All.V)
+#   - Biogas CHP (elettricita'): 183 gCO2eq/MJ (mix elettrico EU - RED III All.VI)
+COMPARATOR_BY_MODE = {
+    "biometano": 94.0,
+    "biogas_chp": 183.0,
+}
+FOSSIL_COMPARATOR = 94.0                       # default: aggiornato dinamicamente
 # Le soglie RED III variano per uso finale: 80% elettricita'/calore, 65% trasporti
 LHV_BIOMETHANE = 35.9                          # MJ/Nm3 (97% CH4)
-NM3_TO_MWH = 0.00997                           # 1 Nm3 -> MWh
+NM3_TO_MWH = 0.00997                           # 1 Nm3 -> MWh (PCI biometano)
 DEFAULT_AUX_FACTOR = 1.29                      # netto -> lordo (CHP+caldaia)
 DEFAULT_PLANT_NET_SMCH = 300.0                 # Sm3/h netti autorizzati (default)
+
+# ============================================================
+# COSTANTI BIOGAS CHP (modalita' cogenerazione)
+# ============================================================
+# Efficienze di default motore cogeneratore (CHP ad alto rendimento):
+ETA_EL_DEFAULT = 0.40        # efficienza elettrica (40% tipica motori 500-1000 kWe)
+ETA_TH_DEFAULT = 0.42        # efficienza termica (42% tipica con recupero fumi+acqua)
+AUX_EL_DEFAULT = 0.08        # autoconsumo elettrico (pompe, agitatori, upgrading off)
+# Default potenza CHP: 999 kWe (taglia tipica biogas agricolo <1 MWe - TO GSE)
+DEFAULT_PLANT_KWE = 999.0
 
 # ============================================================
 # SOGLIE RED III per destinazione d'uso biometano
@@ -830,6 +847,47 @@ with st.sidebar:
             st.rerun()
     st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
 
+# ===========================================================
+# Metan.iQ Mode Selector (Biometano vs Biogas CHP)
+# ===========================================================
+if "app_mode" not in st.session_state:
+    st.session_state.app_mode = "biometano"
+
+with st.sidebar:
+    st.markdown(
+        "<div style='font-size:0.7rem; font-weight:700; letter-spacing:1px; "
+        "text-transform:uppercase; color:#64748B; margin-bottom:6px; padding-left:2px;'>"
+        "🏭 Tipologia impianto</div>",
+        unsafe_allow_html=True,
+    )
+    _mc1, _mc2 = st.columns(2)
+    with _mc1:
+        if st.button(
+            "🟢 Biometano",
+            use_container_width=True,
+            type="primary" if st.session_state.app_mode == "biometano" else "secondary",
+            key="btn_mode_biometano",
+            help="Impianto con upgrading a biometano (immissione rete / trasporti)",
+        ):
+            st.session_state.app_mode = "biometano"
+            st.rerun()
+    with _mc2:
+        if st.button(
+            "⚡ Biogas CHP",
+            use_container_width=True,
+            type="primary" if st.session_state.app_mode == "biogas_chp" else "secondary",
+            key="btn_mode_chp",
+            help="Impianto biogas con cogeneratore (produzione elettrica + termica)",
+        ):
+            st.session_state.app_mode = "biogas_chp"
+            st.rerun()
+    st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
+
+APP_MODE = st.session_state.app_mode
+IS_CHP = APP_MODE == "biogas_chp"
+# Aggiorno dinamicamente il comparator fossile (usato nei calcoli GHG downstream)
+FOSSIL_COMPARATOR = COMPARATOR_BY_MODE[APP_MODE]
+
 IS_DARK = st.session_state.methaniq_theme == "dark"
 
 # Palette basata sul tema
@@ -1209,8 +1267,14 @@ st.markdown(
 
     <div class="methaniq-header">
         <h1>🧬 Metan<span style="color:#F59E0B; font-weight:900;">.</span>iQ</h1>
-        <div class="tagline">L'intelligenza del biometano.</div>
+        <div class="tagline">""" + (
+            "L'intelligenza del biometano." if not IS_CHP
+            else "L'intelligenza del biogas cogenerativo."
+        ) + """</div>
         <div class="pills">
+            <span class="pill" style="background:rgba(245,158,11,0.25); border-color:rgba(245,158,11,0.4);">""" + (
+                "🟢 Modalità Biometano" if not IS_CHP else "⚡ Modalità Biogas CHP"
+            ) + """</span>
             <span class="pill">✓ RED III Compliant</span>
             <span class="pill">✓ GSE Linee Guida 2024</span>
             <span class="pill">✓ UNI-TS 11567:2024</span>
@@ -1364,19 +1428,61 @@ with st.sidebar:
 
     st.divider()
     st.header("⚙️ Parametri impianto")
-    plant_net_smch = st.number_input(
-        "🎯 Netto autorizzato [Sm³/h netti]",
-        min_value=10.0, max_value=2000.0,
-        value=DEFAULT_PLANT_NET_SMCH, step=5.0,
-        help="Taglia netta dell'impianto. Cambia il setpoint di produzione: "
-             "tutte le biomasse vengono ricalcolate per centrare questo valore.",
-    )
-    st.caption(
-        "ℹ️ Il **fattore netto→lordo** viene calcolato automaticamente dalla "
-        "configurazione impianto qui sotto (upgrading, fonte calore, fonte "
-        "elettricita'). Puoi comunque sovrascriverlo manualmente."
-    )
-    st.metric("Taglia netta", fmt_it(plant_net_smch, 0, " Sm³/h"))
+
+    if IS_CHP:
+        # Parametri CHP: input utente in kW_el, convertito internamente in
+        # Sm3/h CH4 equivalenti (unit interna del solver).
+        eta_el = st.slider(
+            "🔌 Efficienza elettrica CHP [η_el]",
+            min_value=0.30, max_value=0.45,
+            value=ETA_EL_DEFAULT, step=0.01,
+            help="Rendimento elettrico motore cogeneratore. Tipico 38-42% "
+                 "per motori biogas 500-1000 kWe (Jenbacher, MWM, Guascor).",
+        )
+        eta_th = st.slider(
+            "🔥 Efficienza termica CHP [η_th]",
+            min_value=0.30, max_value=0.50,
+            value=ETA_TH_DEFAULT, step=0.01,
+            help="Rendimento termico recuperato (fumi + acqua motore). "
+                 "Tipico 40-45%. Per CAR richiesto PES > 10%.",
+        )
+        plant_kwe = st.number_input(
+            "🎯 Potenza elettrica netta [kW_el]",
+            min_value=50.0, max_value=10000.0,
+            value=DEFAULT_PLANT_KWE, step=10.0,
+            help="Potenza elettrica nominale del cogeneratore (al netto "
+                 "degli autoconsumi). Default 999 kWe (TO biogas agricolo).",
+        )
+        # Conversione: 1 Sm3/h CH4 eq → η_el × 9.97 kW_el
+        plant_net_smch = plant_kwe / (eta_el * 9.97 * 1000) * 1000  # Sm3/h CH4 eq
+        st.caption(
+            f"📐 Equivalente in **Sm³/h CH₄** (unit interna solver): "
+            f"{fmt_it(plant_net_smch, 1)} Sm³/h · "
+            f"→ {fmt_it(plant_kwe, 0)} kW_el + "
+            f"{fmt_it(plant_kwe * eta_th / eta_el, 0)} kW_th"
+        )
+        colA, colB = st.columns(2)
+        colA.metric("Taglia elettrica", fmt_it(plant_kwe, 0, " kWₑ"))
+        colB.metric("Taglia termica",
+                    fmt_it(plant_kwe * eta_th / eta_el, 0, " kW_th"))
+    else:
+        plant_net_smch = st.number_input(
+            "🎯 Netto autorizzato [Sm³/h netti]",
+            min_value=10.0, max_value=2000.0,
+            value=DEFAULT_PLANT_NET_SMCH, step=5.0,
+            help="Taglia netta dell'impianto. Cambia il setpoint di produzione: "
+                 "tutte le biomasse vengono ricalcolate per centrare questo valore.",
+        )
+        st.caption(
+            "ℹ️ Il **fattore netto→lordo** viene calcolato automaticamente dalla "
+            "configurazione impianto qui sotto (upgrading, fonte calore, fonte "
+            "elettricita'). Puoi comunque sovrascriverlo manualmente."
+        )
+        st.metric("Taglia netta", fmt_it(plant_net_smch, 0, " Sm³/h"))
+        # Per coerenza in mode biometano: eta_el/eta_th inutilizzati ma definiti
+        eta_el = ETA_EL_DEFAULT
+        eta_th = ETA_TH_DEFAULT
+        plant_kwe = plant_net_smch * eta_el * 9.97  # info-only (non usato)
 
     st.divider()
     st.header("🏭 Configurazione impianto (ep)")
@@ -1385,16 +1491,26 @@ with st.sidebar:
         "che incide direttamente sul saving GHG ex RED III."
     )
 
-    # Destinazione d'uso -> soglia GHG saving
-    end_use = st.selectbox(
-        "🎯 Destinazione biometano (→ soglia saving)",
-        list(END_USE_THRESHOLDS.keys()),
-        index=0,
-        help="RED III + D.Lgs. 5/2026: 80% per elettricita'/calore (impianto "
-             "nuovo >=20/11/2023), 70% per esistenti <10 MW primi 15 anni, "
-             "65% per trasporti.",
-    )
-    ghg_threshold = END_USE_THRESHOLDS[end_use]
+    # Destinazione d'uso -> soglia GHG saving (mode-aware)
+    if IS_CHP:
+        # Per biogas CHP: solo destinazione elettrica, soglia 80% (RED III).
+        # Comparator 183 gCO2/MJ (mix elettrico EU).
+        end_use = "Elettricità CHP (80%)"
+        ghg_threshold = 0.80
+        st.info(
+            "⚡ **Biogas → cogenerazione elettrica** · Comparator fossile "
+            "RED III: 183 gCO₂/MJ (mix elettrico EU) · Soglia saving: 80%"
+        )
+    else:
+        end_use = st.selectbox(
+            "🎯 Destinazione biometano (→ soglia saving)",
+            list(END_USE_THRESHOLDS.keys()),
+            index=0,
+            help="RED III + D.Lgs. 5/2026: 80% per elettricita'/calore (impianto "
+                 "nuovo >=20/11/2023), 70% per esistenti <10 MW primi 15 anni, "
+                 "65% per trasporti.",
+        )
+        ghg_threshold = END_USE_THRESHOLDS[end_use]
     target_saving = ghg_threshold + 0.01  # +1 pp margine sicurezza
     target_e_max = FOSSIL_COMPARATOR * (1 - target_saving)
     max_allowed_e = FOSSIL_COMPARATOR * (1 - ghg_threshold)
@@ -1954,6 +2070,11 @@ for _, row in input_df.iterrows():
     res["Sm³ lordi"] = summary["nm3_gross"]
     res["Sm³ netti"] = summary["nm3_net"]
     res["MWh netti"] = summary["mwh_net"]
+    if IS_CHP:
+        # In modalita' CHP: MWh_netti rappresenta l'energia CH4 equivalente
+        # entrante nel cogeneratore → split in elettrico + termico
+        res["MWh elettrici"] = summary["mwh_net"] * eta_el
+        res["MWh termici"] = summary["mwh_net"] * eta_th
     res["GHG (gCO₂/MJ)"] = summary["e_w"]
     res["Saving %"] = summary["saving"]
     res["Sm³/h netti"] = net_smch
@@ -2195,15 +2316,27 @@ with tab4:
         st.plotly_chart(fig4b, use_container_width=True)
 
     # Tabella di dettaglio per calcolo ricavi per biomassa (tariffa editabile)
-    st.markdown("##### 💶 Dettaglio per tipologia di biomassa (tariffa €/MWh editabile ✏️)")
+    _tar_unit = "€/MWh_el" if IS_CHP else "€/MWh"
+    _tar_default = 250.0 if IS_CHP else 120.0  # TO biogas <300 kWe vs biometano medio
+    st.markdown(
+        f"##### 💶 Dettaglio per tipologia di biomassa "
+        f"(tariffa {_tar_unit} editabile ✏️)"
+    )
+    if IS_CHP:
+        st.caption(
+            "⚡ **Modalità Biogas CHP**: tariffa espressa in €/MWh **elettrici**. "
+            "Default 250 €/MWh (TO biogas agricolo <300 kWe, DM 4/7/2019). "
+            "Per CAR (cogenerazione ad alto rendimento) considerare premio CAR separato."
+        )
 
-    # Stato persistente: tariffe per biomassa
-    if "tariffs_eur_mwh" not in st.session_state:
-        st.session_state["tariffs_eur_mwh"] = {n: 120.0 for n in active_feeds}
+    # Stato persistente: tariffe per biomassa (separate per mode)
+    _tar_key = f"tariffs_eur_mwh_{APP_MODE}"
+    if _tar_key not in st.session_state:
+        st.session_state[_tar_key] = {n: _tar_default for n in active_feeds}
     # Retrocompat: se mancano chiavi per nuove biomasse
     for n in active_feeds:
-        if n not in st.session_state["tariffs_eur_mwh"]:
-            st.session_state["tariffs_eur_mwh"][n] = 120.0
+        if n not in st.session_state[_tar_key]:
+            st.session_state[_tar_key][n] = _tar_default
 
     detail_rows = []
     for n in active_feeds:
@@ -2211,22 +2344,26 @@ with tab4:
         nm3_lordi = t * FEEDSTOCK_DB[n]["yield"]
         nm3_netti = nm3_lordi / aux_factor
         mwh_netti = nm3_netti * NM3_TO_MWH
-        tariffa = st.session_state["tariffs_eur_mwh"][n]
-        ricavi = mwh_netti * tariffa
+        # In modalita' CHP, i ricavi sono su MWh elettrici prodotti
+        mwh_revenue = mwh_netti * eta_el if IS_CHP else mwh_netti
+        tariffa = st.session_state[_tar_key][n]
+        ricavi = mwh_revenue * tariffa
         quota = ((mwh_netti / sum(annual_mwh.values()) * 100)
                  if sum(annual_mwh.values()) > 0 else 0)
-        detail_rows.append({
+        row_detail = {
             "Biomassa": n,
-            # Read-only pre-formattate in italiano
             "t/anno (FM)":     fmt_it(t, 0),
             "Resa (Nm³/t)":    fmt_it(FEEDSTOCK_DB[n]["yield"], 0),
             "Sm³ netti/anno":  fmt_it(nm3_netti, 0),
             "MWh netti/anno":  fmt_it(mwh_netti, 1),
-            "Quota % MWh":     fmt_it(quota, 1, "%"),
-            # Editabile: TextColumn con formato italiano (parse_it in scrittura)
-            "Tariffa €/MWh":   fmt_it(tariffa, 2),
-            "Ricavi €/anno":   fmt_it(ricavi, 0, " €"),
-        })
+        }
+        if IS_CHP:
+            row_detail["MWh elettrici/anno"] = fmt_it(mwh_revenue, 1)
+            row_detail["MWh termici/anno"] = fmt_it(mwh_netti * eta_th, 1)
+        row_detail["Quota % MWh"] = fmt_it(quota, 1, "%")
+        row_detail[f"Tariffa {_tar_unit}"] = fmt_it(tariffa, 2)
+        row_detail["Ricavi €/anno"] = fmt_it(ricavi, 0, " €")
+        detail_rows.append(row_detail)
     df_detail = pd.DataFrame(detail_rows)
 
     detail_col_cfg = {
@@ -2236,16 +2373,28 @@ with tab4:
         "Sm³ netti/anno": st.column_config.TextColumn("Sm³ netti/anno", disabled=True),
         "MWh netti/anno": st.column_config.TextColumn("MWh netti/anno", disabled=True),
         "Quota % MWh":    st.column_config.TextColumn("Quota % MWh", disabled=True),
-        "Tariffa €/MWh": st.column_config.TextColumn(
-            "Tariffa €/MWh ✏️",
-            help="Tariffa incentivante/PPA per biomassa [€/MWh] in formato "
-                 "italiano (es. 1.234,56). Modificabile per simulazioni di ricavi.",
+        f"Tariffa {_tar_unit}": st.column_config.TextColumn(
+            f"Tariffa {_tar_unit} ✏️",
+            help=f"Tariffa incentivante/PPA [{_tar_unit}] in formato "
+                 f"italiano (es. 1.234,56). Modificabile per simulazioni di ricavi.",
         ),
         "Ricavi €/anno": st.column_config.TextColumn(
             "Ricavi €/anno 🧮", disabled=True,
-            help="MWh netti × tariffa €/MWh (si ricalcola al variare della tariffa)",
+            help=f"MWh {'elettrici' if IS_CHP else 'netti'} × tariffa {_tar_unit}"
+                 " (si ricalcola al variare della tariffa)",
         ),
     }
+    if IS_CHP:
+        detail_col_cfg["MWh elettrici/anno"] = st.column_config.TextColumn(
+            "MWh_el/anno", disabled=True,
+            help="MWh elettrici prodotti dal cogeneratore "
+                 "(= MWh netti × η_el)",
+        )
+        detail_col_cfg["MWh termici/anno"] = st.column_config.TextColumn(
+            "MWh_th/anno", disabled=True,
+            help="MWh termici recuperati dal cogeneratore "
+                 "(= MWh netti × η_th). Usabili per teleriscaldamento / processo.",
+        )
 
     edited_detail = st.data_editor(
         df_detail,
@@ -2253,38 +2402,62 @@ with tab4:
         hide_index=True,
         use_container_width=True,
         num_rows="fixed",
-        key="editor_revenue_detail",
+        key=f"editor_revenue_detail_{APP_MODE}",
     )
 
     # Se l'utente ha modificato una tariffa -> salva e rerun (parse_it per IT)
     # Clamp: tariffe negative non hanno senso fisico -> >=0.
     new_tariffs = {
-        row["Biomassa"]: max(parse_it(row["Tariffa €/MWh"]), 0.0)
+        row["Biomassa"]: max(parse_it(row[f"Tariffa {_tar_unit}"]), 0.0)
         for _, row in edited_detail.iterrows()
     }
-    if new_tariffs != st.session_state["tariffs_eur_mwh"]:
-        st.session_state["tariffs_eur_mwh"] = new_tariffs
+    if new_tariffs != st.session_state[_tar_key]:
+        st.session_state[_tar_key] = new_tariffs
         st.rerun()
 
     # Totali ricavi
     tot_mwh = sum(annual_mwh.values())
+    tot_revenue_base_mwh = (
+        sum(annual_mwh.values()) * eta_el if IS_CHP else tot_mwh
+    )
     tot_revenue = sum(
-        annual_mwh[n] * st.session_state["tariffs_eur_mwh"][n]
+        (annual_mwh[n] * eta_el if IS_CHP else annual_mwh[n])
+        * st.session_state[_tar_key][n]
         for n in active_feeds
     )
-    tariffa_media_ponderata = (tot_revenue / tot_mwh) if tot_mwh > 0 else 0.0
-    cA, cB, cC = st.columns(3)
-    cA.metric("MWh netti totali/anno", fmt_it(tot_mwh, 0))
-    cB.metric("Tariffa media ponderata",
-              fmt_it(tariffa_media_ponderata, 2, " €/MWh"))
-    cC.metric("💰 Ricavi totali/anno", fmt_it(tot_revenue, 0, " €"))
-
-    st.caption(
-        f"📐 **Calcolo**: MWh netti/biomassa = t × resa_Nm³/t ÷ "
-        f"{fmt_it(aux_factor, 2)} × 0,00997. "
-        f"Ricavi/biomassa = MWh netti × tariffa €/MWh. "
-        f"Modifica la colonna «Tariffa €/MWh» per simulare scenari diversi."
+    tariffa_media_ponderata = (
+        (tot_revenue / tot_revenue_base_mwh) if tot_revenue_base_mwh > 0 else 0.0
     )
+    if IS_CHP:
+        tot_mwh_el = tot_mwh * eta_el
+        tot_mwh_th = tot_mwh * eta_th
+        cA, cB, cC, cD = st.columns(4)
+        cA.metric("MWh elettrici/anno", fmt_it(tot_mwh_el, 0))
+        cB.metric("MWh termici/anno", fmt_it(tot_mwh_th, 0))
+        cC.metric("Tariffa media ponderata",
+                  fmt_it(tariffa_media_ponderata, 2, " €/MWh_el"))
+        cD.metric("💰 Ricavi elettrici/anno", fmt_it(tot_revenue, 0, " €"))
+        st.caption(
+            f"📐 **Calcolo CHP**: MWh elettrici = MWh netti × η_el "
+            f"({fmt_it(eta_el*100, 0, '%')}) · "
+            f"MWh termici = MWh netti × η_th "
+            f"({fmt_it(eta_th*100, 0, '%')}) · "
+            f"Ricavi = MWh_el × tariffa €/MWh_el. "
+            f"Il calore può generare ricavi aggiuntivi (teleriscaldamento, "
+            f"processo, essiccazione digestato) non inclusi qui."
+        )
+    else:
+        cA, cB, cC = st.columns(3)
+        cA.metric("MWh netti totali/anno", fmt_it(tot_mwh, 0))
+        cB.metric("Tariffa media ponderata",
+                  fmt_it(tariffa_media_ponderata, 2, " €/MWh"))
+        cC.metric("💰 Ricavi totali/anno", fmt_it(tot_revenue, 0, " €"))
+        st.caption(
+            f"📐 **Calcolo**: MWh netti/biomassa = t × resa_Nm³/t ÷ "
+            f"{fmt_it(aux_factor, 2)} × 0,00997. "
+            f"Ricavi/biomassa = MWh netti × tariffa €/MWh. "
+            f"Modifica la colonna «Tariffa €/MWh» per simulare scenari diversi."
+        )
 
 # ------------------------- DOWNLOAD -------------------------
 st.divider()
