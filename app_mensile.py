@@ -1441,8 +1441,8 @@ with st.sidebar:
     st.header("⚙️ Parametri impianto")
 
     if IS_CHP:
-        # Parametri CHP: input utente in kW_el, convertito internamente in
-        # Sm3/h CH4 equivalenti (unit interna del solver).
+        # Parametri CHP: input utente in kW_el LORDI (potenza nominale motore),
+        # convertito internamente in Sm3/h CH4 al motore (unit del solver).
         eta_el = st.slider(
             "🔌 Efficienza elettrica CHP [η_el]",
             min_value=0.30, max_value=0.45,
@@ -1458,24 +1458,43 @@ with st.sidebar:
                  "Tipico 40-45%. Per CAR richiesto PES > 10%.",
         )
         plant_kwe = st.number_input(
-            "🎯 Potenza elettrica netta [kW_el]",
+            "🎯 Potenza elettrica LORDA (targa motore) [kW_el]",
             min_value=50.0, max_value=10000.0,
             value=DEFAULT_PLANT_KWE, step=10.0,
-            help="Potenza elettrica nominale del cogeneratore (al netto "
-                 "degli autoconsumi). Default 999 kWe (TO biogas agricolo).",
+            help="Potenza elettrica nominale al morsetti alternatore "
+                 "(dato di targa motore). Esempi: Jenbacher JMC 420 GS-BL = "
+                 "999 kWe, MWM TCG 2020V20 = 2000 kWe. L'autoconsumo "
+                 "ausiliari viene sottratto separatamente qui sotto.",
         )
-        # Conversione: 1 Sm3/h CH4 eq → η_el × 9.97 kW_el
-        plant_net_smch = plant_kwe / (eta_el * 9.97 * 1000) * 1000  # Sm3/h CH4 eq
+        aux_el_pct = st.slider(
+            "⚙️ Autoconsumo elettrico ausiliari [% del lordo]",
+            min_value=0.0, max_value=20.0,
+            value=AUX_EL_DEFAULT * 100, step=0.5,
+            help="Assorbimento elettrico dei servizi d'impianto (pompe "
+                 "alimentazione, agitatori digestori, desolforatore, "
+                 "soffiante, PLC, illuminazione, trattamento digestato). "
+                 "Tipico 8-10% del lordo. Impianti ben ottimizzati 5-7% "
+                 "(con FV a supporto). Impianti vecchi/biologie difficili "
+                 "10-13%.",
+        ) / 100.0
+        # Potenza netta immessa in rete (quella che fattura)
+        plant_kwe_net = plant_kwe * (1.0 - aux_el_pct)
+        # Conversione: il CH4 serve per il LORDO (prima del prelievo aux)
+        # 1 Sm3/h CH4 eq → η_el × 9.97 kW_el lordo
+        plant_net_smch = plant_kwe / (eta_el * 9.97)  # Sm3/h CH4 eq al motore
         st.caption(
-            f"📐 Equivalente in **Sm³/h CH₄** (unit interna solver): "
-            f"{fmt_it(plant_net_smch, 1)} Sm³/h · "
-            f"→ {fmt_it(plant_kwe, 0)} kW_el + "
-            f"{fmt_it(plant_kwe * eta_th / eta_el, 0)} kW_th"
+            f"📐 **Bilancio elettrico**: "
+            f"{fmt_it(plant_kwe, 0)} kW_el lordi − "
+            f"{fmt_it(plant_kwe * aux_el_pct, 0)} kW aux "
+            f"({fmt_it(aux_el_pct*100, 1, '%')}) = "
+            f"**{fmt_it(plant_kwe_net, 0)} kW_el netti** (rete). "
+            f"CH₄ al motore: {fmt_it(plant_net_smch, 1)} Sm³/h."
         )
-        colA, colB = st.columns(2)
-        colA.metric("Taglia elettrica", fmt_it(plant_kwe, 0, " kWₑ"))
-        colB.metric("Taglia termica",
-                    fmt_it(plant_kwe * eta_th / eta_el, 0, " kW_th"))
+        colA, colB, colC = st.columns(3)
+        colA.metric("🔌 Lordo motore", fmt_it(plant_kwe, 0, " kWₑ"))
+        colB.metric("⚡ Netto in rete", fmt_it(plant_kwe_net, 0, " kWₑ"),
+                    delta=f"-{fmt_it(aux_el_pct*100, 1, '%')} aux")
+        colC.metric("🔥 Termico", fmt_it(plant_kwe * eta_th / eta_el, 0, " kW_th"))
     else:
         plant_net_smch = st.number_input(
             "🎯 Netto autorizzato [Sm³/h netti]",
@@ -1490,10 +1509,13 @@ with st.sidebar:
             "elettricita'). Puoi comunque sovrascriverlo manualmente."
         )
         st.metric("Taglia netta", fmt_it(plant_net_smch, 0, " Sm³/h"))
-        # Per coerenza in mode biometano: eta_el/eta_th inutilizzati ma definiti
+        # Per coerenza in mode biometano: eta_el/eta_th/aux_el_pct inutilizzati
+        # ma definiti per evitare NameError in blocchi condivisi.
         eta_el = ETA_EL_DEFAULT
         eta_th = ETA_TH_DEFAULT
+        aux_el_pct = 0.0
         plant_kwe = plant_net_smch * eta_el * 9.97  # info-only (non usato)
+        plant_kwe_net = plant_kwe  # in biometano non c'è distinzione
 
     st.divider()
     st.header("🏭 Configurazione impianto (ep)")
@@ -1841,8 +1863,9 @@ if _pending_opt is not None:
 from math import comb as _comb
 _n_combinations = _comb(N_active, 2) if N_active >= 2 else 0
 _prod_label = (
-    f"{fmt_it(plant_kwe, 0)} kW_el netti" if IS_CHP
-    else f"{_prod_label}"
+    f"{fmt_it(plant_kwe, 0)} kW_el lordi "
+    f"(= {fmt_it(plant_kwe_net, 0)} kW_el netti in rete)"
+    if IS_CHP else f"{_prod_label}"
 )
 st.markdown(
     f"##### ⚡ Auto-calcolo ottimale – enumera le **{_n_combinations} combinazioni** "
@@ -1879,7 +1902,9 @@ if optimize_clicked:
             "off-gas RTO"
         )
         _unit_prod = (
-            f"{fmt_it(plant_kwe, 0)} kW_el" if IS_CHP
+            f"{fmt_it(plant_kwe, 0)} kW_el lordi "
+            f"({fmt_it(plant_kwe_net, 0)} kW_el netti rete)"
+            if IS_CHP
             else f"{fmt_it(plant_net_smch, 0)} Sm³/h"
         )
         st.error(
@@ -2157,8 +2182,12 @@ for _, row in input_df.iterrows():
     res["MWh netti"] = summary["mwh_net"]
     if IS_CHP:
         # In modalita' CHP: MWh_netti rappresenta l'energia CH4 equivalente
-        # entrante nel cogeneratore → split in elettrico + termico
-        res["MWh elettrici"] = summary["mwh_net"] * eta_el
+        # entrante nel cogeneratore → split in elettrico + termico.
+        # MWh_el_lordo = CH4 × η_el (ai morsetti alternatore)
+        # MWh_el_netto = lordo × (1 − aux%) (immessi in rete, fatturabili)
+        _mwh_el_lordo = summary["mwh_net"] * eta_el
+        res["MWh elettrici lordi"] = _mwh_el_lordo
+        res["MWh elettrici netti"] = _mwh_el_lordo * (1.0 - aux_el_pct)
         res["MWh termici"] = summary["mwh_net"] * eta_th
     res["GHG (gCO₂/MJ)"] = summary["e_w"]
     res["Saving %"] = summary["saving"]
@@ -2441,8 +2470,16 @@ with tab4:
         nm3_lordi = t * FEEDSTOCK_DB[n]["yield"]
         nm3_netti = nm3_lordi / aux_factor
         mwh_netti = nm3_netti * NM3_TO_MWH
-        # In modalita' CHP, i ricavi sono su MWh elettrici prodotti
-        mwh_revenue = mwh_netti * eta_el if IS_CHP else mwh_netti
+        # In modalita' CHP, i ricavi sono sui MWh elettrici NETTI immessi in rete
+        # (lordo ai morsetti alternatore meno autoconsumi ausiliari impianto).
+        if IS_CHP:
+            mwh_el_lordo = mwh_netti * eta_el
+            mwh_el_netto_rete = mwh_el_lordo * (1.0 - aux_el_pct)
+            mwh_revenue = mwh_el_netto_rete  # tariffa T.O. applicata al netto rete
+        else:
+            mwh_el_lordo = 0.0
+            mwh_el_netto_rete = 0.0
+            mwh_revenue = mwh_netti
         tariffa = st.session_state[_tar_key][n]
         ricavi = mwh_revenue * tariffa
         quota = ((mwh_netti / sum(annual_mwh.values()) * 100)
@@ -2455,7 +2492,8 @@ with tab4:
             "MWh netti/anno":  fmt_it(mwh_netti, 1),
         }
         if IS_CHP:
-            row_detail["MWh elettrici/anno"] = fmt_it(mwh_revenue, 1)
+            row_detail["MWh_el lordi/anno"] = fmt_it(mwh_el_lordo, 1)
+            row_detail["MWh_el netti rete/anno"] = fmt_it(mwh_el_netto_rete, 1)
             row_detail["MWh termici/anno"] = fmt_it(mwh_netti * eta_th, 1)
         row_detail["Quota % MWh"] = fmt_it(quota, 1, "%")
         row_detail[f"Tariffa {_tar_unit}"] = fmt_it(tariffa, 2)
@@ -2477,15 +2515,22 @@ with tab4:
         ),
         "Ricavi €/anno": st.column_config.TextColumn(
             "Ricavi €/anno 🧮", disabled=True,
-            help=f"MWh {'elettrici' if IS_CHP else 'netti'} × tariffa {_tar_unit}"
+            help=f"MWh {'elettrici netti rete' if IS_CHP else 'netti'}"
+                 f" × tariffa {_tar_unit}"
                  " (si ricalcola al variare della tariffa)",
         ),
     }
     if IS_CHP:
-        detail_col_cfg["MWh elettrici/anno"] = st.column_config.TextColumn(
-            "MWh_el/anno", disabled=True,
-            help="MWh elettrici prodotti dal cogeneratore "
-                 "(= MWh netti × η_el)",
+        detail_col_cfg["MWh_el lordi/anno"] = st.column_config.TextColumn(
+            "MWh_el lordi/anno", disabled=True,
+            help="MWh elettrici lordi ai morsetti alternatore "
+                 "(= MWh netti × η_el). Non fatturabili direttamente: "
+                 "occorre sottrarre gli autoconsumi ausiliari.",
+        )
+        detail_col_cfg["MWh_el netti rete/anno"] = st.column_config.TextColumn(
+            "MWh_el netti rete/anno", disabled=True,
+            help="MWh elettrici NETTI immessi in rete e fatturati a tariffa T.O. "
+                 "(= MWh_el lordi × (1 − aux%)). Questa è la base ricavi.",
         )
         detail_col_cfg["MWh termici/anno"] = st.column_config.TextColumn(
             "MWh_th/anno", disabled=True,
@@ -2514,32 +2559,41 @@ with tab4:
 
     # Totali ricavi
     tot_mwh = sum(annual_mwh.values())
-    tot_revenue_base_mwh = (
-        sum(annual_mwh.values()) * eta_el if IS_CHP else tot_mwh
-    )
+    # Base MWh su cui si calcola la tariffa: biometano -> MWh netti (immissione);
+    # CHP -> MWh elettrici netti immessi in rete (lordo × (1 − aux%)).
+    if IS_CHP:
+        _chp_factor = eta_el * (1.0 - aux_el_pct)
+    else:
+        _chp_factor = 1.0
+    tot_revenue_base_mwh = tot_mwh * _chp_factor
     tot_revenue = sum(
-        (annual_mwh[n] * eta_el if IS_CHP else annual_mwh[n])
-        * st.session_state[_tar_key][n]
+        annual_mwh[n] * _chp_factor * st.session_state[_tar_key][n]
         for n in active_feeds
     )
     tariffa_media_ponderata = (
         (tot_revenue / tot_revenue_base_mwh) if tot_revenue_base_mwh > 0 else 0.0
     )
     if IS_CHP:
-        tot_mwh_el = tot_mwh * eta_el
+        tot_mwh_el_lordo = tot_mwh * eta_el
+        tot_mwh_el_netto = tot_mwh_el_lordo * (1.0 - aux_el_pct)
+        tot_mwh_el_aux = tot_mwh_el_lordo - tot_mwh_el_netto
         tot_mwh_th = tot_mwh * eta_th
         cA, cB, cC, cD = st.columns(4)
-        cA.metric("MWh elettrici/anno", fmt_it(tot_mwh_el, 0))
-        cB.metric("MWh termici/anno", fmt_it(tot_mwh_th, 0))
-        cC.metric("Tariffa media ponderata",
-                  fmt_it(tariffa_media_ponderata, 2, " €/MWh_el"))
+        cA.metric("MWh_el lordi/anno", fmt_it(tot_mwh_el_lordo, 0),
+                  delta=f"−{fmt_it(tot_mwh_el_aux, 0)} aux",
+                  delta_color="inverse")
+        cB.metric("⚡ MWh_el netti rete/anno", fmt_it(tot_mwh_el_netto, 0))
+        cC.metric("🔥 MWh termici/anno", fmt_it(tot_mwh_th, 0))
         cD.metric("💰 Ricavi elettrici/anno", fmt_it(tot_revenue, 0, " €"))
         st.caption(
-            f"📐 **Calcolo CHP**: MWh elettrici = MWh netti × η_el "
+            f"📐 **Calcolo CHP**: MWh_el lordi = MWh netti × η_el "
             f"({fmt_it(eta_el*100, 0, '%')}) · "
+            f"MWh_el netti rete = lordi × (1 − aux%) "
+            f"(aux = {fmt_it(aux_el_pct*100, 1, '%')}) · "
             f"MWh termici = MWh netti × η_th "
             f"({fmt_it(eta_th*100, 0, '%')}) · "
-            f"Ricavi = MWh_el × tariffa €/MWh_el. "
+            f"**Ricavi = MWh_el netti rete × tariffa €/MWh_el** "
+            f"(è l'energia realmente immessa in rete e fatturata al GSE). "
             f"Il calore può generare ricavi aggiuntivi (teleriscaldamento, "
             f"processo, essiccazione digestato) non inclusi qui."
         )
