@@ -790,13 +790,13 @@ def find_optimal_pair(aux: float, plant_net: float, ep: float,
 # UI
 # ============================================================
 st.set_page_config(
-    page_title="MethaniQ - L'intelligenza del biometano",
+    page_title="Metan.iQ - L'intelligenza del biometano",
     page_icon="🧬",
     layout="wide",
 )
 
 # ===========================================================
-# MethaniQ Theme Switcher (light / dark)
+# Metan.iQ Theme Switcher (light / dark)
 # ===========================================================
 if "methaniq_theme" not in st.session_state:
     st.session_state.methaniq_theme = "light"
@@ -873,7 +873,7 @@ else:
     SECTION_PILL_COLOR = "#0B8A5A"
 
 # ===========================================================
-# MethaniQ Design System — Commercial SaaS grade
+# Metan.iQ Design System — Commercial SaaS grade
 # Palette:  primary #0B8A5A (verde petrolio) → #1CC491 (mint)
 #           accent  #F59E0B (amber) · slate #0F172A · bg #F8FAFC
 # Font:     Inter (Google Fonts) — standard SaaS moderno
@@ -1208,7 +1208,7 @@ st.markdown(
     </style>
 
     <div class="methaniq-header">
-        <h1>🧬 MethaniQ</h1>
+        <h1>🧬 Metan<span style="color:#F59E0B; font-weight:900;">.</span>iQ</h1>
         <div class="tagline">L'intelligenza del biometano.</div>
         <div class="pills">
             <span class="pill">✓ RED III Compliant</span>
@@ -1266,7 +1266,7 @@ with st.sidebar:
                 letter-spacing: -0.5px;
                 position: relative; z-index: 1;
                 text-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            '>🧬 MethaniQ</div>
+            '>🧬 Metan<span style="color:#FCD34D;">.</span>iQ</div>
             <div style='
                 font-size: 0.75em;
                 color: #ecfdf5;
@@ -2330,7 +2330,7 @@ st.markdown(
             background-clip: text;
             position: relative; z-index: 1;
             display: inline-block;
-        '>🧬 MethaniQ</div>
+        '>🧬 Metan<span style="-webkit-text-fill-color:#F59E0B; color:#F59E0B; font-weight:900;">.</span>iQ</div>
         <div style='
             font-size: 0.95rem; font-style: italic; color: #94A3B8;
             margin-top: 4px; position: relative; z-index: 1;
