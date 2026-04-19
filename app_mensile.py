@@ -1349,7 +1349,8 @@ with st.sidebar:
                 letter-spacing: 0.5px;
                 text-transform: uppercase;
                 position: relative; z-index: 1;
-            '>L'intelligenza del biometano</div>
+            '>""" + ("L'intelligenza del biogas cogenerativo" if IS_CHP
+                    else "L'intelligenza del biometano") + """</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1528,53 +1529,81 @@ with st.sidebar:
              "residuo recuperato non da' bonus negativo: confluisce nel "
              "biogas lordo e aumenta la resa Nm³/t.",
     )
-    upgrading_opt = st.selectbox("Tecnologia upgrading",
-                                  list(EP_UPGRADING.keys()), index=1)
-    offgas_opt = st.selectbox("Combustione off-gas",
-                               list(EP_OFFGAS.keys()), index=0)
+
+    # Upgrading / Off-gas / Iniezione rete: SOLO in modalita' biometano
+    if IS_CHP:
+        st.info(
+            "⚡ **Biogas CHP**: il biogas grezzo viene bruciato direttamente "
+            "nel cogeneratore. Non si applicano upgrading, combustione "
+            "off-gas o iniezione in rete."
+        )
+        upgrading_opt = None
+        offgas_opt = None
+        injection_opt = None
+        ep_upgrading = 0.0
+        ep_offgas = 0.0
+    else:
+        upgrading_opt = st.selectbox("Tecnologia upgrading",
+                                      list(EP_UPGRADING.keys()), index=1)
+        offgas_opt = st.selectbox("Combustione off-gas",
+                                   list(EP_OFFGAS.keys()), index=0)
+        ep_upgrading = EP_UPGRADING[upgrading_opt]
+        ep_offgas = EP_OFFGAS[offgas_opt]
+
     heat_opt = st.selectbox("Fonte calore processo",
                              list(EP_HEAT.keys()), index=0)
     elec_opt = st.selectbox("Elettricità ausiliari",
                              list(EP_ELEC.keys()), index=1)
-    injection_opt = st.selectbox(
-        "Iniezione biometano in rete",
-        list(INJECTION_PRESSURE.keys()), index=1,
-        help="Pressione di consegna del biometano. Determina il consumo "
-             "elettrico del booster compressore a valle dell'upgrading "
-             "(0,05-0,25 kWh_e/Sm³).",
-    )
+
+    if not IS_CHP:
+        injection_opt = st.selectbox(
+            "Iniezione biometano in rete",
+            list(INJECTION_PRESSURE.keys()), index=1,
+            help="Pressione di consegna del biometano. Determina il consumo "
+                 "elettrico del booster compressore a valle dell'upgrading "
+                 "(0,05-0,25 kWh_e/Sm³).",
+        )
 
     ep_digestate = EP_DIGESTATE[digestate_opt]
-    ep_upgrading = EP_UPGRADING[upgrading_opt]
-    ep_offgas = EP_OFFGAS[offgas_opt]
     ep_heat = EP_HEAT[heat_opt]
     ep_elec = EP_ELEC[elec_opt]
     ep_total = ep_digestate + ep_upgrading + ep_offgas + ep_heat + ep_elec
 
-    # Breakdown ep
+    # Breakdown ep (mode-aware)
     with st.expander(
         f"📊 Breakdown ep = {fmt_it(ep_total, 1, signed=True)} gCO₂/MJ",
         expanded=True,
     ):
-        st.markdown(
-            f"- Digestato: **{fmt_it(ep_digestate, 1, signed=True)}**\n"
-            f"- Upgrading: **{fmt_it(ep_upgrading, 1, signed=True)}**\n"
-            f"- Off-gas: **{fmt_it(ep_offgas, 1, signed=True)}**\n"
-            f"- Calore: **{fmt_it(ep_heat, 1, signed=True)}**\n"
-            f"- Elettricità: **{fmt_it(ep_elec, 1, signed=True)}**\n"
+        _ep_lines = [f"- Digestato: **{fmt_it(ep_digestate, 1, signed=True)}**"]
+        if not IS_CHP:
+            _ep_lines.append(f"- Upgrading: **{fmt_it(ep_upgrading, 1, signed=True)}**")
+            _ep_lines.append(f"- Off-gas: **{fmt_it(ep_offgas, 1, signed=True)}**")
+        _ep_lines.append(f"- Calore: **{fmt_it(ep_heat, 1, signed=True)}**")
+        _ep_lines.append(f"- Elettricità: **{fmt_it(ep_elec, 1, signed=True)}**")
+        _ep_lines.append(
             f"- **Totale ep: {fmt_it(ep_total, 1, signed=True)} gCO₂/MJ**"
         )
+        st.markdown("\n".join(_ep_lines))
 
     st.divider()
     # ========================================================
     # AUX_FACTOR AUTOMATICO (bilancio energetico d'impianto)
     # ========================================================
     st.header("⚡ Fattore netto→lordo (aux_factor)")
-    st.caption(
-        "Calcolato dal bilancio materiale/energetico in base alla "
-        "configurazione scelta qui sopra. Determina quanta biomassa serve: "
-        "lordo = netto × aux_factor."
-    )
+    if IS_CHP:
+        st.caption(
+            "In modalità **Biogas CHP** il biogas grezzo va direttamente "
+            "al motore: nessun autoconsumo per upgrading / iniezione / off-gas. "
+            "L'autoconsumo elettrico del CHP (~8%) è già considerato nella "
+            "potenza NETTA inserita sopra. Qui resta solo il margine di perdite "
+            "diffuse + downtime."
+        )
+    else:
+        st.caption(
+            "Calcolato dal bilancio materiale/energetico in base alla "
+            "configurazione scelta qui sopra. Determina quanta biomassa serve: "
+            "lordo = netto × aux_factor."
+        )
 
     margin_pct = st.slider(
         "Margine perdite reali + downtime [%]",
@@ -1583,34 +1612,45 @@ with st.sidebar:
              "+ downtime manutenzione. Default 3% (impianti ben gestiti).",
     )
 
-    cogen_frac = 0.6  # default: 60% elettricita' da CHP biogas, 40% FV
-    recover_chp_heat = True
-    if elec_opt == ELEC_IS_INTERNAL:
-        cogen_frac = st.slider(
-            "Quota cogen biogas nell'autoproduzione elettrica [%]",
-            min_value=0.0, max_value=100.0, value=60.0, step=10.0,
-            help="Se autoproduci elettricita' da CHP biogas + FV, indica "
-                 "la quota coperta dal CHP (resto dalla FV). Il CHP biogas "
-                 "consuma biometano interno, la FV no.",
-        ) / 100.0
-        recover_chp_heat = st.checkbox(
-            "Recupero calore cogenerato dal CHP → digestori",
-            value=True,
-            help="Se il CHP cogenerativo recupera calore (η_t≈45%) e lo usa "
-                 "per riscaldare i digestori, la caldaia dedicata consuma "
-                 "meno biogas. Default ON (impianti ben progettati).",
-        )
+    if IS_CHP:
+        # CHP: calcolo aux_factor semplificato (niente upgrading/offgas/rete)
+        # Autoconsumo elettrico CHP (~8%) gia' scontato nel kW_el NETTO inserito.
+        # aux_factor_chp = 1 / (1 - margine_perdite)
+        aux_auto = 1.0 / max(1.0 - margin_pct / 100.0, 0.80)
+        # Non uso compute_aux_factor: non si applica senza upgrading
+        aux_auto_data = None
+        # Variabili dummy per compatibilita' downstream (non usate in CHP)
+        cogen_frac = 0.0
+        recover_chp_heat = False
+    else:
+        cogen_frac = 0.6  # default: 60% elettricita' da CHP biogas, 40% FV
+        recover_chp_heat = True
+        if elec_opt == ELEC_IS_INTERNAL:
+            cogen_frac = st.slider(
+                "Quota cogen biogas nell'autoproduzione elettrica [%]",
+                min_value=0.0, max_value=100.0, value=60.0, step=10.0,
+                help="Se autoproduci elettricita' da CHP biogas + FV, indica "
+                     "la quota coperta dal CHP (resto dalla FV). Il CHP biogas "
+                     "consuma biogas interno, la FV no.",
+            ) / 100.0
+            recover_chp_heat = st.checkbox(
+                "Recupero calore cogenerato dal CHP → digestori",
+                value=True,
+                help="Se il CHP cogenerativo recupera calore (η_t≈45%) e lo usa "
+                     "per riscaldare i digestori, la caldaia dedicata consuma "
+                     "meno biogas. Default ON (impianti ben progettati).",
+            )
 
-    aux_auto_data = compute_aux_factor(
-        upgrading_opt=upgrading_opt,
-        heat_opt=heat_opt,
-        elec_opt=elec_opt,
-        injection_opt=injection_opt,
-        margin=margin_pct / 100.0,
-        cogen_fraction=cogen_frac,
-        recover_chp_heat=recover_chp_heat,
-    )
-    aux_auto = aux_auto_data["aux_factor"]
+        aux_auto_data = compute_aux_factor(
+            upgrading_opt=upgrading_opt,
+            heat_opt=heat_opt,
+            elec_opt=elec_opt,
+            injection_opt=injection_opt,
+            margin=margin_pct / 100.0,
+            cogen_fraction=cogen_frac,
+            recover_chp_heat=recover_chp_heat,
+        )
+        aux_auto = aux_auto_data["aux_factor"]
 
     manual_override = st.checkbox(
         "Sovrascrivi manualmente",
@@ -1621,62 +1661,74 @@ with st.sidebar:
     if manual_override:
         aux_factor = st.slider(
             "aux_factor manuale",
-            min_value=1.05, max_value=1.60,
+            min_value=1.00 if IS_CHP else 1.05, max_value=1.60,
             value=round(aux_auto, 2), step=0.01,
         )
     else:
         aux_factor = aux_auto
-        st.metric(
-            "aux_factor calcolato",
-            fmt_it(aux_factor, 3),
-            delta=f"{fmt_it(aux_auto_data['f_tot']*100, 1, '%')} autoconsumo totale",
-        )
+        if IS_CHP:
+            st.metric(
+                "aux_factor calcolato",
+                fmt_it(aux_factor, 3),
+                delta=f"{fmt_it(margin_pct, 1, '%')} perdite diffuse",
+            )
+        else:
+            st.metric(
+                "aux_factor calcolato",
+                fmt_it(aux_factor, 3),
+                delta=f"{fmt_it(aux_auto_data['f_tot']*100, 1, '%')} autoconsumo totale",
+            )
 
-    with st.expander(
-        f"🔬 Breakdown aux_factor = {fmt_it(aux_auto, 3)}",
-        expanded=False,
-    ):
-        st.markdown(
-            f"**Formula**: aux = 1 / (1 − f_calore − f_elettr − f_slip − f_margine)\n\n"
-            f"### 🔥 BILANCIO TERMICO\n"
-            f"Fabbisogno termico lordo = **{fmt_it(aux_auto_data['heat_need_gross'], 3)} kWh_t/Sm³**\n"
-            f"- Riscaldamento digestori (mesofilo): {fmt_it(HEAT_DIGESTORE, 3)}\n"
-            f"- Calore upgrading ({upgrading_opt.split(' (')[0]}): "
-            f"{fmt_it(HEAT_DEMAND_UPGRADING[upgrading_opt], 3)}\n\n"
-            f"Recupero calore dal CHP cogenerativo: "
-            f"**−{fmt_it(aux_auto_data['heat_recovered_chp'], 3)} kWh_t/Sm³** "
-            f"{'✅ attivo' if recover_chp_heat and elec_opt==ELEC_IS_INTERNAL else '⏸ non applicato'}\n\n"
-            f"→ Calore residuo caldaia: **{fmt_it(aux_auto_data['heat_need_residual'], 3)} kWh_t/Sm³**\n"
-            f"→ **f_calore = {fmt_it(aux_auto_data['f_heat']*100, 2, '%')}** "
-            f"(fonte: {heat_opt})\n\n"
-            f"### ⚡ BILANCIO ELETTRICO\n"
-            f"Fabbisogno elettrico totale = **{fmt_it(aux_auto_data['elec_need'], 3)} kWh_e/Sm³**\n"
-            f"- Upgrading core ({upgrading_opt.split(' (')[0]}): "
-            f"{fmt_it(aux_auto_data['elec_upgrading'], 3)}\n"
-            f"- BOP = pretrattamento biogas + biologia + PLC: "
-            f"{fmt_it(aux_auto_data['elec_bop'], 3)}\n"
-            f"  &nbsp;&nbsp;(caricatore tramoggia + desolfo + carb. attivi: "
-            f"{fmt_it(ELEC_PRETREATMENT, 3)}, "
-            f"agitatori+pompe substrato: {fmt_it(ELEC_BIOLOGY, 3)}, "
-            f"PLC+servizi: {fmt_it(ELEC_PLC_CONTROLS, 3)})\n"
-            f"- Compressione iniezione rete "
-            f"({injection_opt.split(' (')[0]}): "
-            f"{fmt_it(aux_auto_data['elec_injection'], 3)}\n\n"
-            f"→ **f_elettr = {fmt_it(aux_auto_data['f_elec']*100, 2, '%')}** "
-            f"(fonte: {elec_opt}"
-            f"{f', quota cogen {fmt_it(cogen_frac*100,0,chr(37))}' if elec_opt==ELEC_IS_INTERNAL else ''})\n\n"
-            f"### 💨 ALTRE PERDITE\n"
-            f"- Methane slip upgrading: **{fmt_it(aux_auto_data['f_slip']*100, 2, '%')}**\n"
-            f"- Margine perdite diffuse + downtime: **{fmt_it(aux_auto_data['f_margin']*100, 1, '%')}**\n\n"
-            f"### ∑ TOTALE AUTOCONSUMO: **{fmt_it(aux_auto_data['f_tot']*100, 2, '%')}**\n\n"
-            f"*Rendimenti*: caldaia biogas η={fmt_it(ETA_BOILER_BIOGAS*100,0,'%')}, "
-            f"CHP elettr. η={fmt_it(ETA_CHP_ELEC*100,0,'%')}, "
-            f"CHP term. η={fmt_it(ETA_CHP_THERM*100,0,'%')} &nbsp;·&nbsp; "
-            f"LHV biometano = {fmt_it(LHV_BIOMETHANE_KWH, 3)} kWh/Sm³."
-        )
+    # Breakdown aux_factor (solo in mode biometano: in CHP e' banale)
+    if not IS_CHP:
+        with st.expander(
+            f"🔬 Breakdown aux_factor = {fmt_it(aux_auto, 3)}",
+            expanded=False,
+        ):
+            st.markdown(
+                f"**Formula**: aux = 1 / (1 − f_calore − f_elettr − f_slip − f_margine)\n\n"
+                f"### 🔥 BILANCIO TERMICO\n"
+                f"Fabbisogno termico lordo = **{fmt_it(aux_auto_data['heat_need_gross'], 3)} kWh_t/Sm³**\n"
+                f"- Riscaldamento digestori (mesofilo): {fmt_it(HEAT_DIGESTORE, 3)}\n"
+                f"- Calore upgrading ({upgrading_opt.split(' (')[0]}): "
+                f"{fmt_it(HEAT_DEMAND_UPGRADING[upgrading_opt], 3)}\n\n"
+                f"Recupero calore dal CHP cogenerativo: "
+                f"**−{fmt_it(aux_auto_data['heat_recovered_chp'], 3)} kWh_t/Sm³** "
+                f"{'✅ attivo' if recover_chp_heat and elec_opt==ELEC_IS_INTERNAL else '⏸ non applicato'}\n\n"
+                f"→ Calore residuo caldaia: **{fmt_it(aux_auto_data['heat_need_residual'], 3)} kWh_t/Sm³**\n"
+                f"→ **f_calore = {fmt_it(aux_auto_data['f_heat']*100, 2, '%')}** "
+                f"(fonte: {heat_opt})\n\n"
+                f"### ⚡ BILANCIO ELETTRICO\n"
+                f"Fabbisogno elettrico totale = **{fmt_it(aux_auto_data['elec_need'], 3)} kWh_e/Sm³**\n"
+                f"- Upgrading core ({upgrading_opt.split(' (')[0]}): "
+                f"{fmt_it(aux_auto_data['elec_upgrading'], 3)}\n"
+                f"- BOP = pretrattamento biogas + biologia + PLC: "
+                f"{fmt_it(aux_auto_data['elec_bop'], 3)}\n"
+                f"  &nbsp;&nbsp;(caricatore tramoggia + desolfo + carb. attivi: "
+                f"{fmt_it(ELEC_PRETREATMENT, 3)}, "
+                f"agitatori+pompe substrato: {fmt_it(ELEC_BIOLOGY, 3)}, "
+                f"PLC+servizi: {fmt_it(ELEC_PLC_CONTROLS, 3)})\n"
+                f"- Compressione iniezione rete "
+                f"({injection_opt.split(' (')[0]}): "
+                f"{fmt_it(aux_auto_data['elec_injection'], 3)}\n\n"
+                f"→ **f_elettr = {fmt_it(aux_auto_data['f_elec']*100, 2, '%')}** "
+                f"(fonte: {elec_opt}"
+                f"{f', quota cogen {fmt_it(cogen_frac*100,0,chr(37))}' if elec_opt==ELEC_IS_INTERNAL else ''})\n\n"
+                f"### 💨 ALTRE PERDITE\n"
+                f"- Methane slip upgrading: **{fmt_it(aux_auto_data['f_slip']*100, 2, '%')}**\n"
+                f"- Margine perdite diffuse + downtime: **{fmt_it(aux_auto_data['f_margin']*100, 1, '%')}**\n\n"
+                f"### ∑ TOTALE AUTOCONSUMO: **{fmt_it(aux_auto_data['f_tot']*100, 2, '%')}**\n\n"
+                f"*Rendimenti*: caldaia biogas η={fmt_it(ETA_BOILER_BIOGAS*100,0,'%')}, "
+                f"CHP elettr. η={fmt_it(ETA_CHP_ELEC*100,0,'%')}, "
+                f"CHP term. η={fmt_it(ETA_CHP_THERM*100,0,'%')} &nbsp;·&nbsp; "
+                f"LHV biometano = {fmt_it(LHV_BIOMETHANE_KWH, 3)} kWh/Sm³."
+            )
 
-    st.metric("Produzione lorda richiesta",
-              fmt_it(plant_net_smch * aux_factor, 1, " Sm³/h"))
+    _unit_lordo = "Nm³ biogas/h" if IS_CHP else "Sm³/h"
+    st.metric(
+        "Produzione lorda richiesta" + (" (biogas grezzo)" if IS_CHP else ""),
+        fmt_it(plant_net_smch * aux_factor, 1, f" {_unit_lordo}"),
+    )
 
     st.divider()
     st.header(f"📋 Database feedstock attivi ({len(active_feeds)}/{len(FEED_NAMES)})")
@@ -1768,11 +1820,14 @@ if _pending_opt is not None:
 # -------- PULSANTE OTTIMIZZA (tutta larghezza, sempre visibile) ------------
 from math import comb as _comb
 _n_combinations = _comb(N_active, 2) if N_active >= 2 else 0
+_prod_label = (
+    f"{fmt_it(plant_kwe, 0)} kW_el netti" if IS_CHP
+    else f"{_prod_label}"
+)
 st.markdown(
     f"##### ⚡ Auto-calcolo ottimale – enumera le **{_n_combinations} combinazioni** "
     f"possibili tra le {N_active} biomasse attive e minimizza la massa totale "
-    f"(saving ≥ {fmt_it(ghg_threshold*100, 0, '%')}, produzione = "
-    f"{fmt_it(plant_net_smch, 0)} Sm³/h netti)"
+    f"(saving ≥ {fmt_it(ghg_threshold*100, 0, '%')}, produzione = {_prod_label})"
 )
 optimize_clicked = st.button(
     "🚀 OTTIMIZZA  (minimizza massa totale biomasse)",
@@ -1796,15 +1851,25 @@ if optimize_clicked:
         feed_list=active_feeds,
     )
     if best is None:
+        _tip_impianto = (
+            "stoccaggio digestato coperto con recupero gas, recupero calore "
+            "CHP per digestori, ottimizzare autoconsumi elettrici"
+        ) if IS_CHP else (
+            "stoccaggio digestato coperto, upgrading a membrane/amminico, "
+            "off-gas RTO"
+        )
+        _unit_prod = (
+            f"{fmt_it(plant_kwe, 0)} kW_el" if IS_CHP
+            else f"{fmt_it(plant_net_smch, 0)} Sm³/h"
+        )
         st.error(
             "❌ Nessuna combinazione delle biomasse attive riesce a soddisfare "
             f"simultaneamente saving ≥ {fmt_it(ghg_threshold*100, 0, '%')} e "
-            f"produzione {fmt_it(plant_net_smch, 0)} Sm³/h con la configurazione "
+            f"produzione {_unit_prod} con la configurazione "
             f"ep attuale ({fmt_it(ep_total, 1, signed=True)} gCO₂/MJ). "
             "Prova ad: aggiungere biomasse a manure credit (liquami/letami), "
-            "migliorare la configurazione impianto (stoccaggio digestato coperto, "
-            "upgrading a membrane/amminico, off-gas RTO), oppure abbassare il "
-            "setpoint produttivo."
+            f"migliorare la configurazione impianto ({_tip_impianto}), "
+            "oppure abbassare il setpoint produttivo."
         )
     else:
         pair, total_h, masses_h = best
@@ -1892,7 +1957,7 @@ if _opt_info:
             f"Massa totale annua minima ≈ "
             f"**{fmt_it(_opt_info['total_year'], 0)} t/anno** "
             f"(saving target **{fmt_it(target_saving*100, 0, '%')}**, "
-            f"produzione **{fmt_it(plant_net_smch, 0)} Sm³/h netti**)."
+            f"produzione **{_prod_label}**)."
         )
 
 with col2:
@@ -1904,14 +1969,14 @@ with col2:
                 f"Il solver calcola le 2 incognite (**{unknown_feeds[0]}** e "
                 f"**{unknown_feeds[1]}**) per ottenere saving "
                 f"**{fmt_it(target_saving*100, 0, '%')}** "
-                f"e produzione **{fmt_it(plant_net_smch, 0)} Sm³/h netti**."
+                f"e produzione **{_prod_label}**."
             )
         else:
             st.info(
                 f"**Modalità dual-constraint** (N=2): il solver calcola entrambe "
                 f"(**{unknown_feeds[0]}** + **{unknown_feeds[1]}**) per ottenere "
                 f"saving **{fmt_it(target_saving*100, 0, '%')}** + produzione "
-                f"**{fmt_it(plant_net_smch, 0)} Sm³/h netti**."
+                f"**{_prod_label}**."
             )
     else:
         st.info(
@@ -2245,21 +2310,27 @@ with tab3:
     lordi_labels = [fmt_it(v, 0) for v in lordi_vals]
     netti_labels = [fmt_it(v, 0) for v in netti_vals]
 
+    _lbl_lordo = "Nm³ biogas (lordo)" if IS_CHP else "Sm³ lordi (biomasse)"
+    _lbl_netto = "Nm³ CH₄ al motore" if IS_CHP else "Sm³ netti (immessi in rete)"
+    _lbl_title = (
+        "Produzione mensile biogas / CH₄ equivalente" if IS_CHP
+        else "Produzione mensile Sm³"
+    )
     fig3 = go.Figure()
     fig3.add_trace(go.Bar(
         x=df_res["Mese"], y=lordi_vals,
-        name="Sm³ lordi (biomasse)", marker_color="#90A4AE",
+        name=_lbl_lordo, marker_color="#90A4AE",
         text=lordi_labels, textposition="outside",
-        hovertemplate="<b>%{x}</b><br>Sm³ lordi: %{text}<extra></extra>",
+        hovertemplate=f"<b>%{{x}}</b><br>{_lbl_lordo}: %{{text}}<extra></extra>",
     ))
     fig3.add_trace(go.Bar(
         x=df_res["Mese"], y=netti_vals,
-        name="Sm³ netti (immessi in rete)", marker_color="#1E88E5",
+        name=_lbl_netto, marker_color="#1E88E5",
         text=netti_labels, textposition="outside",
-        hovertemplate="<b>%{x}</b><br>Sm³ netti: %{text}<extra></extra>",
+        hovertemplate=f"<b>%{{x}}</b><br>{_lbl_netto}: %{{text}}<extra></extra>",
     ))
     fig3.update_layout(
-        title=f"Produzione mensile Sm³  (aux_factor = {fmt_it(aux_factor, 2)})",
+        title=f"{_lbl_title}  (aux_factor = {fmt_it(aux_factor, 2)})",
         barmode="group", height=500,
         yaxis_title="Sm³ / mese",
         yaxis=dict(tickformat=",.0f", separatethousands=True),
