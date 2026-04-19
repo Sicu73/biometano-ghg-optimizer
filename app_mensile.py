@@ -86,14 +86,20 @@ def parse_it(value) -> float:
 # ============================================================
 # COSTANTI RED III
 # ============================================================
-# Comparator fossile dinamico per tipologia impianto:
-#   - Biometano (in rete / trasporti): 94 gCO2eq/MJ (NG sostituito - RED III All.V)
-#   - Biogas CHP (elettricita'): 183 gCO2eq/MJ (mix elettrico EU - RED III All.VI)
-COMPARATOR_BY_MODE = {
-    "biometano": 94.0,
-    "biogas_chp": 183.0,
+# Comparator fossile - dipende da destinazione d'uso dell'energia rinnovabile:
+#   - Biometano -> trasporti (BioCNG/BioGNL):    94 gCO2eq/MJ (diesel sostituito)
+#     [RED III Annex V Part C - fossil fuel comparator for transport]
+#   - Biometano -> rete / elettricita' / calore: 80 gCO2eq/MJ (NG sostituito)
+#     [RED III Annex VI Part B - natural gas reference]
+#   - Biogas CHP (elettricita' diretta da motore): 183 gCO2eq/MJ (mix elettrico EU)
+#     [RED III Annex VI - electricity generation]
+COMPARATOR_BY_END_USE = {
+    "Elettricità/calore/immissione rete (nuovo ≥20/11/2023)": 80.0,
+    "Elettricità/calore (esistente <10 MW, primi 15 anni)":   80.0,
+    "Trasporti (BioGNL/BioCNG)":                              94.0,
 }
-FOSSIL_COMPARATOR = 94.0                       # default: aggiornato dinamicamente
+COMPARATOR_CHP = 183.0   # biogas -> CHP -> elettricita' (mix EU)
+FOSSIL_COMPARATOR = 80.0  # default biometano->rete; aggiornato dinamicamente
 # Le soglie RED III variano per uso finale: 80% elettricita'/calore, 65% trasporti
 LHV_BIOMETHANE = 35.9                          # MJ/Nm3 (97% CH4)
 NM3_TO_MWH = 0.00997                           # 1 Nm3 -> MWh (PCI biometano)
@@ -885,8 +891,12 @@ with st.sidebar:
 
 APP_MODE = st.session_state.app_mode
 IS_CHP = APP_MODE == "biogas_chp"
-# Aggiorno dinamicamente il comparator fossile (usato nei calcoli GHG downstream)
-FOSSIL_COMPARATOR = COMPARATOR_BY_MODE[APP_MODE]
+# Comparator fossile aggiornato dinamicamente:
+#  - mode CHP: 183 gCO2/MJ (elettricita' mix EU), valore unico
+#  - mode biometano: dipende da end_use scelto in sidebar (80 rete/elec/calore,
+#    94 trasporti) - assegnazione effettiva dopo la selectbox end_use
+if IS_CHP:
+    FOSSIL_COMPARATOR = COMPARATOR_CHP
 
 IS_DARK = st.session_state.methaniq_theme == "dark"
 
@@ -1498,20 +1508,30 @@ with st.sidebar:
         # Comparator 183 gCO2/MJ (mix elettrico EU).
         end_use = "Elettricità CHP (80%)"
         ghg_threshold = 0.80
+        # FOSSIL_COMPARATOR gia' settato a 183 nel mode selector
         st.info(
             "⚡ **Biogas → cogenerazione elettrica** · Comparator fossile "
-            "RED III: 183 gCO₂/MJ (mix elettrico EU) · Soglia saving: 80%"
+            "RED III: **183 gCO₂/MJ** (mix elettrico EU) · Soglia saving: 80%"
         )
     else:
         end_use = st.selectbox(
-            "🎯 Destinazione biometano (→ soglia saving)",
+            "🎯 Destinazione biometano (→ soglia saving + comparator)",
             list(END_USE_THRESHOLDS.keys()),
             index=0,
             help="RED III + D.Lgs. 5/2026: 80% per elettricita'/calore (impianto "
-                 "nuovo >=20/11/2023), 70% per esistenti <10 MW primi 15 anni, "
-                 "65% per trasporti.",
+                 "nuovo ≥20/11/2023), 70% per esistenti <10 MW primi 15 anni, "
+                 "65% per trasporti. Il comparator fossile (80 per rete/calore, "
+                 "94 per trasporti) viene aggiornato di conseguenza.",
         )
         ghg_threshold = END_USE_THRESHOLDS[end_use]
+        # Comparator mode-aware: 80 per rete/elec/calore, 94 per trasporti
+        FOSSIL_COMPARATOR = COMPARATOR_BY_END_USE[end_use]
+        st.caption(
+            f"📐 Comparator fossile RED III: **{fmt_it(FOSSIL_COMPARATOR, 0)} "
+            f"gCO₂/MJ** "
+            + ("(gas naturale sostituito)" if FOSSIL_COMPARATOR == 80.0
+               else "(diesel sostituito)")
+        )
     target_saving = ghg_threshold + 0.01  # +1 pp margine sicurezza
     target_e_max = FOSSIL_COMPARATOR * (1 - target_saving)
     max_allowed_e = FOSSIL_COMPARATOR * (1 - ghg_threshold)
@@ -2388,7 +2408,12 @@ with tab4:
 
     # Tabella di dettaglio per calcolo ricavi per biomassa (tariffa editabile)
     _tar_unit = "€/MWh_el" if IS_CHP else "€/MWh"
-    _tar_default = 250.0 if IS_CHP else 120.0  # TO biogas <300 kWe vs biometano medio
+    # Default tariffe:
+    #   CHP 999 kWe agricolo: 280 EUR/MWh (TO base DM 6/7/2012 + premio CAR
+    #   + premio matrice sottoprodotti, valore medio effettivo di mercato
+    #   per impianti <1 MW ben gestiti)
+    #   Biometano: 120 EUR/MWh (PPA medio post-2024, range 80-160)
+    _tar_default = 280.0 if IS_CHP else 120.0
     st.markdown(
         f"##### 💶 Dettaglio per tipologia di biomassa "
         f"(tariffa {_tar_unit} editabile ✏️)"
@@ -2396,8 +2421,9 @@ with tab4:
     if IS_CHP:
         st.caption(
             "⚡ **Modalità Biogas CHP**: tariffa espressa in €/MWh **elettrici**. "
-            "Default 250 €/MWh (TO biogas agricolo <300 kWe, DM 4/7/2019). "
-            "Per CAR (cogenerazione ad alto rendimento) considerare premio CAR separato."
+            "Default **280 €/MWh** (TO base DM 6/7/2012 per biogas agricolo "
+            "<1 MW + premio CAR + premio matrice sottoprodotti). "
+            "Modificabile per scenari FER-X, PPA, vendita spot."
         )
 
     # Stato persistente: tariffe per biomassa (separate per mode)
