@@ -307,40 +307,231 @@ def compute_aux_factor(upgrading_opt: str, heat_opt: str, elec_opt: str,
 # Valori tipici da letteratura, UNI/TS 11567:2024 e parametri Consorzio Monviso.
 # ============================================================
 FEEDSTOCK_DB = {
+    # =========================================================
+    # COLTURE DEDICATE (cap 30% RED III, eec alto da coltivazione)
+    # Valori eec: UNI/TS 11567:2024 + JEC WTT v5 (cat. "energy crops")
+    # =========================================================
     "Trinciato di mais": {
-        "eec": 26.0,   # coltivazione (gCO2eq/MJ biometano)
-        "esca": 0.0,
-        "etd": 0.8,
-        "yield": 104.0,
-        "color": "#F5C518",
+        "eec": 26.0, "esca": 0.0, "etd": 0.8, "yield": 104.0,
+        "color": "#F5C518", "cat": "Colture dedicate",
+        "src": "UNI-TS 11567:2024 / JEC v5",
     },
     "Trinciato di sorgo": {
-        "eec": 22.0,   # minor fertilizzazione N rispetto al mais
-        "esca": 0.0,
-        "etd": 0.8,
-        "yield": 90.0,
-        "color": "#8BC34A",
+        "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 90.0,
+        "color": "#8BC34A", "cat": "Colture dedicate",
+        "src": "UNI-TS 11567:2024",
     },
-    "Pollina ovaiole": {
-        # Allineata a v1: la pollina ovaiole in stabulazione moderna
-        # (stoccaggio aerobico/nastro) NON riceve il manure credit RED III
-        # completo, riservato a letami/liquami stoccati anaerobicamente.
-        "eec": 5.0,    # coltivazione/handling (residuo zootecnico secco)
-        "esca": 0.0,   # nessun credito anaerobico
-        "etd": 0.8,
-        "yield": 90.0, # Nm3/t FM
-        "color": "#FF9800",
+    "Triticale insilato": {
+        "eec": 20.0, "esca": 0.0, "etd": 0.8, "yield": 85.0,
+        "color": "#AED581", "cat": "Colture dedicate",
+        "src": "JEC v5 / KTBL",
     },
+    "Segale insilata": {
+        "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 80.0,
+        "color": "#C5E1A5", "cat": "Colture dedicate",
+        "src": "JEC v5 / KTBL",
+    },
+    "Orzo insilato": {
+        "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 82.0,
+        "color": "#DCEDC8", "cat": "Colture dedicate",
+        "src": "JEC v5",
+    },
+    "Loietto insilato (ryegrass)": {
+        "eec": 18.0, "esca": 0.0, "etd": 0.8, "yield": 75.0,
+        "color": "#9CCC65", "cat": "Colture dedicate",
+        "src": "UNI-TS 11567:2024",
+    },
+    "Erba medica insilata": {
+        "eec": 15.0, "esca": 0.0, "etd": 0.8, "yield": 70.0,
+        "color": "#7CB342", "cat": "Colture dedicate",
+        "src": "JEC v5 (azotofissazione)",
+    },
+    "Doppia coltura (2° raccolto)": {
+        "eec": 15.0, "esca": 0.0, "etd": 0.8, "yield": 95.0,
+        "color": "#689F38", "cat": "Colture dedicate",
+        "src": "GSE LG 2024 (art. doppia coltura)",
+    },
+    "Barbabietola da zucchero": {
+        "eec": 12.0, "esca": 0.0, "etd": 0.8, "yield": 105.0,
+        "color": "#CE93D8", "cat": "Colture dedicate",
+        "src": "JEC v5",
+    },
+    # =========================================================
+    # EFFLUENTI ZOOTECNICI (manure credit RED III Annex VI)
+    # Il credit e' proporzionale al beneficio di stoccaggio anaerobico
+    # rispetto al baseline (lagone/vasca). Liquame liquido: -45.
+    # Letami palabili (minore emissione CH4 baseline): -20/-30.
+    # Pollina broiler/tacchini (lettiera): -10/-15.
+    # Ovaiole stoccaggio aerobico su nastro: 0 (no credit).
+    # =========================================================
     "Liquame suino": {
-        "eec": -45.0,  # manure credit
-        "esca": 0.0,
-        "etd": 0.8,
-        "yield": 15.0,
-        "color": "#8D6E63",
+        "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 15.0,
+        "color": "#8D6E63", "cat": "Effluenti zootecnici",
+        "src": "RED III Annex VI / JEC v5",
+    },
+    "Liquame bovino": {
+        "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 20.0,
+        "color": "#795548", "cat": "Effluenti zootecnici",
+        "src": "RED III Annex VI",
+    },
+    "Liquame bufalino": {
+        "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 22.0,
+        "color": "#6D4C41", "cat": "Effluenti zootecnici",
+        "src": "JEC v5 / prassi GSE",
+    },
+    "Letame bovino palabile": {
+        "eec": -30.0, "esca": 0.0, "etd": 0.8, "yield": 45.0,
+        "color": "#A1887F", "cat": "Effluenti zootecnici",
+        "src": "IPCC 2019 Vol.4 Cap.10 + GSE",
+    },
+    "Letame equino": {
+        "eec": -20.0, "esca": 0.0, "etd": 0.8, "yield": 35.0,
+        "color": "#BCAAA4", "cat": "Effluenti zootecnici",
+        "src": "JEC v5",
+    },
+    "Pollina ovaiole (aerobico)": {
+        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 90.0,
+        "color": "#FF9800", "cat": "Effluenti zootecnici",
+        "src": "GSE (no credit anaerobico)",
+    },
+    "Pollina broiler (lettiera)": {
+        "eec": -15.0, "esca": 0.0, "etd": 0.8, "yield": 105.0,
+        "color": "#FFA726", "cat": "Effluenti zootecnici",
+        "src": "IPCC 2019 / JEC v5",
+    },
+    "Pollina tacchini": {
+        "eec": -10.0, "esca": 0.0, "etd": 0.8, "yield": 100.0,
+        "color": "#FFB74D", "cat": "Effluenti zootecnici",
+        "src": "IPCC 2019",
+    },
+    "Deiezioni conigli": {
+        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 75.0,
+        "color": "#FFCC80", "cat": "Effluenti zootecnici",
+        "src": "UNI-TS 11567:2024",
+    },
+    # =========================================================
+    # SOTTOPRODOTTI AGROINDUSTRIALI (All. IX RED III / parte A+B)
+    # Tariffa CIC premium; eec bassa (solo trasporto/handling).
+    # =========================================================
+    "Sansa di olive umida": {
+        "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 120.0,
+        "color": "#6A1B9A", "cat": "Sottoprodotti agroindustriali",
+        "src": "JEC v5 / All. IX RED III",
+    },
+    "Sansa vergine": {
+        "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 140.0,
+        "color": "#7B1FA2", "cat": "Sottoprodotti agroindustriali",
+        "src": "JEC v5",
+    },
+    "Pastazzo di agrumi": {
+        "eec": 6.0, "esca": 0.0, "etd": 0.8, "yield": 100.0,
+        "color": "#FFB300", "cat": "Sottoprodotti agroindustriali",
+        "src": "UNI-TS 11567:2024",
+    },
+    "Vinaccia (con raspi)": {
+        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 130.0,
+        "color": "#880E4F", "cat": "Sottoprodotti agroindustriali",
+        "src": "JEC v5",
+    },
+    "Raspi d'uva": {
+        "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 70.0,
+        "color": "#AD1457", "cat": "Sottoprodotti agroindustriali",
+        "src": "UNI-TS 11567:2024",
+    },
+    "Feccia vinicola": {
+        "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 180.0,
+        "color": "#C2185B", "cat": "Sottoprodotti agroindustriali",
+        "src": "JEC v5",
+    },
+    "Siero di latte": {
+        "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 30.0,
+        "color": "#FFF9C4", "cat": "Sottoprodotti agroindustriali",
+        "src": "UNI-TS 11567:2024",
+    },
+    "Scotta (siero residuo)": {
+        "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 22.0,
+        "color": "#FFF59D", "cat": "Sottoprodotti agroindustriali",
+        "src": "JEC v5",
+    },
+    "Trebbie di birra": {
+        "eec": 4.0, "esca": 0.0, "etd": 0.8, "yield": 140.0,
+        "color": "#D4A574", "cat": "Sottoprodotti agroindustriali",
+        "src": "JEC v5",
+    },
+    "Lolla/pula di riso": {
+        "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 50.0,
+        "color": "#F5DEB3", "cat": "Sottoprodotti agroindustriali",
+        "src": "UNI-TS 11567:2024",
+    },
+    "Melasso": {
+        "eec": 8.0, "esca": 0.0, "etd": 0.8, "yield": 180.0,
+        "color": "#5D4037", "cat": "Sottoprodotti agroindustriali",
+        "src": "JEC v5",
+    },
+    "Scarti panificazione/pasticceria": {
+        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 280.0,
+        "color": "#D7CCC8", "cat": "Sottoprodotti agroindustriali",
+        "src": "UNI-TS 11567:2024 (alta resa zuccheri)",
+    },
+    "Grassi esausti / UCO": {
+        "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 700.0,
+        "color": "#FFE082", "cat": "Sottoprodotti agroindustriali",
+        "src": "JEC v5 (lipidi, All. IX parte B)",
+    },
+    "Scarti macellazione (cat. 3)": {
+        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 180.0,
+        "color": "#EF5350", "cat": "Sottoprodotti agroindustriali",
+        "src": "JEC v5 / Reg. 1069/2009",
+    },
+    "Sottoprodotti ortofrutticoli": {
+        "eec": 7.0, "esca": 0.0, "etd": 0.8, "yield": 100.0,
+        "color": "#66BB6A", "cat": "Sottoprodotti agroindustriali",
+        "src": "UNI-TS 11567:2024",
+    },
+    "Scarti caseari vari": {
+        "eec": 4.0, "esca": 0.0, "etd": 0.8, "yield": 40.0,
+        "color": "#E1BEE7", "cat": "Sottoprodotti agroindustriali",
+        "src": "JEC v5",
+    },
+    "Fanghi agro-industriali": {
+        "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 55.0,
+        "color": "#90A4AE", "cat": "Sottoprodotti agroindustriali",
+        "src": "UNI-TS 11567:2024",
+    },
+    # =========================================================
+    # FORSU / RIFIUTI (All. IX RED III)
+    # =========================================================
+    "FORSU selezionata": {
+        "eec": 8.0, "esca": 0.0, "etd": 0.8, "yield": 140.0,
+        "color": "#546E7A", "cat": "FORSU / Rifiuti",
+        "src": "All. IX RED III / GSE LG 2024",
+    },
+    "Fanghi depurazione": {
+        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 60.0,
+        "color": "#78909C", "cat": "FORSU / Rifiuti",
+        "src": "UNI-TS 11567:2024",
     },
 }
 
+# Tutti i feedstock disponibili (per retrocompatibilita' solver).
 FEED_NAMES = list(FEEDSTOCK_DB.keys())
+
+# Raggruppamento per categoria (per UI multiselect strutturato).
+def _feeds_by_category():
+    cats = {}
+    for name, d in FEEDSTOCK_DB.items():
+        cats.setdefault(d.get("cat", "Altro"), []).append(name)
+    return cats
+
+FEEDSTOCK_CATEGORIES = _feeds_by_category()
+
+# Default biomasse attive: mix iniziale diversificato (colture + effluenti).
+DEFAULT_ACTIVE_FEEDS = [
+    "Trinciato di mais",
+    "Trinciato di sorgo",
+    "Pollina ovaiole (aerobico)",
+    "Liquame suino",
+]
 
 MONTHS = [
     "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
@@ -403,12 +594,15 @@ def solve_1_unknown_production(fixed_masses: dict, unknown: str,
                                 hours: float, aux: float,
                                 plant_net: float = DEFAULT_PLANT_NET_SMCH) -> float:
     """
-    Modalita' 3+1: risolve 1 incognita soddisfando SOLO la produzione lorda.
+    Modalita' (N-1)+1: risolve 1 incognita soddisfando SOLO la produzione lorda.
+    Generalizzato per N biomasse: itera sulle chiavi di fixed_masses.
     plant_net: taglia netta autorizzata (Sm3/h); default 300.
     """
     gross_target = plant_net * aux * hours
-    covered = sum((fixed_masses.get(n) or 0.0) * FEEDSTOCK_DB[n]["yield"]
-                  for n in FEED_NAMES if n != unknown)
+    covered = sum(
+        (fixed_masses.get(n) or 0.0) * FEEDSTOCK_DB[n]["yield"]
+        for n in fixed_masses.keys() if n != unknown
+    )
     remaining = gross_target - covered
     return remaining / FEEDSTOCK_DB[unknown]["yield"]
 
@@ -481,7 +675,7 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
 
 
 def find_optimal_pair(aux: float, plant_net: float, ep: float,
-                      target_e_max: float):
+                      target_e_max: float, feed_list: list = None):
     """
     Trova il mix di biomasse (1 o 2 attive, le altre a 0) che MINIMIZZA la
     massa totale rispettando:
@@ -489,54 +683,69 @@ def find_optimal_pair(aux: float, plant_net: float, ep: float,
       - e_w <= target_e_max  (saving GHG >= target solver, leggermente sopra
         la soglia RED III)
 
+    feed_list: lista delle N biomasse attive nell'impianto del cliente.
+               Se None, usa tutte quelle nel DB (retrocompatibilita').
+               Enumerazione combinatoria su C(N, 2) coppie.
+
     Ritorna (pair, total_per_hour, masses_per_hour) o None se infeasibile.
     `pair` e' sempre una tuple di 2 nomi (se mono, il 2o nome e' incluso ma
     con massa 0) per retrocompatibilita' con il codice chiamante.
 
     Teoria LP: con 2 vincoli (produzione = equality, saving = inequality) e
-    4 variabili non-negative, l'ottimo e' su un vertice con <=2 variabili
+    N variabili non-negative, l'ottimo e' su un vertice con <=2 variabili
     positive.  Due famiglie di vertici:
       (a) MONO: 1 sola biomassa attiva; richiede che il suo e_total sia gia'
           <= target_e_max (saving >= target).  Massa = gross_target / yield.
       (b) COPPIA: 2 biomasse attive, vincolo saving attivo (=target).
           Sistema 2x2 risolto da solve_2_unknowns_dual.
+    Il teorema LP garantisce che enumerare MONO + tutte le coppie C(N,2) e'
+    sufficiente per trovare l'ottimo globale (vertice della regione ammissibile).
+
+    Complessita': O(N^2). Per N=30: 435 coppie, <50ms. Scalabile.
 
     NB: la coppia ottimale NON dipende dalle ore: la soluzione scala
     linearmente, quindi il mix migliore per 1 h e' lo stesso per ogni mese.
     """
     from itertools import combinations
 
+    if feed_list is None:
+        feed_list = FEED_NAMES
+    if len(feed_list) < 1:
+        return None
+
     gross_target = plant_net * aux * 1.0  # per 1 ora
     best = None  # (pair_tuple, total_per_hour, masses_per_hour)
 
-    # --- (a) MONO: enumera 4 singole biomasse -------------------------------
+    # --- (a) MONO: enumera N singole biomasse attive -------------------------
     # Con vincolo saving in forma di DISUGUAGLIANZA, se una singola biomassa
     # ha gia' e_total <= target_e_max (over-performance rispetto alla soglia)
     # allora soddisfa entrambi i vincoli da sola, e la sua massa e'
     # gross_target / yield.  Candidato naturale per minima massa totale.
-    for n in FEED_NAMES:
+    for n in feed_list:
         e_n = e_total_feedstock(n, ep)
         if e_n <= target_e_max + 1e-9:  # saving >= target
             y_n = FEEDSTOCK_DB[n]["yield"]
             if y_n <= 0:
                 continue
             m_n = gross_target / y_n
-            masses_h = {k: 0.0 for k in FEED_NAMES}
+            masses_h = {k: 0.0 for k in feed_list}
             masses_h[n] = m_n
             total_h = m_n
-            # Per retrocompat col banner (2 nomi sempre), "completo" con la
-            # biomassa a massa zero che ha e_total minima (piu' amica).
-            other = min(
-                (x for x in FEED_NAMES if x != n),
-                key=lambda x: e_total_feedstock(x, ep),
+            # Per banner/UI: completa con un "secondo nome" (la biomassa a
+            # massa zero con e_total minima, la piu' "amica" come fallback).
+            others = [x for x in feed_list if x != n]
+            other = (
+                min(others, key=lambda x: e_total_feedstock(x, ep))
+                if others else n
             )
             pair_tuple = (n, other)
             if best is None or total_h < best[1] - 1e-9:
                 best = (pair_tuple, total_h, masses_h)
 
-    # --- (b) COPPIE: enumera C(4,2)=6 vertici con saving=target -------------
-    for pair in combinations(FEED_NAMES, 2):
-        fixed0 = {n: 0.0 for n in FEED_NAMES if n not in pair}
+    # --- (b) COPPIE: enumera C(N,2) vertici con saving=target ----------------
+    # Per N=4: 6 coppie. N=10: 45. N=20: 190. N=30: 435. Sempre fattibile.
+    for pair in combinations(feed_list, 2):
+        fixed0 = {n: 0.0 for n in feed_list if n not in pair}
         sol, feas, _ = solve_2_unknowns_dual(
             fixed_masses=fixed0, unknowns=list(pair),
             hours=1.0, aux=aux, plant_net=plant_net,
@@ -1058,6 +1267,79 @@ with st.sidebar:
         """,
         unsafe_allow_html=True,
     )
+    st.header("🌾 Biomasse del tuo impianto")
+    st.caption(
+        f"Seleziona le biomasse che userai (**{len(FEED_NAMES)} disponibili** nel "
+        "database UNI-TS 11567:2024 / JEC v5 / RED III). Il solver considerera' "
+        "solo queste nelle combinazioni di ottimizzazione."
+    )
+
+    # Selezione strutturata per categorie con expander
+    if "active_feeds" not in st.session_state:
+        st.session_state.active_feeds = list(DEFAULT_ACTIVE_FEEDS)
+
+    with st.expander(
+        f"📂 Scegli biomasse ({len(st.session_state.active_feeds)} attive)",
+        expanded=False,
+    ):
+        st.caption("Raggruppate per categoria normativa. Spunta quelle presenti nel tuo impianto.")
+        new_active = []
+        for cat, feeds in FEEDSTOCK_CATEGORIES.items():
+            st.markdown(f"**{cat}**")
+            for f in feeds:
+                checked = st.checkbox(
+                    f"{f}  · eec={fmt_it(FEEDSTOCK_DB[f]['eec'], 1, signed=True)}"
+                    f"  · resa={fmt_it(FEEDSTOCK_DB[f]['yield'], 0)} Nm³/t",
+                    value=(f in st.session_state.active_feeds),
+                    key=f"chk_feed_{f}",
+                    help=f"Fonte: {FEEDSTOCK_DB[f].get('src', 'n/d')}",
+                )
+                if checked:
+                    new_active.append(f)
+        # Bottoni utility
+        bc1, bc2, bc3 = st.columns(3)
+        if bc1.button("🔄 Default", use_container_width=True, key="btn_feed_default"):
+            st.session_state.active_feeds = list(DEFAULT_ACTIVE_FEEDS)
+            # Pulisce i widget checkbox (saranno ricreati col default)
+            for f in FEED_NAMES:
+                st.session_state.pop(f"chk_feed_{f}", None)
+            st.rerun()
+        if bc2.button("✅ Tutte", use_container_width=True, key="btn_feed_all"):
+            st.session_state.active_feeds = list(FEED_NAMES)
+            for f in FEED_NAMES:
+                st.session_state.pop(f"chk_feed_{f}", None)
+            st.rerun()
+        if bc3.button("❌ Nessuna", use_container_width=True, key="btn_feed_none"):
+            st.session_state.active_feeds = []
+            for f in FEED_NAMES:
+                st.session_state.pop(f"chk_feed_{f}", None)
+            st.rerun()
+
+        if new_active != st.session_state.active_feeds:
+            st.session_state.active_feeds = new_active
+            st.rerun()
+
+    active_feeds = st.session_state.active_feeds
+
+    if len(active_feeds) < 2:
+        st.error(
+            f"⚠️ Seleziona almeno **2 biomasse** per usare il solver dual-constraint. "
+            f"Attualmente: {len(active_feeds)}."
+        )
+        st.stop()
+
+    # Riassunto compatto delle biomasse attive
+    st.markdown(
+        "<div style='font-size:0.78rem; color:#64748B; margin-top:-4px; margin-bottom:8px;'>"
+        "🌱 <b>Attive nel mix:</b> " +
+        " · ".join([f"<span style='color:{FEEDSTOCK_DB[f]['color']}; font-weight:600;'>{f}</span>"
+                    for f in active_feeds[:8]]) +
+        (f" <i>+ altre {len(active_feeds)-8}</i>" if len(active_feeds) > 8 else "") +
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.divider()
     st.header("⚙️ Parametri impianto")
     plant_net_smch = st.number_input(
         "🎯 Netto autorizzato [Sm³/h netti]",
@@ -1258,12 +1540,14 @@ with st.sidebar:
               fmt_it(plant_net_smch * aux_factor, 1, " Sm³/h"))
 
     st.divider()
-    st.header("📋 Database feedstock (con ep applicato)")
+    st.header(f"📋 Database feedstock attivi ({len(active_feeds)}/{len(FEED_NAMES)})")
     rows = []
-    for n, d in FEEDSTOCK_DB.items():
+    for n in active_feeds:
+        d = FEEDSTOCK_DB[n]
         e_tot = e_total_feedstock(n, ep_total)
         rows.append({
             "Feedstock": n,
+            "Categoria": d.get("cat", ""),
             "Resa (Nm³/t)": d["yield"],
             "eec": d["eec"],
             "ep": ep_total,
@@ -1287,15 +1571,18 @@ with st.sidebar:
     st.dataframe(styled_feed, hide_index=True, use_container_width=True)
     st.caption(
         "**Formula RED III**: E = eec + ep + etd − esca. "
-        "Manure credit −45 gCO₂/MJ in `eec` per liquame suino. "
-        "Per certificazione GSE: sostituire con valori reali d'impianto."
+        "Manure credit da −45 a −10 gCO₂/MJ in `eec` per effluenti zootecnici "
+        "(proporzionale a stoccaggio anaerobico evitato, IPCC 2019 Vol.4 Cap.10). "
+        "Fonti: UNI-TS 11567:2024, JEC WTT v5, All. IX RED III, GSE LG 2024. "
+        "Per certificazione finale: sostituire con valori reali d'impianto."
     )
 
 # ------------------------- MODE SELECTOR -------------------------
 st.subheader("🎯 Modalità di calcolo")
 
-MODE_DUAL = "2 biomasse fisse + 2 calcolate  (saving 81% + produzione 300 Sm³/h)"
-MODE_SINGLE = "3 biomasse fisse + 1 calcolata  (solo produzione 300 Sm³/h)"
+N_active = len(active_feeds)
+MODE_DUAL = f"{N_active-2} biomasse fisse + 2 calcolate  (saving target + produzione)"
+MODE_SINGLE = f"{N_active-1} biomasse fisse + 1 calcolata  (solo produzione)"
 
 # --- Applica eventuali risultati ottimizzazione PRIMA di creare i widget ---
 # (Streamlit non consente di modificare session_state di una chiave-widget
@@ -1303,10 +1590,10 @@ MODE_SINGLE = "3 biomasse fisse + 1 calcolata  (solo produzione 300 Sm³/h)"
 _pending_opt = st.session_state.pop("_pending_optimization", None)
 if _pending_opt is not None:
     if _pending_opt.get("is_mono"):
-        # Caso mono: 1 sola biomassa attiva -> modalita' 3+1 con la mono come
-        # incognita calcolata e le altre 3 fisse a 0 (per ogni mese).
+        # Caso mono: 1 sola biomassa attiva -> (N-1)+1 con la mono come
+        # incognita calcolata e le altre (N-1) fisse a 0 (per ogni mese).
         mono = _pending_opt["mono"]
-        others = [n for n in FEED_NAMES if n != mono]
+        others = [n for n in active_feeds if n != mono]
         st.session_state["mode_radio"] = MODE_SINGLE
         st.session_state["single_unknown_select"] = mono
         new_state_key = f"mens_in_single_{'-'.join(others)}"
@@ -1318,7 +1605,7 @@ if _pending_opt is not None:
             rows_init.append(r)
         st.session_state[new_state_key] = pd.DataFrame(rows_init)
     else:
-        # Caso coppia: 2 biomasse attive -> modalita' 2+2 con le 2 inutilizzate
+        # Caso coppia: 2 biomasse attive -> (N-2)+2 con le (N-2) non attive
         # come "fisse a 0".
         st.session_state["mode_radio"] = MODE_DUAL
         st.session_state["fixed_multiselect"] = list(_pending_opt["unused"])
@@ -1340,17 +1627,20 @@ if _pending_opt is not None:
     }
 
 # -------- PULSANTE OTTIMIZZA (tutta larghezza, sempre visibile) ------------
+from math import comb as _comb
+_n_combinations = _comb(N_active, 2) if N_active >= 2 else 0
 st.markdown(
-    f"##### ⚡ Auto-calcolo ottimale – minimizza la somma totale delle biomasse "
-    f"rispettando saving ≥ {fmt_it(ghg_threshold*100, 0, '%')} e produzione = "
-    f"{fmt_it(plant_net_smch, 0)} Sm³/h netti"
+    f"##### ⚡ Auto-calcolo ottimale – enumera le **{_n_combinations} combinazioni** "
+    f"possibili tra le {N_active} biomasse attive e minimizza la massa totale "
+    f"(saving ≥ {fmt_it(ghg_threshold*100, 0, '%')}, produzione = "
+    f"{fmt_it(plant_net_smch, 0)} Sm³/h netti)"
 )
 optimize_clicked = st.button(
     "🚀 OTTIMIZZA  (minimizza massa totale biomasse)",
-    help="Enumera le 6 coppie di biomasse e sceglie quella con massa totale "
-         "minima che soddisfa entrambi i vincoli (produzione + saving GHG). "
-         "Le altre 2 biomasse vengono azzerate. Si imposta in modalità dual "
-         "con le 2 non-utilizzate come 'fisse a zero'.",
+    help=f"Enumera le C({N_active},2) = {_n_combinations} coppie di biomasse attive + "
+         f"{N_active} soluzioni mono, sceglie quella con massa totale minima che "
+         "soddisfa entrambi i vincoli (produzione + saving GHG). "
+         "Le biomasse non selezionate vengono azzerate.",
     use_container_width=True,
     type="primary",
     key="btn_optimize",
@@ -1364,29 +1654,32 @@ if optimize_clicked:
     best = find_optimal_pair(
         aux=aux_factor, plant_net=plant_net_smch,
         ep=ep_total, target_e_max=target_e_max,
+        feed_list=active_feeds,
     )
     if best is None:
         st.error(
-            "❌ Nessuna coppia di biomasse riesce a soddisfare simultaneamente "
-            f"saving ≥ {fmt_it(ghg_threshold*100, 0, '%')} e produzione "
-            f"{fmt_it(plant_net_smch, 0)} Sm³/h con la configurazione ep "
-            f"attuale ({fmt_it(ep_total, 1, signed=True)} gCO₂/MJ). "
-            "Prova a migliorare la configurazione impianto (stoccaggio "
-            "digestato coperto, upgrading a membrane/amminico, off-gas RTO)."
+            "❌ Nessuna combinazione delle biomasse attive riesce a soddisfare "
+            f"simultaneamente saving ≥ {fmt_it(ghg_threshold*100, 0, '%')} e "
+            f"produzione {fmt_it(plant_net_smch, 0)} Sm³/h con la configurazione "
+            f"ep attuale ({fmt_it(ep_total, 1, signed=True)} gCO₂/MJ). "
+            "Prova ad: aggiungere biomasse a manure credit (liquami/letami), "
+            "migliorare la configurazione impianto (stoccaggio digestato coperto, "
+            "upgrading a membrane/amminico, off-gas RTO), oppure abbassare il "
+            "setpoint produttivo."
         )
     else:
         pair, total_h, masses_h = best
         # Se solo una biomassa ha massa > 0 -> ottimo MONO
-        active = [n for n, v in masses_h.items() if v > 1e-9]
-        is_mono = len(active) == 1
-        unused = [n for n in FEED_NAMES if n not in pair]
+        active_masses = [n for n, v in masses_h.items() if v > 1e-9]
+        is_mono = len(active_masses) == 1
+        unused = [n for n in active_feeds if n not in pair]
         annual_hours = sum(MONTH_HOURS)
         st.session_state["_pending_optimization"] = {
             "pair": list(pair),
             "unused": unused,
             "total_year": total_h * annual_hours,
             "is_mono": is_mono,
-            "mono": active[0] if is_mono else None,
+            "mono": active_masses[0] if is_mono else None,
         }
         st.rerun()
 
@@ -1399,32 +1692,43 @@ mode = st.radio(
     key="mode_radio",
 )
 
-is_dual_mode = mode.startswith("2")
+is_dual_mode = mode.startswith(f"{N_active-2} ") or (N_active == 2 and "calcolate" in mode)
 
 col1, col2 = st.columns([2, 3])
 with col1:
     if is_dual_mode:
+        # Default: prime 2 biomasse attive (indipendente dal nome)
+        default_fixed = active_feeds[:min(2, N_active)]
+        # Se le biomasse attive sono cambiate, resetta il default
+        prev_default = st.session_state.get("fixed_multiselect", [])
+        if not all(p in active_feeds for p in prev_default):
+            st.session_state["fixed_multiselect"] = default_fixed
         fixed_feeds = st.multiselect(
-            "Seleziona le 2 biomasse che inserirai (le altre 2 saranno calcolate):",
-            options=FEED_NAMES,
-            default=["Trinciato di mais", "Liquame suino"],
-            max_selections=2,
-            help="Suggerimento: scegli 1 biomassa ad alta eec (mais/sorgo) + "
-                 "1 a credito (pollina/liquame). Se scegli entrambe dello "
-                 "stesso 'tipo' il sistema puo' diventare infeasibile.",
+            f"Seleziona {N_active-2} biomasse fisse (le altre 2 saranno calcolate):" if N_active > 2
+            else "Seleziona 0 biomasse fisse — il solver calcola entrambe:",
+            options=active_feeds,
+            default=default_fixed if "fixed_multiselect" not in st.session_state else None,
+            max_selections=max(N_active - 2, 0),
+            help="Suggerimento: lascia come 'calcolate' almeno 1 biomassa ad alta eec "
+                 "(mais/sorgo) + 1 a manure credit (liquami). Il sistema risolve "
+                 "2 equazioni: produzione + saving.",
             key="fixed_multiselect",
         )
-        if len(fixed_feeds) != 2:
-            st.warning("Seleziona esattamente 2 biomasse.")
+        # Numero di fisse richieste: N-2 (possono essere 0 se N=2)
+        required_fixed = max(N_active - 2, 0)
+        if len(fixed_feeds) != required_fixed:
+            st.warning(f"Seleziona esattamente **{required_fixed}** biomasse fisse "
+                       f"(le altre 2 saranno calcolate). Attualmente: {len(fixed_feeds)}.")
             st.stop()
-        unknown_feeds = [n for n in FEED_NAMES if n not in fixed_feeds]
+        unknown_feeds = [n for n in active_feeds if n not in fixed_feeds]
     else:
         unknown_feed = st.selectbox(
             "Biomassa incognita (calcolata automaticamente):",
-            FEED_NAMES, index=3,
+            active_feeds,
+            index=min(N_active - 1, 3),
             key="single_unknown_select",
         )
-        fixed_feeds = [n for n in FEED_NAMES if n != unknown_feed]
+        fixed_feeds = [n for n in active_feeds if n != unknown_feed]
         unknown_feeds = [unknown_feed]
 
 # Banner risultato ottimizzazione (mostrato 1 sola volta dopo click)
@@ -1432,21 +1736,20 @@ _opt_info = st.session_state.pop("_optimize_info", None)
 if _opt_info:
     if _opt_info.get("is_mono"):
         mono = _opt_info["mono"]
-        others = [n for n in FEED_NAMES if n != mono]
         st.success(
             f"🚀 **Ottimo LP – MONO biomassa**: unica attiva **{mono}** "
-            f"(le altre 3 = 0). "
+            f"(le altre {N_active - 1} = 0). "
             f"Massa totale annua minima ≈ "
             f"**{fmt_it(_opt_info['total_year'], 0)} t/anno**. "
-            f"Il saving e' oltre la soglia con la sola **{mono}**; "
-            f"modalita' 3+1 impostata automaticamente "
-            f"({mono} calcolata, le altre a 0)."
+            f"Il saving e' oltre la soglia con la sola **{mono}**."
         )
     else:
+        unused_str = ", ".join([f"**{u}**" for u in _opt_info['unused'][:6]])
+        if len(_opt_info['unused']) > 6:
+            unused_str += f" + altre {len(_opt_info['unused']) - 6}"
         st.success(
             f"🚀 **Ottimo LP**: biomasse attive **{_opt_info['pair'][0]}** + "
-            f"**{_opt_info['pair'][1]}** "
-            f"(**{_opt_info['unused'][0]}** e **{_opt_info['unused'][1]}** = 0). "
+            f"**{_opt_info['pair'][1]}** (le altre = 0: {unused_str}). "
             f"Massa totale annua minima ≈ "
             f"**{fmt_it(_opt_info['total_year'], 0)} t/anno** "
             f"(saving target **{fmt_it(target_saving*100, 0, '%')}**, "
@@ -1455,17 +1758,25 @@ if _opt_info:
 
 with col2:
     if is_dual_mode:
-        st.info(
-            f"**Modalità dual-constraint**: inserisci le quantità (t/mese) di "
-            f"**{fixed_feeds[0]}** e **{fixed_feeds[1]}**. "
-            f"Il solver calcola **{unknown_feeds[0]}** e **{unknown_feeds[1]}** "
-            f"per ottenere saving **{fmt_it(target_saving*100, 0, '%')}** "
-            f"(margine su soglia RED III {fmt_it(ghg_threshold*100, 0, '%')}) "
-            f"e produzione **{fmt_it(plant_net_smch, 0)} Sm³/h netti**."
-        )
+        if N_active > 2:
+            st.info(
+                f"**Modalità dual-constraint**: inserisci le quantità (t/mese) di "
+                f"**{N_active-2} biomasse fisse**. "
+                f"Il solver calcola le 2 incognite (**{unknown_feeds[0]}** e "
+                f"**{unknown_feeds[1]}**) per ottenere saving "
+                f"**{fmt_it(target_saving*100, 0, '%')}** "
+                f"e produzione **{fmt_it(plant_net_smch, 0)} Sm³/h netti**."
+            )
+        else:
+            st.info(
+                f"**Modalità dual-constraint** (N=2): il solver calcola entrambe "
+                f"(**{unknown_feeds[0]}** + **{unknown_feeds[1]}**) per ottenere "
+                f"saving **{fmt_it(target_saving*100, 0, '%')}** + produzione "
+                f"**{fmt_it(plant_net_smch, 0)} Sm³/h netti**."
+            )
     else:
         st.info(
-            f"**Modalità produzione-only**: inserisci 3 biomasse; "
+            f"**Modalità produzione-only**: inserisci {N_active-1} biomasse; "
             f"il sistema calcola **{unknown_feeds[0]}** per chiudere la produzione. "
             f"Il saving sarà una conseguenza (verificato in tabella)."
         )
@@ -1473,23 +1784,62 @@ with col2:
 # ------------------------- TABELLA UNIFICATA (input + risultati) -------------------------
 st.subheader("📆 Tabella mensile – modifica le celle ✏️, il resto si ricalcola")
 
-# Valori di default plausibili
+# Valori di default plausibili per biomasse comuni; fallback generico per il resto
+# (il cliente li riaggiusta a mano in tabella mensile)
 defaults_all = {
     "Trinciato di mais": 1800.0,
     "Trinciato di sorgo": 400.0,
-    "Pollina ovaiole": 300.0,
+    "Pollina ovaiole (aerobico)": 300.0,
+    "Pollina broiler (lettiera)": 250.0,
+    "Pollina tacchini": 200.0,
     "Liquame suino": 1500.0,
+    "Liquame bovino": 1200.0,
+    "Liquame bufalino": 1100.0,
+    "Letame bovino palabile": 500.0,
+    "Letame equino": 150.0,
+    "Deiezioni conigli": 100.0,
+    "Triticale insilato": 400.0,
+    "Segale insilata": 300.0,
+    "Orzo insilato": 300.0,
+    "Loietto insilato (ryegrass)": 300.0,
+    "Erba medica insilata": 250.0,
+    "Doppia coltura (2° raccolto)": 500.0,
+    "Barbabietola da zucchero": 300.0,
+    "Sansa di olive umida": 300.0,
+    "Sansa vergine": 200.0,
+    "Pastazzo di agrumi": 250.0,
+    "Vinaccia (con raspi)": 200.0,
+    "Raspi d'uva": 100.0,
+    "Feccia vinicola": 150.0,
+    "Siero di latte": 500.0,
+    "Scotta (siero residuo)": 400.0,
+    "Trebbie di birra": 250.0,
+    "Lolla/pula di riso": 100.0,
+    "Melasso": 150.0,
+    "Scarti panificazione/pasticceria": 100.0,
+    "Grassi esausti / UCO": 50.0,
+    "Scarti macellazione (cat. 3)": 100.0,
+    "Sottoprodotti ortofrutticoli": 300.0,
+    "Scarti caseari vari": 200.0,
+    "Fanghi agro-industriali": 200.0,
+    "FORSU selezionata": 400.0,
+    "Fanghi depurazione": 150.0,
 }
+# Fallback: se una biomassa attiva non e' in defaults_all, usa 200 t/mese
+def _default_mass(feed):
+    return defaults_all.get(feed, 200.0)
 
 # --- Stato persistente: memorizzo SOLO le colonne editabili (Mese, Ore, fisse).
-# Chiave state univoca per combinazione mode+fisse, cosi' cambio mode -> nuovo state.
-state_key = f"mens_in_{'dual' if is_dual_mode else 'single'}_{'-'.join(fixed_feeds)}"
+# Chiave state univoca per combinazione mode+fisse+active_feeds, cosi' cambio
+# biomasse attive -> nuovo state (evita contaminazioni tra configurazioni diverse).
+_active_hash = str(hash(tuple(sorted(active_feeds))))[:8]
+state_key = f"mens_in_{'dual' if is_dual_mode else 'single'}_{_active_hash}_{'-'.join(fixed_feeds)}"
 if state_key not in st.session_state:
     init_rows = []
     for m, h in zip(MONTHS, MONTH_HOURS):
         row = {"Mese": m, "Ore": h}
         for f in fixed_feeds:
-            row[f] = defaults_all[f]
+            row[f] = _default_mass(f)
         init_rows.append(row)
     st.session_state[state_key] = pd.DataFrame(init_rows)
 
@@ -1572,8 +1922,8 @@ for _, row in input_df.iterrows():
         )
 
     res = {"Mese": row["Mese"], "Ore": int(hours)}
-    for n in FEED_NAMES:
-        res[n] = all_masses[n]
+    for n in active_feeds:
+        res[n] = all_masses.get(n, 0.0)
     res["Totale biomasse (t)"] = sum(all_masses.values())
     res["Sm³ lordi"] = summary["nm3_gross"]
     res["Sm³ netti"] = summary["nm3_net"]
@@ -1705,12 +2055,12 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     df_melt = df_res.melt(
-        id_vars="Mese", value_vars=FEED_NAMES,
+        id_vars="Mese", value_vars=active_feeds,
         var_name="Biomassa", value_name="t/mese",
     )
     fig = px.bar(
         df_melt, x="Mese", y="t/mese", color="Biomassa",
-        color_discrete_map={n: FEEDSTOCK_DB[n]["color"] for n in FEED_NAMES},
+        color_discrete_map={n: FEEDSTOCK_DB[n]["color"] for n in active_feeds},
         title="Ripartizione mensile biomasse",
     )
     fig.update_layout(barmode="stack", height=450, separators=",.")
@@ -1781,15 +2131,15 @@ with tab3:
 
 with tab4:
     # Mix in tonnellate (FM)
-    annual_t = {n: max(df_res[n].sum(), 0) for n in FEED_NAMES}
+    annual_t = {n: max(df_res[n].sum(), 0) for n in active_feeds}
     # Mix in MWh netti: ogni biomassa contribuisce in proporzione a (massa x yield)
     # MWh_netti_n = massa_n x yield_n / aux_factor x NM3_TO_MWH
     annual_mwh = {
         n: max(df_res[n].sum(), 0) * FEEDSTOCK_DB[n]["yield"]
            / aux_factor * NM3_TO_MWH
-        for n in FEED_NAMES
+        for n in active_feeds
     }
-    color_map = {n: FEEDSTOCK_DB[n]["color"] for n in FEED_NAMES}
+    color_map = {n: FEEDSTOCK_DB[n]["color"] for n in active_feeds}
 
     colA, colB = st.columns(2)
     with colA:
@@ -1823,14 +2173,14 @@ with tab4:
 
     # Stato persistente: tariffe per biomassa
     if "tariffs_eur_mwh" not in st.session_state:
-        st.session_state["tariffs_eur_mwh"] = {n: 120.0 for n in FEED_NAMES}
+        st.session_state["tariffs_eur_mwh"] = {n: 120.0 for n in active_feeds}
     # Retrocompat: se mancano chiavi per nuove biomasse
-    for n in FEED_NAMES:
+    for n in active_feeds:
         if n not in st.session_state["tariffs_eur_mwh"]:
             st.session_state["tariffs_eur_mwh"][n] = 120.0
 
     detail_rows = []
-    for n in FEED_NAMES:
+    for n in active_feeds:
         t = annual_t[n]
         nm3_lordi = t * FEEDSTOCK_DB[n]["yield"]
         nm3_netti = nm3_lordi / aux_factor
@@ -1894,7 +2244,7 @@ with tab4:
     tot_mwh = sum(annual_mwh.values())
     tot_revenue = sum(
         annual_mwh[n] * st.session_state["tariffs_eur_mwh"][n]
-        for n in FEED_NAMES
+        for n in active_feeds
     )
     tariffa_media_ponderata = (tot_revenue / tot_mwh) if tot_mwh > 0 else 0.0
     cA, cB, cC = st.columns(3)
