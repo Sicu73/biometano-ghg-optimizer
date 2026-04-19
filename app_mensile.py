@@ -1636,9 +1636,10 @@ with st.sidebar:
         st.caption(
             "In modalità **Biogas CHP** il biogas grezzo va direttamente "
             "al motore: nessun autoconsumo per upgrading / iniezione / off-gas. "
-            "L'autoconsumo elettrico del CHP (~8%) è già considerato nella "
-            "potenza NETTA inserita sopra. Qui resta solo il margine di perdite "
-            "diffuse + downtime."
+            "L'autoconsumo elettrico ausiliari è gestito separatamente in "
+            "«Autoconsumo elettrico ausiliari» (applicato sui kW_el lordi per "
+            "ottenere i kW_el netti in rete). Qui resta solo il margine di "
+            "perdite diffuse CH₄ + downtime."
         )
     else:
         st.caption(
@@ -1766,9 +1767,10 @@ with st.sidebar:
                 f"LHV biometano = {fmt_it(LHV_BIOMETHANE_KWH, 3)} kWh/Sm³."
             )
 
-    _unit_lordo = "Nm³ biogas/h" if IS_CHP else "Sm³/h"
+    _unit_lordo = "Sm³ CH₄/h" if IS_CHP else "Sm³/h"
     st.metric(
-        "Produzione lorda richiesta" + (" (biogas grezzo)" if IS_CHP else ""),
+        "Produzione lorda richiesta"
+        + (" (CH₄ equivalente, pre-perdite)" if IS_CHP else ""),
         fmt_it(plant_net_smch * aux_factor, 1, f" {_unit_lordo}"),
     )
 
@@ -2217,6 +2219,16 @@ df_disp["Totale biomasse (t)"] = df_disp["Totale biomasse (t)"].apply(lambda v: 
 df_disp["Sm³ lordi"]   = df_disp["Sm³ lordi"].apply(lambda v: fmt_it(v, 0))
 df_disp["Sm³ netti"]   = df_disp["Sm³ netti"].apply(lambda v: fmt_it(v, 0))
 df_disp["MWh netti"]   = df_disp["MWh netti"].apply(lambda v: fmt_it(v, 1))
+if IS_CHP:
+    df_disp["MWh elettrici lordi"] = df_disp["MWh elettrici lordi"].apply(
+        lambda v: fmt_it(v, 1)
+    )
+    df_disp["MWh elettrici netti"] = df_disp["MWh elettrici netti"].apply(
+        lambda v: fmt_it(v, 1)
+    )
+    df_disp["MWh termici"] = df_disp["MWh termici"].apply(
+        lambda v: fmt_it(v, 1)
+    )
 df_disp["GHG (gCO₂/MJ)"] = df_disp["GHG (gCO₂/MJ)"].apply(lambda v: fmt_it(v, 2))
 df_disp["Saving %"]    = df_disp["Saving %"].apply(lambda v: fmt_it(v, 1, "%"))
 df_disp["Sm³/h netti"] = df_disp["Sm³/h netti"].apply(lambda v: fmt_it(v, 1))
@@ -2241,9 +2253,40 @@ for u in unknown_feeds:
         help=f"CALCOLATA dal solver – Resa {fmt_it(FEEDSTOCK_DB[u]['yield'], 0)} Nm³/t FM",
     )
 col_cfg["Totale biomasse (t)"] = st.column_config.TextColumn("Tot. t", disabled=True)
-col_cfg["Sm³ lordi"]   = st.column_config.TextColumn("Sm³ lordi", disabled=True)
-col_cfg["Sm³ netti"]   = st.column_config.TextColumn("Sm³ netti", disabled=True)
-col_cfg["MWh netti"]   = st.column_config.TextColumn("MWh netti", disabled=True)
+_lbl_lordo_col = "Sm³ CH₄ lordi" if IS_CHP else "Sm³ lordi"
+_lbl_netto_col = "Sm³ CH₄ motore" if IS_CHP else "Sm³ netti"
+col_cfg["Sm³ lordi"]   = st.column_config.TextColumn(
+    _lbl_lordo_col, disabled=True,
+    help=("CH₄ equivalente prodotto dalle biomasse (pre-perdite)"
+          if IS_CHP else "Sm³ biometano lordi (pre-perdite upgrading/processo)"),
+)
+col_cfg["Sm³ netti"]   = st.column_config.TextColumn(
+    _lbl_netto_col, disabled=True,
+    help=("CH₄ effettivamente bruciato dal cogeneratore (post-perdite)"
+          if IS_CHP else "Sm³ biometano immessi in rete (post-aux_factor)"),
+)
+col_cfg["MWh netti"]   = st.column_config.TextColumn(
+    "MWh_CH₄ netti" if IS_CHP else "MWh netti",
+    disabled=True,
+    help=("Energia CH₄ in ingresso al cogeneratore (pre-conversione elettrica)"
+          if IS_CHP else "Energia biometano netta immessa in rete"),
+)
+if IS_CHP:
+    col_cfg["MWh elettrici lordi"] = st.column_config.TextColumn(
+        "MWh_el lordi", disabled=True,
+        help="MWh elettrici ai morsetti alternatore = MWh_CH₄ × η_el. "
+             "Non fatturabili: occorre sottrarre gli autoconsumi ausiliari.",
+    )
+    col_cfg["MWh elettrici netti"] = st.column_config.TextColumn(
+        "MWh_el netti rete", disabled=True,
+        help="MWh elettrici NETTI immessi in rete = lordi × (1 − aux%). "
+             "Base di calcolo della tariffa T.O. GSE.",
+    )
+    col_cfg["MWh termici"] = st.column_config.TextColumn(
+        "MWh_th", disabled=True,
+        help="MWh termici recuperati dal CHP = MWh_CH₄ × η_th. "
+             "Utilizzabili per digestori, teleriscaldamento, processo.",
+    )
 col_cfg["GHG (gCO₂/MJ)"] = st.column_config.TextColumn(
     "e_w", disabled=True, help="Emissioni pesate gCO₂eq/MJ",
 )
@@ -2296,10 +2339,18 @@ st.subheader("📈 Sintesi annuale")
 c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("Tot. biomasse (t/anno)",
           fmt_it(df_res["Totale biomasse (t)"].sum(), 0))
-c2.metric("Sm³ netti (anno)",
-          fmt_it(df_res["Sm³ netti"].sum(), 0))
-c3.metric("MWh netti (anno)",
-          fmt_it(df_res["MWh netti"].sum(), 0))
+if IS_CHP:
+    c2.metric("Sm³ CH₄ motore (anno)",
+              fmt_it(df_res["Sm³ netti"].sum(), 0),
+              help="CH₄ equivalente effettivamente bruciato dal cogeneratore")
+    c3.metric("MWh_el netti rete (anno)",
+              fmt_it(df_res["MWh elettrici netti"].sum(), 0),
+              help="Energia elettrica NETTA immessa in rete (post-aux)")
+else:
+    c2.metric("Sm³ netti (anno)",
+              fmt_it(df_res["Sm³ netti"].sum(), 0))
+    c3.metric("MWh netti (anno)",
+              fmt_it(df_res["MWh netti"].sum(), 0))
 c4.metric("Saving medio (%)",
           fmt_it(df_res["Saving %"].mean(), 1))
 valid_months = df_res["Validità"].str.startswith("✅").sum()
@@ -2360,10 +2411,14 @@ with tab3:
     lordi_labels = [fmt_it(v, 0) for v in lordi_vals]
     netti_labels = [fmt_it(v, 0) for v in netti_vals]
 
-    _lbl_lordo = "Nm³ biogas (lordo)" if IS_CHP else "Sm³ lordi (biomasse)"
-    _lbl_netto = "Nm³ CH₄ al motore" if IS_CHP else "Sm³ netti (immessi in rete)"
+    _lbl_lordo = (
+        "Sm³ CH₄ lordi (biomasse)" if IS_CHP else "Sm³ lordi (biomasse)"
+    )
+    _lbl_netto = (
+        "Sm³ CH₄ al motore" if IS_CHP else "Sm³ netti (immessi in rete)"
+    )
     _lbl_title = (
-        "Produzione mensile biogas / CH₄ equivalente" if IS_CHP
+        "Produzione mensile CH₄ equivalente (biogas CHP)" if IS_CHP
         else "Produzione mensile Sm³"
     )
     fig3 = go.Figure()
@@ -2424,12 +2479,24 @@ with tab4:
         st.plotly_chart(fig4a, use_container_width=True)
 
     with colB:
+        _pie_mwh_label = (
+            "MWh_el netti rete" if IS_CHP else "MWh netti"
+        )
+        _pie_total = (
+            sum(annual_mwh.values()) * eta_el * (1.0 - aux_el_pct)
+            if IS_CHP else sum(annual_mwh.values())
+        )
+        _pie_values = (
+            [v * eta_el * (1.0 - aux_el_pct) for v in annual_mwh.values()]
+            if IS_CHP else list(annual_mwh.values())
+        )
         fig4b = px.pie(
             names=list(annual_mwh.keys()),
-            values=list(annual_mwh.values()),
+            values=_pie_values,
             color=list(annual_mwh.keys()),
             color_discrete_map=color_map,
-            title=f"Mix MWh netti/anno (totale {fmt_it(sum(annual_mwh.values()), 0)} MWh)",
+            title=f"Mix {_pie_mwh_label}/anno "
+                  f"(totale {fmt_it(_pie_total, 0)} MWh)",
             hole=0.4,
         )
         fig4b.update_traces(textposition="inside", textinfo="percent+label")
@@ -2450,7 +2517,9 @@ with tab4:
     )
     if IS_CHP:
         st.caption(
-            "⚡ **Modalità Biogas CHP**: tariffa espressa in €/MWh **elettrici**. "
+            "⚡ **Modalità Biogas CHP**: tariffa €/MWh_el applicata ai "
+            "**MWh elettrici NETTI immessi in rete** (= MWh_el lordi × "
+            f"(1 − aux%), con aux = {fmt_it(aux_el_pct*100, 1, '%')}). "
             "Default **280 €/MWh** (TO base DM 6/7/2012 per biogas agricolo "
             "<1 MW + premio CAR + premio matrice sottoprodotti). "
             "Modificabile per scenari FER-X, PPA, vendita spot."
