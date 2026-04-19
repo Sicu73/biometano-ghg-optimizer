@@ -1283,7 +1283,7 @@ st.markdown(
     </div>
     <div class="methaniq-credit">
         💡 Ideato e sviluppato da <b>Carlo Sicurini</b> &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp;
-        Pianificazione mensile + ottimizzazione GHG per impianti di biometano
+        Pianificazione mensile + ottimizzazione GHG per impianti di biometano e biogas cogenerativo
     </div>
     """,
     unsafe_allow_html=True,
@@ -2507,7 +2507,7 @@ st.markdown(
         <div style='
             font-size: 0.95rem; font-style: italic; color: #94A3B8;
             margin-top: 4px; position: relative; z-index: 1;
-        '>L'intelligenza del biometano.</div>
+        '>L'intelligenza del biogas e del biometano.</div>
         <div style='
             margin-top: 16px; padding-top: 16px;
             border-top: 1px solid rgba(148, 163, 184, 0.2);
