@@ -1865,7 +1865,8 @@ _n_combinations = _comb(N_active, 2) if N_active >= 2 else 0
 _prod_label = (
     f"{fmt_it(plant_kwe, 0)} kW_el lordi "
     f"(= {fmt_it(plant_kwe_net, 0)} kW_el netti in rete)"
-    if IS_CHP else f"{_prod_label}"
+    if IS_CHP
+    else f"{fmt_it(plant_net_smch, 0)} Sm³/h netti"
 )
 st.markdown(
     f"##### ⚡ Auto-calcolo ottimale – enumera le **{_n_combinations} combinazioni** "
