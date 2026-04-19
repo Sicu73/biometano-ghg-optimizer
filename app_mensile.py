@@ -498,6 +498,29 @@ FEEDSTOCK_DB = {
         "color": "#90A4AE", "cat": "Sottoprodotti agroindustriali",
         "src": "UNI-TS 11567:2024",
     },
+    "Polpe di barbabietola fresche": {
+        # Sottoprodotto dello zuccherificio (residuo dopo estrazione saccarosio).
+        # Come residuo di lavorazione: eec=0 (no oneri coltivazione allocati),
+        # esca=0 (no LUC). Solo etd per trasporto/condizionamento.
+        # Resa: ~50 Nm3/t FM (DM ~22-25%, biogas ~700 Nm3/t SV, 55% CH4).
+        "eec": 0.0, "esca": 0.0, "etd": 2.0, "yield": 50.0,
+        "color": "#F48FB1", "cat": "Sottoprodotti agroindustriali",
+        "src": "UNI-TS 11567:2024 / JEC WTT v5 (by-product allocation)",
+    },
+    "Polpe di barbabietola insilate": {
+        # Polpe surpressate insilate (DM ~28-30%): piu' dense delle fresche,
+        # resa piu' alta per t FM. Sottoprodotto -> eec=0, esca=0.
+        "eec": 0.0, "esca": 0.0, "etd": 2.5, "yield": 75.0,
+        "color": "#EC407A", "cat": "Sottoprodotti agroindustriali",
+        "src": "UNI-TS 11567:2024 / JEC WTT v5",
+    },
+    "Melasso di barbabietola": {
+        # Gia' presente come "Melasso" (canna); qui variante barbabietola.
+        # Sottoprodotto liquido zuccherificio: resa alta, DM ~75-80%.
+        "eec": 0.0, "esca": 0.0, "etd": 1.5, "yield": 280.0,
+        "color": "#C2185B", "cat": "Sottoprodotti agroindustriali",
+        "src": "JEC WTT v5 / UNI-TS 11567:2024",
+    },
     # =========================================================
     # FORSU / RIFIUTI (All. IX RED III)
     # =========================================================
@@ -1822,6 +1845,9 @@ defaults_all = {
     "Sottoprodotti ortofrutticoli": 300.0,
     "Scarti caseari vari": 200.0,
     "Fanghi agro-industriali": 200.0,
+    "Polpe di barbabietola fresche": 400.0,
+    "Polpe di barbabietola insilate": 350.0,
+    "Melasso di barbabietola": 120.0,
     "FORSU selezionata": 400.0,
     "Fanghi depurazione": 150.0,
 }
