@@ -267,7 +267,13 @@ def _build_cover(ctx, styles):
     flow.append(Spacer(1, 18 * mm))
 
     # Info table — mode-aware
-    if ctx["IS_CHP"]:
+    if ctx.get("IS_FER2"):
+        cap = ctx.get("fer2_kwe_cap", 300)
+        qual = ("matrice OK ≥soglia"
+                if ctx.get("fer2_qualified") else "matrice INSUFFICIENTE")
+        mode_label = (f"Biogas CHP — FER 2 (DM 18/9/2024) · "
+                      f"≤{cap:.0f} kWe · {qual}")
+    elif ctx["IS_CHP"]:
         mode_label = "Biogas — Cogenerazione (CHP) · DM 6/7/2012"
     elif ctx.get("IS_DM2018"):
         adv = ("AVANZATO · double counting CIC"
@@ -290,6 +296,19 @@ def _build_cover(ctx, styles):
             + (f" · ×2 (avanzato → 1 CIC ogni "
                f"{_fmt_it(ctx['MWH_PER_CIC']/2, 2)} MWh)"
                if ctx.get("cic_double") else " · single counting"),
+        ])
+    if ctx.get("IS_FER2"):
+        # Tariffa effettiva FER 2 (TR + premi attivi)
+        tar_str = f"{_fmt_it(ctx['fer2_tariffa_base'], 0)} TR"
+        if ctx.get("fer2_apply_matrice"):
+            tar_str += f" + {_fmt_it(ctx['fer2_premio_matrice_eur'], 0)} matrice"
+        if ctx.get("fer2_apply_car"):
+            tar_str += f" + {_fmt_it(ctx['fer2_premio_car_eur'], 0)} CAR"
+        tar_str += f" = {_fmt_it(ctx['fer2_tariffa_eff'], 0)} €/MWh_el"
+        info_rows.insert(2, ["Tariffa FER 2", tar_str])
+        info_rows.insert(3, [
+            "Periodo incentivo",
+            f"{ctx.get('fer2_periodo_anni', 20)} anni",
         ])
     info_tbl = Table(info_rows, colWidths=[42 * mm, CONTENT_W - 42 * mm])
     info_tbl.setStyle(TableStyle([
@@ -338,7 +357,25 @@ def _build_executive_summary(ctx, styles):
     # 4 KPI in row — mode-aware
     saving_accent = (EMERALD if ctx["saving_avg"] >= ctx["ghg_threshold"]*100
                      else RED)
-    if ctx["IS_CHP"]:
+    if ctx.get("IS_FER2"):
+        # FER 2: KPI dedicati al regime ≤300 kW
+        kpi1 = _kpi_tile("Biomasse",
+                         _fmt_it(ctx["tot_biomasse_t"], 0),
+                         "t/anno (FM)", styles=s)
+        kpi2 = _kpi_tile("Energia el. netta rete",
+                         _fmt_it(ctx["tot_mwh_el_netto"], 0),
+                         "MWh/anno", styles=s)
+        kpi3 = _kpi_tile("Quota sottoprodotti",
+                         _fmt_it(ctx.get("fer2_subprod_share", 0)*100, 1, "%"),
+                         (f"OK · soglia {_fmt_it(ctx.get('fer2_matrice_threshold', 0.8)*100, 0, '%')}"
+                          if ctx.get("fer2_qualified")
+                          else f"KO · sotto soglia {_fmt_it(ctx.get('fer2_matrice_threshold', 0.8)*100, 0, '%')}"),
+                         styles=s,
+                         accent=EMERALD if ctx.get("fer2_qualified") else RED)
+        kpi4 = _kpi_tile("Ricavi elettrici",
+                         _fmt_it(ctx["tot_revenue"]/1000, 0),
+                         f"k€/anno · TR+premi", styles=s)
+    elif ctx["IS_CHP"]:
         kpi1 = _kpi_tile("Biomasse",
                          _fmt_it(ctx["tot_biomasse_t"], 0),
                          "t/anno (FM)", styles=s)
@@ -445,6 +482,28 @@ def _build_executive_summary(ctx, styles):
                if ctx.get("cic_active") else
                "Sistema tariffa diretta €/MWh (CIC non applicabile per uso finale).")
         )
+    if ctx.get("IS_FER2"):
+        qual_color = "#10B981" if ctx.get("fer2_qualified") else "#DC2626"
+        qual_label = "MATRICE OK" if ctx.get("fer2_qualified") else "MATRICE KO"
+        premi_str = []
+        if ctx.get("fer2_apply_matrice"):
+            premi_str.append(
+                f"matrice +{_fmt_it(ctx['fer2_premio_matrice_eur'], 0)} €/MWh")
+        if ctx.get("fer2_apply_car"):
+            premi_str.append(
+                f"CAR +{_fmt_it(ctx['fer2_premio_car_eur'], 0)} €/MWh")
+        premi_full = (" + " + " + ".join(premi_str)) if premi_str else ""
+        bullets.append(
+            f"• <b>FER 2 (DM 18/9/2024, ≤{_fmt_it(ctx.get('fer2_kwe_cap', 300), 0)} kWe)</b>: "
+            f"sottoprodotti in massa "
+            f"<b>{_fmt_it(ctx.get('fer2_subprod_share', 0)*100, 1, '%')}</b> "
+            f"(soglia {_fmt_it(ctx.get('fer2_matrice_threshold', 0.8)*100, 0, '%')}) → "
+            f"<font color='{qual_color}'><b>{qual_label}</b></font>. "
+            f"Tariffa effettiva: <b>{_fmt_it(ctx['fer2_tariffa_base'], 0)} TR{premi_full} = "
+            f"{_fmt_it(ctx['fer2_tariffa_eff'], 0)} €/MWh_el</b>. "
+            f"Periodo: {ctx.get('fer2_periodo_anni', 20)} anni → cumulo "
+            f"~<b>{_fmt_it(ctx['tot_revenue'] * ctx.get('fer2_periodo_anni', 20) / 1_000_000, 1)} M€</b>."
+        )
     bullets.append(
         f"• Configurazione impiantistica: ep totale "
         f"<b>{_fmt_it(ctx['ep_total'], 1, ' gCO₂/MJ', signed=True)}</b> · "
@@ -479,13 +538,20 @@ def _build_plant_config(ctx, styles):
         ["Parametro", "Valore", "Note"],
     ]
     if ctx["IS_CHP"]:
+        regime_chp = (
+            f"Biogas CHP — FER 2 (DM 18/9/2024) · cap "
+            f"{_fmt_it(ctx.get('fer2_kwe_cap', 300), 0)} kWe"
+            if ctx.get("IS_FER2") else
+            "Biogas → Cogenerazione (CHP) · DM 6/7/2012 (≤1 MW)"
+        )
         rows.extend([
-            ["Tipologia",
-             "Biogas → Cogenerazione (CHP)",
+            ["Tipologia", regime_chp,
              "Biogas grezzo al motore, no upgrading"],
             ["Potenza elettrica LORDA",
              f"{_fmt_it(ctx['plant_kwe'], 0)} kW_el",
-             "Targa motore (morsetti alternatore)"],
+             "Targa motore (morsetti alternatore)"
+             + (f" · cap FER 2 = {_fmt_it(ctx.get('fer2_kwe_cap', 300), 0)} kWe"
+                if ctx.get("IS_FER2") else "")],
             ["Autoconsumo ausiliari",
              f"{_fmt_it(ctx['aux_el_pct']*100, 1, '%')}",
              "Pompe, agitatori, desolforatore, PLC"],
@@ -560,6 +626,41 @@ def _build_plant_config(ctx, styles):
                 _fmt_it(ctx["tot_n_cic"], 1),
                 "Base ricavi DM 2018 (×prezzo CIC)",
             ])
+    # Riga FER 2 specifica
+    if ctx.get("IS_FER2"):
+        qual_text = (
+            f"MATRICE OK (sottoprodotti "
+            f"{_fmt_it(ctx['fer2_subprod_share']*100, 1, '%')}, "
+            f"soglia {_fmt_it(ctx['fer2_matrice_threshold']*100, 0, '%')})"
+            if ctx.get("fer2_qualified") else
+            f"MATRICE INSUFFICIENTE (sottoprodotti "
+            f"{_fmt_it(ctx['fer2_subprod_share']*100, 1, '%')} "
+            f"sotto soglia {_fmt_it(ctx['fer2_matrice_threshold']*100, 0, '%')})"
+        )
+        rows.append(["Qualifica FER 2", qual_text,
+                     "Determina premio matrice"])
+        rows.append([
+            "Tariffa di Riferimento (TR)",
+            f"{_fmt_it(ctx['fer2_tariffa_base'], 0)} €/MWh_el",
+            "Base FER 2 piccoli impianti",
+        ])
+        if ctx.get("fer2_apply_matrice"):
+            rows.append([
+                "Premio matrice",
+                f"+{_fmt_it(ctx['fer2_premio_matrice_eur'], 0)} €/MWh_el",
+                f"Attivo (matrice ≥{_fmt_it(ctx['fer2_matrice_threshold']*100, 0, '%')})",
+            ])
+        if ctx.get("fer2_apply_car"):
+            rows.append([
+                "Premio CAR",
+                f"+{_fmt_it(ctx['fer2_premio_car_eur'], 0)} €/MWh_el",
+                "Cogenerazione ad Alto Rendimento (PES > 10%)",
+            ])
+        rows.append([
+            "Tariffa effettiva FER 2",
+            f"{_fmt_it(ctx['fer2_tariffa_eff'], 0)} €/MWh_el",
+            f"Periodo {ctx.get('fer2_periodo_anni', 20)} anni",
+        ])
     cfg_tbl = Table(rows, colWidths=[60 * mm, 50 * mm, CONTENT_W - 110 * mm])
     cfg_tbl.setStyle(TableStyle([
         # Header
@@ -782,9 +883,26 @@ def _build_revenue(ctx, styles):
     flow.append(Spacer(1, 8 * mm))
 
     # Revenue summary card
-    if ctx["IS_CHP"]:
+    if ctx.get("IS_FER2"):
         rev_caption = (
-            f"<b>Calcolo CHP</b> · MWh_el lordi = MWh_CH₄ × η_el "
+            f"<b>Calcolo FER 2 (DM 18/9/2024, ≤"
+            f"{_fmt_it(ctx.get('fer2_kwe_cap', 300), 0)} kWe)</b> · "
+            f"MWh_el lordi = MWh_CH₄ × η_el "
+            f"({_fmt_it(ctx['eta_el']*100, 0, '%')}) · "
+            f"MWh_el netti = lordi × (1 − aux%) · "
+            f"<b>Tariffa eff. = TR ({_fmt_it(ctx['fer2_tariffa_base'], 0)})"
+            + (f" + matrice ({_fmt_it(ctx['fer2_premio_matrice_eur'], 0)})"
+               if ctx.get('fer2_apply_matrice') else "")
+            + (f" + CAR ({_fmt_it(ctx['fer2_premio_car_eur'], 0)})"
+               if ctx.get('fer2_apply_car') else "")
+            + f" = {_fmt_it(ctx['fer2_tariffa_eff'], 0)} €/MWh_el</b>. "
+            f"Ricavi = MWh_el netti × tariffa eff. "
+            f"Periodo incentivo {ctx.get('fer2_periodo_anni', 20)} anni → "
+            f"cumulo ~{_fmt_it(ctx['tot_revenue']*ctx.get('fer2_periodo_anni', 20)/1_000_000, 1)} M€."
+        )
+    elif ctx["IS_CHP"]:
+        rev_caption = (
+            f"<b>Calcolo CHP DM 6/7/2012</b> · MWh_el lordi = MWh_CH₄ × η_el "
             f"({_fmt_it(ctx['eta_el']*100, 0, '%')}) · "
             f"MWh_el netti rete = lordi × (1 − aux%) "
             f"({_fmt_it(ctx['aux_el_pct']*100, 1, '%')}) · "
@@ -867,10 +985,17 @@ def _build_methodology(ctx, styles):
          "Resa specifica biogas/biometano per categoria di matrice. "
          "Database alimentato anche da JEC WTT v5 e parametri "
          "operativi Consorzio Italiano Biogas."),
-        ("DM 6 luglio 2012 (biogas CHP)",
+        ("DM 6 luglio 2012 (biogas CHP DM 2012)",
          "Tariffa Omnicomprensiva biogas agricolo ≤ 1 MW. "
          "Premio CAR (PES > 10%) e premio matrice sottoprodotti "
-         "applicati alla TO base."),
+         "applicati alla TO base. Periodo: 20 anni."),
+        ("DM 18 settembre 2024 — Decreto FER 2",
+         "Regime incentivante per piccoli impianti biogas CHP "
+         "agricoli ≤ 300 kWe. Tariffa di Riferimento (TR) base ~256 "
+         "€/MWh_el + premio matrice (+30 €/MWh se ≥80% sottoprodotti / "
+         "effluenti) + premio CAR (+10 €/MWh se PES>10%). "
+         "Cap colture dedicate ≤20% in massa. Periodo incentivo "
+         "20 anni. Saving GHG ≥ 80% (RED III, comparator 183 gCO₂/MJ)."),
     ]
     rows = []
     for title, body in items:

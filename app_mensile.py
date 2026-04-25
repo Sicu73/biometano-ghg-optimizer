@@ -241,6 +241,37 @@ DM2018_END_USES = {
 }
 
 # ============================================================
+# DM 18 SETTEMBRE 2024 — "FER 2" / Biogas CHP piccoli impianti agricoli
+# ============================================================
+# Riferimenti: DM 18/9/2024 (Decreto FER 2), focus piccoli impianti
+# biogas cogenerativi <= 300 kWe destinati ad agricoltura sostenibile.
+#
+# Caratteristiche normative:
+#   - Taglia massima: 300 kWe (hard cap)
+#   - Periodo incentivazione: 20 anni
+#   - Matrice obbligatoria: >= 80% in MASSA da sottoprodotti, effluenti
+#     zootecnici, residui colturali, FORSU. Cap colture dedicate <= 20%.
+#   - Tariffa di Riferimento (TR) base: ~256 EUR/MWh_el (configurabile,
+#     dipende da fascia/asta/registro). Default app: 256.
+#   - Premio matrice: +30 EUR/MWh_el se >= 80% sottoprodotti/effluenti
+#   - Premio CAR (Cogenerazione ad Alto Rendimento, PES > 10%): +10 EUR/MWh_el
+#   - Soglia saving GHG: 80% RED III (comparator 183 gCO2/MJ mix EU)
+#   - Tariffa applicata ai MWh elettrici NETTI immessi in rete
+#     (lordo motore meno autoconsumi ausiliari)
+#
+# NB: i numeri esatti di tariffa e premi possono cambiare per asta/anno.
+# I default qui sotto sono indicativi e configurabili dall'utente in app.
+# ============================================================
+FER2_KWE_CAP                  = 300.0    # kWe hard cap
+DEFAULT_PLANT_KWE_FER2        = 250.0    # default plant size (sotto cap)
+FER2_TARIFFA_BASE_DEFAULT     = 256.0    # EUR/MWh_el (TR base)
+FER2_PREMIO_MATRICE_DEFAULT   = 30.0     # EUR/MWh_el (>=80% sottoprodotti)
+FER2_PREMIO_CAR_DEFAULT       = 10.0     # EUR/MWh_el (CAR PES>10%)
+FER2_FEEDSTOCK_REQ_THRESHOLD  = 0.80     # quota minima sottoprodotti/effluenti
+FER2_PERIODO_ANNI             = 20       # durata incentivo (anni)
+FER2_GHG_THRESHOLD            = 0.80     # RED III electricity
+
+# ============================================================
 # EP (processing) - contributi impiantistici [gCO2eq/MJ biometano]
 # Valori medi da letteratura JRC-CONCAWE v5, UNI/TS 11567:2024, default RED III.
 # NB: valori indicativi; per certificazione GSE servono misure reali d'impianto.
@@ -980,7 +1011,7 @@ def find_optimal_pair(aux: float, plant_net: float, ep: float,
 # UI
 # ============================================================
 st.set_page_config(
-    page_title="Metan.iQ — Decision Intelligence Biometano (DM 2018/2022) & Biogas CHP",
+    page_title="Metan.iQ — Biometano (DM 2018/2022) & Biogas CHP (DM 2012/FER 2)",
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -1022,16 +1053,19 @@ with st.sidebar:
     st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
 
 # ===========================================================
-# Metan.iQ Mode Selector (3 modalita': DM 2022, DM 2018, Biogas CHP)
-# - "biometano"      = legacy alias DM 2022 (mantenuto per session_state)
-# - "biometano_2018" = nuovo: sistema CIC + double counting avanzato
-# - "biogas_chp"     = cogenerazione elettrica diretta da biogas
+# Metan.iQ Mode Selector (4 modalita' in griglia 2x2)
+# - "biometano"        = legacy alias DM 2022 (mantenuto per session_state)
+# - "biometano_2018"   = sistema CIC + double counting avanzato
+# - "biogas_chp"       = CHP DM 6/7/2012 (<=1 MW agricolo) + premio CAR
+# - "biogas_chp_fer2"  = CHP FER 2 (<=300 kWe), tariffa TR + premi matrice/CAR
 # ===========================================================
+_VALID_MODES = ("biometano", "biometano_2018",
+                "biogas_chp", "biogas_chp_fer2")
 if "app_mode" not in st.session_state:
     st.session_state.app_mode = "biometano"
 
 # Migrazione automatica session_state da etichette legacy
-if st.session_state.app_mode not in ("biometano", "biometano_2018", "biogas_chp"):
+if st.session_state.app_mode not in _VALID_MODES:
     st.session_state.app_mode = "biometano"
 
 with st.sidebar:
@@ -1041,7 +1075,8 @@ with st.sidebar:
         "🏭 Tipologia impianto / regime incentivante</div>",
         unsafe_allow_html=True,
     )
-    _mc1, _mc2, _mc3 = st.columns(3)
+    # Riga 1: regimi BIOMETANO
+    _mc1, _mc2 = st.columns(2)
     with _mc1:
         if st.button(
             "🧬 DM 2022",
@@ -1055,7 +1090,7 @@ with st.sidebar:
             st.rerun()
     with _mc2:
         if st.button(
-            "🌿 DM 2018",
+            "🌿 DM 2018 CIC",
             use_container_width=True,
             type="primary" if st.session_state.app_mode == "biometano_2018" else "secondary",
             key="btn_mode_biometano_2018",
@@ -1064,29 +1099,47 @@ with st.sidebar:
         ):
             st.session_state.app_mode = "biometano_2018"
             st.rerun()
+    # Riga 2: regimi BIOGAS CHP
+    _mc3, _mc4 = st.columns(2)
     with _mc3:
         if st.button(
-            "⚡ CHP",
+            "⚡ CHP DM 2012",
             use_container_width=True,
             type="primary" if st.session_state.app_mode == "biogas_chp" else "secondary",
             key="btn_mode_chp",
-            help="Biogas → cogenerazione elettrica diretta. Tariffa "
-                 "Omnicomprensiva (DM 6/7/2012) + premio CAR.",
+            help="Biogas → cogenerazione elettrica DM 6/7/2012 (<=1 MW "
+                 "agricolo). Tariffa Omnicomprensiva + premio CAR.",
         ):
             st.session_state.app_mode = "biogas_chp"
             st.rerun()
+    with _mc4:
+        if st.button(
+            "🔋 CHP FER 2",
+            use_container_width=True,
+            type="primary" if st.session_state.app_mode == "biogas_chp_fer2" else "secondary",
+            key="btn_mode_chp_fer2",
+            help="Biogas CHP FER 2 (DM 18/9/2024) — taglia max 300 kWe, "
+                 "matrice ≥80% sottoprodotti/effluenti, TR + premi "
+                 "matrice/CAR, periodo 20 anni.",
+        ):
+            st.session_state.app_mode = "biogas_chp_fer2"
+            st.rerun()
     st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
 
-APP_MODE  = st.session_state.app_mode
-IS_CHP    = APP_MODE == "biogas_chp"
-IS_DM2018 = APP_MODE == "biometano_2018"
-IS_DM2022 = APP_MODE == "biometano"
+APP_MODE       = st.session_state.app_mode
+IS_CHP_DM2012  = APP_MODE == "biogas_chp"
+IS_FER2        = APP_MODE == "biogas_chp_fer2"
+IS_CHP         = IS_CHP_DM2012 or IS_FER2  # branche condivise (kW input, motore, biogas grezzo)
+IS_DM2018      = APP_MODE == "biometano_2018"
+IS_DM2022      = APP_MODE == "biometano"
 # NB: branche "biometano generico" (DM 2022 + DM 2018) si esprimono come
 # `not IS_CHP` -- entrambi i regimi condividono upgrading/off-gas/iniezione.
+# `IS_CHP` cattura entrambi i CHP (DM 2012 + FER 2) per UI/calcoli condivisi;
+# `IS_FER2` differenzia solo le specificita' FER 2 (cap 300 kW, premi).
 # Comparator fossile aggiornato dinamicamente:
-#  - mode CHP:   183 gCO2/MJ (mix elettrico EU), valore unico
-#  - mode DM 2022: dipende da end_use (80 rete/elec/calore, 94 trasporti)
-#  - mode DM 2018: dipende da end_use DM 2018 (94 trasporti, 80 altri usi/CAR)
+#  - mode CHP (qualsiasi): 183 gCO2/MJ (mix elettrico EU)
+#  - mode DM 2022:         80 rete/elec/calore, 94 trasporti (per end_use)
+#  - mode DM 2018:         94 trasporti, 80 altri usi/CAR (per end_use)
 if IS_CHP:
     FOSSIL_COMPARATOR = COMPARATOR_CHP
 
@@ -1557,7 +1610,9 @@ st.markdown(
         <span class="eyebrow">// Decision Intelligence Platform</span>
         <h1>Metan<span style="color:""" + AMBER + """; font-weight:700;">.</span>iQ</h1>
         <div class="tagline">""" + (
-            "Pianificazione e business case per impianti biogas cogenerativi: bilancio elettrico-termico, tariffa T.O. e saving RED III su comparator 183 gCO₂/MJ."
+            "DM 18/9/2024 · CHP biogas piccoli impianti agricoli ≤300 kWe. Tariffa di Riferimento + premi matrice (≥80% sottoprodotti) e CAR. Periodo 20 anni, saving 80% RED III."
+            if IS_FER2 else
+            "Pianificazione e business case per impianti biogas cogenerativi (DM 6/7/2012, ≤1 MW). Bilancio elettrico-termico, tariffa T.O. e saving RED III."
             if IS_CHP else
             "DM 2/3/2018 · sistema CIC con double counting per matrici Annex IX (biometano avanzato). Pianificazione mensile, sostenibilità RED II/III e simulazione CIC."
             if IS_DM2018 else
@@ -1565,11 +1620,13 @@ st.markdown(
         ) + """</div>
         <div class="pills">
             <span class="pill accent">""" + (
+                "BIOGAS · CHP · FER 2 (≤300 kW)" if IS_FER2 else
                 "BIOGAS · CHP · DM 6/7/2012" if IS_CHP else
                 "BIOMETANO · DM 2/3/2018 · CIC" if IS_DM2018 else
                 "BIOMETANO · DM 15/9/2022"
             ) + """</span>
             <span class="pill">""" + (
+                "DM 18/9/2024 · FER 2" if IS_FER2 else
                 "RED II · ALL. IX (avanzato)" if IS_DM2018 else
                 "RED III · D.LGS 5/2026"
             ) + """</span>
@@ -1655,7 +1712,8 @@ with st.sidebar:
                 font-weight: 400;
                 letter-spacing: 1px;
                 text-transform: uppercase;
-            '>""" + ("Biogas · Cogenerazione · TO" if IS_CHP
+            '>""" + ("Biogas · CHP · FER 2 (≤300 kW)" if IS_FER2
+                    else "Biogas · CHP · DM 6/7/2012" if IS_CHP
                     else "Biometano · DM 2018 · CIC" if IS_DM2018
                     else "Biometano · DM 2022") + """</div>
         </div>
@@ -1754,15 +1812,45 @@ with st.sidebar:
             help="Rendimento termico recuperato (fumi + acqua motore). "
                  "Tipico 40-45%. Per CAR richiesto PES > 10%.",
         )
+        # Cap dimensionale: FER 2 ha hard cap a 300 kWe (DM 18/9/2024).
+        # DM 6/7/2012 fino a 1 MW agricolo (cap pratico 999 kWe per evitare
+        # passaggio a fascia successiva). Manteniamo max wide-range per
+        # consentire scenari simulativi anche fuori normativa.
+        if IS_FER2:
+            _kwe_min   = 50.0
+            _kwe_max   = FER2_KWE_CAP
+            _kwe_value = min(DEFAULT_PLANT_KWE_FER2, FER2_KWE_CAP)
+            _kwe_help  = (
+                f"FER 2 (DM 18/9/2024): hard cap **{fmt_it(FER2_KWE_CAP, 0)} kWe**. "
+                f"Targa motore = potenza ai morsetti alternatore. Esempi tipici "
+                f"<300 kWe: Jenbacher JMC 312 GS = 250 kWe, MAN E0834 = 250 kWe."
+            )
+        else:
+            _kwe_min   = 50.0
+            _kwe_max   = 10000.0
+            _kwe_value = DEFAULT_PLANT_KWE
+            _kwe_help  = (
+                "Potenza elettrica nominale al morsetti alternatore "
+                "(dato di targa motore). Esempi: Jenbacher JMC 420 GS-BL = "
+                "999 kWe, MWM TCG 2020V20 = 2000 kWe. L'autoconsumo "
+                "ausiliari viene sottratto separatamente qui sotto."
+            )
         plant_kwe = st.number_input(
-            "🎯 Potenza elettrica LORDA (targa motore) [kW_el]",
-            min_value=50.0, max_value=10000.0,
-            value=DEFAULT_PLANT_KWE, step=10.0,
-            help="Potenza elettrica nominale al morsetti alternatore "
-                 "(dato di targa motore). Esempi: Jenbacher JMC 420 GS-BL = "
-                 "999 kWe, MWM TCG 2020V20 = 2000 kWe. L'autoconsumo "
-                 "ausiliari viene sottratto separatamente qui sotto.",
+            "🎯 Potenza elettrica LORDA (targa motore) [kW_el]"
+            + (f" — max {fmt_it(FER2_KWE_CAP, 0)} kWe (cap FER 2)"
+               if IS_FER2 else ""),
+            min_value=_kwe_min, max_value=_kwe_max,
+            value=_kwe_value, step=10.0,
+            help=_kwe_help,
         )
+        # Sanity check: se IS_FER2 e per qualche motivo plant_kwe > cap
+        # (es. riapertura pagina con valore precedente da altro mode)
+        if IS_FER2 and plant_kwe > FER2_KWE_CAP:
+            st.error(
+                f"❌ FER 2 prevede taglia max **{fmt_it(FER2_KWE_CAP, 0)} kWe**. "
+                f"Impostato {fmt_it(plant_kwe, 0)} kWe → fuori normativa."
+            )
+            plant_kwe = FER2_KWE_CAP
         aux_el_pct = st.slider(
             "⚙️ Autoconsumo elettrico ausiliari [% del lordo]",
             min_value=0.0, max_value=20.0,
@@ -1825,13 +1913,23 @@ with st.sidebar:
     if IS_CHP:
         # Per biogas CHP: solo destinazione elettrica, soglia 80% (RED III).
         # Comparator 183 gCO2/MJ (mix elettrico EU).
-        end_use = "Elettricità CHP (80%)"
+        end_use = ("Elettricità CHP — FER 2 (DM 18/9/2024, ≤300 kW)"
+                   if IS_FER2 else "Elettricità CHP — DM 6/7/2012 (≤1 MW)")
         ghg_threshold = 0.80
         # FOSSIL_COMPARATOR gia' settato a 183 nel mode selector
-        st.info(
-            "⚡ **Biogas → cogenerazione elettrica** · Comparator fossile "
-            "RED III: **183 gCO₂/MJ** (mix elettrico EU) · Soglia saving: 80%"
-        )
+        if IS_FER2:
+            st.info(
+                "🔋 **Biogas → CHP FER 2** (DM 18/9/2024) · Taglia max "
+                f"**{fmt_it(FER2_KWE_CAP, 0)} kWe** · Comparator fossile "
+                "RED III: **183 gCO₂/MJ** (mix elettrico EU) · "
+                "Soglia saving: 80% · Periodo incentivo: 20 anni"
+            )
+        else:
+            st.info(
+                "⚡ **Biogas → CHP DM 6/7/2012** · Taglia tipica ≤1 MWe "
+                "agricolo · Comparator fossile RED III: **183 gCO₂/MJ** "
+                "(mix elettrico EU) · Soglia saving: 80%"
+            )
     elif IS_DM2018:
         # DM 2 marzo 2018: 4 destinazioni d'uso con soglie/comparator distinti.
         end_use = st.selectbox(
@@ -1960,6 +2058,103 @@ with st.sidebar:
         annex_threshold = ANNEX_IX_THRESHOLD
         advanced_mode = "Auto (calcolata da matrice annuale)"
         cic_price = 0.0
+
+    # ============================================================
+    # FER 2 — Configurazione tariffa + premi + check matrice
+    # ============================================================
+    if IS_FER2:
+        st.divider()
+        st.header("🔋 FER 2 — Tariffa e premi")
+
+        # Sottoprodotti = Annex IX A/B + effluenti zootecnici (gia' tutti
+        # marcati Annex IX A nel DB), tutto tranne le colture dedicate.
+        # Soglia FER 2: ≥ 80% in MASSA da NON colture dedicate.
+        # Gia' calcolato in tab4 (annex_mass_share usa Annex IX A/B che
+        # corrisponde a tutto cio' che NON e' coltura dedicata).
+        n_subprod = sum(
+            1 for f in active_feeds
+            if FEEDSTOCK_DB[f].get("annex_ix") in ("A", "B")
+        )
+        n_total = max(len(active_feeds), 1)
+        st.caption(
+            f"📋 **Matrice attiva**: {n_subprod} di {n_total} biomasse "
+            f"sono sottoprodotti/effluenti (no colture dedicate). "
+            f"FER 2 richiede **≥ 80% in MASSA** da sottoprodotti — "
+            f"verifica reale calcolata in tab «🥧 Mix annuale» con "
+            f"i tonnellaggi mensili."
+        )
+
+        fer2_matrice_threshold = st.slider(
+            "Soglia massa sottoprodotti per accesso FER 2 [%]",
+            min_value=70.0, max_value=100.0,
+            value=FER2_FEEDSTOCK_REQ_THRESHOLD * 100, step=5.0,
+            help=f"Quota minima sottoprodotti/effluenti zootecnici/residui "
+                 f"per qualificare l'impianto a FER 2. Default "
+                 f"{fmt_it(FER2_FEEDSTOCK_REQ_THRESHOLD*100, 0, '%')} (DM "
+                 f"18/9/2024). Cap residuo per colture dedicate: 20%.",
+        ) / 100.0
+
+        st.subheader("💰 Tariffa FER 2 [€/MWh_el]")
+        fer2_tariffa_base = st.number_input(
+            "Tariffa di Riferimento (TR) base",
+            min_value=0.0, max_value=500.0,
+            value=FER2_TARIFFA_BASE_DEFAULT, step=1.0,
+            help=f"Tariffa di Riferimento FER 2 base, applicata ai MWh_el "
+                 f"NETTI immessi in rete. Default "
+                 f"{fmt_it(FER2_TARIFFA_BASE_DEFAULT, 0)} €/MWh_el "
+                 f"(piccoli impianti agricoli ≤300 kWe). Variabile "
+                 f"per fascia/asta/registro: aggiorna se hai aggiudicato "
+                 f"con tariffa specifica.",
+        )
+
+        col_pa, col_pb = st.columns(2)
+        with col_pa:
+            fer2_premio_matrice_attivo = st.checkbox(
+                f"Premio matrice (+{fmt_it(FER2_PREMIO_MATRICE_DEFAULT, 0)} €/MWh)",
+                value=True,
+                help=f"Premio per matrice ≥{fmt_it(FER2_FEEDSTOCK_REQ_THRESHOLD*100, 0, '%')} "
+                     f"sottoprodotti/effluenti. Si attiva automaticamente "
+                     f"in tab «Ricavi» se la quota in massa supera la soglia.",
+            )
+        with col_pb:
+            fer2_premio_car_attivo = st.checkbox(
+                f"Premio CAR (+{fmt_it(FER2_PREMIO_CAR_DEFAULT, 0)} €/MWh)",
+                value=True,
+                help="Premio Cogenerazione ad Alto Rendimento. Richiede "
+                     "PES > 10% (η_el + η_th_recuperato ≥ 75-80%). "
+                     "Verifica certificato CAR del GSE.",
+            )
+
+        fer2_premio_matrice_eur = st.number_input(
+            "Valore premio matrice [€/MWh]",
+            min_value=0.0, max_value=100.0,
+            value=FER2_PREMIO_MATRICE_DEFAULT, step=1.0,
+            help="Valore del premio matrice (sommato alla TR base se la "
+                 "soglia matrice e' raggiunta).",
+        )
+        fer2_premio_car_eur = st.number_input(
+            "Valore premio CAR [€/MWh]",
+            min_value=0.0, max_value=50.0,
+            value=FER2_PREMIO_CAR_DEFAULT, step=1.0,
+            help="Valore del premio CAR (sommato alla TR base se attivo).",
+        )
+
+        st.success(
+            f"📐 **Tariffa target** (se entrambi i premi attivi): "
+            f"{fmt_it(fer2_tariffa_base, 0)} TR + "
+            f"{fmt_it(fer2_premio_matrice_eur, 0)} matrice + "
+            f"{fmt_it(fer2_premio_car_eur, 0)} CAR = "
+            f"**{fmt_it(fer2_tariffa_base + fer2_premio_matrice_eur + fer2_premio_car_eur, 0)} "
+            f"€/MWh_el** · Periodo: {FER2_PERIODO_ANNI} anni"
+        )
+    else:
+        # Default per non-FER 2 (dummy non usati)
+        fer2_matrice_threshold     = FER2_FEEDSTOCK_REQ_THRESHOLD
+        fer2_tariffa_base          = 0.0
+        fer2_premio_matrice_attivo = False
+        fer2_premio_car_attivo     = False
+        fer2_premio_matrice_eur    = 0.0
+        fer2_premio_car_eur        = 0.0
 
     # Configuratore ep
     digestate_opt = st.selectbox(
@@ -2936,13 +3131,40 @@ with tab4:
         cic_active   = False
 
     # ============================================================
+    # CALCOLO STATUS FER 2 (matrice >=80% sottoprodotti)
+    # ============================================================
+    if IS_FER2:
+        # Stessa logica della quota Annex IX in massa: i sottoprodotti
+        # FER 2 = tutti i feedstock con annex_ix in ("A","B").
+        # Le colture dedicate (annex_ix=None) NON contano come sottoprodotti.
+        fer2_subprod_share = annex_mass_share  # alias semantico
+        fer2_qualified = fer2_subprod_share >= fer2_matrice_threshold
+        # Premi effettivi (toggle utente AND condizione fisica)
+        fer2_apply_matrice = fer2_premio_matrice_attivo and fer2_qualified
+        fer2_apply_car = fer2_premio_car_attivo
+        fer2_tariffa_eff = (
+            fer2_tariffa_base
+            + (fer2_premio_matrice_eur if fer2_apply_matrice else 0.0)
+            + (fer2_premio_car_eur if fer2_apply_car else 0.0)
+        )
+    else:
+        fer2_subprod_share   = 0.0
+        fer2_qualified       = False
+        fer2_apply_matrice   = False
+        fer2_apply_car       = False
+        fer2_tariffa_eff     = 0.0
+
+    # ============================================================
     # TARIFFA PER BIOMASSA — applicabile solo se NON in regime CIC
     # ============================================================
     # In regime CIC (DM 2018 trasporti) il prezzo e' unico per tutto il
     # biometano (cic_price € per CIC), non personalizzato per biomassa.
-    # Negli altri regimi (DM 2022, CHP, DM 2018 altri usi) la tariffa
-    # e' editabile per biomassa.
-    if IS_CHP:
+    # In regime FER 2 la tariffa e' calcolata da TR + premi (uniforme),
+    # ma resta editabile per biomassa per scenari custom.
+    if IS_FER2:
+        _tar_unit = "€/MWh_el"
+        _tar_default = fer2_tariffa_eff
+    elif IS_CHP:
         _tar_unit = "€/MWh_el"
         _tar_default = 280.0
     elif IS_DM2018 and not cic_active:
@@ -2958,11 +3180,38 @@ with tab4:
             if cic_active else f" (tariffa {_tar_unit} editabile ✏️)"
         )
     )
-    if IS_CHP:
+    if IS_FER2:
+        # Box riepilogo FER 2
+        if fer2_qualified:
+            st.success(
+                f"🔋 **FER 2 · QUOTA MATRICE OK** "
+                f"({fmt_it(fer2_subprod_share*100, 1, '%')} sottoprodotti, "
+                f"soglia {fmt_it(fer2_matrice_threshold*100, 0, '%')}). "
+                f"Tariffa effettiva: "
+                f"**{fmt_it(fer2_tariffa_base, 0)} TR**"
+                + (f" **+ {fmt_it(fer2_premio_matrice_eur, 0)} matrice**"
+                   if fer2_apply_matrice else
+                   f" + ~~{fmt_it(fer2_premio_matrice_eur, 0)} matrice~~")
+                + (f" **+ {fmt_it(fer2_premio_car_eur, 0)} CAR**"
+                   if fer2_apply_car else
+                   f" + ~~{fmt_it(fer2_premio_car_eur, 0)} CAR~~")
+                + f" = **{fmt_it(fer2_tariffa_eff, 0)} €/MWh_el**. "
+                f"Periodo incentivo: {FER2_PERIODO_ANNI} anni."
+            )
+        else:
+            st.error(
+                f"❌ **FER 2 · QUOTA MATRICE INSUFFICIENTE** "
+                f"({fmt_it(fer2_subprod_share*100, 1, '%')} sottoprodotti vs "
+                f"soglia richiesta {fmt_it(fer2_matrice_threshold*100, 0, '%')}). "
+                f"Premio matrice DISATTIVATO. Riduci la quota di colture "
+                f"dedicate (cap normativo 20%) o aumenta sottoprodotti/effluenti. "
+                f"Tariffa effettiva: **{fmt_it(fer2_tariffa_eff, 0)} €/MWh_el**."
+            )
+    elif IS_CHP:
         st.caption(
-            "⚡ **Modalità Biogas CHP**: tariffa €/MWh_el applicata ai "
-            "**MWh elettrici NETTI immessi in rete** (= MWh_el lordi × "
-            f"(1 − aux%), con aux = {fmt_it(aux_el_pct*100, 1, '%')}). "
+            "⚡ **Modalità Biogas CHP DM 6/7/2012**: tariffa €/MWh_el "
+            "applicata ai **MWh elettrici NETTI immessi in rete** "
+            f"(= MWh_el lordi × (1 − aux%), con aux = {fmt_it(aux_el_pct*100, 1, '%')}). "
             "Default **280 €/MWh** (TO base DM 6/7/2012 per biogas agricolo "
             "<1 MW + premio CAR + premio matrice sottoprodotti). "
             "Modificabile per scenari FER-X, PPA, vendita spot."
@@ -2997,14 +3246,20 @@ with tab4:
             f"per simulare scenari diversi."
         )
 
-    # Stato persistente: tariffe per biomassa (separate per mode)
+    # Stato persistente: tariffe per biomassa (separate per mode).
+    # In FER 2 la tariffa e' uniforme (TR+premi) e calcolata dinamicamente:
+    # forziamo ogni run a fer2_tariffa_eff per riflettere subito le modifiche
+    # sidebar (TR, premi). Niente cache per biomassa.
     _tar_key = f"tariffs_eur_mwh_{APP_MODE}"
-    if _tar_key not in st.session_state:
-        st.session_state[_tar_key] = {n: _tar_default for n in active_feeds}
-    # Retrocompat: se mancano chiavi per nuove biomasse
-    for n in active_feeds:
-        if n not in st.session_state[_tar_key]:
-            st.session_state[_tar_key][n] = _tar_default
+    if IS_FER2:
+        st.session_state[_tar_key] = {n: fer2_tariffa_eff for n in active_feeds}
+    else:
+        if _tar_key not in st.session_state:
+            st.session_state[_tar_key] = {n: _tar_default for n in active_feeds}
+        # Retrocompat: se mancano chiavi per nuove biomasse
+        for n in active_feeds:
+            if n not in st.session_state[_tar_key]:
+                st.session_state[_tar_key][n] = _tar_default
 
     # MWh totale (base CIC nel caso DM 2018)
     _tot_mwh_basis_raw = sum(annual_mwh.values())  # MWh CH4 netto per biometano
@@ -3109,6 +3364,13 @@ with tab4:
             help="Prezzo unitario CIC fissato in sidebar. Uniforme per "
                  "tutto il biometano (no editing per biomassa in regime CIC).",
         )
+    elif IS_FER2:
+        detail_col_cfg[f"Tariffa {_tar_unit}"] = st.column_config.TextColumn(
+            "Tariffa eff. €/MWh_el", disabled=True,
+            help="Tariffa effettiva FER 2 = TR base + premio matrice "
+                 "(se attivo) + premio CAR (se attivo). Uniforme: "
+                 "modifica TR/premi in sidebar per aggiornare.",
+        )
     else:
         detail_col_cfg[f"Tariffa {_tar_unit}"] = st.column_config.TextColumn(
             f"Tariffa {_tar_unit} ✏️",
@@ -3161,8 +3423,9 @@ with tab4:
 
     # Se l'utente ha modificato una tariffa -> salva e rerun.
     # Clamp: tariffe negative non hanno senso fisico -> >=0.
-    # NB: in regime CIC le tariffe non sono editabili (cic_price unico in sidebar).
-    if not cic_active:
+    # NB1: in regime CIC le tariffe non sono editabili (cic_price unico in sidebar).
+    # NB2: in regime FER 2 la tariffa e' uniforme TR+premi (forzata in sidebar).
+    if not cic_active and not IS_FER2:
         _tar_col = f"Tariffa {_tar_unit}"
         new_tariffs = {
             row["Biomassa"]: max(parse_it(row[_tar_col]), 0.0)
@@ -3210,18 +3473,36 @@ with tab4:
         cB.metric("⚡ MWh_el netti rete/anno", fmt_it(tot_mwh_el_netto, 0))
         cC.metric("🔥 MWh termici/anno", fmt_it(tot_mwh_th, 0))
         cD.metric("💰 Ricavi elettrici/anno", fmt_it(tot_revenue, 0, " €"))
-        st.caption(
-            f"📐 **Calcolo CHP**: MWh_el lordi = MWh netti × η_el "
-            f"({fmt_it(eta_el*100, 0, '%')}) · "
-            f"MWh_el netti rete = lordi × (1 − aux%) "
-            f"(aux = {fmt_it(aux_el_pct*100, 1, '%')}) · "
-            f"MWh termici = MWh netti × η_th "
-            f"({fmt_it(eta_th*100, 0, '%')}) · "
-            f"**Ricavi = MWh_el netti rete × tariffa €/MWh_el** "
-            f"(è l'energia realmente immessa in rete e fatturata al GSE). "
-            f"Il calore può generare ricavi aggiuntivi (teleriscaldamento, "
-            f"processo, essiccazione digestato) non inclusi qui."
-        )
+        if IS_FER2:
+            st.caption(
+                f"📐 **Calcolo FER 2 (≤{fmt_it(FER2_KWE_CAP, 0)} kWe)**: "
+                f"MWh_el lordi = MWh_CH₄ × η_el "
+                f"({fmt_it(eta_el*100, 0, '%')}) · "
+                f"MWh_el netti rete = lordi × (1 − aux%) "
+                f"(aux = {fmt_it(aux_el_pct*100, 1, '%')}) · "
+                f"**Tariffa effettiva = TR ({fmt_it(fer2_tariffa_base, 0)})"
+                + (f" + matrice ({fmt_it(fer2_premio_matrice_eur, 0)})"
+                   if fer2_apply_matrice else "")
+                + (f" + CAR ({fmt_it(fer2_premio_car_eur, 0)})"
+                   if fer2_apply_car else "")
+                + f" = {fmt_it(fer2_tariffa_eff, 0)} €/MWh_el** · "
+                f"Ricavi = MWh_el netti × tariffa effettiva. "
+                f"Cumulo nel periodo {FER2_PERIODO_ANNI} anni: "
+                f"~{fmt_it(tot_revenue * FER2_PERIODO_ANNI / 1_000_000, 1)} M€."
+            )
+        else:
+            st.caption(
+                f"📐 **Calcolo CHP DM 6/7/2012**: MWh_el lordi = MWh netti × η_el "
+                f"({fmt_it(eta_el*100, 0, '%')}) · "
+                f"MWh_el netti rete = lordi × (1 − aux%) "
+                f"(aux = {fmt_it(aux_el_pct*100, 1, '%')}) · "
+                f"MWh termici = MWh netti × η_th "
+                f"({fmt_it(eta_th*100, 0, '%')}) · "
+                f"**Ricavi = MWh_el netti rete × tariffa €/MWh_el** "
+                f"(è l'energia realmente immessa in rete e fatturata al GSE). "
+                f"Il calore può generare ricavi aggiuntivi (teleriscaldamento, "
+                f"processo, essiccazione digestato) non inclusi qui."
+            )
     elif cic_active:
         cA, cB, cC, cD = st.columns(4)
         cA.metric("MWh netti totali/anno", fmt_it(tot_mwh, 0))
@@ -3290,6 +3571,8 @@ with _dl_col2:
     _pdf_ctx = {
         "df_res": df_res,
         "IS_CHP": IS_CHP,
+        "IS_CHP_DM2012": IS_CHP_DM2012,
+        "IS_FER2": IS_FER2,
         "IS_DM2018": IS_DM2018,
         "IS_DM2022": IS_DM2022,
         "APP_MODE": APP_MODE,
@@ -3317,6 +3600,18 @@ with _dl_col2:
         "tot_n_cic": tot_n_cic,
         "MWH_PER_CIC": MWH_PER_CIC,
         "GCAL_PER_CIC": GCAL_PER_CIC,
+        # FER 2 specifics
+        "fer2_kwe_cap": FER2_KWE_CAP,
+        "fer2_periodo_anni": FER2_PERIODO_ANNI,
+        "fer2_subprod_share": fer2_subprod_share,
+        "fer2_matrice_threshold": fer2_matrice_threshold,
+        "fer2_qualified": fer2_qualified,
+        "fer2_tariffa_base": fer2_tariffa_base,
+        "fer2_premio_matrice_eur": fer2_premio_matrice_eur,
+        "fer2_premio_car_eur": fer2_premio_car_eur,
+        "fer2_apply_matrice": fer2_apply_matrice,
+        "fer2_apply_car": fer2_apply_car,
+        "fer2_tariffa_eff": fer2_tariffa_eff,
         # Aggregati comuni
         "tot_biomasse_t": float(df_res["Totale biomasse (t)"].sum()),
         "tot_sm3_netti": float(df_res["Sm³ netti"].sum()),
