@@ -26,6 +26,71 @@ import plotly.graph_objects as go
 # ============================================================
 # FORMATO ITALIANO: punto = migliaia, virgola = decimali
 # ============================================================
+# ============================================================
+# Metan.iQ chart theme — palette consulting-grade Navy/Amber
+# Applicato a tutti i Plotly figs via apply_metaniq_theme(fig)
+# ============================================================
+METANIQ_PALETTE = [
+    "#0F172A",  # navy 900 (primary)
+    "#F59E0B",  # amber 500 (accent)
+    "#0E9384",  # teal 600
+    "#1E40AF",  # blue 800
+    "#B45309",  # amber 700
+    "#065F46",  # emerald 800
+    "#7C3AED",  # violet 600
+    "#475569",  # slate 600
+    "#0891B2",  # cyan 600
+    "#9F1239",  # rose 800
+]
+
+def apply_metaniq_theme(fig, *, dark: bool = False):
+    """Applica palette + tipografia Metan.iQ a una figure Plotly."""
+    text_color = "#F1F5F9" if dark else "#0F172A"
+    grid_color = "rgba(148, 163, 184, 0.18)" if dark else "rgba(15, 23, 42, 0.08)"
+    axis_color = "#475569" if dark else "#64748B"
+    fig.update_layout(
+        font=dict(family="Inter, -apple-system, sans-serif",
+                  color=text_color, size=12),
+        title_font=dict(family="Space Grotesk, Inter, sans-serif",
+                        size=15, color=text_color),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        colorway=METANIQ_PALETTE,
+        margin=dict(l=50, r=20, t=60, b=40),
+        legend=dict(
+            font=dict(family="Inter, sans-serif", size=11, color=text_color),
+            bgcolor="rgba(0,0,0,0)",
+            bordercolor="rgba(0,0,0,0)",
+        ),
+        hoverlabel=dict(
+            font=dict(family="JetBrains Mono, monospace", size=11),
+            bgcolor="#0F172A",
+            bordercolor="#F59E0B",
+            font_color="#F1F5F9",
+        ),
+        separators=",.",
+    )
+    fig.update_xaxes(
+        gridcolor=grid_color, gridwidth=1,
+        zerolinecolor=grid_color,
+        tickfont=dict(family="JetBrains Mono, monospace",
+                      size=10, color=axis_color),
+        title_font=dict(family="Inter, sans-serif",
+                        size=11, color=axis_color),
+        showline=True, linewidth=1, linecolor=grid_color,
+    )
+    fig.update_yaxes(
+        gridcolor=grid_color, gridwidth=1,
+        zerolinecolor=grid_color,
+        tickfont=dict(family="JetBrains Mono, monospace",
+                      size=10, color=axis_color),
+        title_font=dict(family="Inter, sans-serif",
+                        size=11, color=axis_color),
+        showline=False,
+    )
+    return fig
+
+
 def fmt_it(value, decimals: int = 0, suffix: str = "", signed: bool = False) -> str:
     """Formatta un numero in stile italiano: 1.234.567,89
 
@@ -813,9 +878,10 @@ def find_optimal_pair(aux: float, plant_net: float, ep: float,
 # UI
 # ============================================================
 st.set_page_config(
-    page_title="Metan.iQ - L'intelligenza del biometano",
+    page_title="Metan.iQ — Decision Intelligence per Biometano e Biogas CHP",
     page_icon="🧬",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 # ===========================================================
@@ -900,45 +966,63 @@ if IS_CHP:
 
 IS_DARK = st.session_state.methaniq_theme == "dark"
 
-# Palette basata sul tema
+# ============================================================
+# Metan.iQ Design System v2 — "Navy Consulting Grade"
+# Palette:
+#   PRIMARY    Navy       #0F172A (slate-900)  - frame, headers, CTA primary
+#   PRIMARY_2  Slate      #1E293B (slate-800)  - hover/depth
+#   ACCENT     Amber      #F59E0B (amber-500)  - hero dot, highlight, download
+#   ACCENT_DK  Amber dark #B45309 (amber-700)  - hover
+#   BRAND      Forest     #065F46 (emerald-800) - "biomethane" semantic accent
+#   BRAND_2    Emerald    #10B981 (emerald-500) - saving / positive metrics
+#   CHART_NAVY #1E3A8A · CHART_TEAL #0E9384 · CHART_AMBER #D97706
+# Font:  General Sans (display h1/h2) + Inter (body) + JetBrains Mono (code/KPI)
+# ============================================================
+NAVY        = "#0F172A"
+NAVY_2      = "#1E293B"
+AMBER       = "#F59E0B"
+AMBER_DK    = "#B45309"
+BRAND       = "#065F46"   # forest green per accenti "biometano"
+BRAND_2     = "#10B981"   # mint per "saving %" positivi
+
 if IS_DARK:
-    BG_APP        = "linear-gradient(180deg, #0B1220 0%, #0F172A 100%)"
-    BG_SURFACE    = "#1E293B"
+    BG_APP        = "linear-gradient(180deg, #0A0F1F 0%, #0F172A 100%)"
+    BG_SURFACE    = "#15233D"
     BG_SURFACE_2  = "#0F172A"
     TEXT_PRIMARY  = "#F1F5F9"
-    TEXT_SECOND   = "#94A3B8"
-    TEXT_MUTED    = "#64748B"
-    BORDER        = "#334155"
-    BORDER_HOVER  = "#1CC491"
-    INPUT_BG      = "#1E293B"
-    SIDEBAR_BG    = "linear-gradient(180deg, #0F172A 0%, #1E293B 100%)"
+    TEXT_SECOND   = "#CBD5E1"
+    TEXT_MUTED    = "#94A3B8"
+    BORDER        = "#1E293B"
+    BORDER_HOVER  = AMBER
+    INPUT_BG      = "#15233D"
+    SIDEBAR_BG    = "linear-gradient(180deg, #0F172A 0%, #15233D 100%)"
     HEADING_COLOR = "#F8FAFC"
-    CODE_BG       = "#334155"
+    CODE_BG       = "#1E293B"
     CODE_COLOR    = "#F1F5F9"
-    SHADOW_CARD   = "0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)"
-    SHADOW_HOVER  = "0 4px 12px rgba(0,0,0,0.4)"
-    CREDIT_BG     = "#1E293B"
-    SECTION_PILL_BG = "rgba(28, 196, 145, 0.15)"
-    SECTION_PILL_COLOR = "#6EE7B7"
+    SHADOW_CARD   = "0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.25)"
+    SHADOW_HOVER  = "0 8px 24px rgba(0,0,0,0.5)"
+    CREDIT_BG     = "#15233D"
+    SECTION_PILL_BG = "rgba(245, 158, 11, 0.12)"
+    SECTION_PILL_COLOR = "#FCD34D"
 else:
-    BG_APP        = "linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%)"
+    BG_APP        = "linear-gradient(180deg, #F8FAFC 0%, #EEF2F7 100%)"
     BG_SURFACE    = "#FFFFFF"
     BG_SURFACE_2  = "#F8FAFC"
     TEXT_PRIMARY  = "#0F172A"
     TEXT_SECOND   = "#334155"
     TEXT_MUTED    = "#64748B"
     BORDER        = "#E2E8F0"
-    BORDER_HOVER  = "#1CC491"
+    BORDER_HOVER  = AMBER
     INPUT_BG      = "#FFFFFF"
     SIDEBAR_BG    = "linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)"
-    HEADING_COLOR = "#0F172A"
+    HEADING_COLOR = NAVY
     CODE_BG       = "#F1F5F9"
-    CODE_COLOR    = "#0F172A"
-    SHADOW_CARD   = "0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.03)"
-    SHADOW_HOVER  = "0 4px 12px rgba(15, 23, 42, 0.08)"
+    CODE_COLOR    = NAVY
+    SHADOW_CARD   = "0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06)"
+    SHADOW_HOVER  = "0 8px 24px rgba(15, 23, 42, 0.10)"
     CREDIT_BG     = "#FFFFFF"
-    SECTION_PILL_BG = "#ECFDF5"
-    SECTION_PILL_COLOR = "#0B8A5A"
+    SECTION_PILL_BG = "#FEF3C7"
+    SECTION_PILL_COLOR = AMBER_DK
 
 # ===========================================================
 # Metan.iQ Design System — Commercial SaaS grade
@@ -950,20 +1034,22 @@ st.markdown(
     f"""
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
     <style>
     /* ---------- Global typography ---------- */
-    /* NB: NON applicare font su span/div/label globalmente per non rompere
-       le Material Icons/Symbols di Streamlit (collapse sidebar, ecc.) */
+    /* Body: Inter · Display headings (h1/h2): Space Grotesk · Numbers/code: JetBrains Mono */
     html, body, .stApp, .stMarkdown, .stText,
     .stButton button, .stSelectbox label, .stNumberInput label,
     .stSlider label, .stCheckbox label, .stRadio label,
-    .stExpander, .stDataFrame, .stMetric, .stTabs, .stAlert,
-    p, h1, h2, h3, h4, h5, h6 {{
+    .stExpander, .stDataFrame, .stTabs, .stAlert,
+    p, h3, h4, h5, h6 {{
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+    }}
+    h1, h2 {{
+        font-family: 'Space Grotesk', 'Inter', sans-serif !important;
     }}
     /* Preserve Material Icons / Symbols font (Streamlit internal) */
     [class*="material-icons"], [class*="material-symbols"],
@@ -992,101 +1078,130 @@ st.markdown(
 
     /* ---------- Headings ---------- */
     h1, h2, h3, h4, h5, h6 {{
-        font-family: 'Inter', sans-serif !important;
-        font-weight: 700 !important;
-        letter-spacing: -0.3px !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.4px !important;
         color: {HEADING_COLOR} !important;
     }}
-    h2 {{ font-size: 1.75rem !important; margin-top: 1.5rem !important; }}
-    h3 {{ font-size: 1.35rem !important; }}
-    h4 {{ font-size: 1.1rem !important; }}
+    h1 {{ font-weight: 700 !important; letter-spacing: -0.8px !important; }}
+    h2 {{ font-size: 1.7rem !important; margin-top: 1.6rem !important;
+          font-weight: 600 !important; letter-spacing: -0.5px !important; }}
+    h3 {{ font-size: 1.25rem !important; font-weight: 600 !important; }}
+    h4 {{ font-size: 1.05rem !important; font-weight: 600 !important; }}
 
     /* ---------- Brand header (hero) ---------- */
     .methaniq-header {{
         position: relative;
-        background: linear-gradient(135deg, #0B8A5A 0%, #13A876 45%, #1CC491 100%);
-        padding: 40px 30px 36px 30px;
-        border-radius: 20px;
+        background:
+            radial-gradient(ellipse 70% 90% at 100% 0%, rgba(245,158,11,0.18) 0%, transparent 55%),
+            radial-gradient(ellipse 60% 80% at 0% 100%, rgba(16,185,129,0.10) 0%, transparent 55%),
+            linear-gradient(135deg, {NAVY} 0%, {NAVY_2} 100%);
+        padding: 56px 40px 48px 40px;
+        border-radius: 18px;
         color: white;
         margin-bottom: 14px;
         box-shadow:
-            0 10px 30px rgba(11, 138, 90, 0.28),
-            0 2px 6px rgba(11, 138, 90, 0.15),
-            inset 0 1px 0 rgba(255,255,255,0.15);
-        text-align: center;
+            0 20px 40px -16px rgba(15, 23, 42, 0.45),
+            0 4px 8px rgba(15, 23, 42, 0.20),
+            inset 0 1px 0 rgba(255,255,255,0.06);
+        text-align: left;
         overflow: hidden;
+        border: 1px solid rgba(245, 158, 11, 0.18);
     }}
+    /* Hex pattern SVG background — molecole CH4 stilizzate */
     .methaniq-header::before {{
         content: "";
         position: absolute;
-        top: -50%; right: -10%;
-        width: 300px; height: 300px;
-        background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
+        inset: 0;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='92' viewBox='0 0 80 92'><g fill='none' stroke='rgba(255,255,255,0.05)' stroke-width='1'><polygon points='40,4 72,22 72,58 40,76 8,58 8,22'/><polygon points='40,28 56,38 56,58 40,68 24,58 24,38'/></g></svg>");
+        background-size: 120px 138px;
+        opacity: 0.55;
         pointer-events: none;
     }}
     .methaniq-header::after {{
         content: "";
         position: absolute;
-        bottom: -40%; left: -5%;
-        width: 250px; height: 250px;
-        background: radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 70%);
+        top: 50%; right: -40px;
+        transform: translateY(-50%);
+        width: 2px; height: 70%;
+        background: linear-gradient(180deg, transparent 0%, {AMBER} 50%, transparent 100%);
+        opacity: 0.6;
         pointer-events: none;
     }}
+    .methaniq-header .eyebrow {{
+        position: relative;
+        z-index: 1;
+        display: inline-block;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.72rem;
+        font-weight: 500;
+        color: {AMBER};
+        text-transform: uppercase;
+        letter-spacing: 2.5px;
+        margin-bottom: 14px;
+        padding: 4px 12px;
+        background: rgba(245, 158, 11, 0.10);
+        border: 1px solid rgba(245, 158, 11, 0.28);
+        border-radius: 4px;
+    }}
     .methaniq-header h1 {{
-        color: #ffffff !important;
+        color: #FFFFFF !important;
         margin: 0 !important;
-        font-size: 3.2rem !important;
-        font-weight: 800 !important;
-        letter-spacing: -1.2px !important;
-        line-height: 1.05;
-        text-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+        font-size: 3.4rem !important;
+        font-weight: 700 !important;
+        letter-spacing: -1.8px !important;
+        line-height: 1.0;
         position: relative;
         z-index: 1;
     }}
     .methaniq-header .tagline {{
-        color: #ecfdf5;
-        font-weight: 500;
-        font-size: 1.25rem;
-        margin-top: 10px;
-        letter-spacing: 0.2px;
+        color: #CBD5E1;
+        font-weight: 400;
+        font-size: 1.15rem;
+        margin-top: 14px;
+        letter-spacing: -0.1px;
         position: relative;
         z-index: 1;
+        max-width: 640px;
     }}
     .methaniq-header .pills {{
         display: flex;
-        gap: 8px;
-        justify-content: center;
+        gap: 6px;
         flex-wrap: wrap;
-        margin-top: 18px;
+        margin-top: 28px;
         position: relative;
         z-index: 1;
     }}
     .methaniq-header .pill {{
-        background: rgba(255,255,255,0.18);
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(255,255,255,0.28);
-        color: white;
-        padding: 5px 14px;
-        border-radius: 999px;
-        font-size: 0.78rem;
-        font-weight: 600;
-        letter-spacing: 0.3px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.12);
+        color: #E2E8F0;
+        padding: 5px 12px;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        font-weight: 500;
+        font-family: 'JetBrains Mono', monospace !important;
+        letter-spacing: 0.2px;
+    }}
+    .methaniq-header .pill.accent {{
+        background: rgba(245, 158, 11, 0.12);
+        border-color: rgba(245, 158, 11, 0.35);
+        color: {AMBER};
     }}
 
     /* ---------- Credit box ---------- */
     .methaniq-credit {{
         background: {CREDIT_BG};
         border: 1px solid {BORDER};
-        border-left: 4px solid #0B8A5A;
-        padding: 12px 18px;
-        border-radius: 8px;
-        font-size: 0.9rem;
+        border-left: 3px solid {AMBER};
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-size: 0.82rem;
         color: {TEXT_SECOND};
         margin-bottom: 20px;
-        text-align: center;
         box-shadow: {SHADOW_CARD};
     }}
-    .methaniq-credit b {{ color: #1CC491; }}
+    .methaniq-credit b {{ color: {HEADING_COLOR}; font-weight: 600; }}
 
     /* ---------- Sidebar ---------- */
     section[data-testid="stSidebar"] {{
@@ -1108,50 +1223,71 @@ st.markdown(
     /* ---------- Metrics (KPI cards) ---------- */
     [data-testid="stMetric"] {{
         background: {BG_SURFACE};
-        padding: 16px 18px;
-        border-radius: 12px;
+        padding: 18px 20px;
+        border-radius: 10px;
         border: 1px solid {BORDER};
+        border-top: 3px solid {AMBER};
         box-shadow: {SHADOW_CARD};
         transition: all 0.2s ease;
     }}
     [data-testid="stMetric"]:hover {{
         box-shadow: {SHADOW_HOVER};
         border-color: {BORDER_HOVER};
-        transform: translateY(-1px);
+        border-top-color: {AMBER};
+        transform: translateY(-2px);
     }}
     [data-testid="stMetricLabel"] {{
         color: {TEXT_MUTED} !important;
-        font-size: 0.82rem !important;
+        font-size: 0.7rem !important;
         font-weight: 600 !important;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1.2px;
+        font-family: 'JetBrains Mono', monospace !important;
     }}
     [data-testid="stMetricValue"] {{
         color: {HEADING_COLOR} !important;
         font-weight: 700 !important;
-        font-size: 1.6rem !important;
-        letter-spacing: -0.5px;
+        font-size: 1.85rem !important;
+        letter-spacing: -0.8px;
+        font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+        font-variant-numeric: tabular-nums;
+    }}
+    [data-testid="stMetricDelta"] {{
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.78rem !important;
+        font-weight: 500 !important;
     }}
 
     /* ---------- Buttons ---------- */
     .stButton > button {{
-        background: linear-gradient(135deg, #0B8A5A 0%, #13A876 100%);
-        color: white !important;
-        border: none;
-        border-radius: 10px;
-        padding: 0.55rem 1.2rem;
+        background: {NAVY};
+        color: #FFFFFF !important;
+        border: 1px solid {NAVY};
+        border-radius: 8px;
+        padding: 0.55rem 1.3rem;
         font-weight: 600;
-        font-size: 0.95rem;
-        box-shadow: 0 2px 6px rgba(11, 138, 90, 0.25);
-        transition: all 0.2s ease;
+        font-size: 0.92rem;
+        letter-spacing: 0.1px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.10);
+        transition: all 0.18s ease;
     }}
     .stButton > button:hover {{
-        background: linear-gradient(135deg, #0A7A50 0%, #119668 100%);
-        box-shadow: 0 4px 14px rgba(11, 138, 90, 0.35);
+        background: {NAVY_2};
+        border-color: {AMBER};
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.20),
+                    0 0 0 3px rgba(245, 158, 11, 0.08);
         transform: translateY(-1px);
     }}
     .stButton > button:active {{ transform: translateY(0); }}
-    /* Secondary button (used by theme toggle) */
+    /* Primary button (mode/theme selectors when active) */
+    .stButton > button[kind="primary"] {{
+        background: linear-gradient(135deg, {NAVY} 0%, {NAVY_2} 100%);
+        border: 1px solid {AMBER};
+        color: #FFFFFF !important;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.20),
+                    inset 0 1px 0 rgba(245, 158, 11, 0.15);
+    }}
+    /* Secondary button (theme toggle inactive, neutral actions) */
     .stButton > button[kind="secondary"] {{
         background: {BG_SURFACE} !important;
         color: {TEXT_PRIMARY} !important;
@@ -1159,20 +1295,24 @@ st.markdown(
         box-shadow: {SHADOW_CARD};
     }}
     .stButton > button[kind="secondary"]:hover {{
-        border-color: {BORDER_HOVER} !important;
+        border-color: {AMBER} !important;
         background: {BG_SURFACE_2} !important;
+        color: {HEADING_COLOR} !important;
     }}
     .stDownloadButton > button {{
-        background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%);
-        color: white !important;
-        border: none;
-        border-radius: 10px;
+        background: {AMBER};
+        color: #FFFFFF !important;
+        border: 1px solid {AMBER};
+        border-radius: 8px;
         font-weight: 600;
-        box-shadow: 0 2px 6px rgba(245, 158, 11, 0.25);
+        letter-spacing: 0.2px;
+        box-shadow: 0 1px 2px rgba(245, 158, 11, 0.20);
     }}
     .stDownloadButton > button:hover {{
-        background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
-        box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+        background: {AMBER_DK};
+        border-color: {AMBER_DK};
+        box-shadow: 0 6px 16px rgba(245, 158, 11, 0.30);
+        transform: translateY(-1px);
     }}
 
     /* ---------- Expanders ---------- */
@@ -1196,24 +1336,31 @@ st.markdown(
 
     /* ---------- Tabs ---------- */
     .stTabs [data-baseweb="tab-list"] {{
-        gap: 4px;
+        gap: 2px;
         background: {BG_SURFACE};
-        padding: 6px;
-        border-radius: 12px;
+        padding: 4px;
+        border-radius: 10px;
         border: 1px solid {BORDER};
         box-shadow: {SHADOW_CARD};
     }}
     .stTabs [data-baseweb="tab"] {{
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 8px 16px;
-        font-weight: 600;
+        font-weight: 500;
+        font-size: 0.92rem;
         color: {TEXT_MUTED};
         transition: all 0.15s ease;
     }}
+    .stTabs [data-baseweb="tab"]:hover {{
+        background: {BG_SURFACE_2};
+        color: {TEXT_PRIMARY};
+    }}
     .stTabs [aria-selected="true"] {{
-        background: linear-gradient(135deg, #0B8A5A 0%, #13A876 100%) !important;
-        color: white !important;
-        box-shadow: 0 2px 6px rgba(11, 138, 90, 0.2);
+        background: {NAVY} !important;
+        color: #FFFFFF !important;
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25),
+                    inset 0 -2px 0 {AMBER};
     }}
 
     /* ---------- Alerts ---------- */
@@ -1233,11 +1380,16 @@ st.markdown(
         transition: all 0.15s ease;
     }}
     .stNumberInput input:focus, .stTextInput input:focus {{
-        border-color: #0B8A5A !important;
-        box-shadow: 0 0 0 3px rgba(11, 138, 90, 0.18) !important;
+        border-color: {AMBER} !important;
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18) !important;
     }}
     .stSlider [data-baseweb="slider"] > div > div {{
-        background: #0B8A5A !important;
+        background: {NAVY} !important;
+    }}
+    .stSlider [data-baseweb="slider"] [role="slider"] {{
+        background: {AMBER} !important;
+        border: 2px solid {NAVY} !important;
+        box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15) !important;
     }}
 
     /* ---------- Dataframes ---------- */
@@ -1276,24 +1428,27 @@ st.markdown(
     </style>
 
     <div class="methaniq-header">
-        <h1>🧬 Metan<span style="color:#F59E0B; font-weight:900;">.</span>iQ</h1>
+        <span class="eyebrow">// Decision Intelligence Platform</span>
+        <h1>Metan<span style="color:""" + AMBER + """; font-weight:700;">.</span>iQ</h1>
         <div class="tagline">""" + (
-            "L'intelligenza del biometano." if not IS_CHP
-            else "L'intelligenza del biogas cogenerativo."
+            "Pianificazione mensile e ottimizzazione GHG per impianti di biometano: dal mix biomasse al saving RED III, in un unico ambiente decisionale."
+            if not IS_CHP
+            else "Pianificazione e business case per impianti biogas cogenerativi: bilancio elettrico-termico, tariffa T.O. e saving RED III su un comparator 183 gCO₂/MJ."
         ) + """</div>
         <div class="pills">
-            <span class="pill" style="background:rgba(245,158,11,0.25); border-color:rgba(245,158,11,0.4);">""" + (
-                "🟢 Modalità Biometano" if not IS_CHP else "⚡ Modalità Biogas CHP"
+            <span class="pill accent">""" + (
+                "BIOMETANO · UPGRADING" if not IS_CHP else "BIOGAS · CHP"
             ) + """</span>
-            <span class="pill">✓ RED III Compliant</span>
-            <span class="pill">✓ GSE Linee Guida 2024</span>
-            <span class="pill">✓ UNI-TS 11567:2024</span>
-            <span class="pill">⚡ LP Optimizer</span>
+            <span class="pill">RED III · D.LGS 5/2026</span>
+            <span class="pill">GSE LG 2024</span>
+            <span class="pill">UNI-TS 11567:2024</span>
+            <span class="pill">JEC WTT v5</span>
+            <span class="pill">LP OPTIMIZER</span>
         </div>
     </div>
     <div class="methaniq-credit">
-        💡 Ideato e sviluppato da <b>Carlo Sicurini</b> &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp;
-        Pianificazione mensile + ottimizzazione GHG per impianti di biometano e biogas cogenerativo
+        Ideato e sviluppato da <b>Carlo Sicurini</b> &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp;
+        Pianificazione mensile e ottimizzazione GHG per impianti di biometano e biogas cogenerativo.
     </div>
     """,
     unsafe_allow_html=True,
@@ -1320,47 +1475,55 @@ with st.sidebar:
         """
         <div style='
             position: relative;
-            text-align: center;
-            padding: 18px 14px;
-            background: linear-gradient(135deg, #0B8A5A 0%, #13A876 50%, #1CC491 100%);
-            border-radius: 14px;
+            padding: 18px 16px;
+            background: linear-gradient(135deg, """ + NAVY + """ 0%, """ + NAVY_2 + """ 100%);
+            border-radius: 10px;
             margin-bottom: 18px;
-            box-shadow: 0 6px 18px rgba(11,138,90,0.28), inset 0 1px 0 rgba(255,255,255,0.15);
+            box-shadow: 0 4px 12px rgba(15,23,42,0.20),
+                        inset 0 1px 0 rgba(245,158,11,0.10);
+            border: 1px solid rgba(245, 158, 11, 0.20);
             overflow: hidden;
         '>
             <div style='
-                position: absolute; top: -30%; right: -20%;
-                width: 120px; height: 120px;
-                background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
+                position: absolute; top: 0; right: 0; bottom: 0;
+                width: 3px;
+                background: linear-gradient(180deg, transparent 0%, """ + AMBER + """ 50%, transparent 100%);
             '></div>
             <div style='
-                color: #ffffff;
-                font-size: 1.35em;
-                font-weight: 800;
-                letter-spacing: -0.5px;
-                position: relative; z-index: 1;
-                text-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            '>🧬 Metan<span style="color:#FCD34D;">.</span>iQ</div>
-            <div style='
-                font-size: 0.75em;
-                color: #ecfdf5;
-                margin-top: 4px;
+                font-family: "JetBrains Mono", monospace;
+                color: """ + AMBER + """;
+                font-size: 0.62em;
                 font-weight: 500;
-                letter-spacing: 0.3px;
-                position: relative; z-index: 1;
-            '>by <b style='color:#ffffff;'>Carlo Sicurini</b></div>
-            <div style='
-                margin-top: 10px;
-                padding-top: 10px;
-                border-top: 1px solid rgba(255,255,255,0.2);
-                font-size: 0.68em;
-                color: #d1fae5;
-                font-weight: 500;
-                letter-spacing: 0.5px;
+                letter-spacing: 2px;
                 text-transform: uppercase;
-                position: relative; z-index: 1;
-            '>""" + ("L'intelligenza del biogas cogenerativo" if IS_CHP
-                    else "L'intelligenza del biometano") + """</div>
+                margin-bottom: 6px;
+            '>// PLATFORM</div>
+            <div style='
+                font-family: "Space Grotesk", "Inter", sans-serif;
+                color: #FFFFFF;
+                font-size: 1.55em;
+                font-weight: 700;
+                letter-spacing: -0.8px;
+                line-height: 1;
+            '>Metan<span style="color:""" + AMBER + """;">.</span>iQ</div>
+            <div style='
+                font-size: 0.72em;
+                color: #94A3B8;
+                margin-top: 6px;
+                font-weight: 400;
+            '>by <span style='color:#E2E8F0; font-weight:600;'>Carlo Sicurini</span></div>
+            <div style='
+                margin-top: 12px;
+                padding-top: 10px;
+                border-top: 1px solid rgba(255,255,255,0.08);
+                font-family: "JetBrains Mono", monospace;
+                font-size: 0.62em;
+                color: #CBD5E1;
+                font-weight: 400;
+                letter-spacing: 1px;
+                text-transform: uppercase;
+            '>""" + ("Biogas · Cogenerazione" if IS_CHP
+                    else "Biometano · Upgrading") + """</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -2376,7 +2539,8 @@ with tab1:
         color_discrete_map={n: FEEDSTOCK_DB[n]["color"] for n in active_feeds},
         title="Ripartizione mensile biomasse",
     )
-    fig.update_layout(barmode="stack", height=450, separators=",.")
+    fig.update_layout(barmode="stack", height=450)
+    apply_metaniq_theme(fig, dark=IS_DARK)
     st.plotly_chart(fig, use_container_width=True)
 
 with tab2:
@@ -2400,8 +2564,8 @@ with tab2:
                    annotation_position="bottom right")
     fig2.update_layout(title="Saving GHG mensile (%)",
                        yaxis_title="Saving (%)", height=450,
-                       yaxis=dict(range=[60, 160]),
-                       separators=",.")
+                       yaxis=dict(range=[60, 160]))
+    apply_metaniq_theme(fig2, dark=IS_DARK)
     st.plotly_chart(fig2, use_container_width=True)
 
 with tab3:
@@ -2424,13 +2588,13 @@ with tab3:
     fig3 = go.Figure()
     fig3.add_trace(go.Bar(
         x=df_res["Mese"], y=lordi_vals,
-        name=_lbl_lordo, marker_color="#90A4AE",
+        name=_lbl_lordo, marker_color="#94A3B8",
         text=lordi_labels, textposition="outside",
         hovertemplate=f"<b>%{{x}}</b><br>{_lbl_lordo}: %{{text}}<extra></extra>",
     ))
     fig3.add_trace(go.Bar(
         x=df_res["Mese"], y=netti_vals,
-        name=_lbl_netto, marker_color="#1E88E5",
+        name=_lbl_netto, marker_color=NAVY,
         text=netti_labels, textposition="outside",
         hovertemplate=f"<b>%{{x}}</b><br>{_lbl_netto}: %{{text}}<extra></extra>",
     ))
@@ -2440,8 +2604,8 @@ with tab3:
         yaxis_title="Sm³ / mese",
         yaxis=dict(tickformat=",.0f", separatethousands=True),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        separators=",.",
     )
+    apply_metaniq_theme(fig3, dark=IS_DARK)
     st.plotly_chart(fig3, use_container_width=True)
 
     st.caption(
@@ -2475,7 +2639,7 @@ with tab4:
             hole=0.4,
         )
         fig4a.update_traces(textposition="inside", textinfo="percent+label")
-        fig4a.update_layout(separators=",.")
+        apply_metaniq_theme(fig4a, dark=IS_DARK)
         st.plotly_chart(fig4a, use_container_width=True)
 
     with colB:
@@ -2500,7 +2664,7 @@ with tab4:
             hole=0.4,
         )
         fig4b.update_traces(textposition="inside", textinfo="percent+label")
-        fig4b.update_layout(separators=",.")
+        apply_metaniq_theme(fig4b, dark=IS_DARK)
         st.plotly_chart(fig4b, use_container_width=True)
 
     # Tabella di dettaglio per calcolo ricavi per biomassa (tariffa editabile)
@@ -2703,53 +2867,75 @@ st.markdown(
     <div style='
         position: relative;
         text-align: center;
-        padding: 28px 24px;
+        padding: 32px 28px;
         margin-top: 20px;
         background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
-        border-radius: 16px;
+        border-radius: 12px;
         color: #ffffff;
-        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+        border: 1px solid rgba(245, 158, 11, 0.18);
         overflow: hidden;
     '>
         <div style='
-            position: absolute; top: -60%; right: -10%;
-            width: 400px; height: 400px;
-            background: radial-gradient(circle, rgba(28, 196, 145, 0.12) 0%, transparent 60%);
+            position: absolute; top: 0; right: 0; bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, transparent 0%, #F59E0B 50%, transparent 100%);
             pointer-events: none;
         '></div>
         <div style='
-            font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #1CC491 0%, #13A876 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 0.68rem; font-weight: 500;
+            color: #F59E0B; letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
             position: relative; z-index: 1;
-            display: inline-block;
-        '>🧬 Metan<span style="-webkit-text-fill-color:#F59E0B; color:#F59E0B; font-weight:900;">.</span>iQ</div>
+        '>// Metan.iQ Platform</div>
         <div style='
-            font-size: 0.95rem; font-style: italic; color: #94A3B8;
-            margin-top: 4px; position: relative; z-index: 1;
-        '>L'intelligenza del biogas e del biometano.</div>
-        <div style='
-            margin-top: 16px; padding-top: 16px;
-            border-top: 1px solid rgba(148, 163, 184, 0.2);
-            font-size: 0.82rem; color: #CBD5E1; position: relative; z-index: 1;
-        '>
-            Creato da <b style='color:#ffffff;'>Carlo Sicurini</b> &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp;
-            Tutti i diritti riservati
-        </div>
-        <div style='
-            margin-top: 10px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;
+            font-family: "Space Grotesk", "Inter", sans-serif;
+            font-size: 1.7rem; font-weight: 700; letter-spacing: -0.8px;
+            color: #FFFFFF;
             position: relative; z-index: 1;
+            line-height: 1;
+        '>Metan<span style="color:#F59E0B; font-weight:700;">.</span>iQ</div>
+        <div style='
+            font-size: 0.9rem; color: #94A3B8;
+            margin-top: 8px; position: relative; z-index: 1;
+            max-width: 640px; line-height: 1.5;
+        '>Decision intelligence platform per la pianificazione mensile e
+        l'ottimizzazione GHG di impianti di biometano e biogas cogenerativo.</div>
+        <div style='
+            margin-top: 18px; padding-top: 16px;
+            border-top: 1px solid rgba(148, 163, 184, 0.12);
+            font-size: 0.78rem; color: #CBD5E1;
+            position: relative; z-index: 1;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 12px;
         '>
-            <span style='background: rgba(28, 196, 145, 0.15); border: 1px solid rgba(28, 196, 145, 0.3);
-                color: #6EE7B7; padding: 4px 12px; border-radius: 999px; font-size: 0.72rem;
-                font-weight: 600; letter-spacing: 0.3px;'>RED III · Dir. 2023/2413</span>
-            <span style='background: rgba(28, 196, 145, 0.15); border: 1px solid rgba(28, 196, 145, 0.3);
-                color: #6EE7B7; padding: 4px 12px; border-radius: 999px; font-size: 0.72rem;
-                font-weight: 600; letter-spacing: 0.3px;'>GSE Linee Guida 2024</span>
-            <span style='background: rgba(28, 196, 145, 0.15); border: 1px solid rgba(28, 196, 145, 0.3);
-                color: #6EE7B7; padding: 4px 12px; border-radius: 999px; font-size: 0.72rem;
-                font-weight: 600; letter-spacing: 0.3px;'>UNI-TS 11567:2024</span>
+            <div>
+                Ideato e sviluppato da
+                <b style='color:#FFFFFF; font-weight:600;'>Carlo Sicurini</b>
+                &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp; Tutti i diritti riservati
+            </div>
+            <div style='display: flex; gap: 6px; flex-wrap: wrap;'>
+                <span style='background: rgba(245, 158, 11, 0.10);
+                    border: 1px solid rgba(245, 158, 11, 0.28);
+                    color: #F59E0B; padding: 3px 10px; border-radius: 4px;
+                    font-family: "JetBrains Mono", monospace;
+                    font-size: 0.66rem; font-weight: 500; letter-spacing: 0.4px;
+                '>RED III · Dir. 2023/2413</span>
+                <span style='background: rgba(255, 255, 255, 0.04);
+                    border: 1px solid rgba(255, 255, 255, 0.10);
+                    color: #CBD5E1; padding: 3px 10px; border-radius: 4px;
+                    font-family: "JetBrains Mono", monospace;
+                    font-size: 0.66rem; font-weight: 500; letter-spacing: 0.4px;
+                '>GSE LG 2024</span>
+                <span style='background: rgba(255, 255, 255, 0.04);
+                    border: 1px solid rgba(255, 255, 255, 0.10);
+                    color: #CBD5E1; padding: 3px 10px; border-radius: 4px;
+                    font-family: "JetBrains Mono", monospace;
+                    font-size: 0.66rem; font-weight: 500; letter-spacing: 0.4px;
+                '>UNI-TS 11567:2024</span>
+            </div>
         </div>
     </div>
     """,
