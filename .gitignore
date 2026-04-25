@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.claude/
+.streamlit/secrets.toml
+.venv/
+venv/
+.env
+*.swp
+.DS_Store
+test_*.pdf

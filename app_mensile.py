@@ -194,6 +194,53 @@ END_USE_THRESHOLDS = {
 }
 
 # ============================================================
+# DM 2 MARZO 2018 — Sistema CIC (Certificati Immissione in Consumo)
+# ============================================================
+# Riferimenti: DM 2/3/2018 (Decreto Biometano), aggiornato DM 15/9/2022
+# e D.Lgs. 199/2021 (recepimento RED II).
+#
+# Conversione energia <-> CIC:
+#   1 CIC = 10 Gcal = 11,628 MWh (1 toe = tonnellata di olio equivalente)
+#   1 Gcal = 4,184 GJ = 1,1628 MWh
+#
+# Double counting biometano AVANZATO (matrici Annex IX RED II/III):
+#   Il biometano avanzato vale doppio per la quota d'obbligo CIC
+#   -> equivalente a 1 CIC ogni 5 Gcal (5,814 MWh) anziche' 10
+#   -> n_CIC_avanzato = (energia / 10 Gcal) x 2
+#
+# Valore CIC: GSE ritira a prezzo regolato (~375 EUR base, variabile
+# per anno di emissione e tipologia trasporti / altri usi). Sul
+# mercato i CIC scambiati possono valere di piu' (rilancio scarsita').
+#
+# Soglia "biometano avanzato a livello di impianto":
+#   Per qualificare l'IMPIANTO come avanzato, la matrice in input deve
+#   essere prevalentemente Annex IX. Soglia operativa GSE: >= 70%
+#   in massa di feedstock Annex IX (in Italia spesso interpretato
+#   come 100% per evitare contestazioni). Default app: 70% con
+#   override manuale.
+# ============================================================
+GCAL_PER_MWH       = 1.0 / 1.1628                  # ~0,860 Gcal per MWh
+MWH_PER_GCAL       = 1.1628                        # 1 Gcal -> MWh
+GCAL_PER_CIC       = 10.0                          # 1 CIC = 10 Gcal (= 1 toe)
+MWH_PER_CIC        = GCAL_PER_CIC * MWH_PER_GCAL   # ~11,628 MWh per CIC
+CIC_PRICE_DEFAULT  = 375.0                         # EUR/CIC base GSE
+ANNEX_IX_THRESHOLD = 0.70                          # quota minima per "avanzato"
+
+# Soglie saving GHG e comparator per DM 2018 (RED II / III recepito).
+# Per trasporti: 50% impianti operativi pre-1/1/2021, 65% post.
+# Per altri usi (rete/calore) e cogenerazione: 70% (RED II); 80% RED III nuovi.
+DM2018_END_USES = {
+    "Trasporti (BioGNL/BioCNG)":               {"sav": 0.65, "cmp": 94.0,
+                                                "cic_premium": True},
+    "Trasporti — impianti pre-1/1/2021":       {"sav": 0.50, "cmp": 94.0,
+                                                "cic_premium": True},
+    "Altri usi (rete gas / calore)":           {"sav": 0.70, "cmp": 80.0,
+                                                "cic_premium": False},
+    "Cogenerazione ad alto rendimento (CAR)":  {"sav": 0.70, "cmp": 80.0,
+                                                "cic_premium": False},
+}
+
+# ============================================================
 # EP (processing) - contributi impiantistici [gCO2eq/MJ biometano]
 # Valori medi da letteratura JRC-CONCAWE v5, UNI/TS 11567:2024, default RED III.
 # NB: valori indicativi; per certificazione GSE servono misure reali d'impianto.
@@ -400,55 +447,71 @@ FEEDSTOCK_DB = {
     # =========================================================
     # COLTURE DEDICATE (cap 30% RED III, eec alto da coltivazione)
     # Valori eec: UNI/TS 11567:2024 + JEC WTT v5 (cat. "energy crops")
+    # NB: NON sono Annex IX -> single counting CIC, no premio DM 2018
     # =========================================================
     "Trinciato di mais": {
         "eec": 26.0, "esca": 0.0, "etd": 0.8, "yield": 104.0,
         "color": "#F5C518", "cat": "Colture dedicate",
+        "annex_ix": None,
         "src": "UNI-TS 11567:2024 / JEC v5",
     },
     "Trinciato di sorgo": {
         "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 90.0,
         "color": "#8BC34A", "cat": "Colture dedicate",
+        "annex_ix": None,
         "src": "UNI-TS 11567:2024",
     },
     "Triticale insilato": {
         "eec": 20.0, "esca": 0.0, "etd": 0.8, "yield": 85.0,
         "color": "#AED581", "cat": "Colture dedicate",
+        "annex_ix": None,
         "src": "JEC v5 / KTBL",
     },
     "Segale insilata": {
         "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 80.0,
         "color": "#C5E1A5", "cat": "Colture dedicate",
+        "annex_ix": None,
         "src": "JEC v5 / KTBL",
     },
     "Orzo insilato": {
         "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 82.0,
         "color": "#DCEDC8", "cat": "Colture dedicate",
+        "annex_ix": None,
         "src": "JEC v5",
     },
     "Loietto insilato (ryegrass)": {
         "eec": 18.0, "esca": 0.0, "etd": 0.8, "yield": 75.0,
         "color": "#9CCC65", "cat": "Colture dedicate",
+        "annex_ix": None,
         "src": "UNI-TS 11567:2024",
     },
     "Erba medica insilata": {
         "eec": 15.0, "esca": 0.0, "etd": 0.8, "yield": 70.0,
         "color": "#7CB342", "cat": "Colture dedicate",
+        "annex_ix": None,
         "src": "JEC v5 (azotofissazione)",
     },
     "Doppia coltura (2° raccolto)": {
         "eec": 15.0, "esca": 0.0, "etd": 0.8, "yield": 95.0,
         "color": "#689F38", "cat": "Colture dedicate",
+        # Coltivazione secondaria su stesso suolo: NON Annex IX di default
+        # ma alcune interpretazioni la includono come "intermediate crop"
+        # del par. (q) RED II All. IX. Default: NOT advanced (override
+        # manuale possibile da sidebar).
+        "annex_ix": None,
         "src": "GSE LG 2024 (art. doppia coltura)",
     },
     "Barbabietola da zucchero": {
         "eec": 12.0, "esca": 0.0, "etd": 0.8, "yield": 105.0,
         "color": "#CE93D8", "cat": "Colture dedicate",
+        "annex_ix": None,
         "src": "JEC v5",
     },
     # =========================================================
     # EFFLUENTI ZOOTECNICI (manure credit RED III Annex VI)
-    # Il credit e' proporzionale al beneficio di stoccaggio anaerobico
+    # All. IX RED II/III parte A lett. (d): "letame animale e fanghi
+    # di depurazione". Tutti -> AVANZATI con double counting CIC.
+    # Credit eec proporzionale al beneficio di stoccaggio anaerobico
     # rispetto al baseline (lagone/vasca). Liquame liquido: -45.
     # Letami palabili (minore emissione CH4 baseline): -20/-30.
     # Pollina broiler/tacchini (lettiera): -10/-15.
@@ -457,135 +520,165 @@ FEEDSTOCK_DB = {
     "Liquame suino": {
         "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 15.0,
         "color": "#8D6E63", "cat": "Effluenti zootecnici",
+        "annex_ix": "A",
         "src": "RED III Annex VI / JEC v5",
     },
     "Liquame bovino": {
         "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 20.0,
         "color": "#795548", "cat": "Effluenti zootecnici",
+        "annex_ix": "A",
         "src": "RED III Annex VI",
     },
     "Liquame bufalino": {
         "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 22.0,
         "color": "#6D4C41", "cat": "Effluenti zootecnici",
+        "annex_ix": "A",
         "src": "JEC v5 / prassi GSE",
     },
     "Letame bovino palabile": {
         "eec": -30.0, "esca": 0.0, "etd": 0.8, "yield": 45.0,
         "color": "#A1887F", "cat": "Effluenti zootecnici",
+        "annex_ix": "A",
         "src": "IPCC 2019 Vol.4 Cap.10 + GSE",
     },
     "Letame equino": {
         "eec": -20.0, "esca": 0.0, "etd": 0.8, "yield": 35.0,
         "color": "#BCAAA4", "cat": "Effluenti zootecnici",
+        "annex_ix": "A",
         "src": "JEC v5",
     },
     "Pollina ovaiole (aerobico)": {
         "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 90.0,
         "color": "#FF9800", "cat": "Effluenti zootecnici",
+        "annex_ix": "A",
         "src": "GSE (no credit anaerobico)",
     },
     "Pollina broiler (lettiera)": {
         "eec": -15.0, "esca": 0.0, "etd": 0.8, "yield": 105.0,
         "color": "#FFA726", "cat": "Effluenti zootecnici",
+        "annex_ix": "A",
         "src": "IPCC 2019 / JEC v5",
     },
     "Pollina tacchini": {
         "eec": -10.0, "esca": 0.0, "etd": 0.8, "yield": 100.0,
         "color": "#FFB74D", "cat": "Effluenti zootecnici",
+        "annex_ix": "A",
         "src": "IPCC 2019",
     },
     "Deiezioni conigli": {
         "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 75.0,
         "color": "#FFCC80", "cat": "Effluenti zootecnici",
+        "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
     },
     # =========================================================
-    # SOTTOPRODOTTI AGROINDUSTRIALI (All. IX RED III / parte A+B)
-    # Tariffa CIC premium; eec bassa (solo trasporto/handling).
+    # SOTTOPRODOTTI AGROINDUSTRIALI (All. IX RED II/III)
+    # Tutti -> AVANZATI con double counting CIC.
+    # - Sanse, vinacce, raspi, fecce, lolla -> All. IX A (h, i, k, m)
+    # - Scarti caseari, panificazione, ortofrutta -> All. IX A (c, m)
+    # - UCO, scarti macellazione cat. 3 -> All. IX B (oli/grassi)
     # =========================================================
     "Sansa di olive umida": {
         "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 120.0,
         "color": "#6A1B9A", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",
         "src": "JEC v5 / All. IX RED III",
     },
     "Sansa vergine": {
         "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 140.0,
         "color": "#7B1FA2", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",
         "src": "JEC v5",
     },
     "Pastazzo di agrumi": {
         "eec": 6.0, "esca": 0.0, "etd": 0.8, "yield": 100.0,
         "color": "#FFB300", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
     },
     "Vinaccia (con raspi)": {
         "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 130.0,
         "color": "#880E4F", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",  # All. IX A (i): grape marcs and wine lees
         "src": "JEC v5",
     },
     "Raspi d'uva": {
         "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 70.0,
         "color": "#AD1457", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
     },
     "Feccia vinicola": {
         "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 180.0,
         "color": "#C2185B", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",
         "src": "JEC v5",
     },
     "Siero di latte": {
         "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 30.0,
         "color": "#FFF9C4", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
     },
     "Scotta (siero residuo)": {
         "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 22.0,
         "color": "#FFF59D", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",
         "src": "JEC v5",
     },
     "Trebbie di birra": {
         "eec": 4.0, "esca": 0.0, "etd": 0.8, "yield": 140.0,
         "color": "#D4A574", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",  # All. IX A (m): biomass fraction industrial waste
         "src": "JEC v5",
     },
     "Lolla/pula di riso": {
         "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 50.0,
         "color": "#F5DEB3", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",  # All. IX A (k): husks
         "src": "UNI-TS 11567:2024",
     },
     "Melasso": {
         "eec": 8.0, "esca": 0.0, "etd": 0.8, "yield": 180.0,
         "color": "#5D4037", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",  # sugar industry residue (canna)
         "src": "JEC v5",
     },
     "Scarti panificazione/pasticceria": {
         "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 280.0,
         "color": "#D7CCC8", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",  # All. IX A (c): bio-waste
         "src": "UNI-TS 11567:2024 (alta resa zuccheri)",
     },
     "Grassi esausti / UCO": {
         "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 700.0,
         "color": "#FFE082", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "B",  # All. IX B (a): used cooking oil
         "src": "JEC v5 (lipidi, All. IX parte B)",
     },
     "Scarti macellazione (cat. 3)": {
         "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 180.0,
         "color": "#EF5350", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "B",  # All. IX B (b): cat 1/2 animal fats; cat 3
+                            # comunemente trattato come avanzato in DM 2018
         "src": "JEC v5 / Reg. 1069/2009",
     },
     "Sottoprodotti ortofrutticoli": {
         "eec": 7.0, "esca": 0.0, "etd": 0.8, "yield": 100.0,
         "color": "#66BB6A", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
     },
     "Scarti caseari vari": {
         "eec": 4.0, "esca": 0.0, "etd": 0.8, "yield": 40.0,
         "color": "#E1BEE7", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",
         "src": "JEC v5",
     },
     "Fanghi agro-industriali": {
         "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 55.0,
         "color": "#90A4AE", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
     },
     "Polpe di barbabietola fresche": {
@@ -595,6 +688,7 @@ FEEDSTOCK_DB = {
         # Resa: ~50 Nm3/t FM (DM ~22-25%, biogas ~700 Nm3/t SV, 55% CH4).
         "eec": 0.0, "esca": 0.0, "etd": 2.0, "yield": 50.0,
         "color": "#F48FB1", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",  # sugar industry residue, analogo bagasse (h)
         "src": "UNI-TS 11567:2024 / JEC WTT v5 (by-product allocation)",
     },
     "Polpe di barbabietola insilate": {
@@ -602,6 +696,7 @@ FEEDSTOCK_DB = {
         # resa piu' alta per t FM. Sottoprodotto -> eec=0, esca=0.
         "eec": 0.0, "esca": 0.0, "etd": 2.5, "yield": 75.0,
         "color": "#EC407A", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",
         "src": "UNI-TS 11567:2024 / JEC WTT v5",
     },
     "Melasso di barbabietola": {
@@ -609,19 +704,24 @@ FEEDSTOCK_DB = {
         # Sottoprodotto liquido zuccherificio: resa alta, DM ~75-80%.
         "eec": 0.0, "esca": 0.0, "etd": 1.5, "yield": 280.0,
         "color": "#C2185B", "cat": "Sottoprodotti agroindustriali",
+        "annex_ix": "A",
         "src": "JEC WTT v5 / UNI-TS 11567:2024",
     },
     # =========================================================
-    # FORSU / RIFIUTI (All. IX RED III)
+    # FORSU / RIFIUTI (All. IX RED II/III, parte A)
+    # All. IX A (c): bio-waste · (d): sewage sludge
+    # Tutti -> AVANZATI con double counting CIC.
     # =========================================================
     "FORSU selezionata": {
         "eec": 8.0, "esca": 0.0, "etd": 0.8, "yield": 140.0,
         "color": "#546E7A", "cat": "FORSU / Rifiuti",
+        "annex_ix": "A",
         "src": "All. IX RED III / GSE LG 2024",
     },
     "Fanghi depurazione": {
         "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 60.0,
         "color": "#78909C", "cat": "FORSU / Rifiuti",
+        "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
     },
 }
@@ -880,7 +980,7 @@ def find_optimal_pair(aux: float, plant_net: float, ep: float,
 # UI
 # ============================================================
 st.set_page_config(
-    page_title="Metan.iQ — Decision Intelligence per Biometano e Biogas CHP",
+    page_title="Metan.iQ — Decision Intelligence Biometano (DM 2018/2022) & Biogas CHP",
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -922,47 +1022,71 @@ with st.sidebar:
     st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
 
 # ===========================================================
-# Metan.iQ Mode Selector (Biometano vs Biogas CHP)
+# Metan.iQ Mode Selector (3 modalita': DM 2022, DM 2018, Biogas CHP)
+# - "biometano"      = legacy alias DM 2022 (mantenuto per session_state)
+# - "biometano_2018" = nuovo: sistema CIC + double counting avanzato
+# - "biogas_chp"     = cogenerazione elettrica diretta da biogas
 # ===========================================================
 if "app_mode" not in st.session_state:
+    st.session_state.app_mode = "biometano"
+
+# Migrazione automatica session_state da etichette legacy
+if st.session_state.app_mode not in ("biometano", "biometano_2018", "biogas_chp"):
     st.session_state.app_mode = "biometano"
 
 with st.sidebar:
     st.markdown(
         "<div style='font-size:0.7rem; font-weight:700; letter-spacing:1px; "
         "text-transform:uppercase; color:#64748B; margin-bottom:6px; padding-left:2px;'>"
-        "🏭 Tipologia impianto</div>",
+        "🏭 Tipologia impianto / regime incentivante</div>",
         unsafe_allow_html=True,
     )
-    _mc1, _mc2 = st.columns(2)
+    _mc1, _mc2, _mc3 = st.columns(3)
     with _mc1:
         if st.button(
-            "🟢 Biometano",
+            "🧬 DM 2022",
             use_container_width=True,
             type="primary" if st.session_state.app_mode == "biometano" else "secondary",
             key="btn_mode_biometano",
-            help="Impianto con upgrading a biometano (immissione rete / trasporti)",
+            help="Biometano DM 15/9/2022 — tariffa diretta €/MWh + premio "
+                 "matrice/upgrading. Saving RED III per uso finale.",
         ):
             st.session_state.app_mode = "biometano"
             st.rerun()
     with _mc2:
         if st.button(
-            "⚡ Biogas CHP",
+            "🌿 DM 2018",
+            use_container_width=True,
+            type="primary" if st.session_state.app_mode == "biometano_2018" else "secondary",
+            key="btn_mode_biometano_2018",
+            help="Biometano DM 2/3/2018 — sistema CIC con double counting "
+                 "per matrici Annex IX (avanzato). Saving RED II/III.",
+        ):
+            st.session_state.app_mode = "biometano_2018"
+            st.rerun()
+    with _mc3:
+        if st.button(
+            "⚡ CHP",
             use_container_width=True,
             type="primary" if st.session_state.app_mode == "biogas_chp" else "secondary",
             key="btn_mode_chp",
-            help="Impianto biogas con cogeneratore (produzione elettrica + termica)",
+            help="Biogas → cogenerazione elettrica diretta. Tariffa "
+                 "Omnicomprensiva (DM 6/7/2012) + premio CAR.",
         ):
             st.session_state.app_mode = "biogas_chp"
             st.rerun()
     st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
 
-APP_MODE = st.session_state.app_mode
-IS_CHP = APP_MODE == "biogas_chp"
+APP_MODE  = st.session_state.app_mode
+IS_CHP    = APP_MODE == "biogas_chp"
+IS_DM2018 = APP_MODE == "biometano_2018"
+IS_DM2022 = APP_MODE == "biometano"
+# NB: branche "biometano generico" (DM 2022 + DM 2018) si esprimono come
+# `not IS_CHP` -- entrambi i regimi condividono upgrading/off-gas/iniezione.
 # Comparator fossile aggiornato dinamicamente:
-#  - mode CHP: 183 gCO2/MJ (elettricita' mix EU), valore unico
-#  - mode biometano: dipende da end_use scelto in sidebar (80 rete/elec/calore,
-#    94 trasporti) - assegnazione effettiva dopo la selectbox end_use
+#  - mode CHP:   183 gCO2/MJ (mix elettrico EU), valore unico
+#  - mode DM 2022: dipende da end_use (80 rete/elec/calore, 94 trasporti)
+#  - mode DM 2018: dipende da end_use DM 2018 (94 trasporti, 80 altri usi/CAR)
 if IS_CHP:
     FOSSIL_COMPARATOR = COMPARATOR_CHP
 
@@ -1433,15 +1557,22 @@ st.markdown(
         <span class="eyebrow">// Decision Intelligence Platform</span>
         <h1>Metan<span style="color:""" + AMBER + """; font-weight:700;">.</span>iQ</h1>
         <div class="tagline">""" + (
-            "Pianificazione mensile e ottimizzazione GHG per impianti di biometano: dal mix biomasse al saving RED III, in un unico ambiente decisionale."
-            if not IS_CHP
-            else "Pianificazione e business case per impianti biogas cogenerativi: bilancio elettrico-termico, tariffa T.O. e saving RED III su un comparator 183 gCO₂/MJ."
+            "Pianificazione e business case per impianti biogas cogenerativi: bilancio elettrico-termico, tariffa T.O. e saving RED III su comparator 183 gCO₂/MJ."
+            if IS_CHP else
+            "DM 2/3/2018 · sistema CIC con double counting per matrici Annex IX (biometano avanzato). Pianificazione mensile, sostenibilità RED II/III e simulazione CIC."
+            if IS_DM2018 else
+            "DM 15/9/2022 · pianificazione mensile e ottimizzazione GHG per biometano: tariffa diretta €/MWh, saving RED III/D.Lgs. 5/2026 per uso finale."
         ) + """</div>
         <div class="pills">
             <span class="pill accent">""" + (
-                "BIOMETANO · UPGRADING" if not IS_CHP else "BIOGAS · CHP"
+                "BIOGAS · CHP · DM 6/7/2012" if IS_CHP else
+                "BIOMETANO · DM 2/3/2018 · CIC" if IS_DM2018 else
+                "BIOMETANO · DM 15/9/2022"
             ) + """</span>
-            <span class="pill">RED III · D.LGS 5/2026</span>
+            <span class="pill">""" + (
+                "RED II · ALL. IX (avanzato)" if IS_DM2018 else
+                "RED III · D.LGS 5/2026"
+            ) + """</span>
             <span class="pill">GSE LG 2024</span>
             <span class="pill">UNI-TS 11567:2024</span>
             <span class="pill">JEC WTT v5</span>
@@ -1524,8 +1655,9 @@ with st.sidebar:
                 font-weight: 400;
                 letter-spacing: 1px;
                 text-transform: uppercase;
-            '>""" + ("Biogas · Cogenerazione" if IS_CHP
-                    else "Biometano · Upgrading") + """</div>
+            '>""" + ("Biogas · Cogenerazione · TO" if IS_CHP
+                    else "Biometano · DM 2018 · CIC" if IS_DM2018
+                    else "Biometano · DM 2022") + """</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1700,7 +1832,30 @@ with st.sidebar:
             "⚡ **Biogas → cogenerazione elettrica** · Comparator fossile "
             "RED III: **183 gCO₂/MJ** (mix elettrico EU) · Soglia saving: 80%"
         )
+    elif IS_DM2018:
+        # DM 2 marzo 2018: 4 destinazioni d'uso con soglie/comparator distinti.
+        end_use = st.selectbox(
+            "🎯 Destinazione biometano (→ soglia saving + comparator)",
+            list(DM2018_END_USES.keys()),
+            index=0,
+            help="DM 2018: trasporti -> CIC con double counting per "
+                 "matrici Annex IX (avanzato). Altri usi/CAR -> tariffa "
+                 "diretta €/MWh (no CIC). Soglia saving e comparator "
+                 "fossile cambiano per uso finale.",
+        )
+        _du = DM2018_END_USES[end_use]
+        ghg_threshold = _du["sav"]
+        FOSSIL_COMPARATOR = _du["cmp"]
+        st.caption(
+            f"📐 Comparator fossile **{fmt_it(FOSSIL_COMPARATOR, 0)} "
+            f"gCO₂/MJ** "
+            + ("(diesel sostituito · trasporti)" if FOSSIL_COMPARATOR == 94.0
+               else "(gas naturale sostituito · rete/calore/CAR)")
+            + (" · CIC double-counting attivo se matrice Annex IX"
+               if _du["cic_premium"] else " · sistema tariffa fissa (no CIC)")
+        )
     else:
+        # DM 15 settembre 2022 (default biometano)
         end_use = st.selectbox(
             "🎯 Destinazione biometano (→ soglia saving + comparator)",
             list(END_USE_THRESHOLDS.keys()),
@@ -1725,6 +1880,86 @@ with st.sidebar:
     st.metric("Soglia saving obbligatoria",
               fmt_it(ghg_threshold * 100, 0, "%"),
               delta=f"target solver {fmt_it(target_saving * 100, 0, '%')}")
+
+    # ============================================================
+    # DM 2018 — Configurazione CIC e classificazione avanzato
+    # ============================================================
+    if IS_DM2018:
+        st.divider()
+        st.header("🌿 DM 2018 — Sistema CIC")
+
+        # Conteggio Annex IX tra biomasse attive
+        n_annex = sum(
+            1 for f in active_feeds
+            if FEEDSTOCK_DB[f].get("annex_ix") in ("A", "B")
+        )
+        n_total = max(len(active_feeds), 1)
+        annex_pct_count = n_annex / n_total
+
+        st.caption(
+            f"📋 **Matrice attiva**: {n_annex} di {n_total} biomasse "
+            f"selezionate sono classificate Annex IX RED II/III "
+            f"({fmt_it(annex_pct_count*100, 0, '%')} per numero). "
+            f"La quota effettiva in MASSA dell'impianto viene calcolata in "
+            f"tab «🥧 Mix annuale» ed e' quella che determina lo status "
+            f"avanzato dell'impianto."
+        )
+
+        # Soglia configurabile per "avanzato"
+        annex_threshold = st.slider(
+            "Soglia massa Annex IX per status «avanzato» [%]",
+            min_value=50.0, max_value=100.0,
+            value=ANNEX_IX_THRESHOLD * 100, step=5.0,
+            help="Quota minima in MASSA di feedstock Annex IX richiesta "
+                 "per qualificare l'impianto come «biometano avanzato» "
+                 "(double counting CIC). Default 70% (interpretazione GSE). "
+                 "Alcune autorita' richiedono 100% per evitare contestazioni.",
+        ) / 100.0
+
+        advanced_mode = st.radio(
+            "Classificazione impianto",
+            ["Auto (calcolata da matrice annuale)",
+             "Forza AVANZATO (override manuale)",
+             "Forza NON avanzato (override manuale)"],
+            index=0,
+            help="«Auto» determina lo status dalla quota in massa Annex IX "
+                 "vs soglia. Override solo se hai certificazione GSE "
+                 "specifica o vincoli contrattuali.",
+        )
+
+        # Valore CIC
+        cic_price = st.number_input(
+            "💰 Valore CIC [€/CIC]",
+            min_value=0.0, max_value=600.0,
+            value=CIC_PRICE_DEFAULT, step=5.0,
+            help=f"Prezzo medio unitario del CIC. Riferimento GSE base "
+                 f"~{fmt_it(CIC_PRICE_DEFAULT, 0)} €/CIC; sul mercato "
+                 f"secondario (operatori obbligati) tipicamente "
+                 f"300-450 €/CIC. Valore solo per simulazione ricavi.",
+        )
+
+        # Caption attiva CIC double counting solo se uso ammette CIC
+        _cic_active = DM2018_END_USES[end_use]["cic_premium"]
+        if _cic_active:
+            st.success(
+                f"✅ **Sistema CIC attivo** · 1 CIC = "
+                f"{fmt_it(MWH_PER_CIC, 2)} MWh "
+                f"({fmt_it(GCAL_PER_CIC, 0)} Gcal). Biometano avanzato → "
+                f"double counting → 1 CIC ogni "
+                f"{fmt_it(MWH_PER_CIC/2, 2)} MWh "
+                f"({fmt_it(GCAL_PER_CIC/2, 0)} Gcal)."
+            )
+        else:
+            st.warning(
+                "ℹ️ **Uso non ammesso al sistema CIC**: per «altri usi» "
+                "e CAR il DM 2018 prevede tariffa diretta €/MWh, NON CIC. "
+                "Il prezzo CIC inserito sopra non viene applicato."
+            )
+    else:
+        # Default per tutte le mode che non sono DM 2018 (dummy non usati)
+        annex_threshold = ANNEX_IX_THRESHOLD
+        advanced_mode = "Auto (calcolata da matrice annuale)"
+        cic_price = 0.0
 
     # Configuratore ep
     digestate_opt = st.selectbox(
@@ -2669,17 +2904,59 @@ with tab4:
         apply_metaniq_theme(fig4b, dark=IS_DARK)
         st.plotly_chart(fig4b, use_container_width=True)
 
-    # Tabella di dettaglio per calcolo ricavi per biomassa (tariffa editabile)
-    _tar_unit = "€/MWh_el" if IS_CHP else "€/MWh"
-    # Default tariffe:
-    #   CHP 999 kWe agricolo: 280 EUR/MWh (TO base DM 6/7/2012 + premio CAR
-    #   + premio matrice sottoprodotti, valore medio effettivo di mercato
-    #   per impianti <1 MW ben gestiti)
-    #   Biometano: 120 EUR/MWh (PPA medio post-2024, range 80-160)
-    _tar_default = 280.0 if IS_CHP else 120.0
+    # ============================================================
+    # CALCOLO STATUS AVANZATO IMPIANTO (solo DM 2018)
+    # ============================================================
+    # Quota in MASSA Annex IX vs totale -> classificazione plant-level
+    _tot_t = sum(annual_t.values())
+    if _tot_t > 0:
+        _t_annex = sum(
+            t for n, t in annual_t.items()
+            if FEEDSTOCK_DB[n].get("annex_ix") in ("A", "B")
+        )
+        annex_mass_share = _t_annex / _tot_t
+    else:
+        annex_mass_share = 0.0
+
+    if IS_DM2018:
+        if advanced_mode == "Forza AVANZATO (override manuale)":
+            is_advanced = True
+        elif advanced_mode == "Forza NON avanzato (override manuale)":
+            is_advanced = False
+        else:  # auto da quota Annex IX in massa
+            is_advanced = annex_mass_share >= annex_threshold
+        # CIC double counting attivo SOLO se end_use ammette CIC
+        # (trasporti) E impianto avanzato.
+        _cic_premium_use = DM2018_END_USES[end_use]["cic_premium"]
+        cic_double = is_advanced and _cic_premium_use
+        cic_active  = _cic_premium_use  # CIC system in use (single or double)
+    else:
+        is_advanced  = False
+        cic_double   = False
+        cic_active   = False
+
+    # ============================================================
+    # TARIFFA PER BIOMASSA — applicabile solo se NON in regime CIC
+    # ============================================================
+    # In regime CIC (DM 2018 trasporti) il prezzo e' unico per tutto il
+    # biometano (cic_price € per CIC), non personalizzato per biomassa.
+    # Negli altri regimi (DM 2022, CHP, DM 2018 altri usi) la tariffa
+    # e' editabile per biomassa.
+    if IS_CHP:
+        _tar_unit = "€/MWh_el"
+        _tar_default = 280.0
+    elif IS_DM2018 and not cic_active:
+        _tar_unit = "€/MWh"
+        _tar_default = 110.0   # DM 2018 altri usi/CAR: tariffa base
+    else:
+        _tar_unit = "€/MWh"
+        _tar_default = 120.0
     st.markdown(
-        f"##### 💶 Dettaglio per tipologia di biomassa "
-        f"(tariffa {_tar_unit} editabile ✏️)"
+        f"##### 💶 Dettaglio per tipologia di biomassa"
+        + (
+            f" (regime CIC unico — tariffa €/MWh non applicabile per biomassa)"
+            if cic_active else f" (tariffa {_tar_unit} editabile ✏️)"
+        )
     )
     if IS_CHP:
         st.caption(
@@ -2689,6 +2966,35 @@ with tab4:
             "Default **280 €/MWh** (TO base DM 6/7/2012 per biogas agricolo "
             "<1 MW + premio CAR + premio matrice sottoprodotti). "
             "Modificabile per scenari FER-X, PPA, vendita spot."
+        )
+    elif IS_DM2018 and cic_active:
+        if is_advanced:
+            st.success(
+                f"🌿 **DM 2018 · BIOMETANO AVANZATO** "
+                f"(quota Annex IX in massa: "
+                f"{fmt_it(annex_mass_share*100, 1, '%')}, soglia "
+                f"{fmt_it(annex_threshold*100, 0, '%')}). "
+                f"Sistema CIC con **double counting**: 1 CIC ogni "
+                f"{fmt_it(MWH_PER_CIC/2, 2)} MWh "
+                f"({fmt_it(GCAL_PER_CIC/2, 0)} Gcal). "
+                f"Valore CIC: **{fmt_it(cic_price, 0)} €/CIC**."
+            )
+        else:
+            st.warning(
+                f"⚠️ **DM 2018 · BIOMETANO NON AVANZATO** "
+                f"(quota Annex IX in massa: "
+                f"{fmt_it(annex_mass_share*100, 1, '%')}, sotto soglia "
+                f"{fmt_it(annex_threshold*100, 0, '%')}). "
+                f"Sistema CIC **senza** double counting: 1 CIC ogni "
+                f"{fmt_it(MWH_PER_CIC, 2)} MWh "
+                f"({fmt_it(GCAL_PER_CIC, 0)} Gcal). "
+                f"Valore CIC: **{fmt_it(cic_price, 0)} €/CIC**."
+            )
+    elif IS_DM2018 and not cic_active:
+        st.info(
+            f"ℹ️ **DM 2018 · {end_use}**: regime tariffa diretta €/MWh "
+            f"(non CIC). Modifica le tariffe per biomassa qui sotto "
+            f"per simulare scenari diversi."
         )
 
     # Stato persistente: tariffe per biomassa (separate per mode)
@@ -2700,35 +3006,57 @@ with tab4:
         if n not in st.session_state[_tar_key]:
             st.session_state[_tar_key][n] = _tar_default
 
+    # MWh totale (base CIC nel caso DM 2018)
+    _tot_mwh_basis_raw = sum(annual_mwh.values())  # MWh CH4 netto per biometano
+
     detail_rows = []
     pdf_revenue_rows = []  # raw numerics per il report PDF
+    tot_n_cic = 0.0
     for n in active_feeds:
         t = annual_t[n]
         nm3_lordi = t * FEEDSTOCK_DB[n]["yield"]
         nm3_netti = nm3_lordi / aux_factor
         mwh_netti = nm3_netti * NM3_TO_MWH
-        # In modalita' CHP, i ricavi sono sui MWh elettrici NETTI immessi in rete
-        # (lordo ai morsetti alternatore meno autoconsumi ausiliari impianto).
+
+        # --- Calcolo ricavi mode-aware ---
         if IS_CHP:
             mwh_el_lordo = mwh_netti * eta_el
             mwh_el_netto_rete = mwh_el_lordo * (1.0 - aux_el_pct)
             mwh_revenue = mwh_el_netto_rete  # tariffa T.O. applicata al netto rete
-        else:
+            tariffa = st.session_state[_tar_key][n]
+            ricavi = mwh_revenue * tariffa
+            n_cic = 0.0
+        elif IS_DM2018 and cic_active:
+            # CIC SYSTEM: prezzo unico, ricavi = n_CIC * cic_price.
+            # double counting plant-level (vedi cic_double).
             mwh_el_lordo = 0.0
             mwh_el_netto_rete = 0.0
             mwh_revenue = mwh_netti
-        tariffa = st.session_state[_tar_key][n]
-        ricavi = mwh_revenue * tariffa
-        quota = ((mwh_netti / sum(annual_mwh.values()) * 100)
-                 if sum(annual_mwh.values()) > 0 else 0)
+            cic_factor = 2.0 if cic_double else 1.0
+            n_cic = (mwh_netti / MWH_PER_CIC) * cic_factor
+            tariffa = cic_price  # informativo, non per biomassa
+            ricavi = n_cic * cic_price
+        else:
+            # DM 2022 o DM 2018 altri usi: tariffa diretta €/MWh
+            mwh_el_lordo = 0.0
+            mwh_el_netto_rete = 0.0
+            mwh_revenue = mwh_netti
+            tariffa = st.session_state[_tar_key][n]
+            ricavi = mwh_revenue * tariffa
+            n_cic = 0.0
+        tot_n_cic += n_cic
+        quota = ((mwh_netti / _tot_mwh_basis_raw * 100)
+                 if _tot_mwh_basis_raw > 0 else 0)
         pdf_revenue_rows.append((n, {
             "t_anno": t,
             "yield": FEEDSTOCK_DB[n]["yield"],
             "mwh_netti": mwh_netti,
-            "mwh_basis": mwh_revenue,  # base ricavi (netto rete CHP / netto biometano)
+            "mwh_basis": mwh_revenue,  # base ricavi
             "tariffa": tariffa,
             "ricavi": ricavi,
             "quota": quota,
+            "annex_ix": FEEDSTOCK_DB[n].get("annex_ix"),
+            "n_cic": n_cic,
         }))
         row_detail = {
             "Biomassa": n,
@@ -2741,8 +3069,21 @@ with tab4:
             row_detail["MWh_el lordi/anno"] = fmt_it(mwh_el_lordo, 1)
             row_detail["MWh_el netti rete/anno"] = fmt_it(mwh_el_netto_rete, 1)
             row_detail["MWh termici/anno"] = fmt_it(mwh_netti * eta_th, 1)
+        if IS_DM2018:
+            _aix = FEEDSTOCK_DB[n].get("annex_ix")
+            row_detail["Annex IX"] = (
+                "✅ A" if _aix == "A" else
+                "✅ B" if _aix == "B" else
+                "—"
+            )
+            if cic_active:
+                row_detail["CIC/anno"] = fmt_it(n_cic, 2)
         row_detail["Quota % MWh"] = fmt_it(quota, 1, "%")
-        row_detail[f"Tariffa {_tar_unit}"] = fmt_it(tariffa, 2)
+        if cic_active:
+            # In regime CIC mostriamo "Tariffa €/CIC" uniforme (non editabile per riga)
+            row_detail[f"Tariffa €/CIC"] = fmt_it(cic_price, 2)
+        else:
+            row_detail[f"Tariffa {_tar_unit}"] = fmt_it(tariffa, 2)
         row_detail["Ricavi €/anno"] = fmt_it(ricavi, 0, " €")
         detail_rows.append(row_detail)
     df_detail = pd.DataFrame(detail_rows)
@@ -2754,18 +3095,26 @@ with tab4:
         "Sm³ netti/anno": st.column_config.TextColumn("Sm³ netti/anno", disabled=True),
         "MWh netti/anno": st.column_config.TextColumn("MWh netti/anno", disabled=True),
         "Quota % MWh":    st.column_config.TextColumn("Quota % MWh", disabled=True),
-        f"Tariffa {_tar_unit}": st.column_config.TextColumn(
-            f"Tariffa {_tar_unit} ✏️",
-            help=f"Tariffa incentivante/PPA [{_tar_unit}] in formato "
-                 f"italiano (es. 1.234,56). Modificabile per simulazioni di ricavi.",
-        ),
         "Ricavi €/anno": st.column_config.TextColumn(
             "Ricavi €/anno 🧮", disabled=True,
-            help=f"MWh {'elettrici netti rete' if IS_CHP else 'netti'}"
-                 f" × tariffa {_tar_unit}"
-                 " (si ricalcola al variare della tariffa)",
+            help=("CIC × valore CIC" if cic_active
+                  else f"MWh {'elettrici netti rete' if IS_CHP else 'netti'}"
+                       f" × tariffa {_tar_unit}")
+                 + " (si ricalcola al variare dei parametri)",
         ),
     }
+    if cic_active:
+        detail_col_cfg["Tariffa €/CIC"] = st.column_config.TextColumn(
+            "Valore CIC €", disabled=True,
+            help="Prezzo unitario CIC fissato in sidebar. Uniforme per "
+                 "tutto il biometano (no editing per biomassa in regime CIC).",
+        )
+    else:
+        detail_col_cfg[f"Tariffa {_tar_unit}"] = st.column_config.TextColumn(
+            f"Tariffa {_tar_unit} ✏️",
+            help=f"Tariffa incentivante/PPA [{_tar_unit}] in formato "
+                 f"italiano (es. 1.234,56). Modificabile per simulazioni.",
+        )
     if IS_CHP:
         detail_col_cfg["MWh_el lordi/anno"] = st.column_config.TextColumn(
             "MWh_el lordi/anno", disabled=True,
@@ -2783,6 +3132,23 @@ with tab4:
             help="MWh termici recuperati dal cogeneratore "
                  "(= MWh netti × η_th). Usabili per teleriscaldamento / processo.",
         )
+    if IS_DM2018:
+        detail_col_cfg["Annex IX"] = st.column_config.TextColumn(
+            "All. IX", disabled=True,
+            help="Classificazione Annex IX RED II/III. Parte A = "
+                 "letame, FORSU, sottoprodotti agroindustriali, paglia. "
+                 "Parte B = oli/grassi (UCO, scarti macellazione cat. 3). "
+                 "Solo le matrici Annex IX qualificano per double counting "
+                 "CIC quando l'impianto e' classificato «avanzato».",
+        )
+        if cic_active:
+            detail_col_cfg["CIC/anno"] = st.column_config.TextColumn(
+                "CIC/anno 🧮", disabled=True,
+                help=(f"Numero CIC generati = MWh / "
+                      f"{fmt_it(MWH_PER_CIC if not cic_double else MWH_PER_CIC/2, 2)}"
+                      f" MWh per CIC"
+                      + (" (×2 double counting avanzato)" if cic_double else "")),
+            )
 
     edited_detail = st.data_editor(
         df_detail,
@@ -2793,32 +3159,45 @@ with tab4:
         key=f"editor_revenue_detail_{APP_MODE}",
     )
 
-    # Se l'utente ha modificato una tariffa -> salva e rerun (parse_it per IT)
+    # Se l'utente ha modificato una tariffa -> salva e rerun.
     # Clamp: tariffe negative non hanno senso fisico -> >=0.
-    new_tariffs = {
-        row["Biomassa"]: max(parse_it(row[f"Tariffa {_tar_unit}"]), 0.0)
-        for _, row in edited_detail.iterrows()
-    }
-    if new_tariffs != st.session_state[_tar_key]:
-        st.session_state[_tar_key] = new_tariffs
-        st.rerun()
+    # NB: in regime CIC le tariffe non sono editabili (cic_price unico in sidebar).
+    if not cic_active:
+        _tar_col = f"Tariffa {_tar_unit}"
+        new_tariffs = {
+            row["Biomassa"]: max(parse_it(row[_tar_col]), 0.0)
+            for _, row in edited_detail.iterrows()
+        }
+        if new_tariffs != st.session_state[_tar_key]:
+            st.session_state[_tar_key] = new_tariffs
+            st.rerun()
 
-    # Totali ricavi
+    # ============================================================
+    # TOTALI RICAVI (mode-aware)
+    # ============================================================
     tot_mwh = sum(annual_mwh.values())
-    # Base MWh su cui si calcola la tariffa: biometano -> MWh netti (immissione);
-    # CHP -> MWh elettrici netti immessi in rete (lordo × (1 − aux%)).
+    # Base MWh su cui si calcola la tariffa:
+    #  - biometano DM 2022 / DM 2018 altri usi -> MWh netti
+    #  - CHP -> MWh elettrici netti rete (lordo × (1 − aux%))
+    #  - DM 2018 CIC -> n_CIC × cic_price (gia' aggregato in tot_n_cic)
     if IS_CHP:
         _chp_factor = eta_el * (1.0 - aux_el_pct)
     else:
         _chp_factor = 1.0
     tot_revenue_base_mwh = tot_mwh * _chp_factor
-    tot_revenue = sum(
-        annual_mwh[n] * _chp_factor * st.session_state[_tar_key][n]
-        for n in active_feeds
-    )
-    tariffa_media_ponderata = (
-        (tot_revenue / tot_revenue_base_mwh) if tot_revenue_base_mwh > 0 else 0.0
-    )
+    if cic_active:
+        tot_revenue = tot_n_cic * cic_price
+        tariffa_media_ponderata = (
+            (tot_revenue / tot_mwh) if tot_mwh > 0 else 0.0
+        )  # equivalente €/MWh per confronto cross-mode
+    else:
+        tot_revenue = sum(
+            annual_mwh[n] * _chp_factor * st.session_state[_tar_key][n]
+            for n in active_feeds
+        )
+        tariffa_media_ponderata = (
+            (tot_revenue / tot_revenue_base_mwh) if tot_revenue_base_mwh > 0 else 0.0
+        )
     if IS_CHP:
         tot_mwh_el_lordo = tot_mwh * eta_el
         tot_mwh_el_netto = tot_mwh_el_lordo * (1.0 - aux_el_pct)
@@ -2842,6 +3221,32 @@ with tab4:
             f"(è l'energia realmente immessa in rete e fatturata al GSE). "
             f"Il calore può generare ricavi aggiuntivi (teleriscaldamento, "
             f"processo, essiccazione digestato) non inclusi qui."
+        )
+    elif cic_active:
+        cA, cB, cC, cD = st.columns(4)
+        cA.metric("MWh netti totali/anno", fmt_it(tot_mwh, 0))
+        cB.metric("CIC/anno",
+                  fmt_it(tot_n_cic, 1),
+                  delta=("AVANZATO ×2" if cic_double else "non avanzato"),
+                  delta_color="normal" if cic_double else "off")
+        cC.metric("Quota Annex IX (massa)",
+                  fmt_it(annex_mass_share*100, 1, "%"),
+                  delta=f"soglia {fmt_it(annex_threshold*100, 0, '%')}",
+                  delta_color="normal" if is_advanced else "inverse")
+        cD.metric("💰 Ricavi CIC/anno", fmt_it(tot_revenue, 0, " €"),
+                  delta=f"≈ {fmt_it(tariffa_media_ponderata, 1)} €/MWh equiv.")
+        st.caption(
+            f"📐 **Calcolo DM 2018 CIC**: 1 CIC = "
+            f"{fmt_it(MWH_PER_CIC, 2)} MWh "
+            f"({fmt_it(GCAL_PER_CIC, 0)} Gcal). "
+            + (f"**Double counting AVANZATO** → 1 CIC ogni "
+               f"{fmt_it(MWH_PER_CIC/2, 2)} MWh "
+               f"({fmt_it(GCAL_PER_CIC/2, 0)} Gcal). "
+               if cic_double else
+               "Non avanzato → single counting. ")
+            + f"**Ricavi = N_CIC × {fmt_it(cic_price, 0)} €/CIC**. "
+            f"NB: per certificazione GSE serve dichiarazione di sostenibilità "
+            f"con tracciabilità feedstock per ogni periodo di rendicontazione."
         )
     else:
         cA, cB, cC = st.columns(3)
@@ -2885,6 +3290,8 @@ with _dl_col2:
     _pdf_ctx = {
         "df_res": df_res,
         "IS_CHP": IS_CHP,
+        "IS_DM2018": IS_DM2018,
+        "IS_DM2022": IS_DM2022,
         "APP_MODE": APP_MODE,
         "plant_kwe": plant_kwe,
         "plant_kwe_net": plant_kwe_net,
@@ -2900,6 +3307,17 @@ with _dl_col2:
         "upgrading_opt": upgrading_opt,
         "offgas_opt": offgas_opt,
         "injection_opt": injection_opt,
+        # DM 2018 specifics
+        "is_advanced": is_advanced,
+        "cic_active": cic_active,
+        "cic_double": cic_double,
+        "cic_price": cic_price,
+        "annex_mass_share": annex_mass_share,
+        "annex_threshold": annex_threshold,
+        "tot_n_cic": tot_n_cic,
+        "MWH_PER_CIC": MWH_PER_CIC,
+        "GCAL_PER_CIC": GCAL_PER_CIC,
+        # Aggregati comuni
         "tot_biomasse_t": float(df_res["Totale biomasse (t)"].sum()),
         "tot_sm3_netti": float(df_res["Sm³ netti"].sum()),
         "tot_mwh_netti": float(df_res["MWh netti"].sum()),

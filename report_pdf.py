@@ -266,9 +266,15 @@ def _build_cover(ctx, styles):
     ))
     flow.append(Spacer(1, 18 * mm))
 
-    # Info table
-    mode_label = ("Biogas — Cogenerazione (CHP)"
-                  if ctx["IS_CHP"] else "Biometano — Upgrading e immissione")
+    # Info table — mode-aware
+    if ctx["IS_CHP"]:
+        mode_label = "Biogas — Cogenerazione (CHP) · DM 6/7/2012"
+    elif ctx.get("IS_DM2018"):
+        adv = ("AVANZATO · double counting CIC"
+               if ctx.get("is_advanced") else "non avanzato · single counting")
+        mode_label = f"Biometano — DM 2/3/2018 · {adv}"
+    else:
+        mode_label = "Biometano — DM 15/9/2022 · tariffa diretta €/MWh"
     info_rows = [
         ["Modalità", mode_label],
         ["Periodo analizzato", "12 mesi · pianificazione annuale"],
@@ -277,6 +283,14 @@ def _build_cover(ctx, styles):
          f"(comparator {_fmt_it(ctx['fossil_comparator'], 0)} gCO₂/MJ)"],
         ["Generato il", ctx["report_date_full"]],
     ]
+    if ctx.get("IS_DM2018") and ctx.get("cic_active"):
+        info_rows.insert(2, [
+            "Sistema CIC",
+            f"{_fmt_it(ctx['MWH_PER_CIC'], 2)} MWh/CIC"
+            + (f" · ×2 (avanzato → 1 CIC ogni "
+               f"{_fmt_it(ctx['MWH_PER_CIC']/2, 2)} MWh)"
+               if ctx.get("cic_double") else " · single counting"),
+        ])
     info_tbl = Table(info_rows, colWidths=[42 * mm, CONTENT_W - 42 * mm])
     info_tbl.setStyle(TableStyle([
         ("FONTNAME", (0, 0), (0, -1), "Courier-Bold"),
@@ -321,7 +335,9 @@ def _build_executive_summary(ctx, styles):
     flow.append(Paragraph("Sintesi annuale", s["h2"]))
     flow.append(Spacer(1, 4 * mm))
 
-    # 4 KPI in row
+    # 4 KPI in row — mode-aware
+    saving_accent = (EMERALD if ctx["saving_avg"] >= ctx["ghg_threshold"]*100
+                     else RED)
     if ctx["IS_CHP"]:
         kpi1 = _kpi_tile("Biomasse",
                          _fmt_it(ctx["tot_biomasse_t"], 0),
@@ -332,25 +348,40 @@ def _build_executive_summary(ctx, styles):
         kpi3 = _kpi_tile("Saving GHG medio",
                          _fmt_it(ctx["saving_avg"], 1, "%"),
                          f"≥ {_fmt_it(ctx['ghg_threshold']*100, 0, '%')} RED III",
-                         styles=s,
-                         accent=EMERALD if ctx["saving_avg"] >= ctx["ghg_threshold"]*100 else RED)
+                         styles=s, accent=saving_accent)
         kpi4 = _kpi_tile("Ricavi elettrici",
                          _fmt_it(ctx["tot_revenue"]/1000, 0),
                          "k€/anno", styles=s)
-    else:
+    elif ctx.get("IS_DM2018") and ctx.get("cic_active"):
         kpi1 = _kpi_tile("Biomasse",
                          _fmt_it(ctx["tot_biomasse_t"], 0),
                          "t/anno (FM)", styles=s)
         kpi2 = _kpi_tile("Biometano netto",
                          _fmt_it(ctx["tot_sm3_netti"]/1000, 0),
                          "k Sm³/anno · "
-                         f"{_fmt_it(ctx['tot_mwh_netti'], 0)} MWh",
-                         styles=s)
+                         f"{_fmt_it(ctx['tot_mwh_netti'], 0)} MWh", styles=s)
+        kpi3 = _kpi_tile("CIC/anno",
+                         _fmt_it(ctx["tot_n_cic"], 1),
+                         ("AVANZATO ×2" if ctx.get("cic_double")
+                          else "single counting"),
+                         styles=s,
+                         accent=AMBER if ctx.get("cic_double") else SLATE_500)
+        kpi4 = _kpi_tile("Ricavi CIC",
+                         _fmt_it(ctx["tot_revenue"]/1000, 0),
+                         "k€/anno", styles=s)
+    else:
+        # DM 2022 o DM 2018 altri usi
+        kpi1 = _kpi_tile("Biomasse",
+                         _fmt_it(ctx["tot_biomasse_t"], 0),
+                         "t/anno (FM)", styles=s)
+        kpi2 = _kpi_tile("Biometano netto",
+                         _fmt_it(ctx["tot_sm3_netti"]/1000, 0),
+                         "k Sm³/anno · "
+                         f"{_fmt_it(ctx['tot_mwh_netti'], 0)} MWh", styles=s)
         kpi3 = _kpi_tile("Saving GHG medio",
                          _fmt_it(ctx["saving_avg"], 1, "%"),
                          f"≥ {_fmt_it(ctx['ghg_threshold']*100, 0, '%')} RED III",
-                         styles=s,
-                         accent=EMERALD if ctx["saving_avg"] >= ctx["ghg_threshold"]*100 else RED)
+                         styles=s, accent=saving_accent)
         kpi4 = _kpi_tile("Ricavi",
                          _fmt_it(ctx["tot_revenue"]/1000, 0),
                          "k€/anno", styles=s)
@@ -395,9 +426,24 @@ def _build_executive_summary(ctx, styles):
     else:
         bullets.append(
             f"• Taglia netta autorizzata: <b>{_fmt_it(ctx['plant_net_smch'], 0)} "
-            f"Sm³/h</b> · fattore aux <b>{_fmt_it(ctx['aux_factor'], 2)}</b> · "
-            f"tariffa media ponderata "
-            f"<b>{_fmt_it(ctx['tariffa_media_ponderata'], 2, ' €/MWh')}</b>."
+            f"Sm³/h</b> · fattore aux <b>{_fmt_it(ctx['aux_factor'], 2)}</b>"
+            + ("." if ctx.get("IS_DM2018") and ctx.get("cic_active") else
+               f" · tariffa media ponderata "
+               f"<b>{_fmt_it(ctx['tariffa_media_ponderata'], 2, ' €/MWh')}</b>.")
+        )
+    if ctx.get("IS_DM2018"):
+        adv_color = "#10B981" if ctx.get("is_advanced") else "#DC2626"
+        adv_label = "AVANZATO" if ctx.get("is_advanced") else "NON AVANZATO"
+        bullets.append(
+            f"• <b>DM 2018</b>: matrice Annex IX in massa "
+            f"<b>{_fmt_it(ctx['annex_mass_share']*100, 1, '%')}</b> "
+            f"(soglia {_fmt_it(ctx['annex_threshold']*100, 0, '%')}) → "
+            f"impianto <font color='{adv_color}'><b>{adv_label}</b></font>. "
+            + (f"CIC generati/anno: <b>{_fmt_it(ctx['tot_n_cic'], 1)}</b> "
+               f"al prezzo di {_fmt_it(ctx['cic_price'], 0)} €/CIC = "
+               f"<b>{_fmt_it(ctx['tot_revenue']/1000, 0)} k€</b>."
+               if ctx.get("cic_active") else
+               "Sistema tariffa diretta €/MWh (CIC non applicabile per uso finale).")
         )
     bullets.append(
         f"• Configurazione impiantistica: ep totale "
@@ -456,10 +502,12 @@ def _build_plant_config(ctx, styles):
              "= kW_el lordi / (η_el × 9,97)"],
         ])
     else:
+        regime_label = (
+            "Biometano DM 2/3/2018 — sistema CIC" if ctx.get("IS_DM2018")
+            else "Biometano DM 15/9/2022 — tariffa diretta €/MWh"
+        )
         rows.extend([
-            ["Tipologia",
-             "Biometano (upgrading + immissione rete)",
-             ""],
+            ["Tipologia", regime_label, ""],
             ["Taglia netta autorizzata",
              f"{_fmt_it(ctx['plant_net_smch'], 0)} Sm³/h",
              "Tetto autorizzativo immissione"],
@@ -483,6 +531,35 @@ def _build_plant_config(ctx, styles):
          f"{_fmt_it(ctx['ghg_threshold']*100, 0, '%')} · "
          f"comparator {_fmt_it(ctx['fossil_comparator'], 0)} gCO₂/MJ"],
     ])
+    # Riga DM 2018 specifica
+    if ctx.get("IS_DM2018"):
+        adv_text = (
+            f"AVANZATO (Annex IX in massa "
+            f"{_fmt_it(ctx['annex_mass_share']*100, 1, '%')}, "
+            f"soglia {_fmt_it(ctx['annex_threshold']*100, 0, '%')})"
+            if ctx.get("is_advanced") else
+            f"NON avanzato (Annex IX in massa "
+            f"{_fmt_it(ctx['annex_mass_share']*100, 1, '%')} "
+            f"sotto soglia {_fmt_it(ctx['annex_threshold']*100, 0, '%')})"
+        )
+        rows.append(["Classificazione DM 2018", adv_text,
+                     "Determina double counting CIC"])
+        if ctx.get("cic_active"):
+            cic_eq = (
+                ctx["MWH_PER_CIC"] / 2.0 if ctx.get("cic_double")
+                else ctx["MWH_PER_CIC"]
+            )
+            rows.append([
+                "Conversione CIC",
+                f"1 CIC = {_fmt_it(cic_eq, 2)} MWh"
+                + (" (×2 avanzato)" if ctx.get("cic_double") else ""),
+                f"Prezzo CIC: {_fmt_it(ctx['cic_price'], 0)} €/CIC",
+            ])
+            rows.append([
+                "CIC generati/anno",
+                _fmt_it(ctx["tot_n_cic"], 1),
+                "Base ricavi DM 2018 (×prezzo CIC)",
+            ])
     cfg_tbl = Table(rows, colWidths=[60 * mm, 50 * mm, CONTENT_W - 110 * mm])
     cfg_tbl.setStyle(TableStyle([
         # Header
@@ -612,32 +689,62 @@ def _build_revenue(ctx, styles):
     flow.append(Paragraph("Mix biomasse e analisi ricavi", s["h2"]))
     flow.append(Spacer(1, 3 * mm))
 
-    tar_unit = "€/MWh_el" if ctx["IS_CHP"] else "€/MWh"
-    headers = ["Biomassa", "t/anno", "Resa", "MWh netti",
-               f"Tariffa ({tar_unit})", "Ricavi €/anno", "Quota %"]
-    data = [headers]
-    for n, r in ctx["revenue_rows"]:
+    cic_active = bool(ctx.get("cic_active"))
+    if cic_active:
+        # In regime CIC: tariffa unica, aggiungo colonna All. IX e CIC/anno
+        headers = ["Biomassa", "All. IX", "t/anno", "MWh netti",
+                   "CIC/anno", "Ricavi €/anno", "Quota %"]
+        data = [headers]
+        for n, r in ctx["revenue_rows"]:
+            aix = r.get("annex_ix")
+            aix_label = ("A" if aix == "A" else
+                         "B" if aix == "B" else
+                         "—")
+            data.append([
+                n,
+                aix_label,
+                _fmt_it(r["t_anno"], 0),
+                _fmt_it(r["mwh_basis"], 1),
+                _fmt_it(r.get("n_cic", 0.0), 2),
+                _fmt_it(r["ricavi"], 0, " €"),
+                _fmt_it(r["quota"], 1, "%"),
+            ])
         data.append([
-            n,
-            _fmt_it(r["t_anno"], 0),
-            _fmt_it(r["yield"], 0),
-            _fmt_it(r["mwh_basis"], 1),
-            _fmt_it(r["tariffa"], 2),
-            _fmt_it(r["ricavi"], 0, " €"),
-            _fmt_it(r["quota"], 1, "%"),
+            "TOTALE",
+            f"{_fmt_it(ctx['annex_mass_share']*100, 1, '%')} mass",
+            _fmt_it(ctx["tot_biomasse_t"], 0),
+            _fmt_it(ctx["tot_mwh_basis"], 0),
+            _fmt_it(ctx.get("tot_n_cic", 0.0), 1),
+            _fmt_it(ctx["tot_revenue"], 0, " €"),
+            "100,0%",
         ])
-    # Totals
-    data.append([
-        "TOTALE",
-        _fmt_it(ctx["tot_biomasse_t"], 0),
-        "—",
-        _fmt_it(ctx["tot_mwh_basis"], 0),
-        _fmt_it(ctx["tariffa_media_ponderata"], 2),
-        _fmt_it(ctx["tot_revenue"], 0, " €"),
-        "100,0%",
-    ])
-
-    col_w_rel = [40, 18, 14, 20, 22, 28, 14]
+        col_w_rel = [38, 12, 14, 18, 14, 28, 12]
+    else:
+        tar_unit = "€/MWh_el" if ctx["IS_CHP"] else "€/MWh"
+        headers = ["Biomassa", "t/anno", "Resa", "MWh netti",
+                   f"Tariffa ({tar_unit})", "Ricavi €/anno", "Quota %"]
+        data = [headers]
+        for n, r in ctx["revenue_rows"]:
+            data.append([
+                n,
+                _fmt_it(r["t_anno"], 0),
+                _fmt_it(r["yield"], 0),
+                _fmt_it(r["mwh_basis"], 1),
+                _fmt_it(r["tariffa"], 2),
+                _fmt_it(r["ricavi"], 0, " €"),
+                _fmt_it(r["quota"], 1, "%"),
+            ])
+        # Totals
+        data.append([
+            "TOTALE",
+            _fmt_it(ctx["tot_biomasse_t"], 0),
+            "—",
+            _fmt_it(ctx["tot_mwh_basis"], 0),
+            _fmt_it(ctx["tariffa_media_ponderata"], 2),
+            _fmt_it(ctx["tot_revenue"], 0, " €"),
+            "100,0%",
+        ])
+        col_w_rel = [40, 18, 14, 20, 22, 28, 14]
     total_rel = sum(col_w_rel)
     col_w = [w / total_rel * CONTENT_W for w in col_w_rel]
     rev_tbl = Table(data, colWidths=col_w, repeatRows=1)
@@ -685,6 +792,24 @@ def _build_revenue(ctx, styles):
             f"I ricavi termici da recupero calore "
             f"({_fmt_it(ctx['eta_th']*100, 0, '%')}) non sono inclusi."
         )
+    elif ctx.get("IS_DM2018") and cic_active:
+        cic_eq = (ctx["MWH_PER_CIC"] / 2.0 if ctx.get("cic_double")
+                  else ctx["MWH_PER_CIC"])
+        rev_caption = (
+            f"<b>Calcolo DM 2018 · Sistema CIC</b> · 1 CIC = "
+            f"{_fmt_it(ctx['MWH_PER_CIC'], 2)} MWh "
+            f"({_fmt_it(ctx['GCAL_PER_CIC'], 0)} Gcal). "
+            + (f"Impianto AVANZATO (≥{_fmt_it(ctx['annex_threshold']*100, 0, '%')} "
+               f"matrice Annex IX in massa) → <b>double counting</b>: "
+               f"1 CIC ogni {_fmt_it(cic_eq, 2)} MWh. "
+               if ctx.get("cic_double") else
+               "Impianto NON avanzato → single counting: 1 CIC ogni "
+               f"{_fmt_it(cic_eq, 2)} MWh. ")
+            + f"Ricavi = N_CIC × <b>{_fmt_it(ctx['cic_price'], 0)} €/CIC</b>. "
+            f"Per la certificazione GSE è richiesta la dichiarazione di "
+            f"sostenibilità con tracciabilità delle matrici per ogni "
+            f"periodo di rendicontazione (D.Lgs. 199/2021)."
+        )
     else:
         rev_caption = (
             f"<b>Calcolo</b> · MWh netti = t × resa Nm³/t ÷ "
@@ -705,24 +830,44 @@ def _build_methodology(ctx, styles):
     flow.append(Spacer(1, 3 * mm))
 
     items = [
+        ("RED II · Direttiva (UE) 2018/2001",
+         "Allegato IX (parte A: bio-waste, manure, sewage sludge, "
+         "scarti agroindustriali, paglia, husks, cobs; parte B: UCO e "
+         "grassi animali). Le matrici Annex IX qualificano per il "
+         "DOUBLE COUNTING dei CIC nel sistema DM 2018. Soglia saving "
+         "trasporti: 50% pre-2021, 65% post."),
         ("RED III · Direttiva (UE) 2023/2413",
-         "Annex V (biocarburanti/biometano) e Annex VI (biomassa per "
-         "elettricità/calore). Soglie saving GHG: 80% biometano nuovi "
-         "≥ 20/11/2023, 65% biocarburanti trasporti, 80% elettricità "
-         "CHP. Comparator fossile: 80 gCO₂/MJ (rete/calore), 94 "
-         "(trasporti), 183 (elettricità EU mix)."),
-        ("D.Lgs. 5 marzo 2026 (recepimento RED III)",
-         "Disposizioni nazionali sui criteri di sostenibilità per "
-         "biomasse, biogas e biometano. Schemi di certificazione GSE."),
+         "Aggiornamento RED II. Annex V (biocarburanti/biometano) e "
+         "Annex VI (biomassa per elettricità/calore). Soglie saving GHG: "
+         "80% biometano nuovi ≥ 20/11/2023, 65% biocarburanti trasporti, "
+         "80% elettricità CHP. Comparator fossile: 80 gCO₂/MJ "
+         "(rete/calore), 94 (trasporti), 183 (elettricità EU mix)."),
+        ("D.Lgs. 199/2021 + D.Lgs. 5 marzo 2026",
+         "Recepimento RED II e RED III. Disposizioni nazionali sui "
+         "criteri di sostenibilità per biomasse, biogas e biometano. "
+         "Schemi di certificazione GSE (ISCC, REDcert, 2BSvs)."),
+        ("DM 2 marzo 2018 — Decreto Biometano",
+         "Sistema CIC (Certificati Immissione in Consumo) per il "
+         "biometano destinato ai trasporti. 1 CIC = 10 Gcal (≈ 11,63 MWh). "
+         "Biometano AVANZATO da matrici Annex IX RED II → double counting "
+         "(1 CIC ogni 5 Gcal). Valore CIC ritirato da GSE: ~375 €/CIC base. "
+         "Periodo di incentivazione: 10 anni dall'avvio."),
+        ("DM 15 settembre 2022",
+         "Aggiornamento e prosecuzione del sistema biometano post-2018. "
+         "Tariffa diretta €/MWh per altri usi (rete/calore) e per "
+         "impianti che non rientrano nel sistema CIC. Premi per "
+         "tecnologia upgrading e per matrice."),
         ("GSE Linee Guida 2024 — Biometano",
          "Riconoscimento crediti gestione liquami (manure credit "
          "−45 gCO₂/MJ in eec). Stoccaggio digestato chiuso con "
-         "recupero gas = 0 gCO₂/MJ."),
+         "recupero gas = 0 gCO₂/MJ. Valutazione status «avanzato» "
+         "su base massa di matrici Annex IX (≥70% interpretazione "
+         "operativa GSE; 100% per evitare contestazioni)."),
         ("UNI/TS 11567:2024",
          "Resa specifica biogas/biometano per categoria di matrice. "
          "Database alimentato anche da JEC WTT v5 e parametri "
          "operativi Consorzio Italiano Biogas."),
-        ("DM 6 luglio 2012 (per biogas CHP)",
+        ("DM 6 luglio 2012 (biogas CHP)",
          "Tariffa Omnicomprensiva biogas agricolo ≤ 1 MW. "
          "Premio CAR (PES > 10%) e premio matrice sottoprodotti "
          "applicati alla TO base."),
