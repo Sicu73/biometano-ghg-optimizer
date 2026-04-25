@@ -22,6 +22,8 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
+from report_pdf import build_metaniq_pdf
+
 
 # ============================================================
 # FORMATO ITALIANO: punto = migliaia, virgola = decimali
@@ -2699,6 +2701,7 @@ with tab4:
             st.session_state[_tar_key][n] = _tar_default
 
     detail_rows = []
+    pdf_revenue_rows = []  # raw numerics per il report PDF
     for n in active_feeds:
         t = annual_t[n]
         nm3_lordi = t * FEEDSTOCK_DB[n]["yield"]
@@ -2718,6 +2721,15 @@ with tab4:
         ricavi = mwh_revenue * tariffa
         quota = ((mwh_netti / sum(annual_mwh.values()) * 100)
                  if sum(annual_mwh.values()) > 0 else 0)
+        pdf_revenue_rows.append((n, {
+            "t_anno": t,
+            "yield": FEEDSTOCK_DB[n]["yield"],
+            "mwh_netti": mwh_netti,
+            "mwh_basis": mwh_revenue,  # base ricavi (netto rete CHP / netto biometano)
+            "tariffa": tariffa,
+            "ricavi": ricavi,
+            "quota": quota,
+        }))
         row_detail = {
             "Biomassa": n,
             "t/anno (FM)":     fmt_it(t, 0),
@@ -2846,13 +2858,86 @@ with tab4:
 
 # ------------------------- DOWNLOAD -------------------------
 st.divider()
-csv = df_res.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig")
-st.download_button(
-    "⬇️ Scarica risultati (CSV)",
-    data=csv,
-    file_name="biomethane_monthly_plan.csv",
-    mime="text/csv",
+st.markdown(
+    f"<div style='font-family:\"JetBrains Mono\", monospace; font-size:0.7rem; "
+    f"font-weight:600; letter-spacing:1.5px; text-transform:uppercase; "
+    f"color:{TEXT_MUTED}; margin-bottom:10px;'>// EXPORT</div>",
+    unsafe_allow_html=True,
 )
+
+_dl_col1, _dl_col2, _dl_col3 = st.columns([1, 1, 2])
+
+with _dl_col1:
+    csv = df_res.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig")
+    st.download_button(
+        "⬇️ Scarica CSV",
+        data=csv,
+        file_name=f"metaniq_{APP_MODE}_plan.csv",
+        mime="text/csv",
+        use_container_width=True,
+        help="Risultati mensili completi in formato CSV (separatore «;», "
+             "virgola decimale italiana, encoding UTF-8 con BOM per Excel).",
+    )
+
+with _dl_col2:
+    # Costruisce contesto e genera PDF on-demand (solo al click).
+    # ReportLab pure Python -> nessuna dipendenza di sistema.
+    _pdf_ctx = {
+        "df_res": df_res,
+        "IS_CHP": IS_CHP,
+        "APP_MODE": APP_MODE,
+        "plant_kwe": plant_kwe,
+        "plant_kwe_net": plant_kwe_net,
+        "plant_net_smch": plant_net_smch,
+        "eta_el": eta_el,
+        "eta_th": eta_th,
+        "aux_el_pct": aux_el_pct,
+        "aux_factor": aux_factor,
+        "ep_total": ep_total,
+        "end_use": end_use,
+        "ghg_threshold": ghg_threshold,
+        "fossil_comparator": FOSSIL_COMPARATOR,
+        "upgrading_opt": upgrading_opt,
+        "offgas_opt": offgas_opt,
+        "injection_opt": injection_opt,
+        "tot_biomasse_t": float(df_res["Totale biomasse (t)"].sum()),
+        "tot_sm3_netti": float(df_res["Sm³ netti"].sum()),
+        "tot_mwh_netti": float(df_res["MWh netti"].sum()),
+        "tot_mwh_el_lordo": float(df_res["MWh elettrici lordi"].sum())
+                             if IS_CHP and "MWh elettrici lordi" in df_res
+                             else 0.0,
+        "tot_mwh_el_netto": float(df_res["MWh elettrici netti"].sum())
+                             if IS_CHP and "MWh elettrici netti" in df_res
+                             else 0.0,
+        "saving_avg": float(df_res["Saving %"].mean()),
+        "valid_months": int(df_res["Validità"].str.startswith("✅").sum()),
+        "tot_revenue": float(tot_revenue),
+        "tot_mwh_basis": float(tot_revenue_base_mwh),
+        "tariffa_media_ponderata": float(tariffa_media_ponderata),
+        "revenue_rows": pdf_revenue_rows,
+    }
+    try:
+        _pdf_buf = build_metaniq_pdf(_pdf_ctx)
+        _pdf_data = _pdf_buf.getvalue()
+        _pdf_ok = True
+    except Exception as _exc:  # noqa: BLE001
+        _pdf_data = None
+        _pdf_ok = False
+        _pdf_err = str(_exc)
+    if _pdf_ok:
+        st.download_button(
+            "📄 Scarica Report PDF",
+            data=_pdf_data,
+            file_name=f"metaniq_{APP_MODE}_report.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+            type="primary",
+            help="Report PDF consulting-grade: cover, executive summary, "
+                 "configurazione impianto, pianificazione mensile, "
+                 "analisi ricavi, riferimenti normativi.",
+        )
+    else:
+        st.error(f"Errore generazione PDF: {_pdf_err}")
 
 st.caption(
     "ℹ️ Database feedstock: letteratura tecnica / UNI/TS 11567:2024 / parametri "
