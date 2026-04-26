@@ -2901,8 +2901,16 @@ MODE_SINGLE = f"{N_active-1} biomasse fisse + 1 calcolata  (solo produzione)"
 # --- Applica eventuali risultati ottimizzazione PRIMA di creare i widget ---
 # (Streamlit non consente di modificare session_state di una chiave-widget
 # dopo che qualunque widget e' stato renderizzato nello stesso run.)
+#
+# BUG-FIX: la state_key del renderer (line ~3170) include _active_hash
+# (per evitare contaminazioni cross-config). Qui dobbiamo usare lo
+# STESSO formato di chiave, altrimenti la "fixed-at-zero" iniettata
+# dall'optimizer viene salvata sotto una chiave che il renderer non
+# legge (e quindi sovrascritta dai default _default_mass).
 _pending_opt = st.session_state.pop("_pending_optimization", None)
 if _pending_opt is not None:
+    # Hash chiave config attiva (deve combaciare con line ~3170).
+    _opt_active_hash = str(hash(tuple(sorted(active_feeds))))[:8]
     if _pending_opt.get("is_mono"):
         # Caso mono: 1 sola biomassa attiva -> (N-1)+1 con la mono come
         # incognita calcolata e le altre (N-1) fisse a 0 (per ogni mese).
@@ -2910,7 +2918,9 @@ if _pending_opt is not None:
         others = [n for n in active_feeds if n != mono]
         st.session_state["mode_radio"] = MODE_SINGLE
         st.session_state["single_unknown_select"] = mono
-        new_state_key = f"mens_in_single_{'-'.join(others)}"
+        new_state_key = (
+            f"mens_in_single_{_opt_active_hash}_{'-'.join(others)}"
+        )
         rows_init = []
         for mm, hh in zip(MONTHS, MONTH_HOURS):
             r = {"Mese": mm, "Ore": hh}
@@ -2923,7 +2933,10 @@ if _pending_opt is not None:
         # come "fisse a 0".
         st.session_state["mode_radio"] = MODE_DUAL
         st.session_state["fixed_multiselect"] = list(_pending_opt["unused"])
-        new_state_key = f"mens_in_dual_{'-'.join(_pending_opt['unused'])}"
+        new_state_key = (
+            f"mens_in_dual_{_opt_active_hash}_"
+            f"{'-'.join(_pending_opt['unused'])}"
+        )
         rows_init = []
         for mm, hh in zip(MONTHS, MONTH_HOURS):
             r = {"Mese": mm, "Ore": hh}
