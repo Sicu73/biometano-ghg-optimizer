@@ -272,6 +272,292 @@ FER2_PERIODO_ANNI             = 20       # durata incentivo (anni)
 FER2_GHG_THRESHOLD            = 0.80     # RED III electricity
 
 # ============================================================
+# BUSINESS PLAN — DEFAULTS BENCHMARK (DM 2022 biometano)
+# ============================================================
+# Default derivati dal BP "Valtidone Biometano" (16/05/2024) e
+# adeguati 2026 con inflazione ISTAT 2024-2026 (~5% cumulato), tassi
+# finanziamento aggiornati (BCE in calo) e prezzi materiali/manodopera.
+#
+# CAPEX intensity: €/(Smc/h) - normalizzazione su taglia 250 Smc/h.
+# OPEX intensity: €/anno per (Smc/h) - normalizzazione lineare.
+#
+# Riferimento: BP Valtidone Biometano Soc. Agr. Cons. a R.L., 250 Smc/h,
+# CAPEX €10,35M, OPEX €477k/anno, tariffa GSE 124,48 €/MWh - 1% ribasso.
+# ============================================================
+BP_CAPEX_DEFAULTS_PER_SMCH = {
+    # Macrovoci principali (€/(Smc/h)). Da Valtidone, ricalibrato +5% al 2026.
+    "Movimenti terra":        3105.0,   # 739k/250 * 1.05 = 3105
+    "Opere civili":          10428.0,   # 2.483k/250 * 1.05 = 10428
+    "Impianto tecnologico":  15960.0,   # 3.800k/250 * 1.05 = 15960
+    "Sezione upgrading":      9870.0,   # 2.350k/250 * 1.05 = 9870
+    "Varie (antincendio, ill., recinzione, uffici)": 1777.0,  # 423k/250 * 1.05
+}
+# Voci forfait (non scalano linearmente con la taglia)
+BP_CAPEX_FORFAIT_DEFAULTS = {
+    "Connessione ENEL":          92000.0,
+    "Connessione SNAM":               0.0,   # spesso caparra non onere
+    "Acquisto terreno":         262000.0,
+    "Progettazione e autorizzazioni": 65000.0,
+    "Direzione lavori / CSE":    34000.0,
+    "Altre spese":              105000.0,    # +5% vs 2024
+}
+BP_OPEX_DEFAULTS_PER_SMCH_YEAR = {
+    "O&M digestione anaerobica":   210.0,    # 50k/250 * 1.05 = 210
+    "O&M upgrading":               428.0,    # 102k/250 * 1.05 = 428
+    "Service BMH":                 126.0,    # 30k/250 * 1.05 = 126
+    "Gestore d'impianto":          630.0,    # 150k/250 * 1.05 = 630
+    "Service amministrativo":       63.0,    # 15k/250 * 1.05
+    "Service gestionale":          147.0,    # 35k/250 * 1.05
+    "Adempimenti comune":          126.0,    # 30k/250 * 1.05
+    "Energia elettrica":            13.0,    # 3k/250 * 1.05
+    "Certificazioni / analisi":     34.0,    # 8k/250 * 1.05
+    "Varie operative":              63.0,    # 15k/250 * 1.05
+}
+BP_OPEX_FORFAIT_DEFAULTS = {
+    "Assicurazioni":   26000.0,
+    "Tasse fisse":     10000.0,
+}
+
+# Schema finanziario — default BP Valtidone aggiornati al 2026
+BP_FINANCE_DEFAULTS = {
+    # Anticipo contributo PNRR (rimborsato anno 1)
+    "anticipo_tasso":        5.0,    # % annuo
+    "anticipo_durata":       1,      # anni
+    # Finanziamento bancario lungo termine
+    "lt_tasso":              4.0,    # % annuo (era 4,5 nel 2024, ora ~4)
+    "lt_durata":             15,     # anni
+    "lt_leva":               80.0,   # % CAPEX netto
+    # Equity / soci
+    "equity_tasso":          4.0,    # % annuo
+    "equity_durata":         15,     # anni
+    # Capitale circolante
+    "tempo_incasso_gg":      60,     # gg fatturazione GSE
+    "tempo_pagam_biomassa":  365,    # gg pagamento biomasse (consorzio agricolo)
+    "tempo_pagam_altri":     60,     # gg altri pagamenti
+}
+
+# Tariffa biometano DM 2022 (aggiornamento 2026)
+BP_TARIFFA_BASE_2026          = 131.0    # €/MWh (124,48 base 2024 + ISTAT)
+BP_RIBASSO_DEFAULT_PCT        = 1.0      # % ribasso d'asta tipico (0-30%)
+BP_DURATA_TARIFFA_ANNI        = 15       # DM 2022
+BP_INFLAZIONE_DEFAULT_PCT     = 2.5      # % annua per OPEX
+BP_AMMORTAMENTO_ANNI          = 22       # impianti biometano (10% media DLgs 38/2018)
+BP_TAX_RATE_PCT               = 24.0     # IRES (no IRAP qui per semplicita')
+BP_PNRR_QUOTA_PCT_DEFAULT     = 40.0     # % contributo a fondo perduto (M2C2)
+BP_MASSIMALE_SPESA_EUR_PER_SMCH = 32817.23  # massimale GSE
+
+
+def compute_business_plan(
+    plant_smch: float,
+    tariffa_eur_mwh: float,
+    capex_breakdown: dict,
+    capex_forfait: dict,
+    opex_breakdown: dict,
+    opex_forfait: dict,
+    pnrr_quota_pct: float,
+    inflazione_pct: float,
+    finance: dict,
+    target_ebitda_margin_pct: float = 25.0,   # margine EBITDA target ricavi
+    durata_tariffa: int = BP_DURATA_TARIFFA_ANNI,
+    ammort_anni: int = BP_AMMORTAMENTO_ANNI,
+    tax_rate_pct: float = BP_TAX_RATE_PCT,
+    massimale_eur_per_smch: float = BP_MASSIMALE_SPESA_EUR_PER_SMCH,
+    ore_anno: float = 8500.0,
+    pci_kwh_per_smc: float = 9.97,
+    ch4_in_biogas_pct: float = 54.25,         # % CH4 nel biogas (Valtidone)
+) -> dict:
+    """Calcolo BP biometano DM 2022 multi-anno (15 anni standard).
+
+    Ritorna dict con CE annuale (liste di 15 valori), KPI aggregati e
+    schema finanziamento. Tutti i valori in euro nominali (non attualizzati).
+    """
+    # --- CAPEX ---
+    capex_impiantistico = sum(capex_breakdown.values()) * plant_smch
+    capex_forfait_tot = sum(capex_forfait.values())
+    capex_totale = capex_impiantistico + capex_forfait_tot
+
+    # --- Contributo PNRR (cap massimale) ---
+    capex_eligible = min(capex_totale, massimale_eur_per_smch * plant_smch)
+    contributo = capex_eligible * (pnrr_quota_pct / 100.0)
+    capex_netto = capex_totale - contributo
+
+    # --- Ricavi ---
+    biometano_smc_anno = plant_smch * ore_anno
+    # 1 Smc biometano (97% CH4) ~= 9,97 kWh -> tariffa €/Smc = €/MWh / 1000 * 9,97
+    tariffa_eur_smc = tariffa_eur_mwh / 1000.0 * pci_kwh_per_smc
+    ricavi_anno_base = biometano_smc_anno * tariffa_eur_smc
+    biometano_mwh_anno = biometano_smc_anno * pci_kwh_per_smc / 1000.0
+
+    # --- OPEX ---
+    opex_scalabile_anno = sum(opex_breakdown.values()) * plant_smch
+    opex_forfait_anno = sum(opex_forfait.values())
+    opex_anno_base = opex_scalabile_anno + opex_forfait_anno
+
+    # --- Schema finanziamento ---
+    leva_lt = finance["lt_leva"] / 100.0
+    debito_lt = capex_netto * leva_lt
+    equity = capex_netto * (1.0 - leva_lt)
+
+    # Rate ammortamento finanziamento LT (francese)
+    def _rata_francese(C, i, n):
+        i = i / 100.0
+        if i == 0 or n == 0:
+            return C / max(n, 1) if n > 0 else 0.0
+        return C * i / (1 - (1 + i) ** -n)
+
+    rata_lt = _rata_francese(debito_lt, finance["lt_tasso"], finance["lt_durata"])
+
+    # Ammortamento contabile lineare
+    ammort_anno = capex_totale / max(ammort_anni, 1)
+    # Risconto contributo (riconosciuto come ricavo straordinario in 15 anni)
+    risconto_contributo_anno = contributo / max(durata_tariffa, 1)
+
+    # --- CE multi-anno ---
+    n_anni = durata_tariffa
+    infl = inflazione_pct / 100.0
+    ricavi = []
+    opex_lst = []
+    ebitda = []
+    interessi = []
+    ammort_lst = []
+    utile_ante = []
+    utile_netto = []
+    fcf = []
+    debito_residuo = debito_lt
+    cumulato_fcf = -equity
+
+    payback_anno = None
+
+    for y in range(1, n_anni + 1):
+        # Ricavi tariffa fissi (DM 2022 non si aggiorna in nominale)
+        r_y = ricavi_anno_base + risconto_contributo_anno
+        # OPEX inflazionati
+        opex_y = opex_anno_base * ((1 + infl) ** (y - 1))
+        ebitda_y = r_y - opex_y
+        # Interessi LT (su debito residuo)
+        i_y = debito_residuo * (finance["lt_tasso"] / 100.0)
+        # Quota capitale (rata - interessi)
+        qc_y = max(rata_lt - i_y, 0.0)
+        debito_residuo = max(debito_residuo - qc_y, 0.0)
+        # Ammortamento entro anni di vita utile
+        amm_y = ammort_anno if y <= ammort_anni else 0.0
+        # Utile ante imposte
+        u_ante = ebitda_y - i_y - amm_y
+        # Imposte (solo su utile positivo)
+        tax = max(u_ante * (tax_rate_pct / 100.0), 0.0)
+        u_netto = u_ante - tax
+
+        # FCF (free cash flow al netto debito): EBITDA - imposte - rata LT
+        fcf_y = ebitda_y - tax - rata_lt
+
+        ricavi.append(r_y)
+        opex_lst.append(opex_y)
+        ebitda.append(ebitda_y)
+        interessi.append(i_y)
+        ammort_lst.append(amm_y)
+        utile_ante.append(u_ante)
+        utile_netto.append(u_netto)
+        fcf.append(fcf_y)
+        cumulato_fcf += fcf_y
+        if payback_anno is None and cumulato_fcf >= 0:
+            # Stima lineare frazione di anno
+            prev = cumulato_fcf - fcf_y
+            frac = (-prev) / fcf_y if fcf_y != 0 else 0.0
+            payback_anno = (y - 1) + max(0.0, min(frac, 1.0))
+
+    # KPI aggregati
+    ebitda_medio = sum(ebitda) / n_anni if n_anni else 0.0
+    utile_netto_tot = sum(utile_netto)
+    fcf_tot = sum(fcf)
+    # IRR su flussi equity (semplice: -equity in y0, fcf in y1..n)
+    flussi_equity = [-equity] + fcf
+
+    def _irr(cf, guess=0.10, max_iter=100, tol=1e-7):
+        rate = guess
+        for _ in range(max_iter):
+            npv = sum(c / (1 + rate) ** t for t, c in enumerate(cf))
+            d_npv = sum(-t * c / (1 + rate) ** (t + 1) for t, c in enumerate(cf))
+            if abs(d_npv) < 1e-12:
+                break
+            new_rate = rate - npv / d_npv
+            if abs(new_rate - rate) < tol:
+                rate = new_rate
+                break
+            rate = new_rate
+            if rate < -0.99:
+                rate = -0.99
+        return rate
+
+    try:
+        irr_equity = _irr(flussi_equity)
+        if not (-0.99 <= irr_equity <= 5.0):
+            irr_equity = None
+    except Exception:
+        irr_equity = None
+
+    # ============================================================
+    # COSTO BIOGAS IMPLICITO (per liquidazione biomasse)
+    # ============================================================
+    # Approccio Valtidone:
+    #   ricavi - OPEX - costo_biomasse = EBITDA_target (margine ricavi%)
+    #   quota_biomasse = ricavi - OPEX - EBITDA_target
+    #   costo_biogas €/Nm³ = quota_biomasse / fabbisogno_biogas
+    #
+    # NB: il costo biomasse NON e' incluso negli OPEX della funzione: e'
+    # un'uscita ai consorziati derivata in modo tale da centrare il
+    # margine EBITDA target. Anno di riferimento = 2 (regime).
+    ch4_frac = max(ch4_in_biogas_pct / 100.0, 0.001)
+    fabbisogno_biogas_anno = biometano_smc_anno / ch4_frac
+    target_ebitda_anno_regime = (
+        ricavi_anno_base * target_ebitda_margin_pct / 100.0
+    )
+    # Anno 2 (regime, post-anticipo contributo): OPEX inflazionato 1 anno
+    opex_y2 = opex_anno_base * (1 + infl)
+    quota_biomasse_anno = max(
+        ricavi_anno_base - opex_y2 - target_ebitda_anno_regime,
+        0.0,
+    )
+    costo_biogas_eur_per_nm3 = (
+        quota_biomasse_anno / fabbisogno_biogas_anno
+        if fabbisogno_biogas_anno > 0 else 0.0
+    )
+
+    return {
+        "capex_totale":        capex_totale,
+        "capex_impiantistico": capex_impiantistico,
+        "capex_forfait_tot":   capex_forfait_tot,
+        "capex_eligible":      capex_eligible,
+        "contributo":          contributo,
+        "capex_netto":         capex_netto,
+        "debito_lt":           debito_lt,
+        "equity":              equity,
+        "rata_lt":             rata_lt,
+        "ammort_anno":         ammort_anno,
+        "risconto_contributo_anno": risconto_contributo_anno,
+        "biometano_smc_anno":  biometano_smc_anno,
+        "biometano_mwh_anno":  biometano_mwh_anno,
+        "tariffa_eur_smc":     tariffa_eur_smc,
+        "ricavi":              ricavi,
+        "opex":                opex_lst,
+        "ebitda":              ebitda,
+        "ebitda_medio":        ebitda_medio,
+        "interessi":           interessi,
+        "ammortamenti":        ammort_lst,
+        "utile_ante":          utile_ante,
+        "utile_netto":         utile_netto,
+        "fcf":                 fcf,
+        "fcf_tot":             fcf_tot,
+        "utile_netto_tot":     utile_netto_tot,
+        "irr_equity":          irr_equity,
+        "payback_anno":        payback_anno,
+        "fabbisogno_biogas_anno":   fabbisogno_biogas_anno,
+        "costo_biogas_eur_per_nm3": costo_biogas_eur_per_nm3,
+        "quota_biomasse_anno":      quota_biomasse_anno,
+        "target_ebitda_anno_regime": target_ebitda_anno_regime,
+        "ch4_frac":                 ch4_frac,
+    }
+
+# ============================================================
 # EP (processing) - contributi impiantistici [gCO2eq/MJ biometano]
 # Valori medi da letteratura JRC-CONCAWE v5, UNI/TS 11567:2024, default RED III.
 # NB: valori indicativi; per certificazione GSE servono misure reali d'impianto.
@@ -2156,6 +2442,203 @@ with st.sidebar:
         fer2_premio_matrice_eur    = 0.0
         fer2_premio_car_eur        = 0.0
 
+    # ============================================================
+    # PRO FORMA / BUSINESS PLAN (solo DM 2022)
+    # ============================================================
+    # Defaults derivati dal BP "Valtidone Biometano" (16/05/2024),
+    # ricalibrati al 2026 con inflazione ISTAT cumulata e tassi BCE.
+    # ============================================================
+    if IS_DM2022:
+        with st.expander(
+            "💼 Pro Forma · CAPEX / OPEX / Finanziamento "
+            "(default benchmark Valtidone 2026)",
+            expanded=False,
+        ):
+            st.caption(
+                "Default basati sul **Business Plan Valtidone Biometano** "
+                "(maggio 2024) ricalibrato 2026 (+5% materiali ISTAT, "
+                "tassi finanziamento aggiornati). Tutti i valori sono "
+                "**editabili** per scenari custom."
+            )
+            # ---- Tariffa / contributo ----
+            st.markdown("##### 💰 Tariffa GSE & contributo PNRR")
+            bp_tariffa_eur_mwh = st.number_input(
+                "Tariffa GSE base (DM 2022) [€/MWh]",
+                min_value=50.0, max_value=300.0,
+                value=BP_TARIFFA_BASE_2026, step=0.5,
+                help=f"Tariffa di riferimento DM 15/9/2022 base "
+                     f"{fmt_it(BP_TARIFFA_BASE_2026, 1)} €/MWh "
+                     f"(~131 €/MWh post-aggiornamento ISTAT 2024-2026 "
+                     f"sulla base 124,48 €/MWh storica). "
+                     f"Sostituisci con il valore del tuo decreto.",
+            )
+            bp_ribasso_pct = st.slider(
+                "Ribasso d'asta [%]",
+                min_value=0.0, max_value=30.0,
+                value=BP_RIBASSO_DEFAULT_PCT, step=0.5,
+                help="Ribasso offerto in fase di asta GSE. Tariffa effettiva = "
+                     "tariffa base × (1 − ribasso/100).",
+            )
+            bp_tariffa_eff = bp_tariffa_eur_mwh * (1 - bp_ribasso_pct / 100.0)
+            bp_pnrr_pct = st.number_input(
+                "Contributo PNRR [%] (M2C2 - biometano)",
+                min_value=0.0, max_value=65.0,
+                value=BP_PNRR_QUOTA_PCT_DEFAULT, step=1.0,
+                help=f"Quota contributo a fondo perduto su CAPEX "
+                     f"ammissibile (cap massimale GSE "
+                     f"{fmt_it(BP_MASSIMALE_SPESA_EUR_PER_SMCH, 0)} €/(Smc/h)). "
+                     f"Default {fmt_it(BP_PNRR_QUOTA_PCT_DEFAULT, 0)}%.",
+            )
+
+            # ---- CAPEX breakdown ----
+            st.markdown("##### 🏗️ CAPEX (€/(Smc/h) per macrovoce)")
+            st.caption(
+                "Ogni voce viene moltiplicata per la taglia (Smc/h). "
+                "Le voci forfait sono fisse a livello d'impianto."
+            )
+            bp_capex_breakdown = {}
+            for k, v in BP_CAPEX_DEFAULTS_PER_SMCH.items():
+                bp_capex_breakdown[k] = st.number_input(
+                    f"{k}",
+                    min_value=0.0, max_value=50000.0,
+                    value=v, step=100.0,
+                    key=f"bp_capex_{k}",
+                    help=f"CAPEX €/(Smc/h). Default Valtidone 2026.",
+                )
+            st.markdown("**CAPEX forfait**")
+            bp_capex_forfait = {}
+            for k, v in BP_CAPEX_FORFAIT_DEFAULTS.items():
+                bp_capex_forfait[k] = st.number_input(
+                    f"{k}",
+                    min_value=0.0, max_value=2000000.0,
+                    value=v, step=1000.0,
+                    key=f"bp_capex_ff_{k}",
+                )
+
+            # ---- OPEX ----
+            st.markdown("##### 🔧 OPEX (€/anno per (Smc/h))")
+            st.caption(
+                "OPEX scalabili (digestione, upgrading, gestore) - voci "
+                "fisse (assicurazioni, tasse) separate sotto."
+            )
+            bp_opex_breakdown = {}
+            for k, v in BP_OPEX_DEFAULTS_PER_SMCH_YEAR.items():
+                bp_opex_breakdown[k] = st.number_input(
+                    f"{k}",
+                    min_value=0.0, max_value=10000.0,
+                    value=v, step=10.0,
+                    key=f"bp_opex_{k}",
+                )
+            st.markdown("**OPEX fissi (€/anno)**")
+            bp_opex_forfait = {}
+            for k, v in BP_OPEX_FORFAIT_DEFAULTS.items():
+                bp_opex_forfait[k] = st.number_input(
+                    f"{k}",
+                    min_value=0.0, max_value=200000.0,
+                    value=v, step=500.0,
+                    key=f"bp_opex_ff_{k}",
+                )
+
+            # ---- Finanziarie ----
+            st.markdown("##### 🏦 Schema finanziamento")
+            bp_lt_tasso = st.number_input(
+                "Tasso finanziamento Lungo Termine [%]",
+                min_value=0.0, max_value=15.0,
+                value=BP_FINANCE_DEFAULTS["lt_tasso"], step=0.1,
+                help=f"Tasso BCE 2026 ~{fmt_it(BP_FINANCE_DEFAULTS['lt_tasso'], 1)}% "
+                     f"(era 4,5% nel 2024). Aggiorna se hai offerta vincolata.",
+            )
+            bp_lt_durata = st.slider(
+                "Durata Lungo Termine [anni]",
+                min_value=5, max_value=20,
+                value=int(BP_FINANCE_DEFAULTS["lt_durata"]), step=1,
+            )
+            bp_lt_leva = st.slider(
+                "Leva LT su CAPEX netto [%]",
+                min_value=0.0, max_value=100.0,
+                value=BP_FINANCE_DEFAULTS["lt_leva"], step=5.0,
+                help="Quota CAPEX netto coperta da debito bancario "
+                     "(resto = equity / soci).",
+            )
+
+            # ---- Parametri economici ----
+            st.markdown("##### 📊 Parametri economici")
+            bp_ebitda_target_pct = st.slider(
+                "Margine EBITDA target [%] (per liquidazione biomasse)",
+                min_value=10.0, max_value=50.0,
+                value=24.5, step=0.5,
+                help=f"EBITDA target / ricavi (Valtidone: 24,5%). "
+                     f"Determina la quota disponibile per pagare "
+                     f"le biomasse ai consorziati (= ricavi − OPEX − "
+                     f"EBITDA target). Costo biogas implicito = "
+                     f"quota / fabbisogno biogas.",
+            )
+            bp_inflazione_pct = st.number_input(
+                "Inflazione OPEX annua [%]",
+                min_value=0.0, max_value=10.0,
+                value=BP_INFLAZIONE_DEFAULT_PCT, step=0.1,
+                help="Rivalutazione ISTAT applicata agli OPEX anno per anno. "
+                     "Default 2,5%. Tariffa GSE NON e' inflazionata "
+                     "(DM 2022 nominal).",
+            )
+            bp_ch4_in_biogas_pct = st.slider(
+                "Concentrazione CH₄ nel biogas grezzo [%]",
+                min_value=45.0, max_value=70.0,
+                value=54.25, step=0.25,
+                help="% CH4 nel biogas pre-upgrading. Determina il "
+                     "fabbisogno di biogas grezzo (= biometano / CH4%). "
+                     "Default Valtidone 54,25%.",
+            )
+            bp_ore_anno = st.number_input(
+                "Ore funzionamento annuo [h/anno]",
+                min_value=4000.0, max_value=8760.0,
+                value=8500.0, step=50.0,
+                help="Ore equivalenti di funzionamento. Tipico "
+                     "biometano agricolo: 8200-8500 h/anno.",
+            )
+
+        # Calcolo BP completo (se IS_DM2022 e abbastanza dati)
+        try:
+            _bp_finance = dict(BP_FINANCE_DEFAULTS)
+            _bp_finance["lt_tasso"]  = bp_lt_tasso
+            _bp_finance["lt_durata"] = bp_lt_durata
+            _bp_finance["lt_leva"]   = bp_lt_leva
+            bp_result = compute_business_plan(
+                plant_smch=plant_net_smch,
+                tariffa_eur_mwh=bp_tariffa_eff,
+                capex_breakdown=bp_capex_breakdown,
+                capex_forfait=bp_capex_forfait,
+                opex_breakdown=bp_opex_breakdown,
+                opex_forfait=bp_opex_forfait,
+                pnrr_quota_pct=bp_pnrr_pct,
+                inflazione_pct=bp_inflazione_pct,
+                finance=_bp_finance,
+                target_ebitda_margin_pct=bp_ebitda_target_pct,
+                ore_anno=bp_ore_anno,
+                ch4_in_biogas_pct=bp_ch4_in_biogas_pct,
+            )
+        except Exception as _bp_exc:  # noqa: BLE001
+            bp_result = None
+            st.error(f"Errore calcolo BP: {_bp_exc}")
+    else:
+        # Defaults per modalita' non DM 2022 (BP non applicabile)
+        bp_tariffa_eur_mwh = 0.0
+        bp_ribasso_pct = 0.0
+        bp_tariffa_eff = 0.0
+        bp_pnrr_pct = 0.0
+        bp_capex_breakdown = {}
+        bp_capex_forfait = {}
+        bp_opex_breakdown = {}
+        bp_opex_forfait = {}
+        bp_lt_tasso = 0.0
+        bp_lt_durata = 15
+        bp_lt_leva = 0.0
+        bp_ebitda_target_pct = 0.0
+        bp_inflazione_pct = 0.0
+        bp_ch4_in_biogas_pct = 54.25
+        bp_ore_anno = 8500.0
+        bp_result = None
+
     # Configuratore ep
     digestate_opt = st.selectbox(
         "Stoccaggio digestato",
@@ -2954,12 +3437,23 @@ c5.metric("Mesi validi", f"{valid_months}/12",
           delta_color="normal" if valid_months == 12 else "inverse")
 
 # ------------------------- GRAFICI -------------------------
-tab1, tab2, tab3, tab4 = st.tabs([
-    "🌾 Biomasse per mese",
-    "🌍 Sostenibilità",
-    "⚡ Produzione",
-    "🥧 Mix annuale",
-])
+# Tab "Business Plan" visibile solo in DM 2022 (BP applicabile)
+if IS_DM2022:
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "🌾 Biomasse per mese",
+        "🌍 Sostenibilità",
+        "⚡ Produzione",
+        "🥧 Mix annuale",
+        "💼 Business Plan",
+    ])
+else:
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "🌾 Biomasse per mese",
+        "🌍 Sostenibilità",
+        "⚡ Produzione",
+        "🥧 Mix annuale",
+    ])
+    tab5 = None
 
 with tab1:
     df_melt = df_res.melt(
@@ -3542,6 +4036,244 @@ with tab4:
             f"Modifica la colonna «Tariffa €/MWh» per simulare scenari diversi."
         )
 
+# ============================================================
+# TAB 5 — BUSINESS PLAN (solo DM 2022)
+# ============================================================
+if IS_DM2022 and tab5 is not None and bp_result is not None:
+    with tab5:
+        st.markdown(
+            "<div style='font-family:\"JetBrains Mono\", monospace; "
+            "font-size:0.7rem; font-weight:600; letter-spacing:1.5px; "
+            f"text-transform:uppercase; color:{TEXT_MUTED}; "
+            "margin-bottom:8px;'>// PRO FORMA · DM 2022</div>",
+            unsafe_allow_html=True,
+        )
+        st.subheader("💼 Business Plan — pro forma 15 anni")
+        st.caption(
+            "Modello derivato dal **Business Plan Valtidone Biometano** "
+            "(maggio 2024), aggiornato 2026 con inflazione ISTAT cumulata e "
+            "tassi finanziamento BCE. Personalizza i parametri nella sidebar "
+            "(expander «💼 Pro Forma»). Tariffa GSE applicata in nominale "
+            f"per {BP_DURATA_TARIFFA_ANNI} anni · OPEX rivalutati ISTAT."
+        )
+
+        # ===== KPI tiles in 4 columns =====
+        bp_cA, bp_cB, bp_cC, bp_cD = st.columns(4)
+        bp_cA.metric(
+            "CAPEX totale",
+            fmt_it(bp_result["capex_totale"]/1000, 0, " k€"),
+            delta=f"netto {fmt_it(bp_result['capex_netto']/1000, 0)} k€ "
+                  f"(post PNRR {fmt_it(bp_pnrr_pct, 0, '%')})",
+        )
+        bp_cB.metric(
+            "Ricavi anno regime",
+            fmt_it(bp_result["ricavi"][0]/1000, 0, " k€/a"),
+            delta=f"{fmt_it(bp_result['biometano_smc_anno']/1000, 0)} kSmc · "
+                  f"tariffa {fmt_it(bp_tariffa_eff, 1)} €/MWh",
+        )
+        bp_cC.metric(
+            "EBITDA medio (pre-biomasse)",
+            fmt_it(bp_result["ebitda_medio"]/1000, 0, " k€/a"),
+            delta=f"target margin {fmt_it(bp_ebitda_target_pct, 1, '%')}",
+        )
+        bp_cD.metric(
+            "💰 Costo biogas implicito",
+            fmt_it(bp_result["costo_biogas_eur_per_nm3"], 4, " €/Nm³"),
+            delta=f"q.biomasse {fmt_it(bp_result['quota_biomasse_anno']/1000, 0)} k€/a",
+        )
+
+        st.divider()
+
+        # ===== CAPEX breakdown table =====
+        st.markdown("##### 🏗️ CAPEX — composizione")
+        capex_rows = []
+        for k, v in bp_capex_breakdown.items():
+            tot_v = v * plant_net_smch
+            capex_rows.append({
+                "Voce": k,
+                "Tipo": "Scalabile (€/(Smc/h))",
+                "Importo unitario": fmt_it(v, 0, " €/(Smc/h)"),
+                "Totale": fmt_it(tot_v, 0, " €"),
+                "Quota %": fmt_it(tot_v / bp_result["capex_totale"] * 100, 1, "%"),
+            })
+        for k, v in bp_capex_forfait.items():
+            capex_rows.append({
+                "Voce": k,
+                "Tipo": "Forfait",
+                "Importo unitario": "—",
+                "Totale": fmt_it(v, 0, " €"),
+                "Quota %": fmt_it(v / bp_result["capex_totale"] * 100, 1, "%"),
+            })
+        capex_rows.append({
+            "Voce": "**TOTALE CAPEX**",
+            "Tipo": "—",
+            "Importo unitario": "—",
+            "Totale": fmt_it(bp_result["capex_totale"], 0, " €"),
+            "Quota %": "100,0%",
+        })
+        capex_rows.append({
+            "Voce": "Contributo PNRR (M2C2)",
+            "Tipo": "—",
+            "Importo unitario": fmt_it(bp_pnrr_pct, 0, "%"),
+            "Totale": fmt_it(-bp_result["contributo"], 0, " €"),
+            "Quota %": fmt_it(-bp_result["contributo"] /
+                              bp_result["capex_totale"] * 100, 1, "%"),
+        })
+        capex_rows.append({
+            "Voce": "**CAPEX NETTO** (post-PNRR)",
+            "Tipo": "—",
+            "Importo unitario": "—",
+            "Totale": fmt_it(bp_result["capex_netto"], 0, " €"),
+            "Quota %": fmt_it(bp_result["capex_netto"] /
+                              bp_result["capex_totale"] * 100, 1, "%"),
+        })
+        st.dataframe(
+            pd.DataFrame(capex_rows),
+            hide_index=True, use_container_width=True,
+        )
+
+        # ===== CE multi-anno chart =====
+        st.divider()
+        st.markdown("##### 📊 Conto Economico 15 anni")
+        anni = list(range(1, len(bp_result["ricavi"]) + 1))
+        df_ce = pd.DataFrame({
+            "Anno": anni,
+            "Ricavi (k€)": [r/1000 for r in bp_result["ricavi"]],
+            "OPEX (k€)": [-o/1000 for o in bp_result["opex"]],
+            "EBITDA pre-biomasse (k€)": [e/1000 for e in bp_result["ebitda"]],
+            "Interessi (k€)": [-i/1000 for i in bp_result["interessi"]],
+            "Ammortamenti (k€)": [-a/1000 for a in bp_result["ammortamenti"]],
+            "Utile netto (k€)": [u/1000 for u in bp_result["utile_netto"]],
+            "FCF (k€)": [f/1000 for f in bp_result["fcf"]],
+        })
+
+        fig_bp = go.Figure()
+        fig_bp.add_trace(go.Bar(
+            x=anni, y=df_ce["Ricavi (k€)"],
+            name="Ricavi", marker_color=AMBER,
+        ))
+        fig_bp.add_trace(go.Bar(
+            x=anni, y=df_ce["OPEX (k€)"],
+            name="OPEX (inflaz.)", marker_color="#94A3B8",
+        ))
+        fig_bp.add_trace(go.Scatter(
+            x=anni, y=df_ce["EBITDA pre-biomasse (k€)"],
+            name="EBITDA pre-biomasse",
+            mode="lines+markers",
+            line=dict(color=NAVY, width=3),
+            marker=dict(size=8, color=NAVY),
+        ))
+        fig_bp.add_trace(go.Scatter(
+            x=anni, y=df_ce["Utile netto (k€)"],
+            name="Utile netto", mode="lines+markers",
+            line=dict(color="#10B981", width=2, dash="dot"),
+            marker=dict(size=6),
+        ))
+        fig_bp.update_layout(
+            barmode="relative", height=480,
+            yaxis_title="k€ / anno",
+            xaxis_title="Anno",
+            xaxis=dict(tickmode="linear", dtick=1),
+            legend=dict(orientation="h", yanchor="bottom",
+                        y=1.02, xanchor="right", x=1),
+        )
+        apply_metaniq_theme(fig_bp, dark=IS_DARK)
+        st.plotly_chart(fig_bp, use_container_width=True)
+
+        # ===== CE table =====
+        df_ce_disp = df_ce.copy()
+        for col in df_ce_disp.columns:
+            if col != "Anno":
+                df_ce_disp[col] = df_ce_disp[col].apply(
+                    lambda v: fmt_it(v, 0)
+                )
+        df_ce_disp["Anno"] = df_ce_disp["Anno"].apply(lambda v: f"Anno {v}")
+        st.dataframe(df_ce_disp, hide_index=True, use_container_width=True)
+
+        # ===== Cash Flow & Debito =====
+        st.divider()
+        st.markdown("##### 💵 Cash Flow & Schema finanziamento")
+        fin_cA, fin_cB, fin_cC = st.columns(3)
+        fin_cA.metric(
+            "Debito LT iniziale",
+            fmt_it(bp_result["debito_lt"]/1000, 0, " k€"),
+            delta=f"leva {fmt_it(bp_lt_leva, 0, '%')}",
+        )
+        fin_cB.metric(
+            "Equity (soci)",
+            fmt_it(bp_result["equity"]/1000, 0, " k€"),
+            delta=f"leva {fmt_it(100-bp_lt_leva, 0, '%')}",
+        )
+        fin_cC.metric(
+            "Rata LT/anno",
+            fmt_it(bp_result["rata_lt"]/1000, 0, " k€/a"),
+            delta=f"{fmt_it(bp_lt_durata, 0)} anni @ "
+                  f"{fmt_it(bp_lt_tasso, 2, '%')}",
+        )
+
+        # ===== KPI finanziari =====
+        st.markdown("##### 🎯 Indicatori finanziari")
+        kpi_cA, kpi_cB, kpi_cC, kpi_cD = st.columns(4)
+        irr_value = bp_result["irr_equity"]
+        kpi_cA.metric(
+            "IRR equity",
+            (fmt_it(irr_value*100, 1, "%")
+             if irr_value is not None else "n/d"),
+            delta=("eccellente" if irr_value and irr_value > 0.15 else
+                   "buono" if irr_value and irr_value > 0.10 else
+                   "marginale" if irr_value and irr_value > 0.05 else
+                   "basso"),
+            delta_color="normal" if irr_value and irr_value > 0.10 else "inverse",
+        )
+        kpi_cB.metric(
+            "Payback equity",
+            (f"{fmt_it(bp_result['payback_anno'], 1)} anni"
+             if bp_result["payback_anno"] is not None else "> 15 anni"),
+        )
+        kpi_cC.metric(
+            "FCF cumulato 15a",
+            fmt_it(bp_result["fcf_tot"]/1000, 0, " k€"),
+        )
+        kpi_cD.metric(
+            "Utile netto cum.",
+            fmt_it(bp_result["utile_netto_tot"]/1000, 0, " k€"),
+        )
+
+        # ===== Liquidazione biomasse calcolata =====
+        st.divider()
+        st.markdown(
+            "##### 🌾 Liquidazione biomasse (derivata dal BP)"
+        )
+        st.caption(
+            f"Calcolata come **resa CH₄/ton × costo biogas implicito** "
+            f"({fmt_it(bp_result['costo_biogas_eur_per_nm3'], 4)} €/Nm³ "
+            f"al CH₄ {fmt_it(bp_ch4_in_biogas_pct, 1, '%')} nel biogas). "
+            f"Confronto con BP Valtidone (mais 230 → 71,71 €/t)."
+        )
+        # Per ogni biomassa attiva, calcola la liquidazione €/ton
+        # = resa Nm3 CH4/t / ch4_frac × costo_biogas €/Nm3 (biogas)
+        liq_rows = []
+        for f in active_feeds[:15]:  # limita a 15 per leggibilità
+            yld = FEEDSTOCK_DB[f]["yield"]  # Nm3 CH4/t (nostro DB)
+            biogas_per_t = yld / bp_result["ch4_frac"]
+            liq_eur_t = biogas_per_t * bp_result["costo_biogas_eur_per_nm3"]
+            liq_rows.append({
+                "Biomassa": f,
+                "Resa CH₄ Nm³/t": fmt_it(yld, 0),
+                "Resa biogas Nm³/t": fmt_it(biogas_per_t, 0),
+                "Liquidazione €/t (FM)": fmt_it(liq_eur_t, 2, " €"),
+            })
+        st.dataframe(
+            pd.DataFrame(liq_rows),
+            hide_index=True, use_container_width=True,
+        )
+elif IS_DM2022 and tab5 is not None:
+    with tab5:
+        st.warning(
+            "Il calcolo BP non è disponibile. Verifica i parametri Pro Forma "
+            "nella sidebar (expander «💼 Pro Forma»)."
+        )
+
 # ------------------------- DOWNLOAD -------------------------
 st.divider()
 st.markdown(
@@ -3612,6 +4344,21 @@ with _dl_col2:
         "fer2_apply_matrice": fer2_apply_matrice,
         "fer2_apply_car": fer2_apply_car,
         "fer2_tariffa_eff": fer2_tariffa_eff,
+        # BP DM 2022 specifics (None se non DM 2022)
+        "bp_result": bp_result if IS_DM2022 else None,
+        "bp_tariffa_eur_mwh": bp_tariffa_eur_mwh if IS_DM2022 else None,
+        "bp_ribasso_pct": bp_ribasso_pct if IS_DM2022 else None,
+        "bp_tariffa_eff": bp_tariffa_eff if IS_DM2022 else None,
+        "bp_pnrr_pct": bp_pnrr_pct if IS_DM2022 else None,
+        "bp_capex_breakdown": bp_capex_breakdown if IS_DM2022 else None,
+        "bp_capex_forfait": bp_capex_forfait if IS_DM2022 else None,
+        "bp_lt_tasso": bp_lt_tasso if IS_DM2022 else None,
+        "bp_lt_durata": bp_lt_durata if IS_DM2022 else None,
+        "bp_lt_leva": bp_lt_leva if IS_DM2022 else None,
+        "bp_ebitda_target_pct": bp_ebitda_target_pct if IS_DM2022 else None,
+        "bp_inflazione_pct": bp_inflazione_pct if IS_DM2022 else None,
+        "bp_ch4_in_biogas_pct": bp_ch4_in_biogas_pct if IS_DM2022 else None,
+        "bp_durata_tariffa": BP_DURATA_TARIFFA_ANNI,
         # Aggregati comuni
         "tot_biomasse_t": float(df_res["Totale biomasse (t)"].sum()),
         "tot_sm3_netti": float(df_res["Sm³ netti"].sum()),

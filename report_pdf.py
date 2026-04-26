@@ -939,6 +939,223 @@ def _build_revenue(ctx, styles):
     return flow
 
 
+def _build_business_plan(ctx, styles):
+    """Sezione Business Plan PDF (solo DM 2022 con BP attivo)."""
+    s = styles
+    bp = ctx.get("bp_result")
+    flow = []
+    flow.append(Paragraph("// BUSINESS PLAN · DM 2022", s["eyebrow"]))
+    flow.append(Paragraph("Pro forma 15 anni", s["h2"]))
+    flow.append(Spacer(1, 3 * mm))
+
+    # KPI cards 4-up
+    saving_accent_irr = AMBER
+    irr_v = bp.get("irr_equity")
+    irr_str = (_fmt_it(irr_v*100, 1, "%") if irr_v is not None else "n/d")
+    payback_v = bp.get("payback_anno")
+    payback_str = (f"{_fmt_it(payback_v, 1)} anni"
+                   if payback_v is not None else "> 15 anni")
+    kpi_row = Table(
+        [[
+            _kpi_tile("CAPEX totale",
+                      _fmt_it(bp["capex_totale"]/1000, 0),
+                      f"k€ · netto {_fmt_it(bp['capex_netto']/1000, 0)} k€",
+                      styles=s),
+            _kpi_tile("Ricavi anno",
+                      _fmt_it(bp["ricavi"][0]/1000, 0),
+                      f"k€ · {_fmt_it(bp['biometano_smc_anno']/1000, 0)} kSmc",
+                      styles=s),
+            _kpi_tile("EBITDA medio",
+                      _fmt_it(bp["ebitda_medio"]/1000, 0),
+                      "k€ pre-biomasse",
+                      styles=s, accent=EMERALD),
+            _kpi_tile("IRR equity",
+                      irr_str,
+                      f"payback {payback_str}",
+                      styles=s, accent=saving_accent_irr),
+        ]],
+        colWidths=[CONTENT_W / 4] * 4,
+    )
+    kpi_row.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    flow.append(kpi_row)
+    flow.append(Spacer(1, 6 * mm))
+
+    # CAPEX summary
+    flow.append(Paragraph("Composizione CAPEX", s["h3"]))
+    capex_rows = [["Voce", "Importo €", "Quota %"]]
+    capex_breakdown = ctx.get("bp_capex_breakdown") or {}
+    capex_forfait = ctx.get("bp_capex_forfait") or {}
+    plant_smch = ctx.get("plant_net_smch", 0.0)
+    for k, v in capex_breakdown.items():
+        tot = v * plant_smch
+        capex_rows.append([
+            k,
+            _fmt_it(tot, 0, " €"),
+            _fmt_it(tot / bp["capex_totale"] * 100, 1, "%"),
+        ])
+    for k, v in capex_forfait.items():
+        capex_rows.append([
+            k + " (forfait)",
+            _fmt_it(v, 0, " €"),
+            _fmt_it(v / bp["capex_totale"] * 100, 1, "%"),
+        ])
+    capex_rows.append([
+        "TOTALE CAPEX",
+        _fmt_it(bp["capex_totale"], 0, " €"),
+        "100,0%",
+    ])
+    capex_rows.append([
+        f"Contributo PNRR ({_fmt_it(ctx['bp_pnrr_pct'], 0, '%')})",
+        _fmt_it(-bp["contributo"], 0, " €"),
+        _fmt_it(-bp["contributo"]/bp["capex_totale"]*100, 1, "%"),
+    ])
+    capex_rows.append([
+        "CAPEX NETTO (post PNRR)",
+        _fmt_it(bp["capex_netto"], 0, " €"),
+        _fmt_it(bp["capex_netto"]/bp["capex_totale"]*100, 1, "%"),
+    ])
+    capex_tbl = Table(capex_rows, colWidths=[CONTENT_W*0.55,
+                                              CONTENT_W*0.27,
+                                              CONTENT_W*0.18])
+    capex_tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+        ("TEXTCOLOR",  (0, 0), (-1, 0), WHITE),
+        ("FONTNAME",   (0, 0), (-1, 0), "Courier-Bold"),
+        ("FONTSIZE",   (0, 0), (-1, 0), 7),
+        ("ALIGN",      (1, 0), (-1, -1), "RIGHT"),
+        ("ALIGN",      (0, 0), (0, -1), "LEFT"),
+        ("FONTNAME",   (0, 1), (-1, -4), "Helvetica"),
+        ("FONTSIZE",   (0, 1), (-1, -1), 8.5),
+        ("TEXTCOLOR",  (0, 1), (-1, -4), SLATE_700),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 1), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 4),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -4), [WHITE, SLATE_50]),
+        ("LINEBELOW",  (0, 1), (-1, -4), 0.3, SLATE_200),
+        ("BACKGROUND", (0, -3), (-1, -3), SLATE_100),
+        ("FONTNAME",   (0, -3), (-1, -3), "Helvetica-Bold"),
+        ("LINEABOVE",  (0, -3), (-1, -3), 1, NAVY),
+        ("BACKGROUND", (0, -2), (-1, -2), AMBER_BG),
+        ("TEXTCOLOR",  (0, -2), (-1, -2), AMBER_DK),
+        ("FONTNAME",   (0, -2), (-1, -2), "Helvetica-Bold"),
+        ("BACKGROUND", (0, -1), (-1, -1), SLATE_100),
+        ("FONTNAME",   (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("LINEABOVE",  (0, -1), (-1, -1), 0.5, SLATE_200),
+        ("BOX", (0, 0), (-1, -1), 0.5, SLATE_200),
+    ]))
+    flow.append(capex_tbl)
+    flow.append(Spacer(1, 6 * mm))
+
+    # CE multi-anno (compatto: anni 1, 2, 5, 10, 15)
+    flow.append(Paragraph("Conto Economico (anni di riferimento)", s["h3"]))
+    n_anni = len(bp["ricavi"])
+    snap_anni = sorted({1, 2, 5, 10, n_anni})
+    snap_anni = [a for a in snap_anni if 1 <= a <= n_anni]
+    headers = ["Voce (k€)"] + [f"A{a}" for a in snap_anni]
+    ce_rows = [headers]
+    voci = [
+        ("Ricavi",        "ricavi"),
+        ("OPEX",          "opex"),
+        ("EBITDA pre-biom.", "ebitda"),
+        ("Interessi LT",  "interessi"),
+        ("Ammortamenti",  "ammortamenti"),
+        ("Utile netto",   "utile_netto"),
+        ("FCF",           "fcf"),
+    ]
+    for label, key in voci:
+        row = [label]
+        for a in snap_anni:
+            v = bp[key][a-1]
+            sign = -1 if key in ("opex", "interessi", "ammortamenti") else 1
+            row.append(_fmt_it(sign * v / 1000, 0))
+        ce_rows.append(row)
+    ce_col_w = [CONTENT_W * 0.30] + [CONTENT_W * 0.70 / len(snap_anni)] * len(snap_anni)
+    ce_tbl = Table(ce_rows, colWidths=ce_col_w)
+    ce_tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+        ("TEXTCOLOR",  (0, 0), (-1, 0), WHITE),
+        ("FONTNAME",   (0, 0), (-1, 0), "Courier-Bold"),
+        ("FONTSIZE",   (0, 0), (-1, 0), 7),
+        ("ALIGN",      (1, 0), (-1, -1), "RIGHT"),
+        ("ALIGN",      (0, 0), (0, -1), "LEFT"),
+        ("FONTNAME",   (0, 1), (0, -1), "Helvetica-Bold"),
+        ("FONTNAME",   (1, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE",   (0, 1), (-1, -1), 8.5),
+        ("TEXTCOLOR",  (0, 1), (-1, -1), SLATE_700),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 1), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 5),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, SLATE_50]),
+        ("LINEBELOW",  (0, 1), (-1, -1), 0.3, SLATE_200),
+        ("BOX", (0, 0), (-1, -1), 0.5, SLATE_200),
+    ]))
+    flow.append(ce_tbl)
+    flow.append(Spacer(1, 5 * mm))
+
+    # Schema finanziamento
+    flow.append(Paragraph("Schema finanziamento & costo biogas", s["h3"]))
+    fin_rows = [
+        ["Debito LT iniziale",
+         f"{_fmt_it(bp['debito_lt'], 0, ' €')}",
+         f"leva {_fmt_it(ctx['bp_lt_leva'], 0, '%')}"],
+        ["Equity (soci)",
+         f"{_fmt_it(bp['equity'], 0, ' €')}",
+         f"leva {_fmt_it(100-ctx['bp_lt_leva'], 0, '%')}"],
+        ["Rata LT/anno",
+         f"{_fmt_it(bp['rata_lt'], 0, ' €')}",
+         f"{_fmt_it(ctx['bp_lt_durata'], 0)} anni @ "
+         f"{_fmt_it(ctx['bp_lt_tasso'], 2, '%')}"],
+        ["Ammortamento contabile",
+         f"{_fmt_it(bp['ammort_anno'], 0, ' €')}/anno",
+         f"22 anni"],
+        ["Costo biogas implicito",
+         f"{_fmt_it(bp['costo_biogas_eur_per_nm3'], 4, ' €/Nm³')}",
+         f"q.biomasse {_fmt_it(bp['quota_biomasse_anno']/1000, 0)} k€/a"],
+        ["EBITDA target",
+         f"{_fmt_it(ctx['bp_ebitda_target_pct'], 1, '%')}",
+         f"di {_fmt_it(bp['ricavi'][0]/1000, 0)} k€ ricavi"],
+    ]
+    fin_tbl = Table(fin_rows, colWidths=[CONTENT_W*0.40,
+                                          CONTENT_W*0.30,
+                                          CONTENT_W*0.30])
+    fin_tbl.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTNAME", (1, 0), (1, -1), "Helvetica-Bold"),
+        ("FONTNAME", (2, 0), (2, -1), "Helvetica"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("TEXTCOLOR", (0, 0), (0, -1), SLATE_700),
+        ("TEXTCOLOR", (1, 0), (1, -1), NAVY),
+        ("TEXTCOLOR", (2, 0), (2, -1), SLATE_500),
+        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("ALIGN", (2, 0), (2, -1), "LEFT"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("ROWBACKGROUNDS", (0, 0), (-1, -1), [WHITE, SLATE_50]),
+        ("BOX", (0, 0), (-1, -1), 0.5, SLATE_200),
+    ]))
+    flow.append(fin_tbl)
+
+    flow.append(Spacer(1, 4 * mm))
+    flow.append(Paragraph(
+        "<b>Modello derivato dal BP «Valtidone Biometano» (16/05/2024)</b>, "
+        "ricalibrato 2026 con inflazione ISTAT cumulata e tassi BCE. "
+        "I valori sono indicativi a supporto delle decisioni di "
+        "pianificazione: la certificazione GSE, la quotazione equity e il "
+        "deal financing richiedono validazione tramite advisor.",
+        s["muted"],
+    ))
+    return flow
+
+
 def _build_methodology(ctx, styles):
     s = styles
     flow = []
@@ -1104,6 +1321,10 @@ def build_metaniq_pdf(ctx: dict) -> BytesIO:
     # Revenue
     flow.extend(_build_revenue(ctx, s))
     flow.append(PageBreak())
+    # Business Plan (solo DM 2022 con BP attivo)
+    if ctx.get("bp_result") is not None:
+        flow.extend(_build_business_plan(ctx, s))
+        flow.append(PageBreak())
     # Methodology
     flow.extend(_build_methodology(ctx, s))
 
