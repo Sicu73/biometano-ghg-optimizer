@@ -4279,30 +4279,54 @@ st.divider()
 st.markdown(
     f"<div style='font-family:\"JetBrains Mono\", monospace; font-size:0.7rem; "
     f"font-weight:600; letter-spacing:1.5px; text-transform:uppercase; "
-    f"color:{TEXT_MUTED}; margin-bottom:10px;'>// EXPORT &amp; IMPORT</div>",
+    f"color:{TEXT_MUTED}; margin-bottom:10px;'>// EXPORT</div>",
     unsafe_allow_html=True,
 )
 st.caption(
-    "📥 Scarica il CSV, modifica le colonne **Ore** e **biomasse fisse** "
-    "in Excel/Numbers, ricarica il file qui sotto e tutti i calcoli "
-    "(produzione, saving GHG, ricavi, validità, BP) si aggiornano "
-    "automaticamente. Le biomasse calcolate dal solver vengono "
-    "**ricalcolate** in base ai nuovi valori."
+    "Scarica i risultati come **CSV** (Excel-compatibile) o **Report PDF** "
+    "(consulting-grade). Il CSV è **modificabile** in Excel/Numbers: "
+    "puoi cambiare le colonne «Ore» e le biomasse, salvare, e riportarlo "
+    "qui sotto per ricalcolare tutto automaticamente."
 )
 
-_dl_col1, _dl_col2, _dl_col3 = st.columns([1, 1, 1])
+# ===== Riga 1: i due bottoni di DOWNLOAD =====
+_dl_col1, _dl_col2 = st.columns(2)
 
 with _dl_col1:
-    csv = df_res.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig")
+    # Per Excel-compat: pulisci unicode/emoji nelle celle e header.
+    # I nomi delle biomasse (FEED_NAMES) restano puliti: testo ASCII.
+    # Solo Sm³, gCO₂, e l'emoji ✅/❌ in Validità vengono normalizzati.
+    df_export = df_res.copy()
+    _ren_cols = {
+        "Sm³ lordi":          "Sm3 lordi",
+        "Sm³ netti":          "Sm3 netti",
+        "Sm³/h netti":        "Sm3/h netti",
+        "GHG (gCO₂/MJ)":      "GHG (gCO2/MJ)",
+    }
+    df_export = df_export.rename(columns=_ren_cols)
+    if "Validità" in df_export.columns:
+        df_export["Validità"] = (
+            df_export["Validità"]
+                .astype(str)
+                .str.replace("✅", "OK", regex=False)
+                .str.replace("❌", "KO", regex=False)
+                .str.strip()
+        )
+    csv = df_export.to_csv(
+        index=False, sep=";", decimal=",",
+        lineterminator="\r\n",  # CRLF: standard Windows/Excel
+    ).encode("utf-8-sig")        # BOM per Excel
     st.download_button(
-        "⬇️ Scarica CSV",
+        "⬇️ Scarica CSV (Excel-compatibile)",
         data=csv,
         file_name=f"metaniq_{APP_MODE}_plan.csv",
         mime="text/csv",
         use_container_width=True,
-        help="Risultati mensili completi in formato CSV (separatore «;», "
-             "virgola decimale italiana, encoding UTF-8 con BOM per Excel). "
-             "Modificabile e re-importabile per scenari custom.",
+        type="secondary",
+        help="Apri in Excel/Numbers/LibreOffice. Separatore «;», virgola "
+             "decimale italiana, BOM UTF-8, line ending Windows. "
+             "Modifica le colonne «Ore» e biomasse, salva e ricarica "
+             "nel widget qui sotto per ricalcolare tutto.",
     )
 
 with _dl_col2:
@@ -4407,79 +4431,85 @@ with _dl_col2:
     else:
         st.error(f"Errore generazione PDF: {_pdf_err}")
 
-# ===== 3a colonna: Upload CSV per re-import =====
-with _dl_col3:
-    st.markdown(
-        f"<div style='font-size:0.85rem; color:{TEXT_PRIMARY}; "
-        "font-weight:500; margin-bottom:6px;'>📤 Carica CSV modificato</div>",
-        unsafe_allow_html=True,
-    )
-    _uploaded = st.file_uploader(
-        "Trascina o seleziona file",
-        type=["csv"],
-        key=f"csv_upload_{APP_MODE}",
-        label_visibility="collapsed",
-        help="Carica un CSV con le stesse colonne del download. "
-             "Vengono lette le colonne «Mese», «Ore» e le biomasse "
-             "presenti nelle attive. Le altre colonne (Sm³, MWh, "
-             "saving, validità) sono rigenerate dal calcolo.",
-    )
-    if _uploaded is not None:
-        try:
-            _csv_df = pd.read_csv(
-                _uploaded,
-                sep=";", decimal=",", encoding="utf-8-sig",
-                dtype=str,  # tutto stringa, parse_it dopo
+# ===== Riga 2: Upload CSV per re-import (banda intera) =====
+st.markdown(
+    f"<div style='font-family:\"JetBrains Mono\", monospace; font-size:0.7rem; "
+    f"font-weight:600; letter-spacing:1.5px; text-transform:uppercase; "
+    f"color:{TEXT_MUTED}; margin-top:18px; margin-bottom:8px;'>"
+    f"// IMPORT SCENARIO</div>",
+    unsafe_allow_html=True,
+)
+st.markdown(
+    f"<div style='font-size:0.85rem; color:{TEXT_PRIMARY}; "
+    "font-weight:500; margin-bottom:6px;'>📤 Ricarica un CSV modificato "
+    "per ricalcolare tutto</div>",
+    unsafe_allow_html=True,
+)
+_uploaded = st.file_uploader(
+    "Trascina qui un CSV scaricato e modificato (Mese, Ore, biomasse fisse)",
+    type=["csv"],
+    key=f"csv_upload_{APP_MODE}",
+    help="Carica il CSV scaricato con il pulsante sopra (anche modificato "
+         "in Excel). Vengono lette le colonne «Mese», «Ore» e le biomasse "
+         "FISSE attive. Saving GHG, validita, ricavi, BP, PDF: tutto "
+         "ricalcolato. Le biomasse calcolate dal solver vengono "
+         "rideterminate sui nuovi parametri.",
+)
+if _uploaded is not None:
+    try:
+        _csv_df = pd.read_csv(
+            _uploaded,
+            sep=";", decimal=",", encoding="utf-8-sig",
+            dtype=str,  # tutto stringa, parse_it dopo
+        )
+        # Validazione colonne minime
+        _required = ["Mese", "Ore"] + fixed_feeds
+        _missing = [c for c in _required if c not in _csv_df.columns]
+        if _missing:
+            st.error(
+                "❌ CSV non valido. Colonne mancanti: "
+                + ", ".join(f"`{c}`" for c in _missing)
+                + ". Scarica un CSV pulito dal pulsante sopra e riprova."
             )
-            # Validazione colonne minime
-            _required = ["Mese", "Ore"] + fixed_feeds
-            _missing = [c for c in _required if c not in _csv_df.columns]
-            if _missing:
+        else:
+            # Filtra alle sole 12 mensili (in caso di righe extra)
+            _csv_df = _csv_df[_csv_df["Mese"].isin(MONTHS)]
+            if len(_csv_df) != 12:
                 st.error(
-                    "❌ CSV non valido. Colonne mancanti: "
-                    + ", ".join(f"`{c}`" for c in _missing)
-                    + ". Scarica un CSV pulito dal pulsante a sinistra "
-                      "e riprova."
+                    f"❌ Il CSV deve contenere 12 mesi. "
+                    f"Trovati {len(_csv_df)} (atteso: {', '.join(MONTHS)})."
                 )
             else:
-                # Filtra alle sole 12 mensili (in caso di righe extra)
-                _csv_df = _csv_df[_csv_df["Mese"].isin(MONTHS)]
-                if len(_csv_df) != 12:
-                    st.error(
-                        f"❌ Il CSV deve contenere 12 mesi. "
-                        f"Trovati {len(_csv_df)} (atteso: {', '.join(MONTHS)})."
+                # Ordina per matching MONTHS
+                _csv_df = (
+                    _csv_df.set_index("Mese")
+                          .reindex(MONTHS)
+                          .reset_index()
+                )
+                # Parse Ore + biomasse fisse con parse_it
+                _new_state = _csv_df[["Mese", "Ore"] + fixed_feeds].copy()
+                _new_state["Ore"] = (
+                    _new_state["Ore"].apply(parse_it).clip(lower=0).astype(int)
+                )
+                for f in fixed_feeds:
+                    _new_state[f] = (
+                        _new_state[f].apply(parse_it).clip(lower=0).astype(float)
                     )
-                else:
-                    # Ordina per matching MONTHS
-                    _csv_df = (
-                        _csv_df.set_index("Mese")
-                              .reindex(MONTHS)
-                              .reset_index()
-                    )
-                    # Parse Ore + biomasse fisse con parse_it
-                    _new_state = _csv_df[["Mese", "Ore"] + fixed_feeds].copy()
-                    _new_state["Ore"] = (
-                        _new_state["Ore"].apply(parse_it).clip(lower=0).astype(int)
-                    )
-                    for f in fixed_feeds:
-                        _new_state[f] = (
-                            _new_state[f].apply(parse_it).clip(lower=0).astype(float)
-                        )
-                    # Salva e rerun (i calcoli ripartono da capo dal solver)
-                    st.session_state[state_key] = _new_state
-                    # Reset uploader per evitare loop di rerun
-                    st.session_state.pop(f"csv_upload_{APP_MODE}", None)
-                    st.success(
-                        "✅ CSV importato. Ore e biomasse fisse aggiornate. "
-                        "Saving GHG, validità, ricavi e BP ricalcolati. "
-                        "Le biomasse calcolate dal solver "
-                        + (f"({', '.join(unknown_feeds)}) "
-                           if unknown_feeds else "")
-                        + "vengono rideterminate sui nuovi parametri."
-                    )
-                    st.rerun()
-        except Exception as _csv_exc:  # noqa: BLE001
-            st.error(f"❌ Errore lettura CSV: {_csv_exc}")
+                # Salva e rerun (i calcoli ripartono da capo dal solver)
+                st.session_state[state_key] = _new_state
+                # Reset uploader per evitare loop di rerun
+                st.session_state.pop(f"csv_upload_{APP_MODE}", None)
+                st.success(
+                    "✅ CSV importato. Ore e biomasse fisse aggiornate. "
+                    "Saving GHG, validità, ricavi e BP ricalcolati. "
+                    "Le biomasse calcolate dal solver "
+                    + (f"({', '.join(unknown_feeds)}) "
+                       if unknown_feeds else "")
+                    + "vengono rideterminate sui nuovi parametri."
+                )
+                st.rerun()
+    except Exception as _csv_exc:  # noqa: BLE001
+        st.error(f"❌ Errore lettura CSV: {_csv_exc}")
 
 st.caption(
     "ℹ️ Database feedstock: letteratura tecnica / UNI/TS 11567:2024 / parametri "
