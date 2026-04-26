@@ -359,14 +359,25 @@ def _build_piano(ws, ctx, db_sheet_name):
     pci_cell        = "$B$10"
 
     # Database layout ORIZZONTALE: yield in row 2, e_total in row 7
-    # Colonne biomasse Database: B..($db_last_letter), uguale numero di
-    # biomasse del Piano. Ranges 1xN_feed -> dot product con bio_range.
-    db_last_letter = L(1 + n_feed)
-    db_yield_range = f"'{db_sheet_name}'!$B$2:${db_last_letter}$2"
-    db_etot_range  = f"'{db_sheet_name}'!$B$7:${db_last_letter}$7"
-
+    # Per evitare problemi cross-version di SUMPRODUCT con range, usiamo
+    # la forma ESPLICITA "somma di prodotti" - bulletproof in Excel,
+    # LibreOffice, Numbers, Google Sheets, qualsiasi locale.
+    # Esempio (4 biomasse):
+    #   Sm3_lordi = C13*Database!$B$2 + D13*Database!$C$2 +
+    #               E13*Database!$D$2 + F13*Database!$E$2
     bio_start_letter = L(bio_col_start)
     bio_end_letter   = L(bio_col_end)
+
+    def _sum_of_products(row_idx: int, db_row_idx: int) -> str:
+        """Costruisce somma di prodotti esplicita per N_feed biomasse."""
+        terms = []
+        for j in range(n_feed):
+            piano_col = L(bio_col_start + j)
+            db_col    = L(2 + j)  # B per j=0, C per j=1, ...
+            terms.append(
+                f"{piano_col}{row_idx}*'{db_sheet_name}'!${db_col}${db_row_idx}"
+            )
+        return "+".join(terms)
 
     # === Dati 12 mesi (rows 13-24) ===
     months = ctx.get("MONTHS", [
@@ -409,14 +420,12 @@ def _build_piano(ws, ctx, db_sheet_name):
             _style_editable(c_b)
             c_b.number_format = "#,##0.0"
 
-        bio_range = f"{bio_start_letter}{r}:{bio_end_letter}{r}"
-
-        # Sm3 lordi = SUMPRODUCT(biomasse riga × yield riga) -> dot product
-        # Entrambe le matrici 1xN_feed -> SUMPRODUCT le moltiplica
-        # element-wise e somma. IFERROR per robustezza (se Database
-        # ha valori non numerici per qualche motivo).
+        # Sm3 lordi = SUM(bio_i * yield_i) -- somma esplicita per max compat
+        # Bulletproof: niente SUMPRODUCT, niente range matching, niente
+        # ambiguita' di orientamento. Funziona ovunque.
+        sop_yield = _sum_of_products(row_idx=r, db_row_idx=2)
         c = ws.cell(row=r, column=sm3_lordi_col,
-                    value=f"=IFERROR(SUMPRODUCT({bio_range},{db_yield_range}),0)")
+                    value=f"=IFERROR({sop_yield},0)")
         c.number_format = "#,##0"
         _style_readonly(c)
 
@@ -434,11 +443,19 @@ def _build_piano(ws, ctx, db_sheet_name):
         c.number_format = "#,##0.0"
         _style_readonly(c)
 
-        # e_w (gCO2/MJ): SUMPRODUCT(bio*yield*etot)/SUMPRODUCT(bio*yield)
+        # e_w = SUM(bio*yield*e_total) / SUM(bio*yield) -- forme esplicite
+        # Numerator: somma di (bio_i * yield_i * e_total_i)
+        num_terms = []
+        for j in range(n_feed):
+            piano_col = L(bio_col_start + j)
+            db_col    = L(2 + j)
+            num_terms.append(
+                f"{piano_col}{r}*'{db_sheet_name}'!${db_col}$2*"
+                f"'{db_sheet_name}'!${db_col}$7"
+            )
+        sop_num = "+".join(num_terms)
         c = ws.cell(row=r, column=e_w_col,
-                    value=(f"=IFERROR(SUMPRODUCT({bio_range},"
-                           f"{db_yield_range},{db_etot_range})"
-                           f"/SUMPRODUCT({bio_range},{db_yield_range}),0)"))
+                    value=f"=IFERROR(({sop_num})/({sop_yield}),0)")
         c.number_format = "0.00"
         _style_readonly(c)
 
