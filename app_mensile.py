@@ -4461,38 +4461,35 @@ with _dl_col2:
     else:
         st.error(f"Errore generazione PDF: {_pdf_err}")
 
-# ===== Colonna 3: CSV legacy (compat archivio) =====
+# ===== Colonna 3: XLSX SNAPSHOT (read-only, valori statici) =====
 with _dl_col3:
-    df_export = df_res.copy()
-    _ren_cols = {
-        "Sm³ lordi":          "Sm3 lordi",
-        "Sm³ netti":          "Sm3 netti",
-        "Sm³/h netti":        "Sm3/h netti",
-        "GHG (gCO₂/MJ)":      "GHG (gCO2/MJ)",
-    }
-    df_export = df_export.rename(columns=_ren_cols)
-    if "Validità" in df_export.columns:
-        df_export["Validità"] = (
-            df_export["Validità"]
-                .astype(str)
-                .str.replace("✅", "OK", regex=False)
-                .str.replace("❌", "KO", regex=False)
-                .str.strip()
+    try:
+        # Riusa lo stesso ctx dell'editabile, aggiungiamo df_res per i valori
+        _xlsx_snap_ctx = dict(_xlsx_ctx)
+        _xlsx_snap_ctx["df_res"] = df_res
+        _xlsx_snap_buf = build_metaniq_xlsx(_xlsx_snap_ctx, snapshot=True)
+        _xlsx_snap_data = _xlsx_snap_buf.getvalue()
+        _xlsx_snap_ok = True
+    except Exception as _xs_exc:  # noqa: BLE001
+        _xlsx_snap_data = None
+        _xlsx_snap_ok = False
+        _xlsx_snap_err = str(_xs_exc)
+    if _xlsx_snap_ok:
+        st.download_button(
+            "📋 Excel snapshot",
+            data=_xlsx_snap_data,
+            file_name=f"metaniq_{APP_MODE}_snapshot.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            type="secondary",
+            help="Excel di sola lettura (snapshot dei numeri attuali, "
+                 "no formule). Stessa estetica del file modificabile ma "
+                 "con valori cristallizzati - ideale per archivio, "
+                 "condivisione e print. Per modificare ore/biomasse usa "
+                 "l'Excel modificabile a sinistra.",
         )
-    csv = df_export.to_csv(
-        index=False, sep=";", decimal=",",
-        lineterminator="\r\n",
-    ).encode("utf-8-sig")
-    st.download_button(
-        "📋 CSV (snapshot)",
-        data=csv,
-        file_name=f"metaniq_{APP_MODE}_snapshot.csv",
-        mime="text/csv",
-        use_container_width=True,
-        type="secondary",
-        help="CSV di sola lettura (snapshot dei numeri attuali). "
-             "Per modificare ore/biomasse usa l'Excel autocalcolante a sinistra.",
-    )
+    else:
+        st.error(f"Errore snapshot: {_xlsx_snap_err}")
 
 st.caption(
     "ℹ️ Database feedstock: letteratura tecnica / UNI/TS 11567:2024 / parametri "

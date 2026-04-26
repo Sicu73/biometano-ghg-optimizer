@@ -85,18 +85,22 @@ def _style_total(c):
 # ============================================================
 # Public API
 # ============================================================
-def build_metaniq_xlsx(ctx: dict) -> BytesIO:
+def build_metaniq_xlsx(ctx: dict, snapshot: bool = False) -> BytesIO:
     """Costruisce il workbook XLSX completo.
 
-    ctx contiene: active_feeds, FEEDSTOCK_DB, aux_factor, ep_total,
-    fossil_comparator, ghg_threshold, plant_net_smch, MONTHS,
-    MONTH_HOURS, NM3_TO_MWH, initial_data (opt), APP_MODE, end_use.
+    Parametri:
+      ctx: dict con active_feeds, FEEDSTOCK_DB, aux_factor, ep_total,
+           fossil_comparator, ghg_threshold, plant_net_smch, MONTHS,
+           MONTH_HOURS, NM3_TO_MWH, IS_CHP, plant_kwe (CHP), eta_el (CHP),
+           eta_th (CHP), aux_el_pct (CHP), end_use, APP_MODE_LABEL,
+           initial_data (per editabile) o df_res (per snapshot).
+
+      snapshot: False (default) -> file EDITABILE con formule live.
+                True -> file SNAPSHOT con valori statici (no formule).
     """
     wb = Workbook()
 
     # Forza ricalcolo completo all'apertura del file in Excel.
-    # Senza questo, alcune versioni di Excel mostrano #VALORE! finche'
-    # l'utente non preme Ctrl+Alt+F9.
     try:
         wb.calculation.fullCalcOnLoad = True
         wb.calculation.calcMode = "auto"
@@ -110,7 +114,7 @@ def build_metaniq_xlsx(ctx: dict) -> BytesIO:
     # === Sheet 2: Piano (main, attiva di default) ===
     ws_piano = wb.active
     ws_piano.title = "Piano mensile"
-    _build_piano(ws_piano, ctx, ws_db.title)
+    _build_piano(ws_piano, ctx, ws_db.title, snapshot=snapshot)
 
     # === Sheet 3: Sintesi ===
     ws_sum = wb.create_sheet("Sintesi annuale")
@@ -123,6 +127,14 @@ def build_metaniq_xlsx(ctx: dict) -> BytesIO:
     wb.save(buf)
     buf.seek(0)
     return buf
+
+
+def build_metaniq_xlsx_snapshot(ctx: dict) -> BytesIO:
+    """Comodita': snapshot XLSX (valori statici, no formule).
+
+    Equivalente a build_metaniq_xlsx(ctx, snapshot=True).
+    """
+    return build_metaniq_xlsx(ctx, snapshot=True)
 
 
 # ============================================================
@@ -234,12 +246,15 @@ def _build_database(ws, ctx):
 
 
 # ============================================================
-# Sheet 2 — Piano mensile (main, mode-aware)
+# Sheet 2 — Piano mensile (main, mode-aware + snapshot-aware)
 # ============================================================
-def _build_piano(ws, ctx, db_sheet_name):
+def _build_piano(ws, ctx, db_sheet_name, snapshot: bool = False):
     feeds   = ctx["active_feeds"]
     n_feed  = len(feeds)
     is_chp  = bool(ctx.get("IS_CHP", False))
+    # In modalita' SNAPSHOT i valori sono statici (no formule). Le celle
+    # input (Ore, Biomasse) NON sono editabili (no fill amber).
+    cell_fill_input = SLATE_50 if snapshot else AMBER_BG
 
     # Layout columns:
     #  A: Mese (read-only)
@@ -283,8 +298,11 @@ def _build_piano(ws, ctx, db_sheet_name):
     # === Title (row 1) ===
     ws.merge_cells(start_row=1, start_column=1,
                    end_row=1, end_column=valid_col)
-    c = ws.cell(row=1, column=1,
-                value="Metan.iQ — Piano mensile editabile")
+    c = ws.cell(
+        row=1, column=1,
+        value=("Metan.iQ — Piano mensile (snapshot)" if snapshot
+               else "Metan.iQ — Piano mensile editabile"),
+    )
     c.font = Font(bold=True, size=16, color=WHITE)
     c.fill = PatternFill("solid", fgColor=NAVY)
     c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
@@ -309,11 +327,24 @@ def _build_piano(ws, ctx, db_sheet_name):
     # === Helper banner (row 3) ===
     ws.merge_cells(start_row=3, start_column=1,
                    end_row=3, end_column=valid_col)
-    c = ws.cell(row=3, column=1,
-                value=("✏️ Modifica le celle GIALLE (Ore + Biomasse). "
-                       "Tutti i calcoli si aggiornano automaticamente."))
-    c.font = Font(bold=True, size=10, color=AMBER_DK)
-    c.fill = PatternFill("solid", fgColor=AMBER_BG)
+    if snapshot:
+        banner_text = (
+            "📋 SNAPSHOT — valori fotografati al momento del download. "
+            "Per modificare e ricalcolare scarica il file «Excel "
+            "modificabile» dall'app Metan.iQ."
+        )
+        banner_fg = SLATE_700
+        banner_bg = SLATE_100
+    else:
+        banner_text = (
+            "✏️ Modifica le celle GIALLE (Ore + Biomasse). "
+            "Tutti i calcoli si aggiornano automaticamente."
+        )
+        banner_fg = AMBER_DK
+        banner_bg = AMBER_BG
+    c = ws.cell(row=3, column=1, value=banner_text)
+    c.font = Font(bold=True, size=10, color=banner_fg)
+    c.fill = PatternFill("solid", fgColor=banner_bg)
     c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
     c.border = _border_thin()
     ws.row_dimensions[3].height = 22
@@ -383,8 +414,8 @@ def _build_piano(ws, ctx, db_sheet_name):
 
             c_val = ws.cell(row=r, column=2, value=value)
             c_val.number_format = fmt
-            # Editable for the user (es. ep totale per simulare scenari ep)
-            c_val.fill = PatternFill("solid", fgColor=AMBER_BG)
+            # Snapshot: read-only slate. Editable: amber (yellow).
+            c_val.fill = PatternFill("solid", fgColor=cell_fill_input)
             c_val.font = Font(bold=True, color=NAVY)
             c_val.alignment = Alignment(horizontal="right")
             c_val.border = _border_thin()
@@ -451,7 +482,7 @@ def _build_piano(ws, ctx, db_sheet_name):
             )
         return "+".join(terms)
 
-    # === Dati 12 mesi (rows 13-24) ===
+    # === Dati 12 mesi ===
     months = ctx.get("MONTHS", [
         "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
         "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre",
@@ -460,6 +491,17 @@ def _build_piano(ws, ctx, db_sheet_name):
         744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744,
     ])
     initial_data = ctx.get("initial_data", {}) or {}
+
+    # Per SNAPSHOT: leggiamo i valori computati gia' pronti dal df_res.
+    # Mappiamo per Mese -> dict di tutte le colonne computate.
+    snap_data = {}
+    if snapshot:
+        df = ctx.get("df_res")
+        if df is not None:
+            for _, row in df.iterrows():
+                m_key = row.get("Mese")
+                if m_key:
+                    snap_data[m_key] = dict(row)
 
     first_data_row = header_row + 1
     last_data_row  = first_data_row + 11
@@ -474,123 +516,187 @@ def _build_piano(ws, ctx, db_sheet_name):
         c_mese.alignment = Alignment(horizontal="left", indent=1)
         c_mese.border = _border_thin()
 
-        # B: Ore (editable)
+        # B: Ore (editable in modificabile, read-only in snapshot)
         ore_default = h
-        if m in initial_data:
+        if snapshot and m in snap_data:
+            ore_default = snap_data[m].get("Ore", h)
+        elif m in initial_data:
             ore_default = initial_data[m].get("Ore", h)
         c_ore = ws.cell(row=r, column=2, value=int(ore_default))
-        _style_editable(c_ore)
+        if snapshot:
+            _style_readonly(c_ore)
+        else:
+            _style_editable(c_ore)
         c_ore.number_format = "0"
 
-        # C..N: biomasse (editable)
+        # C..N: biomasse (editable in modificabile, read-only in snapshot)
         for j, name in enumerate(feeds):
             col = bio_col_start + j
             default = 0.0
-            if m in initial_data:
+            if snapshot and m in snap_data:
+                default = float(snap_data[m].get(name, 0.0) or 0.0)
+            elif m in initial_data:
                 default = initial_data[m].get(name, 0.0)
             c_b = ws.cell(row=r, column=col, value=float(default))
-            _style_editable(c_b)
+            if snapshot:
+                _style_readonly(c_b)
+            else:
+                _style_editable(c_b)
             c_b.number_format = "#,##0.0"
 
-        # Sm3 lordi = SUM(bio_i * yield_i) -- somma esplicita per max compat
-        # Bulletproof: niente SUMPRODUCT, niente range matching, niente
-        # ambiguita' di orientamento. Funziona ovunque.
-        sop_yield = _sum_of_products(row_idx=r, db_row_idx=2)
-        c = ws.cell(row=r, column=sm3_lordi_col,
-                    value=f"=IFERROR({sop_yield},0)")
+        # =====================================================
+        # FORMULE LIVE (modificabile) o VALORI STATICI (snapshot)
+        # =====================================================
+        # Sm3 lordi
+        if snapshot:
+            v = float(snap_data.get(m, {}).get("Sm³ lordi") or 0)
+            c = ws.cell(row=r, column=sm3_lordi_col, value=v)
+        else:
+            sop_yield = _sum_of_products(row_idx=r, db_row_idx=2)
+            c = ws.cell(row=r, column=sm3_lordi_col,
+                        value=f"=IFERROR({sop_yield},0)")
         c.number_format = "#,##0"
         _style_readonly(c)
 
-        # Sm3 netti = lordi / aux
+        # Sm3 netti
         sm3_lordi_letter = L(sm3_lordi_col)
-        c = ws.cell(row=r, column=sm3_netti_col,
-                    value=f"=IFERROR({sm3_lordi_letter}{r}/{aux_cell},0)")
+        if snapshot:
+            v = float(snap_data.get(m, {}).get("Sm³ netti") or 0)
+            c = ws.cell(row=r, column=sm3_netti_col, value=v)
+        else:
+            c = ws.cell(row=r, column=sm3_netti_col,
+                        value=f"=IFERROR({sm3_lordi_letter}{r}/{aux_cell},0)")
         c.number_format = "#,##0"
         _style_readonly(c)
 
-        # MWh netti = netti * PCI
+        # MWh netti
         sm3_netti_letter = L(sm3_netti_col)
-        c = ws.cell(row=r, column=mwh_netti_col,
-                    value=f"={sm3_netti_letter}{r}*{pci_cell}")
+        if snapshot:
+            v = float(snap_data.get(m, {}).get("MWh netti") or 0)
+            c = ws.cell(row=r, column=mwh_netti_col, value=v)
+        else:
+            c = ws.cell(row=r, column=mwh_netti_col,
+                        value=f"={sm3_netti_letter}{r}*{pci_cell}")
         c.number_format = "#,##0.0"
         _style_readonly(c)
 
-        # e_w = SUM(bio*yield*e_total) / SUM(bio*yield) -- forme esplicite
-        # Numerator: somma di (bio_i * yield_i * e_total_i)
-        num_terms = []
-        for j in range(n_feed):
-            piano_col = L(bio_col_start + j)
-            db_col    = L(2 + j)
-            num_terms.append(
-                f"{piano_col}{r}*'{db_sheet_name}'!${db_col}$2*"
-                f"'{db_sheet_name}'!${db_col}$7"
-            )
-        sop_num = "+".join(num_terms)
-        c = ws.cell(row=r, column=e_w_col,
-                    value=f"=IFERROR(({sop_num})/({sop_yield}),0)")
+        # e_w (gCO2/MJ)
+        if snapshot:
+            v = float(snap_data.get(m, {}).get("GHG (gCO₂/MJ)") or 0)
+            c = ws.cell(row=r, column=e_w_col, value=v)
+        else:
+            num_terms = []
+            for j in range(n_feed):
+                piano_col = L(bio_col_start + j)
+                db_col    = L(2 + j)
+                num_terms.append(
+                    f"{piano_col}{r}*'{db_sheet_name}'!${db_col}$2*"
+                    f"'{db_sheet_name}'!${db_col}$7"
+                )
+            sop_num = "+".join(num_terms)
+            sop_yield = _sum_of_products(row_idx=r, db_row_idx=2)
+            c = ws.cell(row=r, column=e_w_col,
+                        value=f"=IFERROR(({sop_num})/({sop_yield}),0)")
         c.number_format = "0.00"
         _style_readonly(c)
 
         # === CHP-only colonne energetiche ===
         if is_chp:
             mwh_netti_letter = L(mwh_netti_col)
-            # MWh el LORDI = MWh CH4 × η_el (ai morsetti alternatore)
-            c = ws.cell(row=r, column=mwh_el_lordo_col,
-                        value=f"={mwh_netti_letter}{r}*{eta_el_cell}")
+            # MWh el LORDI = MWh CH4 × η_el
+            if snapshot:
+                v = float(snap_data.get(m, {}).get("MWh elettrici lordi") or 0)
+                c = ws.cell(row=r, column=mwh_el_lordo_col, value=v)
+            else:
+                c = ws.cell(row=r, column=mwh_el_lordo_col,
+                            value=f"={mwh_netti_letter}{r}*{eta_el_cell}")
             c.number_format = "#,##0.0"
             _style_readonly(c)
+
+            # MWh el NETTI rete = lordi × (1 - aux%/100)
             mwh_el_lordo_letter = L(mwh_el_lordo_col)
-            # MWh el NETTI RETE = lordi × (1 − aux%/100)
-            c = ws.cell(row=r, column=mwh_el_netto_col,
-                        value=(f"={mwh_el_lordo_letter}{r}*"
-                               f"(1-{aux_el_pct_cell}/100)"))
+            if snapshot:
+                v = float(snap_data.get(m, {}).get("MWh elettrici netti") or 0)
+                c = ws.cell(row=r, column=mwh_el_netto_col, value=v)
+            else:
+                c = ws.cell(row=r, column=mwh_el_netto_col,
+                            value=(f"={mwh_el_lordo_letter}{r}*"
+                                   f"(1-{aux_el_pct_cell}/100)"))
             c.number_format = "#,##0.0"
             _style_readonly(c)
+
             # MWh termici = MWh CH4 × η_th
-            c = ws.cell(row=r, column=mwh_th_col,
-                        value=f"={mwh_netti_letter}{r}*{eta_th_cell}")
+            if snapshot:
+                v = float(snap_data.get(m, {}).get("MWh termici") or 0)
+                c = ws.cell(row=r, column=mwh_th_col, value=v)
+            else:
+                c = ws.cell(row=r, column=mwh_th_col,
+                            value=f"={mwh_netti_letter}{r}*{eta_th_cell}")
             c.number_format = "#,##0.0"
             _style_readonly(c)
 
         # === Saving % ===
         e_w_letter = L(e_w_col)
-        c = ws.cell(row=r, column=saving_col,
-                    value=(f"=IFERROR(({comparator_cell}-{e_w_letter}{r})"
-                           f"/{comparator_cell}*100,0)"))
+        if snapshot:
+            v = float(snap_data.get(m, {}).get("Saving %") or 0)
+            c = ws.cell(row=r, column=saving_col, value=v)
+        else:
+            c = ws.cell(row=r, column=saving_col,
+                        value=(f"=IFERROR(({comparator_cell}-{e_w_letter}{r})"
+                               f"/{comparator_cell}*100,0)"))
         c.number_format = "0.0\"%\""
         _style_readonly(c)
 
         # === Production check column (mode-aware) ===
         if is_chp:
             # kW lordi medi sull'ora = MWh el lordi × 1000 / Ore
-            # = avg potenza alternatore durante il funzionamento.
-            # Constraint normativo: kW lordi medi <= plant_kwe (targa motore).
             mwh_el_lordo_letter = L(mwh_el_lordo_col)
-            c = ws.cell(row=r, column=kw_lordi_col,
-                        value=(f"=IFERROR({mwh_el_lordo_letter}{r}*1000"
-                               f"/B{r},0)"))
+            if snapshot:
+                # Calcoliamo da MWh el lordi e Ore (gia' nel snap)
+                _ml = float(snap_data.get(m, {}).get("MWh elettrici lordi") or 0)
+                _ore = float(snap_data.get(m, {}).get("Ore") or h)
+                v = (_ml * 1000.0 / _ore) if _ore > 0 else 0.0
+                c = ws.cell(row=r, column=kw_lordi_col, value=v)
+            else:
+                c = ws.cell(row=r, column=kw_lordi_col,
+                            value=(f"=IFERROR({mwh_el_lordo_letter}{r}*1000"
+                                   f"/B{r},0)"))
             c.number_format = "#,##0"
             _style_readonly(c)
             prod_check_letter = L(kw_lordi_col)
         else:
             # Biometano: Sm3/h netti = Sm3 netti / Ore
-            c = ws.cell(row=r, column=smch_col,
-                        value=f"=IFERROR({sm3_netti_letter}{r}/B{r},0)")
+            if snapshot:
+                v = float(snap_data.get(m, {}).get("Sm³/h netti") or 0)
+                c = ws.cell(row=r, column=smch_col, value=v)
+            else:
+                c = ws.cell(row=r, column=smch_col,
+                            value=f"=IFERROR({sm3_netti_letter}{r}/B{r},0)")
             c.number_format = "0.0"
             _style_readonly(c)
             prod_check_letter = L(smch_col)
 
-        # === Validita: saving >= soglia AND produzione <= max ===
-        # Per CHP: produzione = kW lordi medi, max = plant_kwe (targa).
-        # Per biometano: produzione = Sm3/h netti, max = autorizzato.
+        # === Validita ===
         saving_letter = L(saving_col)
-        c = ws.cell(row=r, column=valid_col,
-                    value=(f'=IF(AND({saving_letter}{r}>={threshold_cell},'
-                           f'{prod_check_letter}{r}<={max_prod_cell}),"OK","KO")'))
+        if snapshot:
+            # df_res ha "Validita" con emoji ✅/❌. Normalizziamo a OK/KO.
+            v_str = str(snap_data.get(m, {}).get("Validità") or "")
+            if "✅" in v_str:
+                v_clean = "OK"
+            elif "❌" in v_str:
+                v_clean = "KO"
+            elif v_str.upper().startswith("OK"):
+                v_clean = "OK"
+            else:
+                v_clean = "KO"
+            c = ws.cell(row=r, column=valid_col, value=v_clean)
+        else:
+            c = ws.cell(row=r, column=valid_col,
+                        value=(f'=IF(AND({saving_letter}{r}>={threshold_cell},'
+                               f'{prod_check_letter}{r}<={max_prod_cell}),"OK","KO")'))
         c.font = Font(bold=True)
         c.alignment = Alignment(horizontal="center", vertical="center")
         c.border = _border_thin()
-        # background applied via conditional formatting
 
     # === Riga TOTALE (row 25) ===
     tot_row = last_data_row + 1
