@@ -123,6 +123,29 @@ def build_metaniq_xlsx(ctx: dict, snapshot: bool = False) -> BytesIO:
     # Imposta Piano come sheet attiva di default
     wb.active = wb.sheetnames.index(ws_piano.title)
 
+    # === SNAPSHOT: protezione sheet (read-only) ===
+    # Tutte le celle sono "locked" di default in Excel; abilitando
+    # protection.sheet=True diventano effettivamente non editabili.
+    # L'utente puo' comunque selezionare/copiare/stampare.
+    # Per riprendere editing: Revisione > Rimuovi protezione foglio
+    # (no password).
+    if snapshot:
+        for sname in wb.sheetnames:
+            ws = wb[sname]
+            ws.protection.sheet = True
+            ws.protection.formatCells     = False
+            ws.protection.formatColumns   = False
+            ws.protection.formatRows      = False
+            ws.protection.insertColumns   = False
+            ws.protection.insertRows      = False
+            ws.protection.deleteColumns   = False
+            ws.protection.deleteRows      = False
+            ws.protection.sort            = False
+            ws.protection.autoFilter      = False
+            ws.protection.pivotTables     = False
+            ws.protection.selectLockedCells   = False  # consente click
+            ws.protection.selectUnlockedCells = False
+
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -329,9 +352,9 @@ def _build_piano(ws, ctx, db_sheet_name, snapshot: bool = False):
                    end_row=3, end_column=valid_col)
     if snapshot:
         banner_text = (
-            "📋 SNAPSHOT — valori fotografati al momento del download. "
-            "Per modificare e ricalcolare scarica il file «Excel "
-            "modificabile» dall'app Metan.iQ."
+            "🔒 SNAPSHOT BLOCCATO — valori fotografati al download, "
+            "celle in sola lettura. Per modificare e ricalcolare scarica "
+            "il file «Excel modificabile» dall'app Metan.iQ."
         )
         banner_fg = SLATE_700
         banner_bg = SLATE_100
