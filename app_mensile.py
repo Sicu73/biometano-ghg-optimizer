@@ -4324,6 +4324,13 @@ with _dl_col1:
                 "biogas_chp_fer2":  "Biogas CHP FER 2 (≤300 kW)",
             }.get(APP_MODE, APP_MODE),
             "end_use":           end_use,
+            # === CHP-specific (per validazione kW lordi) ===
+            "IS_CHP":            IS_CHP,
+            "plant_kwe":         plant_kwe,        # potenza LORDA targa motore
+            "plant_kwe_net":     plant_kwe_net,    # info-only
+            "eta_el":            eta_el,
+            "eta_th":            eta_th,
+            "aux_el_pct":        aux_el_pct,
         }
         _xlsx_buf = build_metaniq_xlsx(_xlsx_ctx)
         _xlsx_data = _xlsx_buf.getvalue()

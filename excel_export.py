@@ -234,26 +234,48 @@ def _build_database(ws, ctx):
 
 
 # ============================================================
-# Sheet 2 — Piano mensile (main)
+# Sheet 2 — Piano mensile (main, mode-aware)
 # ============================================================
 def _build_piano(ws, ctx, db_sheet_name):
     feeds   = ctx["active_feeds"]
     n_feed  = len(feeds)
+    is_chp  = bool(ctx.get("IS_CHP", False))
 
     # Layout columns:
     #  A: Mese (read-only)
     #  B: Ore (editable)
     #  C..C+n-1: biomasse (editable)
-    #  poi: Sm3 lordi, Sm3 netti, MWh netti, e_w, Saving %, Sm3/h netti, Validita
+    #
+    # BIOMETANO (DM 2022, DM 2018):
+    #  Sm3 lordi | Sm3 netti | MWh netti | e_w | Saving % | Sm3/h netti | Validita
+    #
+    # BIOGAS CHP (DM 2012, FER 2):
+    #  Sm3 lordi (CH4 eq) | Sm3 netti (CH4 motore) | MWh CH4 netti |
+    #  MWh el lordi | MWh el netti rete | MWh termici |
+    #  e_w | Saving % | kW lordi (medio) | Validita
     bio_col_start = 3
     bio_col_end   = 2 + n_feed
     sm3_lordi_col = bio_col_end + 1
     sm3_netti_col = sm3_lordi_col + 1
     mwh_netti_col = sm3_netti_col + 1
-    e_w_col       = mwh_netti_col + 1
-    saving_col    = e_w_col + 1
-    smch_col      = saving_col + 1
-    valid_col     = smch_col + 1
+
+    if is_chp:
+        # Colonne aggiuntive per CHP
+        mwh_el_lordo_col = mwh_netti_col + 1
+        mwh_el_netto_col = mwh_el_lordo_col + 1
+        mwh_th_col       = mwh_el_netto_col + 1
+        e_w_col          = mwh_th_col + 1
+        saving_col       = e_w_col + 1
+        kw_lordi_col     = saving_col + 1   # kW elettrici LORDI medi
+        valid_col        = kw_lordi_col + 1
+    else:
+        # Biometano: layout originale
+        e_w_col          = mwh_netti_col + 1
+        saving_col       = e_w_col + 1
+        smch_col         = saving_col + 1   # Sm3/h netti immissione
+        valid_col        = smch_col + 1
+        # Placeholder per evitare NameError nei branch successivi
+        mwh_el_lordo_col = mwh_el_netto_col = mwh_th_col = kw_lordi_col = None
 
     L = get_column_letter
     last_col_letter = L(valid_col)
@@ -296,23 +318,52 @@ def _build_piano(ws, ctx, db_sheet_name):
     c.border = _border_thin()
     ws.row_dimensions[3].height = 22
 
-    # === Parametri impianto (rows 4-10) ===
+    # === Parametri impianto (rows 4-10 biometano, 4-13 CHP) ===
     aux_factor       = float(ctx.get("aux_factor", 1.29))
     comparator       = float(ctx.get("fossil_comparator", 80.0))
     ghg_threshold    = float(ctx.get("ghg_threshold", 0.65)) * 100
     plant_max_smch   = float(ctx.get("plant_net_smch", 300.0))
     ep_total         = float(ctx.get("ep_total", 0.0))
     nm3_to_mwh       = float(ctx.get("NM3_TO_MWH", 0.00997))
+    # CHP-specific
+    plant_kwe        = float(ctx.get("plant_kwe", 999.0))
+    eta_el           = float(ctx.get("eta_el", 0.40))
+    eta_th           = float(ctx.get("eta_th", 0.42))
+    aux_el_pct       = float(ctx.get("aux_el_pct", 0.08)) * 100
+
+    # Layout righe parametri (cell references in formulas):
+    #   B5: aux_factor
+    #   B6: comparator (CHP=183, biometano=80/94)
+    #   B7: ghg_threshold (%)
+    #   B8: plant_max  (CHP=plant_kwe in kWe LORDI; biometano=Sm3/h netti)
+    #   B9: ep_total
+    #   B10: PCI biometano (MWh/Sm3)
+    #   --- CHP ONLY ---
+    #   B11: eta_el
+    #   B12: eta_th
+    #   B13: aux_el_pct (%)
+    common_max_label = (
+        f"Potenza elettrica LORDA max (kWe targa)" if is_chp
+        else f"Produzione netta max (Sm3/h)"
+    )
+    common_max_value = plant_kwe if is_chp else plant_max_smch
+    common_max_fmt   = "0" if is_chp else "0.0"
 
     params = [
-        ("PARAMETRI IMPIANTO (read-only)", None, None, True),
+        ("PARAMETRI IMPIANTO (editabili)", None, None, True),
         ("aux_factor (netto -> lordo)",   aux_factor,    "0.000", False),
         ("Comparator fossile (gCO2/MJ)",  comparator,    "0",     False),
         ("Soglia saving GHG (%)",         ghg_threshold, "0.0",   False),
-        ("Produzione netta max (Sm3/h)",  plant_max_smch,"0.0",   False),
+        (common_max_label,                common_max_value, common_max_fmt, False),
         ("ep totale (gCO2/MJ)",           ep_total,      "0.00",  False),
         ("PCI biometano (MWh/Sm3)",       nm3_to_mwh,    "0.00000", False),
     ]
+    if is_chp:
+        params.extend([
+            ("Rendimento elettrico η_el", eta_el,    "0.000", False),
+            ("Rendimento termico η_th",   eta_th,    "0.000", False),
+            ("Autoconsumo ausiliari (% del lordo)", aux_el_pct, "0.0", False),
+        ])
     for i, (label, value, fmt, is_header) in enumerate(params):
         r = 4 + i
         if is_header:
@@ -338,25 +389,46 @@ def _build_piano(ws, ctx, db_sheet_name):
             c_val.alignment = Alignment(horizontal="right")
             c_val.border = _border_thin()
 
-    # === Empty row 11 ===
+    # === Empty row separatore ===
+    # Per CHP la tabella inizia a row 15 (3 righe extra di params).
+    # Per biometano resta a row 12 come prima.
 
-    # === Header tabella (row 12) ===
-    header_row = 12
-    headers = ["Mese", "Ore"] + feeds + [
-        "Sm3 lordi", "Sm3 netti", "MWh netti",
-        "e_w", "Saving %", "Sm3/h netti", "Validita",
-    ]
-    for col, h in enumerate(headers, start=1):
+    # === Header tabella (mode-aware row + columns) ===
+    header_row = 15 if is_chp else 12
+    if is_chp:
+        # Etichette CHP (colonne aggiuntive: MWh el lordi/netti/termici, kW lordi)
+        col_labels = ["Mese", "Ore"] + feeds + [
+            "Sm3 CH4 lordi",      # CH4 equivalente totale (pre-perdite)
+            "Sm3 CH4 al motore",  # post-aux_factor
+            "MWh CH4 netti",      # energia CH4 al motore
+            "MWh el LORDI",       # ai morsetti alternatore
+            "MWh el netti rete",  # post-aux ausiliari (fatturati GSE)
+            "MWh termici",        # recupero calore (uso interno/teleriscaldamento)
+            "e_w",
+            "Saving %",
+            "kW lordi (medio)",   # potenza media oraria - check vs targa motore
+            "Validita",
+        ]
+    else:
+        col_labels = ["Mese", "Ore"] + feeds + [
+            "Sm3 lordi", "Sm3 netti", "MWh netti",
+            "e_w", "Saving %", "Sm3/h netti", "Validita",
+        ]
+    for col, h in enumerate(col_labels, start=1):
         c = ws.cell(row=header_row, column=col, value=h)
         _style_header(c)
     ws.row_dimensions[header_row].height = 42
 
-    # === Riferimenti per formule ===
+    # === Riferimenti per formule (cell letters) ===
     aux_cell        = "$B$5"
     comparator_cell = "$B$6"
     threshold_cell  = "$B$7"
-    max_prod_cell   = "$B$8"
+    max_prod_cell   = "$B$8"     # Sm3/h max biometano | kWe LORDI max CHP
     pci_cell        = "$B$10"
+    # CHP-only cells
+    eta_el_cell     = "$B$11"
+    eta_th_cell     = "$B$12"
+    aux_el_pct_cell = "$B$13"
 
     # Database layout ORIZZONTALE: yield in row 2, e_total in row 7
     # Per evitare problemi cross-version di SUMPRODUCT con range, usiamo
@@ -459,7 +531,28 @@ def _build_piano(ws, ctx, db_sheet_name):
         c.number_format = "0.00"
         _style_readonly(c)
 
-        # Saving %
+        # === CHP-only colonne energetiche ===
+        if is_chp:
+            mwh_netti_letter = L(mwh_netti_col)
+            # MWh el LORDI = MWh CH4 × η_el (ai morsetti alternatore)
+            c = ws.cell(row=r, column=mwh_el_lordo_col,
+                        value=f"={mwh_netti_letter}{r}*{eta_el_cell}")
+            c.number_format = "#,##0.0"
+            _style_readonly(c)
+            mwh_el_lordo_letter = L(mwh_el_lordo_col)
+            # MWh el NETTI RETE = lordi × (1 − aux%/100)
+            c = ws.cell(row=r, column=mwh_el_netto_col,
+                        value=(f"={mwh_el_lordo_letter}{r}*"
+                               f"(1-{aux_el_pct_cell}/100)"))
+            c.number_format = "#,##0.0"
+            _style_readonly(c)
+            # MWh termici = MWh CH4 × η_th
+            c = ws.cell(row=r, column=mwh_th_col,
+                        value=f"={mwh_netti_letter}{r}*{eta_th_cell}")
+            c.number_format = "#,##0.0"
+            _style_readonly(c)
+
+        # === Saving % ===
         e_w_letter = L(e_w_col)
         c = ws.cell(row=r, column=saving_col,
                     value=(f"=IFERROR(({comparator_cell}-{e_w_letter}{r})"
@@ -467,18 +560,33 @@ def _build_piano(ws, ctx, db_sheet_name):
         c.number_format = "0.0\"%\""
         _style_readonly(c)
 
-        # Sm3/h netti
-        c = ws.cell(row=r, column=smch_col,
-                    value=f"=IFERROR({sm3_netti_letter}{r}/B{r},0)")
-        c.number_format = "0.0"
-        _style_readonly(c)
+        # === Production check column (mode-aware) ===
+        if is_chp:
+            # kW lordi medi sull'ora = MWh el lordi × 1000 / Ore
+            # = avg potenza alternatore durante il funzionamento.
+            # Constraint normativo: kW lordi medi <= plant_kwe (targa motore).
+            mwh_el_lordo_letter = L(mwh_el_lordo_col)
+            c = ws.cell(row=r, column=kw_lordi_col,
+                        value=(f"=IFERROR({mwh_el_lordo_letter}{r}*1000"
+                               f"/B{r},0)"))
+            c.number_format = "#,##0"
+            _style_readonly(c)
+            prod_check_letter = L(kw_lordi_col)
+        else:
+            # Biometano: Sm3/h netti = Sm3 netti / Ore
+            c = ws.cell(row=r, column=smch_col,
+                        value=f"=IFERROR({sm3_netti_letter}{r}/B{r},0)")
+            c.number_format = "0.0"
+            _style_readonly(c)
+            prod_check_letter = L(smch_col)
 
-        # Validita
+        # === Validita: saving >= soglia AND produzione <= max ===
+        # Per CHP: produzione = kW lordi medi, max = plant_kwe (targa).
+        # Per biometano: produzione = Sm3/h netti, max = autorizzato.
         saving_letter = L(saving_col)
-        smch_letter   = L(smch_col)
         c = ws.cell(row=r, column=valid_col,
                     value=(f'=IF(AND({saving_letter}{r}>={threshold_cell},'
-                           f'{smch_letter}{r}<={max_prod_cell}),"OK","KO")'))
+                           f'{prod_check_letter}{r}<={max_prod_cell}),"OK","KO")'))
         c.font = Font(bold=True)
         c.alignment = Alignment(horizontal="center", vertical="center")
         c.border = _border_thin()
@@ -504,12 +612,18 @@ def _build_piano(ws, ctx, db_sheet_name):
         _style_total(c); c.number_format = "#,##0"
 
     # Sm3 lordi/netti/MWh tot
-    for col in (sm3_lordi_col, sm3_netti_col, mwh_netti_col):
+    sum_cols = [sm3_lordi_col, sm3_netti_col, mwh_netti_col]
+    if is_chp:
+        sum_cols += [mwh_el_lordo_col, mwh_el_netto_col, mwh_th_col]
+    for col in sum_cols:
         cl = L(col)
         c = ws.cell(row=tot_row, column=col,
                     value=f"=SUM({cl}{first_data_row}:{cl}{last_data_row})")
         _style_total(c)
-        c.number_format = "#,##0" if col != mwh_netti_col else "#,##0.0"
+        c.number_format = (
+            "#,##0" if col in (sm3_lordi_col, sm3_netti_col)
+            else "#,##0.0"
+        )
 
     # e_w medio (weighted by Sm3 netti)
     cl_ew     = L(e_w_col)
@@ -530,12 +644,17 @@ def _build_piano(ws, ctx, db_sheet_name):
                        f"/SUM({cl_smnett}{first_data_row}:{cl_smnett}{last_data_row}),0)"))
     _style_total(c); c.number_format = "0.0\"%\""
 
-    # Sm3/h netti medio
-    cl_smch = L(smch_col)
-    c = ws.cell(row=tot_row, column=smch_col,
+    # Production check medio (Sm3/h biometano | kW lordi CHP)
+    if is_chp:
+        cl_prod = L(kw_lordi_col)
+        prod_fmt = "#,##0"
+    else:
+        cl_prod = L(smch_col)
+        prod_fmt = "0.0"
+    c = ws.cell(row=tot_row, column=(kw_lordi_col if is_chp else smch_col),
                 value=(f"=IFERROR(AVERAGE("
-                       f"{cl_smch}{first_data_row}:{cl_smch}{last_data_row}),0)"))
-    _style_total(c); c.number_format = "0.0"
+                       f"{cl_prod}{first_data_row}:{cl_prod}{last_data_row}),0)"))
+    _style_total(c); c.number_format = prod_fmt
 
     # Validita: count "OK" / 12
     cl_val = L(valid_col)
@@ -575,27 +694,33 @@ def _build_piano(ws, ctx, db_sheet_name):
     ws.conditional_formatting.add(val_range, rule_ok)
     ws.conditional_formatting.add(val_range, rule_ko)
 
-    # Sm3/h netti: rosso se > max
-    smch_range = f"{cl_smch}{first_data_row}:{cl_smch}{last_data_row}"
-    rule_smch_ko = CellIsRule(
+    # Production check rosso se > max (Sm3/h biometano | kW lordi CHP)
+    prod_range = f"{cl_prod}{first_data_row}:{cl_prod}{last_data_row}"
+    rule_prod_ko = CellIsRule(
         operator="greaterThan", formula=[max_prod_cell],
         fill=PatternFill("solid", fgColor=RED_BG),
         font=Font(color=RED_FG),
     )
-    ws.conditional_formatting.add(smch_range, rule_smch_ko)
+    ws.conditional_formatting.add(prod_range, rule_prod_ko)
 
     # === Larghezze colonne ===
     ws.column_dimensions["A"].width = 14   # Mese
     ws.column_dimensions["B"].width = 8    # Ore
     for j in range(n_feed):
         ws.column_dimensions[L(bio_col_start + j)].width = 14
-    ws.column_dimensions[L(sm3_lordi_col)].width = 12
-    ws.column_dimensions[L(sm3_netti_col)].width = 12
+    ws.column_dimensions[L(sm3_lordi_col)].width = 13
+    ws.column_dimensions[L(sm3_netti_col)].width = 13
     ws.column_dimensions[L(mwh_netti_col)].width = 12
-    ws.column_dimensions[L(e_w_col)].width      = 11
-    ws.column_dimensions[L(saving_col)].width   = 11
-    ws.column_dimensions[L(smch_col)].width     = 12
-    ws.column_dimensions[L(valid_col)].width    = 11
+    ws.column_dimensions[L(e_w_col)].width      = 9
+    ws.column_dimensions[L(saving_col)].width   = 10
+    ws.column_dimensions[L(valid_col)].width    = 10
+    if is_chp:
+        ws.column_dimensions[L(mwh_el_lordo_col)].width = 13
+        ws.column_dimensions[L(mwh_el_netto_col)].width = 14
+        ws.column_dimensions[L(mwh_th_col)].width       = 12
+        ws.column_dimensions[L(kw_lordi_col)].width     = 13
+    else:
+        ws.column_dimensions[L(smch_col)].width = 12
 
     # === Freeze panes (header + Mese/Ore visibili) ===
     ws.freeze_panes = ws[f"C{first_data_row}"]
@@ -617,24 +742,40 @@ def _build_piano(ws, ctx, db_sheet_name):
 
 
 # ============================================================
-# Sheet 3 — Sintesi annuale
+# Sheet 3 — Sintesi annuale (mode-aware)
 # ============================================================
 def _build_summary(ws, ctx, piano_sheet_name):
     feeds  = ctx["active_feeds"]
     n_feed = len(feeds)
+    is_chp = bool(ctx.get("IS_CHP", False))
 
+    L = get_column_letter
     bio_col_start = 3
     bio_col_end   = 2 + n_feed
     sm3_lordi_col = bio_col_end + 1
     sm3_netti_col = sm3_lordi_col + 1
     mwh_netti_col = sm3_netti_col + 1
-    saving_col    = sm3_netti_col + 3   # +3 = Sm3 netti, MWh netti, e_w
-    valid_col     = saving_col + 2      # +2 dopo saving = Sm3/h, Validita
-    L = get_column_letter
 
-    first_data_row = 13
-    last_data_row  = 24
-    tot_row        = 25
+    if is_chp:
+        # Layout CHP: cols Sm3 lordi, Sm3 netti, MWh CH4, MWh el lordi,
+        #             MWh el netti rete, MWh termici, e_w, Saving, kW lordi, Validita
+        mwh_el_lordo_col = mwh_netti_col + 1
+        mwh_el_netto_col = mwh_el_lordo_col + 1
+        mwh_th_col       = mwh_el_netto_col + 1
+        e_w_col          = mwh_th_col + 1
+        saving_col       = e_w_col + 1
+        kw_lordi_col     = saving_col + 1
+        valid_col        = kw_lordi_col + 1
+        first_data_row = 16  # CHP ha header a row 15
+        last_data_row  = 27
+    else:
+        # Biometano: cols Sm3 lordi, Sm3 netti, MWh netti, e_w, Saving, Sm3/h, Validita
+        e_w_col      = mwh_netti_col + 1
+        saving_col   = e_w_col + 1
+        smch_col     = saving_col + 1
+        valid_col    = smch_col + 1
+        first_data_row = 13
+        last_data_row  = 24
 
     p = piano_sheet_name
 
@@ -653,39 +794,78 @@ def _build_summary(ws, ctx, piano_sheet_name):
     c.font = Font(italic=True, size=9, color=SLATE_500)
     c.alignment = Alignment(horizontal="left", indent=1)
 
-    # === KPI block ===
-    cl_smnett = L(sm3_netti_col)
-    cl_mwh    = L(mwh_netti_col)
-    cl_sav    = L(saving_col)
-    cl_val    = L(valid_col)
+    # === KPI block (mode-aware) ===
+    cl_sav  = L(saving_col)
+    cl_val  = L(valid_col)
+    cl_mwh  = L(mwh_netti_col)
+    # Threshold cell location nel Piano (CHP=$B$7, biometano=$B$7) - same
+    threshold_ref = f"'{p}'!$B$7"
 
-    kpi = [
+    kpi_common = [
         ("Tot. biomasse (t/anno)",
          f"=SUMPRODUCT(('{p}'!{L(bio_col_start)}{first_data_row}:"
          f"{L(bio_col_end)}{last_data_row}))",
          "#,##0"),
-        ("Sm3 netti totali (anno)",
-         f"=SUM('{p}'!{cl_smnett}{first_data_row}:"
-         f"{cl_smnett}{last_data_row})",
-         "#,##0"),
-        ("MWh netti totali (anno)",
-         f"=SUM('{p}'!{cl_mwh}{first_data_row}:{cl_mwh}{last_data_row})",
-         "#,##0.0"),
-        ("Saving GHG medio (%)",
-         f"=IFERROR(SUMPRODUCT('{p}'!{cl_smnett}{first_data_row}:"
-         f"{cl_smnett}{last_data_row},"
-         f"'{p}'!{cl_sav}{first_data_row}:{cl_sav}{last_data_row})"
-         f"/SUM('{p}'!{cl_smnett}{first_data_row}:"
-         f"{cl_smnett}{last_data_row}),0)",
-         "0.0\"%\""),
-        ("Soglia RED III (%)",
-         f"='{p}'!$B$7",
-         "0.0\"%\""),
-        ("Mesi validi (saving + produzione)",
-         f'=COUNTIF(\'{p}\'!{cl_val}{first_data_row}:'
-         f'{cl_val}{last_data_row},"OK")&"/12"',
-         None),
     ]
+
+    if is_chp:
+        cl_lordo = L(mwh_el_lordo_col)
+        cl_netto = L(mwh_el_netto_col)
+        cl_th    = L(mwh_th_col)
+        cl_kw    = L(kw_lordi_col)
+        kpi = kpi_common + [
+            ("MWh CH4 al motore (anno)",
+             f"=SUM('{p}'!{cl_mwh}{first_data_row}:{cl_mwh}{last_data_row})",
+             "#,##0.0"),
+            ("MWh el LORDI (anno)",
+             f"=SUM('{p}'!{cl_lordo}{first_data_row}:{cl_lordo}{last_data_row})",
+             "#,##0.0"),
+            ("⚡ MWh el NETTI rete (anno)",
+             f"=SUM('{p}'!{cl_netto}{first_data_row}:{cl_netto}{last_data_row})",
+             "#,##0.0"),
+            ("🔥 MWh termici (anno)",
+             f"=SUM('{p}'!{cl_th}{first_data_row}:{cl_th}{last_data_row})",
+             "#,##0.0"),
+            ("kW lordi medi (anno)",
+             f"=IFERROR(AVERAGE('{p}'!{cl_kw}{first_data_row}:"
+             f"{cl_kw}{last_data_row}),0)",
+             "#,##0"),
+            ("Saving GHG medio (%)",
+             f"=IFERROR(SUMPRODUCT('{p}'!{cl_mwh}{first_data_row}:"
+             f"{cl_mwh}{last_data_row},"
+             f"'{p}'!{cl_sav}{first_data_row}:{cl_sav}{last_data_row})"
+             f"/SUM('{p}'!{cl_mwh}{first_data_row}:"
+             f"{cl_mwh}{last_data_row}),0)",
+             "0.0\"%\""),
+            ("Soglia RED III (%)",       f"={threshold_ref}", "0.0\"%\""),
+            ("Mesi validi (saving + kW lordi)",
+             f'=COUNTIF(\'{p}\'!{cl_val}{first_data_row}:'
+             f'{cl_val}{last_data_row},"OK")&"/12"',
+             None),
+        ]
+    else:
+        cl_smnett = L(sm3_netti_col)
+        kpi = kpi_common + [
+            ("Sm3 netti totali (anno)",
+             f"=SUM('{p}'!{cl_smnett}{first_data_row}:"
+             f"{cl_smnett}{last_data_row})",
+             "#,##0"),
+            ("MWh netti totali (anno)",
+             f"=SUM('{p}'!{cl_mwh}{first_data_row}:{cl_mwh}{last_data_row})",
+             "#,##0.0"),
+            ("Saving GHG medio (%)",
+             f"=IFERROR(SUMPRODUCT('{p}'!{cl_smnett}{first_data_row}:"
+             f"{cl_smnett}{last_data_row},"
+             f"'{p}'!{cl_sav}{first_data_row}:{cl_sav}{last_data_row})"
+             f"/SUM('{p}'!{cl_smnett}{first_data_row}:"
+             f"{cl_smnett}{last_data_row}),0)",
+             "0.0\"%\""),
+            ("Soglia RED III (%)",       f"={threshold_ref}", "0.0\"%\""),
+            ("Mesi validi (saving + produzione)",
+             f'=COUNTIF(\'{p}\'!{cl_val}{first_data_row}:'
+             f'{cl_val}{last_data_row},"OK")&"/12"',
+             None),
+        ]
     for i, (lbl, formula, fmt) in enumerate(kpi):
         r = 4 + i
         c_lbl = ws.cell(row=r, column=1, value=lbl)
