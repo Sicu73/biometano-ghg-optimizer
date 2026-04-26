@@ -3271,6 +3271,14 @@ for _, row in input_df.iterrows():
         res["MWh elettrici lordi"] = _mwh_el_lordo
         res["MWh elettrici netti"] = _mwh_el_lordo * (1.0 - aux_el_pct)
         res["MWh termici"] = summary["mwh_net"] * eta_th
+        # kW lordi medi sull'ora = MWh_el_lordi × 1000 / Ore
+        # E' la metrica chiave per il vincolo CHP: deve restare <= plant_kwe
+        # (potenza LORDA targa motore). Quando l'utente lavora in modalita'
+        # CHP, vede "kW lordi" invece di "Sm3/h netti" perche' e' la grandezza
+        # rilevante autorizzativa.
+        res["kW lordi medi"] = (
+            (_mwh_el_lordo * 1000.0 / hours) if hours > 0 else 0.0
+        )
     res["GHG (gCO₂/MJ)"] = summary["e_w"]
     res["Saving %"] = summary["saving"]
     res["Sm³/h netti"] = net_smch
@@ -3307,6 +3315,10 @@ if IS_CHP:
     )
     df_disp["MWh termici"] = df_disp["MWh termici"].apply(
         lambda v: fmt_it(v, 1)
+    )
+    # kW lordi medi: vincolo CHP (<= plant_kwe targa motore)
+    df_disp["kW lordi medi"] = df_disp["kW lordi medi"].apply(
+        lambda v: fmt_it(v, 0)
     )
 df_disp["GHG (gCO₂/MJ)"] = df_disp["GHG (gCO₂/MJ)"].apply(lambda v: fmt_it(v, 2))
 df_disp["Saving %"]    = df_disp["Saving %"].apply(lambda v: fmt_it(v, 1, "%"))
@@ -3366,6 +3378,14 @@ if IS_CHP:
         help="MWh termici recuperati dal CHP = MWh_CH₄ × η_th. "
              "Utilizzabili per digestori, teleriscaldamento, processo.",
     )
+    # kW lordi medi: il VINCOLO autorizzativo CHP (vs plant_kwe targa).
+    col_cfg["kW lordi medi"] = st.column_config.TextColumn(
+        "kW lordi (medi)", disabled=True,
+        help=f"Potenza media oraria ai morsetti alternatore "
+             f"(MWh_el lordi × 1000 / Ore). "
+             f"VINCOLO normativo: ≤ {fmt_it(plant_kwe, 0)} kWe LORDI "
+             f"(targa motore — dato di autorizzazione).",
+    )
 col_cfg["GHG (gCO₂/MJ)"] = st.column_config.TextColumn(
     "e_w", disabled=True, help="Emissioni pesate gCO₂eq/MJ",
 )
@@ -3373,10 +3393,25 @@ col_cfg["Saving %"] = st.column_config.TextColumn(
     "Saving %", disabled=True,
     help=f"Obbligatorio ≥ {fmt_it(ghg_threshold*100, 0, '%')} (RED III – {end_use})",
 )
-col_cfg["Sm³/h netti"] = st.column_config.TextColumn(
-    "Sm³/h netti", disabled=True,
-    help=f"Obbligatorio ≤ {fmt_it(plant_net_smch, 0)} (tetto autorizzativo)",
-)
+# Sm³/h netti: visibile in biometano (vincolo autorizzativo).
+# In CHP il vincolo e' kW lordi (mostrato sopra), Sm³/h CH4 e' solo
+# informativo (CH4 al motore) - lo lasciamo nascosto al display tabella
+# per ridurre rumore. La taglia CH4 motore e' gia' visibile in sidebar.
+if IS_CHP:
+    # Nascondiamo Sm³/h netti dalla vista (esiste in df_res ma non
+    # appare in df_disp grazie a column_order).
+    col_cfg["Sm³/h netti"] = st.column_config.TextColumn(
+        "Sm³/h CH₄ motore", disabled=True,
+        help=f"Flusso CH₄ al motore = MWh_CH₄ × 1000 / (Ore × {fmt_it(NM3_TO_MWH*1000, 2)}). "
+             f"Info-only (il vincolo CHP e' kW lordi a sinistra). "
+             f"Equivale a {fmt_it(plant_net_smch, 0)} Sm³/h come dato "
+             f"di dimensionamento.",
+    )
+else:
+    col_cfg["Sm³/h netti"] = st.column_config.TextColumn(
+        "Sm³/h netti", disabled=True,
+        help=f"Obbligatorio ≤ {fmt_it(plant_net_smch, 0)} (tetto autorizzativo)",
+    )
 col_cfg["Validità"] = st.column_config.TextColumn("Validità", disabled=True, width="medium")
 col_cfg["Note"] = st.column_config.TextColumn("Note", disabled=True, width="medium")
 
