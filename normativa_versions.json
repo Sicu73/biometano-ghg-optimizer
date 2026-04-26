@@ -1,0 +1,238 @@
+{
+  "version": "1.0.0",
+  "last_review": "2026-04-26",
+  "reviewer": "Carlo Sicurini",
+  "metadata": {
+    "scopo": "Registro centralizzato delle normative biometano/biogas applicate dal software Metan.iQ. Ogni voce documenta i parametri-chiave cablati nel codice e la data di ultima revisione manuale. Aggiornare questo file (commit GitHub) quando si applica una modifica al codice o si segnala una nuova normativa.",
+    "campi": {
+      "id": "Identificatore univoco interno",
+      "titolo": "Titolo ufficiale della norma",
+      "ambito": "Settore di applicazione",
+      "tipo": "decreto | direttiva_ue | dlgs | linee_guida | norma_tecnica",
+      "data_pubblicazione": "Data ufficiale (YYYY-MM-DD)",
+      "applicato_in_app": "true se i parametri sono cablati nei calcoli; false se solo riferimento",
+      "ultima_revisione": "Data ultima review/aggiornamento codice (YYYY-MM-DD)",
+      "valori_chiave": "Dict dei parametri quantitativi codificati nell'app",
+      "fonte_url": "Link al documento ufficiale",
+      "note": "Eventuali note o aggiornamenti collegati"
+    }
+  },
+  "norme": [
+    {
+      "id": "red_ii",
+      "titolo": "RED II — Direttiva (UE) 2018/2001",
+      "ambito": "Sostenibilità biometano/biogas (UE)",
+      "tipo": "direttiva_ue",
+      "data_pubblicazione": "2018-12-11",
+      "applicato_in_app": true,
+      "ultima_revisione": "2026-04-25",
+      "valori_chiave": {
+        "soglia_saving_trasporti_post_2021_pct": 65,
+        "soglia_saving_trasporti_pre_2021_pct": 50,
+        "soglia_saving_altri_usi_pct": 70,
+        "comparator_trasporti_gco2_mj": 94,
+        "comparator_rete_calore_gco2_mj": 80,
+        "annex_ix_part_a": "lett. a-q (incl. manure, FORSU, paglia, sottoprodotti agroindustriali)",
+        "annex_ix_part_b": "lett. a-b (UCO, grassi animali cat. 1/2)"
+      },
+      "fonte_url": "https://eur-lex.europa.eu/eli/dir/2018/2001",
+      "note": "Riferimento Annex IX per qualifica AVANZATO nel sistema CIC DM 2018."
+    },
+    {
+      "id": "red_iii",
+      "titolo": "RED III — Direttiva (UE) 2023/2413",
+      "ambito": "Aggiornamento RED II — sostenibilità rinnovabili",
+      "tipo": "direttiva_ue",
+      "data_pubblicazione": "2023-10-31",
+      "applicato_in_app": true,
+      "ultima_revisione": "2026-04-25",
+      "valori_chiave": {
+        "soglia_saving_biometano_nuovi_dal_20_11_2023_pct": 80,
+        "soglia_saving_esistenti_lt_10mw_primi_15a_pct": 70,
+        "soglia_saving_trasporti_pct": 65,
+        "soglia_saving_chp_pct": 80,
+        "comparator_chp_mix_eu_gco2_mj": 183,
+        "annex_v_processing_emissions": "Default e_p applicato per matrice + impianto"
+      },
+      "fonte_url": "https://eur-lex.europa.eu/eli/dir/2023/2413",
+      "note": "Soglie e comparatori utilizzati nelle modes biometano/CHP."
+    },
+    {
+      "id": "dlgs_199_2021",
+      "titolo": "D.Lgs. 8 novembre 2021 n.199",
+      "ambito": "Recepimento italiano RED II",
+      "tipo": "dlgs",
+      "data_pubblicazione": "2021-11-30",
+      "applicato_in_app": true,
+      "ultima_revisione": "2026-04-25",
+      "valori_chiave": {
+        "schemi_certificazione_GSE": "ISCC, REDcert, 2BSvs"
+      },
+      "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2021/11/30/21G00214/sg",
+      "note": "Base normativa nazionale per certificazioni sostenibilità."
+    },
+    {
+      "id": "dlgs_5_2026",
+      "titolo": "D.Lgs. 5 marzo 2026 (recepimento RED III)",
+      "ambito": "Recepimento italiano RED III",
+      "tipo": "dlgs",
+      "data_pubblicazione": "2026-03-05",
+      "applicato_in_app": true,
+      "ultima_revisione": "2026-04-25",
+      "valori_chiave": {
+        "soglie_e_comparatori": "Allineate a RED III (vedi voce red_iii)"
+      },
+      "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2026/03/05/...",
+      "note": "Verificare l'URL definitivo della Gazzetta Ufficiale al momento del recepimento."
+    },
+    {
+      "id": "dm_biometano_2018",
+      "titolo": "DM 2 marzo 2018 — Decreto Biometano (CIC)",
+      "ambito": "Biometano per trasporti — sistema CIC con double counting Annex IX",
+      "tipo": "decreto",
+      "data_pubblicazione": "2018-03-02",
+      "applicato_in_app": true,
+      "ultima_revisione": "2026-04-25",
+      "valori_chiave": {
+        "GCAL_PER_CIC": 10.0,
+        "MWH_PER_CIC": 11.628,
+        "CIC_PRICE_DEFAULT_eur": 375.0,
+        "ANNEX_IX_THRESHOLD_pct": 70,
+        "double_counting_avanzato": true,
+        "periodo_incentivo_anni": 10
+      },
+      "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2018/03/19/18A01821/sg",
+      "note": "Sistema CIC: 1 CIC = 10 Gcal (~11,63 MWh). Avanzato → ×2 (1 CIC ogni 5 Gcal). Aggiornato con DM 15/9/2022 e prassi GSE 2024."
+    },
+    {
+      "id": "dm_biometano_2022",
+      "titolo": "DM 15 settembre 2022 — Biometano",
+      "ambito": "Biometano (tariffa diretta €/MWh post-2022)",
+      "tipo": "decreto",
+      "data_pubblicazione": "2022-09-15",
+      "applicato_in_app": true,
+      "ultima_revisione": "2026-04-25",
+      "valori_chiave": {
+        "BP_TARIFFA_BASE_2026_eur_mwh": 131.0,
+        "BP_DURATA_TARIFFA_ANNI": 15,
+        "BP_PNRR_QUOTA_PCT_DEFAULT": 40,
+        "BP_MASSIMALE_SPESA_EUR_PER_SMCH": 32817.23,
+        "tariffa_storica_2024_eur_mwh": 124.48,
+        "fattore_aggiornamento_istat_2024_2026": 1.0506
+      },
+      "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2022/10/15/22A05809/sg",
+      "note": "Tariffa base aggiornata ISTAT 2024-2026 (cumulato ~5,06%). Massimale GSE per CAPEX ammissibile al contributo PNRR (M2C2)."
+    },
+    {
+      "id": "dm_biogas_chp_2012",
+      "titolo": "DM 6 luglio 2012 — Biogas CHP",
+      "ambito": "Biogas cogenerativo agricolo ≤1 MW (Tariffa Omnicomprensiva)",
+      "tipo": "decreto",
+      "data_pubblicazione": "2012-07-06",
+      "applicato_in_app": true,
+      "ultima_revisione": "2026-04-25",
+      "valori_chiave": {
+        "tariffa_TO_999_kwe_eur_mwh": 280,
+        "premio_CAR_pes_gt_10pct_eur_mwh": 10,
+        "premio_matrice_sottoprodotti_eur_mwh": "incluso in tariffa base 280",
+        "periodo_incentivo_anni": 20
+      },
+      "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2012/07/10/12A07628/sg",
+      "note": "Tariffa Omnicomprensiva per biogas agricolo <1MWe. Premio CAR per Cogenerazione ad Alto Rendimento (PES > 10%)."
+    },
+    {
+      "id": "dm_fer2_2024",
+      "titolo": "DM 18 settembre 2024 — Decreto FER 2",
+      "ambito": "Biogas CHP piccoli impianti agricoli ≤300 kWe",
+      "tipo": "decreto",
+      "data_pubblicazione": "2024-09-18",
+      "applicato_in_app": true,
+      "ultima_revisione": "2026-04-25",
+      "valori_chiave": {
+        "FER2_KWE_CAP": 300,
+        "FER2_TARIFFA_BASE_DEFAULT_eur_mwh": 256,
+        "FER2_PREMIO_MATRICE_DEFAULT_eur_mwh": 30,
+        "FER2_PREMIO_CAR_DEFAULT_eur_mwh": 10,
+        "FER2_FEEDSTOCK_REQ_THRESHOLD_pct": 80,
+        "FER2_PERIODO_ANNI": 20,
+        "FER2_GHG_THRESHOLD_pct": 80,
+        "cap_colture_dedicate_pct": 20
+      },
+      "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2024/09/18/.../sg",
+      "note": "Sostituisce per piccoli impianti il vecchio DM 6/7/2012. Hard cap 300 kWe. Richiede ≥80% sottoprodotti/effluenti per premio matrice."
+    },
+    {
+      "id": "gse_lg_biometano_2024",
+      "titolo": "GSE Linee Guida 2024 — Biometano",
+      "ambito": "Riconoscimento manure credit, stoccaggio digestato, tracciabilità matrici",
+      "tipo": "linee_guida",
+      "data_pubblicazione": "2024-04-30",
+      "applicato_in_app": true,
+      "ultima_revisione": "2026-04-25",
+      "valori_chiave": {
+        "manure_credit_liquame_suino_gco2_mj": -45,
+        "manure_credit_liquame_bovino_gco2_mj": -45,
+        "manure_credit_letame_palabile_gco2_mj": -30,
+        "manure_credit_pollina_broiler_gco2_mj": -15,
+        "manure_credit_pollina_ovaiole_aerob_gco2_mj": 0,
+        "stoccaggio_digestato_chiuso_recupero_gas_gco2_mj": 0,
+        "stoccaggio_digestato_aperto_jec_v5_gco2_mj": 15
+      },
+      "fonte_url": "https://www.gse.it/...",
+      "note": "Manure credit applicato in eec del feedstock (db biomasse). Soglia operativa AVANZATO 70-100%."
+    },
+    {
+      "id": "uni_ts_11567_2024",
+      "titolo": "UNI/TS 11567:2024",
+      "ambito": "Resa specifica biogas/biometano per categoria di matrice",
+      "tipo": "norma_tecnica",
+      "data_pubblicazione": "2024-01-15",
+      "applicato_in_app": true,
+      "ultima_revisione": "2026-04-25",
+      "valori_chiave": {
+        "yield_mais_nm3_ch4_t": 104,
+        "yield_sorgo_nm3_ch4_t": 90,
+        "yield_triticale_nm3_ch4_t": 85,
+        "yield_segale_nm3_ch4_t": 80,
+        "yield_liquame_suino_nm3_ch4_t": 15,
+        "yield_pollina_broiler_nm3_ch4_t": 105,
+        "yield_FORSU_nm3_ch4_t": 140,
+        "yield_polpe_barbabietola_fresche_nm3_ch4_t": 50
+      },
+      "fonte_url": "https://store.uni.com/uni-ts-11567-2024",
+      "note": "Database FEEDSTOCK_DB cablato su UNI/TS 11567:2024 + JEC WTT v5 per coerenza con certificazioni GSE."
+    },
+    {
+      "id": "jec_wtt_v5",
+      "titolo": "JEC WTT v5 — JRC-EUCAR-CONCAWE",
+      "ambito": "Default emissioni eec/etd biocarburanti",
+      "tipo": "norma_tecnica",
+      "data_pubblicazione": "2020-04-30",
+      "applicato_in_app": true,
+      "ultima_revisione": "2026-04-25",
+      "valori_chiave": {
+        "etd_default_gco2_mj": 0.8,
+        "lhv_biomethane_mj_nm3": 35.9,
+        "metano_purezza_pct": 97
+      },
+      "fonte_url": "https://publications.jrc.ec.europa.eu/repository/handle/JRC121213",
+      "note": "Default eec/etd per biomasse non Annex IX. PCI biometano cablato in NM3_TO_MWH = 0.00997."
+    },
+    {
+      "id": "ipcc_2019_manure",
+      "titolo": "IPCC 2019 — Refinement Vol.4 Cap.10",
+      "ambito": "Fattori emissioni gestione effluenti zootecnici",
+      "tipo": "linee_guida",
+      "data_pubblicazione": "2019-05-15",
+      "applicato_in_app": true,
+      "ultima_revisione": "2026-04-25",
+      "valori_chiave": {
+        "MCF_lagone_aperto_mediterraneo_pct": 25,
+        "default_letame_palabile_eec_gco2_mj": -30
+      },
+      "fonte_url": "https://www.ipcc-nggip.iges.or.jp/public/2019rf/vol4.html",
+      "note": "Base scientifica per manure credits utilizzati da GSE."
+    }
+  ],
+  "aggiornamenti_pendenti": []
+}

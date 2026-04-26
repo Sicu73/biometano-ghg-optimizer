@@ -16,6 +16,10 @@ Riferimenti:
 - Parametri feedstock: letteratura tecnica e valori tipici Consorzio Monviso
 """
 
+import json
+import urllib.request
+from pathlib import Path
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -24,6 +28,49 @@ import plotly.graph_objects as go
 
 from report_pdf import build_metaniq_pdf
 from excel_export import build_metaniq_xlsx
+
+# ============================================================
+# REGISTRO NORMATIVA — verifica aggiornamenti via GitHub
+# ============================================================
+# Il file normativa_versions.json contiene tutte le norme (RED III,
+# DM 2018, DM 2022, DM 2012, FER 2, GSE LG, UNI/TS, JEC) cablate nel
+# codice + i valori-chiave codificati. Aggiornarlo (commit) quando si
+# applica una modifica al codice o si aggiunge una nuova norma.
+NORMATIVA_LOCAL_PATH = Path(__file__).parent / "normativa_versions.json"
+NORMATIVA_REMOTE_URL = (
+    "https://raw.githubusercontent.com/Sicu73/biometano-ghg-optimizer/"
+    "master/normativa_versions.json"
+)
+NORMATIVA_GITHUB_ISSUE_URL = (
+    "https://github.com/Sicu73/biometano-ghg-optimizer/issues/new"
+    "?title=Aggiornamento+normativa%3A+%5BTitolo%5D"
+    "&body=%23%23+Norma%2Faggiornamento+segnalato%0A"
+    "%2A+Titolo%3A+%0A%2A+Tipo%3A+(decreto%2Fdirettiva%2Fdlgs%2Flinee_guida%2Fnorma_tecnica)%0A"
+    "%2A+Data+pubblicazione%3A+%0A%2A+Fonte+URL%3A+%0A%0A"
+    "%23%23+Cosa+cambia+nei+calcoli%0A%0A%23%23+Note%0A"
+)
+
+
+def _load_normativa_local() -> dict:
+    """Carica il JSON normativa locale dal repo (sempre disponibile)."""
+    try:
+        with open(NORMATIVA_LOCAL_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as exc:  # noqa: BLE001
+        return {"_error": f"File locale non trovato: {exc}"}
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _fetch_normativa_remote(url: str = NORMATIVA_REMOTE_URL) -> dict:
+    """Scarica il JSON normativa dal master GitHub. Cache 5 minuti."""
+    try:
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "Metan.iQ/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=10) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return {"_error": f"GitHub fetch fallito: {exc}"}
 
 
 # ============================================================
@@ -1411,6 +1458,117 @@ with st.sidebar:
         ):
             st.session_state.app_mode = "biogas_chp_fer2"
             st.rerun()
+    st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
+
+    # ============================================================
+    # 📋 Normativa applicata + Verifica aggiornamenti
+    # ============================================================
+    with st.expander(
+        "📋 Normativa & aggiornamenti",
+        expanded=False,
+    ):
+        _norm_local = _load_normativa_local()
+        if "_error" in _norm_local:
+            st.error(f"❌ {_norm_local['_error']}")
+        else:
+            st.caption(
+                f"**Versione registry: {_norm_local.get('version', '?')}**  ·  "
+                f"Ultima revisione: {_norm_local.get('last_review', 'n/d')}  ·  "
+                f"Reviewer: {_norm_local.get('reviewer', 'n/d')}"
+            )
+
+            # Lista compatta delle norme applicate
+            _norme = _norm_local.get("norme", [])
+            st.markdown(f"**🟢 {len(_norme)} norme cablate nel codice:**")
+            for n in _norme:
+                _badge = "✅" if n.get("applicato_in_app") else "⚪"
+                st.markdown(
+                    f"<div style='font-size:0.78rem; padding:3px 0; "
+                    f"border-bottom:1px solid #E2E8F0;'>"
+                    f"{_badge} <b>{n.get('titolo', 'n/d')}</b><br/>"
+                    f"<span style='color:#64748B; font-size:0.72rem;'>"
+                    f"📍 {n.get('ambito', '')} · "
+                    f"rev {n.get('ultima_revisione', 'n/d')}"
+                    f"</span></div>",
+                    unsafe_allow_html=True,
+                )
+
+            st.markdown(
+                "<div style='margin-top:10px;'></div>",
+                unsafe_allow_html=True,
+            )
+
+            # Pulsante verifica aggiornamenti
+            if st.button(
+                "🔍 Verifica aggiornamenti GitHub",
+                use_container_width=True,
+                key="btn_check_normativa_updates",
+                help="Confronta la versione locale del registry con "
+                     "quella più recente su GitHub master. "
+                     "Cache 5 minuti.",
+            ):
+                with st.spinner("Connessione a GitHub..."):
+                    _norm_remote = _fetch_normativa_remote()
+
+                if "_error" in _norm_remote:
+                    st.error(f"❌ {_norm_remote['_error']}")
+                else:
+                    _local_v  = _norm_local.get("version", "")
+                    _remote_v = _norm_remote.get("version", "")
+                    _local_d  = _norm_local.get("last_review", "")
+                    _remote_d = _norm_remote.get("last_review", "")
+
+                    if _local_v == _remote_v and _local_d == _remote_d:
+                        st.success(
+                            f"✅ **Aggiornato**. Sei alla versione "
+                            f"**{_local_v}** del {_local_d} — la stessa "
+                            f"presente su GitHub master."
+                        )
+                    else:
+                        st.warning(
+                            f"⚠️ **Disponibile aggiornamento**: GitHub ha "
+                            f"versione **{_remote_v}** del {_remote_d} "
+                            f"(tu hai {_local_v} del {_local_d}). "
+                            f"Streamlit Cloud dovrebbe ridepiloyare "
+                            f"automaticamente alla prossima visita; "
+                            f"in caso contrario forza Ctrl+F5."
+                        )
+
+                    # Aggiornamenti pendenti dal registry remoto
+                    _pendenti = _norm_remote.get("aggiornamenti_pendenti", [])
+                    if _pendenti:
+                        st.markdown("**🕐 Aggiornamenti pendenti (segnalati):**")
+                        for p in _pendenti:
+                            st.markdown(
+                                f"- **{p.get('norma', '?')}** "
+                                f"({p.get('stato', 'in_review')})  "
+                                f"\n  {p.get('descrizione', '')}"
+                                + (f"  \n  🔗 [{p.get('link', '')}]"
+                                   f"({p.get('link', '')})"
+                                   if p.get("link") else "")
+                            )
+                    else:
+                        st.caption(
+                            "ℹ️ Nessun aggiornamento normativo pendente "
+                            "segnalato al momento."
+                        )
+
+            # Link per segnalare aggiornamento (color hard-coded perche'
+            # il design token AMBER e' definito piu' avanti nello script).
+            st.markdown(
+                f"<div style='font-size:0.75rem; margin-top:10px;'>"
+                f"🐛 <a href='{NORMATIVA_GITHUB_ISSUE_URL}' target='_blank' "
+                f"style='color:#F59E0B; text-decoration:none;'>"
+                f"Segnala nuovo aggiornamento normativo (GitHub issue)"
+                f"</a></div>",
+                unsafe_allow_html=True,
+            )
+
+            st.caption(
+                "📝 Le norme cablate richiedono review manuale del "
+                "developer (Carlo Sicurini) prima di applicarle ai calcoli "
+                "RED III. Niente auto-modifica del codice."
+            )
     st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
 
 APP_MODE       = st.session_state.app_mode
