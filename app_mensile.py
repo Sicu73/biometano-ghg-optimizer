@@ -41,14 +41,6 @@ NORMATIVA_REMOTE_URL = (
     "https://raw.githubusercontent.com/Sicu73/biometano-ghg-optimizer/"
     "master/normativa_versions.json"
 )
-NORMATIVA_GITHUB_ISSUE_URL = (
-    "https://github.com/Sicu73/biometano-ghg-optimizer/issues/new"
-    "?title=Aggiornamento+normativa%3A+%5BTitolo%5D"
-    "&body=%23%23+Norma%2Faggiornamento+segnalato%0A"
-    "%2A+Titolo%3A+%0A%2A+Tipo%3A+(decreto%2Fdirettiva%2Fdlgs%2Flinee_guida%2Fnorma_tecnica)%0A"
-    "%2A+Data+pubblicazione%3A+%0A%2A+Fonte+URL%3A+%0A%0A"
-    "%23%23+Cosa+cambia+nei+calcoli%0A%0A%23%23+Note%0A"
-)
 
 
 def _load_normativa_local() -> dict:
@@ -1520,24 +1512,23 @@ with st.sidebar:
 
                     if _local_v == _remote_v and _local_d == _remote_d:
                         st.success(
-                            f"✅ **Aggiornato**. Sei alla versione "
-                            f"**{_local_v}** del {_local_d} — la stessa "
-                            f"presente su GitHub master."
+                            f"✅ **Allineato**. Versione registry "
+                            f"**{_local_v}** del {_local_d}: "
+                            f"locale = produzione GitHub."
                         )
                     else:
                         st.warning(
-                            f"⚠️ **Disponibile aggiornamento**: GitHub ha "
-                            f"versione **{_remote_v}** del {_remote_d} "
-                            f"(tu hai {_local_v} del {_local_d}). "
-                            f"Streamlit Cloud dovrebbe ridepiloyare "
-                            f"automaticamente alla prossima visita; "
-                            f"in caso contrario forza Ctrl+F5."
+                            f"⚠️ Disallineato: GitHub master ha versione "
+                            f"**{_remote_v}** del {_remote_d}, "
+                            f"tu vedi {_local_v} del {_local_d}. "
+                            f"Forza Ctrl+F5 per aggiornare la cache "
+                            f"del browser."
                         )
 
-                    # Aggiornamenti pendenti dal registry remoto
+                    # Eventuali aggiornamenti pendenti pubblicati nel registry
                     _pendenti = _norm_remote.get("aggiornamenti_pendenti", [])
                     if _pendenti:
-                        st.markdown("**🕐 Aggiornamenti pendenti (segnalati):**")
+                        st.markdown("**🕐 Note normative pendenti:**")
                         for p in _pendenti:
                             st.markdown(
                                 f"- **{p.get('norma', '?')}** "
@@ -1547,27 +1538,14 @@ with st.sidebar:
                                    f"({p.get('link', '')})"
                                    if p.get("link") else "")
                             )
-                    else:
-                        st.caption(
-                            "ℹ️ Nessun aggiornamento normativo pendente "
-                            "segnalato al momento."
-                        )
-
-            # Link per segnalare aggiornamento (color hard-coded perche'
-            # il design token AMBER e' definito piu' avanti nello script).
-            st.markdown(
-                f"<div style='font-size:0.75rem; margin-top:10px;'>"
-                f"🐛 <a href='{NORMATIVA_GITHUB_ISSUE_URL}' target='_blank' "
-                f"style='color:#F59E0B; text-decoration:none;'>"
-                f"Segnala nuovo aggiornamento normativo (GitHub issue)"
-                f"</a></div>",
-                unsafe_allow_html=True,
-            )
 
             st.caption(
-                "📝 Le norme cablate richiedono review manuale del "
-                "developer (Carlo Sicurini) prima di applicarle ai calcoli "
-                "RED III. Niente auto-modifica del codice."
+                "ℹ️ Software fornito **«così com'è»**. Le norme cablate "
+                "rispecchiano il rilascio corrente. Aggiornamenti "
+                "successivi al rilascio non sono garantiti né inclusi. "
+                "L'utente verifica autonomamente la coerenza con la "
+                "normativa vigente prima di usare i risultati per "
+                "certificazioni o adempimenti."
             )
     st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
 
@@ -4758,6 +4736,10 @@ st.markdown(
                 Ideato e sviluppato da
                 <b style='color:#FFFFFF; font-weight:600;'>Carlo Sicurini</b>
                 &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp; Tutti i diritti riservati
+                &nbsp;·&nbsp;
+                <span style='color:#94A3B8; font-style:italic;'>
+                    Software fornito «così com'è», senza garanzie né assistenza
+                </span>
             </div>
             <div style='display: flex; gap: 6px; flex-wrap: wrap;'>
                 <span style='background: rgba(245, 158, 11, 0.10);

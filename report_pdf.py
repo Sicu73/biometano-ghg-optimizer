@@ -1234,21 +1234,32 @@ def _build_methodology(ctx, styles):
     flow.append(Spacer(1, 6 * mm))
     flow.append(Paragraph("Disclaimer", s["h3"]))
     flow.append(Paragraph(
+        "<b>Software fornito «così com'è», senza garanzie né assistenza.</b> "
         "Il presente documento è generato automaticamente dalla piattaforma "
         "Metan.iQ a partire dai parametri impiantistici e dai dati di "
         "produzione mensile inseriti dall'utente. I risultati hanno valore "
         "<b>indicativo a supporto delle decisioni di pianificazione e "
-        "business case</b>. La certificazione di sostenibilità ai sensi "
-        "del RED III e l'accesso agli incentivi richiedono la validazione "
-        "tramite organismi accreditati e l'utilizzo di parametri "
-        "specifici dell'impianto reale (in luogo dei valori di "
-        "letteratura usati come default).",
+        "business case</b>; non sostituiscono la perizia di un consulente "
+        "tecnico né l'analisi di un organismo certificatore. La "
+        "certificazione di sostenibilità ai sensi del RED III e l'accesso "
+        "agli incentivi richiedono la validazione tramite organismi "
+        "accreditati e l'utilizzo di parametri specifici dell'impianto "
+        "reale (in luogo dei valori di letteratura usati come default). "
+        "L'utilizzatore è l'unico responsabile della verifica della "
+        "coerenza con la normativa vigente al momento dell'uso, di "
+        "eventuali aggiornamenti regolamentari successivi al rilascio "
+        "del software, e dell'idoneità dei risultati ai propri scopi. "
+        "Carlo Sicurini, l'autore del software, non risponde di errori, "
+        "imprecisioni, mancati aggiornamenti normativi, perdite "
+        "economiche, sanzioni o qualsiasi altra conseguenza derivante "
+        "dall'uso o impossibilità d'uso di Metan.iQ.",
         s["body"],
     ))
     flow.append(Spacer(1, 3 * mm))
     flow.append(Paragraph(
         f"Generato il {ctx['report_date_full']} · "
-        f"Carlo Sicurini · Metan.iQ · © 2026",
+        f"Carlo Sicurini · Metan.iQ · © 2026 · "
+        f"Software venduto as-is, senza supporto post-vendita.",
         s["muted"],
     ))
     return flow
