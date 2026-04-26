@@ -94,6 +94,15 @@ def build_metaniq_xlsx(ctx: dict) -> BytesIO:
     """
     wb = Workbook()
 
+    # Forza ricalcolo completo all'apertura del file in Excel.
+    # Senza questo, alcune versioni di Excel mostrano #VALORE! finche'
+    # l'utente non preme Ctrl+Alt+F9.
+    try:
+        wb.calculation.fullCalcOnLoad = True
+        wb.calculation.calcMode = "auto"
+    except Exception:
+        pass
+
     # === Sheet 1: Database (creata per prima per nome reference) ===
     ws_db = wb.create_sheet("Database feedstock")
     _build_database(ws_db, ctx)
@@ -117,57 +126,111 @@ def build_metaniq_xlsx(ctx: dict) -> BytesIO:
 
 
 # ============================================================
-# Sheet 1 — Database feedstock
+# Sheet 1 — Database feedstock (LAYOUT ORIZZONTALE)
+# ============================================================
+# Layout:
+#   A1: "Parametro" | B1..N1: nomi biomasse (header)
+#   A2: "Resa Nm3/t" | B2..N2: yield
+#   A3: "eec"        | B3..N3: eec
+#   A4: "esca"       | B4..N4: esca
+#   A5: "etd"        | B5..N5: etd
+#   A6: "ep"         | B6..N6: ep (linkato a Piano!B9)
+#   A7: "e_total"    | B7..N7: =Bi3-Bi4+Bi5+Bi6 (formula)
+#
+# Le formule del Piano usano range ORIZZONTALI omogenei al
+# bio_range del Piano (anch'esso orizzontale, una riga per mese).
+# Cosi' SUMPRODUCT(C13:F13, Database!$B$2:$E$2) ha entrambe le
+# matrici 1xN -> dot product corretto, no #VALORE.
 # ============================================================
 def _build_database(ws, ctx):
-    feeds   = ctx["active_feeds"]
-    fdb     = ctx["FEEDSTOCK_DB"]
-    ep_t    = ctx["ep_total"]
+    feeds = ctx["active_feeds"]
+    fdb   = ctx["FEEDSTOCK_DB"]
+    n     = len(feeds)
 
-    # Header
-    headers = ["Biomassa", "Resa Nm3/t", "eec", "esca", "etd", "ep", "e_total"]
-    for col, h in enumerate(headers, start=1):
-        c = ws.cell(row=1, column=col, value=h)
+    # === Riga 1: header (Parametro + nomi biomasse) ===
+    c = ws.cell(row=1, column=1, value="Parametro")
+    _style_header(c)
+    for j, name in enumerate(feeds):
+        c = ws.cell(row=1, column=2 + j, value=name)
         _style_header(c)
-    ws.row_dimensions[1].height = 28
+    ws.row_dimensions[1].height = 36
 
-    # Righe
-    for i, name in enumerate(feeds):
-        d = fdb[name]
-        r = i + 2
-        ws.cell(row=r, column=1, value=name).font = Font(bold=True)
-        ws.cell(row=r, column=2, value=float(d["yield"])).number_format = "0"
-        ws.cell(row=r, column=3, value=float(d["eec"])).number_format = "0.00"
-        ws.cell(row=r, column=4, value=float(d["esca"])).number_format = "0.00"
-        ws.cell(row=r, column=5, value=float(d["etd"])).number_format = "0.00"
-        # ep: linkato al Piano!B9 cosi' modifichi una volta sola
-        ws.cell(row=r, column=6, value="='Piano mensile'!$B$9").number_format = "0.00"
-        # e_total = eec - esca + etd + ep
-        ws.cell(row=r, column=7,
-                value=f"=C{r}-D{r}+E{r}+F{r}").number_format = "0.00"
-        for c in range(1, 8):
-            cell = ws.cell(row=r, column=c)
-            cell.border = _border_thin()
-            if c == 1:
-                cell.fill = PatternFill("solid", fgColor=SLATE_50)
-            elif c == 7:
-                cell.fill = PatternFill("solid", fgColor=AMBER_BG)
-                cell.font = Font(bold=True, color=AMBER_DK)
+    # === Righe parametri (label sx + valori a destra) ===
+    rows_def = [
+        # (row, label, getter, fmt, style_amber)
+        (2, "Resa Nm3/t",  lambda d: float(d["yield"]), "0",     False),
+        (3, "eec",         lambda d: float(d["eec"]),   "0.00",  False),
+        (4, "esca",        lambda d: float(d["esca"]),  "0.00",  False),
+        (5, "etd",         lambda d: float(d["etd"]),   "0.00",  False),
+    ]
+    for r, label, getter, fmt, _ in rows_def:
+        # Label
+        c_lbl = ws.cell(row=r, column=1, value=label)
+        c_lbl.font = Font(bold=True, color=NAVY)
+        c_lbl.fill = PatternFill("solid", fgColor=SLATE_50)
+        c_lbl.alignment = Alignment(horizontal="left", indent=1)
+        c_lbl.border = _border_thin()
+        # Valori
+        for j, name in enumerate(feeds):
+            d = fdb[name]
+            c_val = ws.cell(row=r, column=2 + j, value=getter(d))
+            c_val.number_format = fmt
+            c_val.fill = PatternFill("solid", fgColor=SLATE_50)
+            c_val.alignment = Alignment(horizontal="right")
+            c_val.border = _border_thin()
 
-    # Caption finale
-    last_r = len(feeds) + 3
-    ws.cell(row=last_r, column=1,
-            value=("Read-only. e_total = eec - esca + etd + ep. "
-                   "Modifica «ep» in «Piano mensile» cella B9 per "
-                   "ricalcolare automaticamente la sostenibilita'.")
-            ).font = Font(italic=True, size=9, color=SLATE_500)
+    # === Riga 6: ep linkato al Piano!B9 (master cell) ===
+    c_lbl = ws.cell(row=6, column=1, value="ep (linkato Piano!B9)")
+    c_lbl.font = Font(bold=True, color=NAVY)
+    c_lbl.fill = PatternFill("solid", fgColor=SLATE_50)
+    c_lbl.alignment = Alignment(horizontal="left", indent=1)
+    c_lbl.border = _border_thin()
+    for j in range(n):
+        c_val = ws.cell(row=6, column=2 + j, value="='Piano mensile'!$B$9")
+        c_val.number_format = "0.00"
+        c_val.fill = PatternFill("solid", fgColor=SLATE_50)
+        c_val.alignment = Alignment(horizontal="right")
+        c_val.border = _border_thin()
+
+    # === Riga 7: e_total = eec - esca + etd + ep ===
+    c_lbl = ws.cell(row=7, column=1, value="e_total")
+    c_lbl.font = Font(bold=True, color=AMBER_DK)
+    c_lbl.fill = PatternFill("solid", fgColor=AMBER_BG)
+    c_lbl.alignment = Alignment(horizontal="left", indent=1)
+    c_lbl.border = _border_thin()
+    for j in range(n):
+        col = 2 + j
+        cl = get_column_letter(col)
+        c_val = ws.cell(row=7, column=col,
+                        value=f"={cl}3-{cl}4+{cl}5+{cl}6")
+        c_val.number_format = "0.00"
+        c_val.fill = PatternFill("solid", fgColor=AMBER_BG)
+        c_val.alignment = Alignment(horizontal="right")
+        c_val.font = Font(bold=True, color=AMBER_DK)
+        c_val.border = _border_thin()
+
+    # === Caption finale ===
+    last_r = 9
+    end_col = 1 + n
+    end_letter = get_column_letter(end_col)
     ws.merge_cells(start_row=last_r, start_column=1,
-                   end_row=last_r, end_column=7)
+                   end_row=last_r, end_column=end_col)
+    c = ws.cell(row=last_r, column=1,
+                value=("Read-only · Layout orizzontale: ogni biomassa = una "
+                       "colonna. e_total = eec - esca + etd + ep. "
+                       "Modifica «ep» in «Piano mensile» cella B9 per "
+                       "ricalcolare automaticamente la sostenibilita'."))
+    c.font = Font(italic=True, size=9, color=SLATE_500)
+    c.alignment = Alignment(horizontal="center", wrap_text=True)
+    ws.row_dimensions[last_r].height = 30
 
-    # Larghezze colonne
-    ws.column_dimensions["A"].width = 32
-    for col_letter in "BCDEFG":
-        ws.column_dimensions[col_letter].width = 12
+    # === Larghezze colonne ===
+    ws.column_dimensions["A"].width = 26
+    for j in range(n):
+        ws.column_dimensions[get_column_letter(2 + j)].width = 16
+
+    # Freeze pane: blocca header + colonna A
+    ws.freeze_panes = ws["B2"]
 
 
 # ============================================================
@@ -295,8 +358,12 @@ def _build_piano(ws, ctx, db_sheet_name):
     max_prod_cell   = "$B$8"
     pci_cell        = "$B$10"
 
-    db_yield_range = f"'{db_sheet_name}'!$B$2:$B${1 + n_feed}"
-    db_etot_range  = f"'{db_sheet_name}'!$G$2:$G${1 + n_feed}"
+    # Database layout ORIZZONTALE: yield in row 2, e_total in row 7
+    # Colonne biomasse Database: B..($db_last_letter), uguale numero di
+    # biomasse del Piano. Ranges 1xN_feed -> dot product con bio_range.
+    db_last_letter = L(1 + n_feed)
+    db_yield_range = f"'{db_sheet_name}'!$B$2:${db_last_letter}$2"
+    db_etot_range  = f"'{db_sheet_name}'!$B$7:${db_last_letter}$7"
 
     bio_start_letter = L(bio_col_start)
     bio_end_letter   = L(bio_col_end)
@@ -344,9 +411,12 @@ def _build_piano(ws, ctx, db_sheet_name):
 
         bio_range = f"{bio_start_letter}{r}:{bio_end_letter}{r}"
 
-        # Sm3 lordi
+        # Sm3 lordi = SUMPRODUCT(biomasse riga × yield riga) -> dot product
+        # Entrambe le matrici 1xN_feed -> SUMPRODUCT le moltiplica
+        # element-wise e somma. IFERROR per robustezza (se Database
+        # ha valori non numerici per qualche motivo).
         c = ws.cell(row=r, column=sm3_lordi_col,
-                    value=f"=SUMPRODUCT({bio_range},{db_yield_range})")
+                    value=f"=IFERROR(SUMPRODUCT({bio_range},{db_yield_range}),0)")
         c.number_format = "#,##0"
         _style_readonly(c)
 
@@ -656,8 +726,10 @@ def _build_summary(ws, ctx, piano_sheet_name):
                     value=f"=IFERROR(B{r}/{tot_t_formula}*100,0)")
         c.number_format = "0.0\"%\""; _style_readonly(c)
         # MWh CH4 equiv = t × yield × PCI / aux_factor
+        # NB Database orizzontale: yield in row 2, biomassa j -> col (2+j)
+        db_yield_col_letter = get_column_letter(2 + j)
         c = ws.cell(row=r, column=4,
-                    value=f"=B{r}*'Database feedstock'!$B${j+2}*"
+                    value=f"=B{r}*'Database feedstock'!${db_yield_col_letter}$2*"
                           f"'{p}'!$B$10/'{p}'!$B$5")
         c.number_format = "#,##0.0"; _style_readonly(c)
 
