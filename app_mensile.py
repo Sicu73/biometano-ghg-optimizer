@@ -1910,11 +1910,18 @@ st.markdown(
         background: {BG_SURFACE_2} !important;
         color: {HEADING_COLOR} !important;
     }}
-    /* Download button = AZIONE PRIMARIA AMBER (CTA distintivo) */
-    .stDownloadButton > button {{
-        background: {AMBER};
+    /* Download buttons = AZIONE PRIMARIA AMBER (CTA distintivo)
+       TUTTI i download_button (primary o secondary) sono amber per
+       coerenza visiva nella riga export. !important per battere
+       eventuali override default di Streamlit per kind="secondary". */
+    .stDownloadButton > button,
+    .stDownloadButton > button[kind="primary"],
+    .stDownloadButton > button[kind="secondary"],
+    .stDownloadButton > button[data-testid="stBaseButton-secondary"],
+    .stDownloadButton > button[data-testid="stBaseButton-primary"] {{
+        background: {AMBER} !important;
         color: #FFFFFF !important;
-        border: 1px solid {AMBER};
+        border: 1px solid {AMBER} !important;
         border-radius: 6px;
         font-weight: 600;
         font-size: 0.92rem;
@@ -1924,8 +1931,8 @@ st.markdown(
         transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     }}
     .stDownloadButton > button:hover {{
-        background: {AMBER_DK};
-        border-color: {AMBER_DK};
+        background: {AMBER_DK} !important;
+        border-color: {AMBER_DK} !important;
         box-shadow: 0 5px 14px rgba(245, 158, 11, 0.30),
                     0 0 0 3px rgba(245, 158, 11, 0.12);
         transform: translateY(-1px);
@@ -4717,7 +4724,7 @@ with _dl_col3:
             file_name=f"metaniq_{APP_MODE}_snapshot.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
-            type="secondary",
+            type="primary",
             help="Excel di sola lettura (snapshot dei numeri attuali, "
                  "no formule). Stessa estetica del file modificabile ma "
                  "con valori cristallizzati - ideale per archivio, "
