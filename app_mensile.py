@@ -314,18 +314,20 @@ FER2_GHG_THRESHOLD            = 0.80     # RED III electricity
 # ============================================================
 # BUSINESS PLAN — DEFAULTS BENCHMARK (DM 2022 biometano)
 # ============================================================
-# Default derivati dal BP "Valtidone Biometano" (16/05/2024) e
-# adeguati 2026 con inflazione ISTAT 2024-2026 (~5% cumulato), tassi
-# finanziamento aggiornati (BCE in calo) e prezzi materiali/manodopera.
+# Default derivati dal benchmark di un impianto medio biometano agricolo
+# (250 Smc/h, costi medi di settore 2024) e adeguati 2026 con
+# inflazione ISTAT 2024-2026 (~5% cumulato), tassi finanziamento
+# aggiornati (BCE in calo) e prezzi materiali/manodopera.
 #
 # CAPEX intensity: €/(Smc/h) - normalizzazione su taglia 250 Smc/h.
 # OPEX intensity: €/anno per (Smc/h) - normalizzazione lineare.
 #
-# Riferimento: BP Valtidone Biometano Soc. Agr. Cons. a R.L., 250 Smc/h,
-# CAPEX €10,35M, OPEX €477k/anno, tariffa GSE 124,48 €/MWh - 1% ribasso.
+# Riferimento: impianto medio biometano agricolo, 250 Smc/h,
+# CAPEX ~€10,35M, OPEX ~€477k/anno, tariffa GSE 124,48 €/MWh
+# (storico 2024) - 1% ribasso d'asta tipico.
 # ============================================================
 BP_CAPEX_DEFAULTS_PER_SMCH = {
-    # Macrovoci principali (€/(Smc/h)). Da Valtidone, ricalibrato +5% al 2026.
+    # Macrovoci principali (€/(Smc/h)). Costi medi settore, ricalibrato +5% al 2026.
     "Movimenti terra":        3105.0,   # 739k/250 * 1.05 = 3105
     "Opere civili":          10428.0,   # 2.483k/250 * 1.05 = 10428
     "Impianto tecnologico":  15960.0,   # 3.800k/250 * 1.05 = 15960
@@ -358,7 +360,7 @@ BP_OPEX_FORFAIT_DEFAULTS = {
     "Tasse fisse":     10000.0,
 }
 
-# Schema finanziario — default BP Valtidone aggiornati al 2026
+# Schema finanziario — default benchmark impianto medio aggiornati al 2026
 BP_FINANCE_DEFAULTS = {
     # Anticipo contributo PNRR (rimborsato anno 1)
     "anticipo_tasso":        5.0,    # % annuo
@@ -404,7 +406,7 @@ def compute_business_plan(
     massimale_eur_per_smch: float = BP_MASSIMALE_SPESA_EUR_PER_SMCH,
     ore_anno: float = 8500.0,
     pci_kwh_per_smc: float = 9.97,
-    ch4_in_biogas_pct: float = 54.25,         # % CH4 nel biogas (Valtidone)
+    ch4_in_biogas_pct: float = 54.25,         # % CH4 nel biogas (tipico)
 ) -> dict:
     """Calcolo BP biometano DM 2022 multi-anno (15 anni standard).
 
@@ -538,7 +540,7 @@ def compute_business_plan(
     # ============================================================
     # COSTO BIOGAS IMPLICITO (per liquidazione biomasse)
     # ============================================================
-    # Approccio Valtidone:
+    # Approccio "back-derived feedstock cost":
     #   ricavi - OPEX - costo_biomasse = EBITDA_target (margine ricavi%)
     #   quota_biomasse = ricavi - OPEX - EBITDA_target
     #   costo_biogas €/Nm³ = quota_biomasse / fabbisogno_biogas
@@ -2641,17 +2643,18 @@ with st.sidebar:
     # ============================================================
     # PRO FORMA / BUSINESS PLAN (solo DM 2022)
     # ============================================================
-    # Defaults derivati dal BP "Valtidone Biometano" (16/05/2024),
-    # ricalibrati al 2026 con inflazione ISTAT cumulata e tassi BCE.
+    # Defaults derivati da benchmark impianto medio biometano agricolo
+    # (250 Smc/h, costi medi settore 2024), ricalibrati al 2026 con
+    # inflazione ISTAT cumulata e tassi BCE.
     # ============================================================
     if IS_DM2022:
         with st.expander(
             "💼 Pro Forma · CAPEX / OPEX / Finanziamento "
-            "(default benchmark Valtidone 2026)",
+            "(default benchmark impianto medio 2026)",
             expanded=False,
         ):
             st.caption(
-                "Default basati sul **Business Plan Valtidone Biometano** "
+                "Default basati sul **benchmark di un impianto medio biometano agricolo (250 Smc/h, costi medi 2024)** "
                 "(maggio 2024) ricalibrato 2026 (+5% materiali ISTAT, "
                 "tassi finanziamento aggiornati). Tutti i valori sono "
                 "**editabili** per scenari custom."
@@ -2699,7 +2702,7 @@ with st.sidebar:
                     min_value=0.0, max_value=50000.0,
                     value=v, step=100.0,
                     key=f"bp_capex_{k}",
-                    help=f"CAPEX €/(Smc/h). Default Valtidone 2026.",
+                    help=f"CAPEX €/(Smc/h). Default benchmark impianto medio 2026.",
                 )
             st.markdown("**CAPEX forfait**")
             bp_capex_forfait = {}
@@ -2763,7 +2766,7 @@ with st.sidebar:
                 "Margine EBITDA target [%] (per liquidazione biomasse)",
                 min_value=10.0, max_value=50.0,
                 value=24.5, step=0.5,
-                help=f"EBITDA target / ricavi (Valtidone: 24,5%). "
+                help=f"EBITDA target / ricavi (tipico settore: 24,5%). "
                      f"Determina la quota disponibile per pagare "
                      f"le biomasse ai consorziati (= ricavi − OPEX − "
                      f"EBITDA target). Costo biogas implicito = "
@@ -2783,7 +2786,7 @@ with st.sidebar:
                 value=54.25, step=0.25,
                 help="% CH4 nel biogas pre-upgrading. Determina il "
                      "fabbisogno di biogas grezzo (= biometano / CH4%). "
-                     "Default Valtidone 54,25%.",
+                     "Default tipico 54,25%.",
             )
             bp_ore_anno = st.number_input(
                 "Ore funzionamento annuo [h/anno]",
@@ -4294,7 +4297,7 @@ if IS_DM2022 and tab5 is not None and bp_result is not None:
         )
         st.subheader("💼 Business Plan — pro forma 15 anni")
         st.caption(
-            "Modello derivato dal **Business Plan Valtidone Biometano** "
+            "Modello derivato dal **benchmark di un impianto medio biometano agricolo (250 Smc/h)** "
             "(maggio 2024), aggiornato 2026 con inflazione ISTAT cumulata e "
             "tassi finanziamento BCE. Personalizza i parametri nella sidebar "
             "(expander «💼 Pro Forma»). Tariffa GSE applicata in nominale "
@@ -4492,7 +4495,7 @@ if IS_DM2022 and tab5 is not None and bp_result is not None:
             f"Calcolata come **resa CH₄/ton × costo biogas implicito** "
             f"({fmt_it(bp_result['costo_biogas_eur_per_nm3'], 4)} €/Nm³ "
             f"al CH₄ {fmt_it(bp_ch4_in_biogas_pct, 1, '%')} nel biogas). "
-            f"Confronto con BP Valtidone (mais 230 → 71,71 €/t)."
+            f"Confronto con benchmark settore (mais 230 → 71,71 €/t)."
         )
         # Per ogni biomassa attiva, calcola la liquidazione €/ton
         # = resa Nm3 CH4/t / ch4_frac × costo_biogas €/Nm3 (biogas)

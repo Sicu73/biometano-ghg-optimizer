@@ -1146,7 +1146,7 @@ def _build_business_plan(ctx, styles):
 
     flow.append(Spacer(1, 4 * mm))
     flow.append(Paragraph(
-        "<b>Modello derivato dal BP «Valtidone Biometano» (16/05/2024)</b>, "
+        "<b>Modello derivato dal benchmark di un impianto medio biometano (250 Smc/h, parametri tipici 2024)</b>, "
         "ricalibrato 2026 con inflazione ISTAT cumulata e tassi BCE. "
         "I valori sono indicativi a supporto delle decisioni di "
         "pianificazione: la certificazione GSE, la quotazione equity e il "
