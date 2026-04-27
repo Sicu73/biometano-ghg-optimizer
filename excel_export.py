@@ -120,6 +120,12 @@ def build_metaniq_xlsx(ctx: dict, snapshot: bool = False) -> BytesIO:
     ws_sum = wb.create_sheet("Sintesi annuale")
     _build_summary(ws_sum, ctx, ws_piano.title)
 
+    # === Sheet 4: Business Plan (sempre, anche per snapshot) ===
+    # Pro forma 15 anni con formule live: CAPEX, OPEX, CE, cash flow, KPI.
+    # Mode-aware: legge taglia + tariffa + autoconsumi dal ctx.
+    ws_bp = wb.create_sheet("Business Plan")
+    _build_business_plan(ws_bp, ctx, snapshot=snapshot)
+
     # Imposta Piano come sheet attiva di default
     wb.active = wb.sheetnames.index(ws_piano.title)
 
@@ -1064,3 +1070,669 @@ def _build_summary(ws, ctx, piano_sheet_name):
     ws.column_dimensions["B"].width = 14
     ws.column_dimensions["C"].width = 14
     ws.column_dimensions["D"].width = 18
+
+
+# ============================================================
+# Sheet 4 — Business Plan (Pro Forma 15 anni, mode-aware)
+# ============================================================
+def _build_business_plan(ws, ctx, snapshot: bool = False):
+    """Pro forma finanziario completo con formule LIVE.
+
+    Inputs editabili (celle gialle): taglia impianto, ore, tariffa,
+    CAPEX (8 voci), OPEX (12 voci), parametri finanziamento.
+    Formule calcolano: ricavi, EBITDA, ammortamenti, oneri finanziari,
+    utile netto, cash flow, ROI, payback, IRR, VAN.
+
+    Mode-aware: il context fornisce energia_mwh_anno e tariffa_eur_mwh
+    pre-calcolati per ciascun mode (biometano DM 2018/2022, biogas
+    CHP DM 2012/FER 2). La sheet stessa e' agnostica alla mode.
+    """
+    is_chp = bool(ctx.get("IS_CHP", False))
+    cell_input_fill = SLATE_50 if snapshot else AMBER_BG
+
+    # ============================================================
+    # INPUT VALUES (pre-calcolati dal contesto app)
+    # ============================================================
+    # Taglia (mode-aware label)
+    if is_chp:
+        plant_size_label = "Potenza elettrica LORDA (kWe targa)"
+        plant_size = float(ctx.get("plant_kwe", 999.0))
+        plant_size_unit = "kWe"
+    else:
+        plant_size_label = "Produzione netta (Sm3/h)"
+        plant_size = float(ctx.get("plant_net_smch", 300.0))
+        plant_size_unit = "Sm3/h"
+
+    ore_anno      = float(ctx.get("bp_ore_anno", 8500.0))
+    aux_el_pct    = float(ctx.get("aux_el_pct", 0.0))
+    eta_el        = float(ctx.get("eta_el", 0.40))
+    aux_factor    = float(ctx.get("aux_factor", 1.29))
+    nm3_to_mwh    = float(ctx.get("NM3_TO_MWH", 0.00997))
+    tariffa_eur_mwh = float(ctx.get("bp_tariffa_eff_mwh",
+                                     ctx.get("bp_tariffa_eff", 131.0)))
+
+    # CAPEX defaults (pre-scalati su taglia 250 Sm3/h o equivalenti)
+    capex_def = ctx.get("bp_capex_breakdown", {}) or {}
+    capex_forfait = ctx.get("bp_capex_forfait", {}) or {}
+    if not capex_def:
+        # Fallback se non passato (genera valori tipici per la taglia)
+        # Per biometano: scala con plant_smch.
+        # Per CHP: scala con plant_kwe.
+        norm_size = plant_size if not is_chp else (plant_size / (eta_el * 9.97))
+        # norm_size in Sm3/h equivalenti per scalare CAPEX intensity
+        capex_def = {
+            "Movimenti terra":     3105.0 * norm_size,
+            "Opere civili":       10428.0 * norm_size,
+            "Impianto tecnologico":15960.0 * norm_size,
+            "Sezione upgrading":   9870.0 * norm_size if not is_chp else 0.0,
+            "Sezione cogenerazione": 0.0 if not is_chp else 1500.0 * plant_size,
+            "Varie (antincendio, ill., recinzione)": 1777.0 * norm_size,
+        }
+        capex_forfait = {
+            "Connessione rete":         92000.0,
+            "Acquisto terreno":        262000.0,
+            "Progettazione/autorizz.":  65000.0,
+            "Direzione lavori / CSE":   34000.0,
+            "Altre spese":             105000.0,
+        }
+    else:
+        # Se passato, le voci capex_breakdown sono €/(Smc/h) -> moltiplica
+        norm_size = plant_size if not is_chp else (plant_size / (eta_el * 9.97))
+        capex_def = {k: v * norm_size for k, v in capex_def.items()}
+        # Aggiungi voce CHP-specifica se mode CHP
+        if is_chp and "Sezione cogenerazione" not in capex_def:
+            # Stima CHP: ~€1500/kWe per motore + accessori
+            capex_def["Sezione cogenerazione"] = 1500.0 * plant_size
+            # Rimuovi upgrading (non applicabile)
+            capex_def.pop("Sezione upgrading", None)
+
+    # OPEX defaults (€/anno scalati)
+    opex_def = ctx.get("bp_opex_breakdown", {}) or {}
+    opex_forfait = ctx.get("bp_opex_forfait", {}) or {}
+    if not opex_def:
+        norm_size = plant_size if not is_chp else (plant_size / (eta_el * 9.97))
+        opex_def = {
+            "O&M digestione":           210.0 * norm_size,
+            "O&M upgrading/CHP":        428.0 * norm_size,
+            "Service tecnico":          126.0 * norm_size,
+            "Gestore d'impianto":       630.0 * norm_size,
+            "Service amministrativo":    63.0 * norm_size,
+            "Service gestionale":       147.0 * norm_size,
+            "Adempimenti comune":       126.0 * norm_size,
+            "Energia elettrica":         13.0 * norm_size,
+            "Certificazioni / analisi":  34.0 * norm_size,
+            "Varie operative":           63.0 * norm_size,
+        }
+        opex_forfait = {"Assicurazioni": 26000.0, "Tasse fisse": 10000.0}
+    else:
+        norm_size = plant_size if not is_chp else (plant_size / (eta_el * 9.97))
+        opex_def = {k: v * norm_size for k, v in opex_def.items()}
+
+    # Finance + economics defaults
+    bp_lt_tasso       = float(ctx.get("bp_lt_tasso", 4.0))
+    bp_lt_durata      = int(ctx.get("bp_lt_durata", 15))
+    bp_lt_leva        = float(ctx.get("bp_lt_leva", 80.0))
+    bp_inflazione     = float(ctx.get("bp_inflazione_pct", 2.5))
+    bp_durata_tariffa = int(ctx.get("bp_durata_tariffa", 15))
+    bp_pnrr_pct       = float(ctx.get("bp_pnrr_pct", 40.0))
+    bp_ebitda_target  = float(ctx.get("bp_ebitda_target_pct", 24.5))
+    bp_tax_rate       = float(ctx.get("bp_tax_rate_pct", 24.0))
+    bp_ammort_anni    = int(ctx.get("bp_ammort_anni", 22))
+    bp_npv_disc_rate  = float(ctx.get("bp_npv_disc_rate_pct", 6.0))
+    bp_massimale_eur_per_smch = float(
+        ctx.get("bp_massimale_eur_per_smch", 32817.23)
+    )
+
+    # Energia netta annua [MWh/anno] - mode-aware
+    if is_chp:
+        # CHP: kW_lordo × ore × (1-aux_el%) / 1000 = MWh netti rete
+        mwh_anno = plant_size * ore_anno * (1 - aux_el_pct) / 1000.0
+    else:
+        # Biometano: Smc/h × ore × PCI = MWh
+        mwh_anno = plant_size * ore_anno * nm3_to_mwh
+
+    # ============================================================
+    # SHEET LAYOUT
+    # ============================================================
+    L = get_column_letter
+
+    # Title
+    ws.merge_cells("A1:Q1")
+    c = ws.cell(row=1, column=1,
+                value="Metan.iQ — Business Plan & Pro Forma 15 anni")
+    c.font = Font(bold=True, size=16, color=WHITE)
+    c.fill = PatternFill("solid", fgColor=NAVY)
+    c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws.row_dimensions[1].height = 32
+
+    ws.merge_cells("A2:Q2")
+    mode_label = ctx.get("APP_MODE_LABEL", "DM 2022")
+    end_use = ctx.get("end_use", "")
+    now = datetime.now().strftime("%d/%m/%Y %H:%M")
+    c = ws.cell(row=2, column=1,
+                value=(f"Modalita': {mode_label}  ·  "
+                       f"Destinazione: {end_use}  ·  "
+                       f"Generato il {now}"))
+    c.font = Font(italic=True, size=9, color=SLATE_500)
+    c.alignment = Alignment(horizontal="left", indent=1)
+    ws.row_dimensions[2].height = 18
+
+    # Banner istruzioni
+    ws.merge_cells("A3:Q3")
+    if snapshot:
+        banner = "🔒 SNAPSHOT BLOCCATO — valori fotografati al download."
+        bf, bb = SLATE_700, SLATE_100
+    else:
+        banner = ("✏️ Modifica le celle GIALLE (taglia, ore, CAPEX, OPEX, "
+                  "tariffa, finanziamento). Tutto il pro forma si aggiorna.")
+        bf, bb = AMBER_DK, AMBER_BG
+    c = ws.cell(row=3, column=1, value=banner)
+    c.font = Font(bold=True, size=10, color=bf)
+    c.fill = PatternFill("solid", fgColor=bb)
+    c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    c.border = _border_thin()
+    ws.row_dimensions[3].height = 22
+
+    # ============================================================
+    # SEZIONE 1: PARAMETRI ENERGIA (rows 5-9)
+    # ============================================================
+    def _section_header(r, text, span=2):
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=span)
+        c = ws.cell(row=r, column=1, value=text)
+        c.font = Font(bold=True, size=10, color=WHITE)
+        c.fill = PatternFill("solid", fgColor=NAVY_2)
+        c.alignment = Alignment(horizontal="left", indent=1)
+        c.border = _border_thin()
+        ws.row_dimensions[r].height = 22
+
+    def _kv_row(r, label, value, fmt, editable=True, formula=False):
+        c_lbl = ws.cell(row=r, column=1, value=label)
+        c_lbl.font = Font(bold=True, color=SLATE_700)
+        c_lbl.fill = PatternFill("solid", fgColor=SLATE_50)
+        c_lbl.alignment = Alignment(horizontal="left", indent=1)
+        c_lbl.border = _border_thin()
+
+        c_val = ws.cell(row=r, column=2, value=value)
+        c_val.number_format = fmt
+        if formula:
+            c_val.fill = PatternFill("solid", fgColor=SLATE_50)
+            c_val.font = Font(bold=True, color=NAVY)
+        else:
+            c_val.fill = PatternFill("solid", fgColor=cell_input_fill if editable else SLATE_50)
+            c_val.font = Font(bold=True, color=NAVY)
+        c_val.alignment = Alignment(horizontal="right")
+        c_val.border = _border_thin()
+
+    # Sezione 1: PARAMETRI ENERGIA (rows 5-9)
+    _section_header(5, "1) PARAMETRI ENERGIA & TARIFFA")
+    _kv_row(6, plant_size_label, plant_size, "0.0")
+    _kv_row(7, "Ore funzionamento [h/anno]", ore_anno, "0")
+    if is_chp:
+        _kv_row(8, "η_el (rendimento elettrico)", eta_el, "0.000")
+        _kv_row(9, "Autoconsumo ausiliari [%]", aux_el_pct * 100, "0.0")
+        # MWh el netti (formula)
+        ws.cell(row=10, column=1, value="MWh el netti rete/anno [MWh]").font = Font(bold=True, color=SLATE_700)
+        ws.cell(row=10, column=1).fill = PatternFill("solid", fgColor=SLATE_50)
+        ws.cell(row=10, column=1).alignment = Alignment(horizontal="left", indent=1)
+        ws.cell(row=10, column=1).border = _border_thin()
+        c_e = ws.cell(row=10, column=2,
+                      value=f"=B6*B7*(1-B9/100)/1000")
+        c_e.number_format = "#,##0.0"
+        c_e.fill = PatternFill("solid", fgColor=AMBER_BG)
+        c_e.font = Font(bold=True, color=AMBER_DK)
+        c_e.alignment = Alignment(horizontal="right")
+        c_e.border = _border_thin()
+    else:
+        _kv_row(8, "PCI biometano [MWh/Sm3]", nm3_to_mwh, "0.00000")
+        _kv_row(9, "aux_factor (info)", aux_factor, "0.000", editable=False)
+        # MWh netti (formula)
+        ws.cell(row=10, column=1, value="MWh netti immissione/anno").font = Font(bold=True, color=SLATE_700)
+        ws.cell(row=10, column=1).fill = PatternFill("solid", fgColor=SLATE_50)
+        ws.cell(row=10, column=1).alignment = Alignment(horizontal="left", indent=1)
+        ws.cell(row=10, column=1).border = _border_thin()
+        c_e = ws.cell(row=10, column=2, value=f"=B6*B7*B8")
+        c_e.number_format = "#,##0.0"
+        c_e.fill = PatternFill("solid", fgColor=AMBER_BG)
+        c_e.font = Font(bold=True, color=AMBER_DK)
+        c_e.alignment = Alignment(horizontal="right")
+        c_e.border = _border_thin()
+
+    _kv_row(11, "Tariffa effettiva [€/MWh]", tariffa_eur_mwh, "0.00")
+    # Ricavi anno = MWh × tariffa
+    ws.cell(row=12, column=1, value="Ricavi annui [€]").font = Font(bold=True, color=SLATE_700)
+    ws.cell(row=12, column=1).fill = PatternFill("solid", fgColor=SLATE_50)
+    ws.cell(row=12, column=1).alignment = Alignment(horizontal="left", indent=1)
+    ws.cell(row=12, column=1).border = _border_thin()
+    c_r = ws.cell(row=12, column=2, value="=B10*B11")
+    c_r.number_format = '#,##0" €"'
+    c_r.fill = PatternFill("solid", fgColor=AMBER_BG)
+    c_r.font = Font(bold=True, color=AMBER_DK, size=11)
+    c_r.alignment = Alignment(horizontal="right")
+    c_r.border = _border_thin()
+
+    # ============================================================
+    # SEZIONE 2: PARAMETRI ECONOMICI (rows 14-20)
+    # ============================================================
+    _section_header(14, "2) PARAMETRI ECONOMICI")
+    _kv_row(15, "Inflazione OPEX [% annua]", bp_inflazione, "0.0")
+    _kv_row(16, "Durata tariffa [anni]", bp_durata_tariffa, "0")
+    _kv_row(17, "Aliquota imposte [%]", bp_tax_rate, "0.0")
+    _kv_row(18, "Margine EBITDA target [%]", bp_ebitda_target, "0.0")
+    _kv_row(19, "Vita utile ammortamento [anni]", bp_ammort_anni, "0")
+    _kv_row(20, "Tasso sconto VAN [%]", bp_npv_disc_rate, "0.0")
+
+    # ============================================================
+    # SEZIONE 3: CAPEX (rows 22-...)
+    # ============================================================
+    _section_header(22, "3) CAPEX (€)")
+    capex_start_row = 23
+    capex_rows = []
+    for i, (label, value) in enumerate(capex_def.items()):
+        r = capex_start_row + i
+        _kv_row(r, label, value, '#,##0" €"')
+        capex_rows.append(r)
+    # Forfait
+    forfait_start = capex_start_row + len(capex_def)
+    for i, (label, value) in enumerate(capex_forfait.items()):
+        r = forfait_start + i
+        _kv_row(r, label, value, '#,##0" €"')
+        capex_rows.append(r)
+
+    capex_tot_row = forfait_start + len(capex_forfait)
+    capex_first = capex_rows[0]
+    capex_last  = capex_rows[-1]
+
+    # CAPEX TOTALE (formula)
+    c_lbl = ws.cell(row=capex_tot_row, column=1, value="CAPEX TOTALE")
+    c_lbl.font = Font(bold=True, color=WHITE)
+    c_lbl.fill = PatternFill("solid", fgColor=NAVY)
+    c_lbl.alignment = Alignment(horizontal="left", indent=1)
+    c_lbl.border = _border_thin()
+    c_val = ws.cell(row=capex_tot_row, column=2,
+                    value=f"=SUM(B{capex_first}:B{capex_last})")
+    c_val.number_format = '#,##0" €"'
+    c_val.fill = PatternFill("solid", fgColor=NAVY)
+    c_val.font = Font(bold=True, color=WHITE, size=11)
+    c_val.alignment = Alignment(horizontal="right")
+    c_val.border = _border_thin()
+
+    # PNRR
+    pnrr_pct_row = capex_tot_row + 1
+    massimale_row = capex_tot_row + 2
+    contributo_row = capex_tot_row + 3
+    capex_netto_row = capex_tot_row + 4
+    _kv_row(pnrr_pct_row, "Contributo PNRR [%]", bp_pnrr_pct, "0.0")
+    _kv_row(massimale_row, f"Massimale spesa [€/{plant_size_unit}]",
+            bp_massimale_eur_per_smch, "0.00")
+    # Contributo = MIN(CAPEX, massimale * plant_size) * PNRR%
+    # Per CHP: usiamo norm_size (Sm3/h equivalente) per applicare massimale GSE
+    # Per biometano: usiamo plant_size direttamente
+    if is_chp:
+        massimale_basis_formula = f"$B$6/(B8*9.97)"  # plant_kwe / (eta_el * 9.97)
+    else:
+        massimale_basis_formula = f"$B$6"  # Sm3/h netti
+    ws.cell(row=contributo_row, column=1, value="Contributo PNRR [€]")
+    ws.cell(row=contributo_row, column=1).font = Font(bold=True, color=SLATE_700)
+    ws.cell(row=contributo_row, column=1).fill = PatternFill("solid", fgColor=SLATE_50)
+    ws.cell(row=contributo_row, column=1).alignment = Alignment(horizontal="left", indent=1)
+    ws.cell(row=contributo_row, column=1).border = _border_thin()
+    c_contr = ws.cell(
+        row=contributo_row, column=2,
+        value=f"=MIN(B{capex_tot_row},B{massimale_row}*{massimale_basis_formula})"
+              f"*B{pnrr_pct_row}/100"
+    )
+    c_contr.number_format = '#,##0" €"'
+    c_contr.fill = PatternFill("solid", fgColor=AMBER_BG)
+    c_contr.font = Font(bold=True, color=AMBER_DK)
+    c_contr.alignment = Alignment(horizontal="right")
+    c_contr.border = _border_thin()
+    # CAPEX NETTO
+    c_lbl = ws.cell(row=capex_netto_row, column=1, value="CAPEX NETTO (post-contributo)")
+    c_lbl.font = Font(bold=True, color=WHITE)
+    c_lbl.fill = PatternFill("solid", fgColor=NAVY)
+    c_lbl.alignment = Alignment(horizontal="left", indent=1)
+    c_lbl.border = _border_thin()
+    c_netto = ws.cell(row=capex_netto_row, column=2,
+                      value=f"=B{capex_tot_row}-B{contributo_row}")
+    c_netto.number_format = '#,##0" €"'
+    c_netto.fill = PatternFill("solid", fgColor=NAVY)
+    c_netto.font = Font(bold=True, color=WHITE, size=11)
+    c_netto.alignment = Alignment(horizontal="right")
+    c_netto.border = _border_thin()
+
+    # ============================================================
+    # SEZIONE 4: FINANZIAMENTO (4 righe)
+    # ============================================================
+    fin_start = capex_netto_row + 2
+    _section_header(fin_start, "4) FINANZIAMENTO")
+    _kv_row(fin_start + 1, "Tasso LT [%]", bp_lt_tasso, "0.00")
+    _kv_row(fin_start + 2, "Durata LT [anni]", bp_lt_durata, "0")
+    _kv_row(fin_start + 3, "Leva LT [%] su CAPEX netto", bp_lt_leva, "0.0")
+    # Debito LT
+    debito_row = fin_start + 4
+    ws.cell(row=debito_row, column=1, value="Debito LT [€]")
+    ws.cell(row=debito_row, column=1).font = Font(bold=True, color=SLATE_700)
+    ws.cell(row=debito_row, column=1).fill = PatternFill("solid", fgColor=SLATE_50)
+    ws.cell(row=debito_row, column=1).alignment = Alignment(horizontal="left", indent=1)
+    ws.cell(row=debito_row, column=1).border = _border_thin()
+    c_deb = ws.cell(row=debito_row, column=2,
+                    value=f"=B{capex_netto_row}*B{fin_start+3}/100")
+    c_deb.number_format = '#,##0" €"'
+    c_deb.fill = PatternFill("solid", fgColor=SLATE_50)
+    c_deb.font = Font(bold=True, color=NAVY)
+    c_deb.alignment = Alignment(horizontal="right")
+    c_deb.border = _border_thin()
+    # Equity
+    equity_row = debito_row + 1
+    ws.cell(row=equity_row, column=1, value="Equity [€]")
+    ws.cell(row=equity_row, column=1).font = Font(bold=True, color=SLATE_700)
+    ws.cell(row=equity_row, column=1).fill = PatternFill("solid", fgColor=SLATE_50)
+    ws.cell(row=equity_row, column=1).alignment = Alignment(horizontal="left", indent=1)
+    ws.cell(row=equity_row, column=1).border = _border_thin()
+    c_eq = ws.cell(row=equity_row, column=2,
+                   value=f"=B{capex_netto_row}-B{debito_row}")
+    c_eq.number_format = '#,##0" €"'
+    c_eq.fill = PatternFill("solid", fgColor=AMBER_BG)
+    c_eq.font = Font(bold=True, color=AMBER_DK)
+    c_eq.alignment = Alignment(horizontal="right")
+    c_eq.border = _border_thin()
+    # Rata LT
+    rata_row = equity_row + 1
+    ws.cell(row=rata_row, column=1, value="Rata LT/anno (PMT) [€]")
+    ws.cell(row=rata_row, column=1).font = Font(bold=True, color=SLATE_700)
+    ws.cell(row=rata_row, column=1).fill = PatternFill("solid", fgColor=SLATE_50)
+    ws.cell(row=rata_row, column=1).alignment = Alignment(horizontal="left", indent=1)
+    ws.cell(row=rata_row, column=1).border = _border_thin()
+    c_rata = ws.cell(
+        row=rata_row, column=2,
+        value=f"=IFERROR(-PMT(B{fin_start+1}/100,B{fin_start+2},B{debito_row}),0)"
+    )
+    c_rata.number_format = '#,##0" €"'
+    c_rata.fill = PatternFill("solid", fgColor=SLATE_50)
+    c_rata.font = Font(bold=True, color=NAVY)
+    c_rata.alignment = Alignment(horizontal="right")
+    c_rata.border = _border_thin()
+    # Ammortamento annuo
+    amm_row = rata_row + 1
+    ws.cell(row=amm_row, column=1, value="Ammortamento annuo [€]")
+    ws.cell(row=amm_row, column=1).font = Font(bold=True, color=SLATE_700)
+    ws.cell(row=amm_row, column=1).fill = PatternFill("solid", fgColor=SLATE_50)
+    ws.cell(row=amm_row, column=1).alignment = Alignment(horizontal="left", indent=1)
+    ws.cell(row=amm_row, column=1).border = _border_thin()
+    c_amm = ws.cell(row=amm_row, column=2,
+                    value=f"=B{capex_tot_row}/B19")
+    c_amm.number_format = '#,##0" €"'
+    c_amm.fill = PatternFill("solid", fgColor=SLATE_50)
+    c_amm.font = Font(bold=True, color=NAVY)
+    c_amm.alignment = Alignment(horizontal="right")
+    c_amm.border = _border_thin()
+
+    # ============================================================
+    # SEZIONE 5: OPEX
+    # ============================================================
+    opex_section_row = amm_row + 2
+    _section_header(opex_section_row, "5) OPEX (€/anno)")
+    opex_start_row = opex_section_row + 1
+    opex_rows = []
+    for i, (label, value) in enumerate(opex_def.items()):
+        r = opex_start_row + i
+        _kv_row(r, label, value, '#,##0" €"')
+        opex_rows.append(r)
+    forfait_opex_start = opex_start_row + len(opex_def)
+    for i, (label, value) in enumerate(opex_forfait.items()):
+        r = forfait_opex_start + i
+        _kv_row(r, label, value, '#,##0" €"')
+        opex_rows.append(r)
+    opex_tot_row = forfait_opex_start + len(opex_forfait)
+    opex_first = opex_rows[0]
+    opex_last  = opex_rows[-1]
+    c_lbl = ws.cell(row=opex_tot_row, column=1, value="OPEX TOTALE")
+    c_lbl.font = Font(bold=True, color=WHITE)
+    c_lbl.fill = PatternFill("solid", fgColor=NAVY)
+    c_lbl.alignment = Alignment(horizontal="left", indent=1)
+    c_lbl.border = _border_thin()
+    c_val = ws.cell(row=opex_tot_row, column=2,
+                    value=f"=SUM(B{opex_first}:B{opex_last})")
+    c_val.number_format = '#,##0" €"'
+    c_val.fill = PatternFill("solid", fgColor=NAVY)
+    c_val.font = Font(bold=True, color=WHITE, size=11)
+    c_val.alignment = Alignment(horizontal="right")
+    c_val.border = _border_thin()
+
+    # ============================================================
+    # SEZIONE 6: CONTO ECONOMICO 15 ANNI (table)
+    # ============================================================
+    ce_section_row = opex_tot_row + 2
+    ws.merge_cells(start_row=ce_section_row, start_column=1,
+                   end_row=ce_section_row, end_column=16)  # cols A..P (15 anni + label)
+    c = ws.cell(row=ce_section_row, column=1,
+                value="6) CONTO ECONOMICO 15 ANNI (€)")
+    c.font = Font(bold=True, size=11, color=WHITE)
+    c.fill = PatternFill("solid", fgColor=NAVY_2)
+    c.alignment = Alignment(horizontal="left", indent=1)
+    c.border = _border_thin()
+    ws.row_dimensions[ce_section_row].height = 22
+
+    # Header tabella CE: row ce_header_row
+    ce_header_row = ce_section_row + 1
+    ws.cell(row=ce_header_row, column=1, value="Voce")
+    _style_header(ws.cell(row=ce_header_row, column=1))
+    for y in range(1, 16):
+        c = ws.cell(row=ce_header_row, column=1 + y, value=f"Anno {y}")
+        _style_header(c)
+    ws.row_dimensions[ce_header_row].height = 30
+
+    # Riferimenti per formule (cell B di parametri)
+    ricavi_ref = "$B$12"
+    opex_tot_ref = f"$B${opex_tot_row}"
+    inflaz_ref = "$B$15"
+    ebitda_target_pct_ref = "$B$18"
+    amm_ref = f"$B${amm_row}"
+    rata_ref = f"$B${rata_row}"
+    debito_ref = f"$B${debito_row}"
+    tasso_ref = f"$B${fin_start+1}"
+    durata_lt_ref = f"$B${fin_start+2}"
+    tax_rate_ref = "$B$17"
+    vita_amm_ref = "$B$19"
+
+    # Righe CE (per anno)
+    ce_row_ricavi = ce_header_row + 1
+    ce_row_opex   = ce_header_row + 2
+    ce_row_biom   = ce_header_row + 3
+    ce_row_ebitda = ce_header_row + 4
+    ce_row_amm    = ce_header_row + 5
+    ce_row_int    = ce_header_row + 6
+    ce_row_uante  = ce_header_row + 7
+    ce_row_imp    = ce_header_row + 8
+    ce_row_unetto = ce_header_row + 9
+    ce_row_fcf    = ce_header_row + 10
+    ce_row_fcf_cum = ce_header_row + 11
+
+    ce_labels = [
+        (ce_row_ricavi, "Ricavi"),
+        (ce_row_opex,   "OPEX (inflazionato)"),
+        (ce_row_biom,   "Costo biomasse"),
+        (ce_row_ebitda, "EBITDA"),
+        (ce_row_amm,    "Ammortamento"),
+        (ce_row_int,    "Oneri finanziari"),
+        (ce_row_uante,  "Utile ante imposte"),
+        (ce_row_imp,    "Imposte"),
+        (ce_row_unetto, "Utile netto"),
+        (ce_row_fcf,    "Free Cash Flow"),
+        (ce_row_fcf_cum,"FCF cumulato"),
+    ]
+    # Stile labels CE
+    for r, lbl in ce_labels:
+        c_lbl = ws.cell(row=r, column=1, value=lbl)
+        c_lbl.font = Font(bold=True, color=SLATE_700)
+        c_lbl.fill = PatternFill("solid", fgColor=SLATE_50)
+        c_lbl.alignment = Alignment(horizontal="left", indent=1)
+        c_lbl.border = _border_thin()
+        # bold per EBITDA, FCF, FCF cum
+        if r in (ce_row_ebitda, ce_row_fcf, ce_row_fcf_cum):
+            c_lbl.font = Font(bold=True, color=NAVY)
+
+    # Formule per ogni anno (col B..P)
+    for y in range(1, 16):
+        col = 1 + y
+        cl = L(col)
+        cl_prev = L(col - 1) if y > 1 else None
+
+        # Ricavi (uniformi se DM 2022 nominale, altrimenti potresti mettere infla)
+        ws.cell(row=ce_row_ricavi, column=col, value=f"={ricavi_ref}")
+        # OPEX inflazionato: -opex × (1+infl/100)^(y-1)
+        ws.cell(row=ce_row_opex, column=col,
+                value=f"=-{opex_tot_ref}*(1+{inflaz_ref}/100)^({y-1})")
+        # Costo biomasse = -(Ricavi + OPEX - EBITDA target)
+        # EBITDA target = Ricavi × margine%
+        ws.cell(row=ce_row_biom, column=col,
+                value=(f"=-MAX({cl}{ce_row_ricavi}+{cl}{ce_row_opex}"
+                       f"-{cl}{ce_row_ricavi}*{ebitda_target_pct_ref}/100,0)"))
+        # EBITDA = Ricavi + OPEX + Costo biomasse
+        ws.cell(row=ce_row_ebitda, column=col,
+                value=(f"={cl}{ce_row_ricavi}+{cl}{ce_row_opex}"
+                       f"+{cl}{ce_row_biom}"))
+        # Ammortamento (solo entro vita utile)
+        ws.cell(row=ce_row_amm, column=col,
+                value=f"=IF({y}<={vita_amm_ref},-{amm_ref},0)")
+        # Oneri finanziari (IPMT)
+        ws.cell(row=ce_row_int, column=col,
+                value=(f"=IF({y}<={durata_lt_ref},"
+                       f"IPMT({tasso_ref}/100,{y},{durata_lt_ref},"
+                       f"{debito_ref}),0)"))
+        # Utile ante = EBITDA + Ammort + Interessi
+        ws.cell(row=ce_row_uante, column=col,
+                value=(f"={cl}{ce_row_ebitda}+{cl}{ce_row_amm}"
+                       f"+{cl}{ce_row_int}"))
+        # Imposte (solo se utile positivo)
+        ws.cell(row=ce_row_imp, column=col,
+                value=(f"=-MAX({cl}{ce_row_uante}*{tax_rate_ref}/100,0)"))
+        # Utile netto
+        ws.cell(row=ce_row_unetto, column=col,
+                value=f"={cl}{ce_row_uante}+{cl}{ce_row_imp}")
+        # FCF = EBITDA + Imposte - Rata LT (rata_ref e' positiva, sottraiamo)
+        ws.cell(row=ce_row_fcf, column=col,
+                value=(f"={cl}{ce_row_ebitda}+{cl}{ce_row_imp}"
+                       f"-IF({y}<={durata_lt_ref},{rata_ref},0)"))
+        # FCF cumulato
+        if y == 1:
+            # Anno 1: -equity + FCF1
+            ws.cell(row=ce_row_fcf_cum, column=col,
+                    value=f"=-${L(2)}${equity_row}+{cl}{ce_row_fcf}")
+        else:
+            ws.cell(row=ce_row_fcf_cum, column=col,
+                    value=f"={cl_prev}{ce_row_fcf_cum}+{cl}{ce_row_fcf}")
+
+        # Formato e stile per ogni cella della tabella CE
+        for r, _ in ce_labels:
+            cell = ws.cell(row=r, column=col)
+            cell.number_format = '#,##0;-#,##0'
+            cell.alignment = Alignment(horizontal="right")
+            cell.border = _border_thin()
+            cell.fill = PatternFill("solid", fgColor=SLATE_50)
+            if r in (ce_row_ebitda, ce_row_fcf, ce_row_fcf_cum):
+                cell.font = Font(bold=True, color=NAVY)
+            else:
+                cell.font = Font(color=SLATE_700)
+
+    # ============================================================
+    # SEZIONE 7: KPI FINANZIARI
+    # ============================================================
+    kpi_section_row = ce_row_fcf_cum + 2
+    ws.merge_cells(start_row=kpi_section_row, start_column=1,
+                   end_row=kpi_section_row, end_column=2)
+    c = ws.cell(row=kpi_section_row, column=1,
+                value="7) KPI FINANZIARI")
+    c.font = Font(bold=True, size=11, color=WHITE)
+    c.fill = PatternFill("solid", fgColor=NAVY_2)
+    c.alignment = Alignment(horizontal="left", indent=1)
+    c.border = _border_thin()
+    ws.row_dimensions[kpi_section_row].height = 22
+
+    kpi_first_row = kpi_section_row + 1
+    fcf_range = f"{L(2)}{ce_row_fcf}:{L(16)}{ce_row_fcf}"
+    fcf_cum_range = f"{L(2)}{ce_row_fcf_cum}:{L(16)}{ce_row_fcf_cum}"
+    ricavi_range = f"{L(2)}{ce_row_ricavi}:{L(16)}{ce_row_ricavi}"
+    ebitda_range = f"{L(2)}{ce_row_ebitda}:{L(16)}{ce_row_ebitda}"
+    unetto_range = f"{L(2)}{ce_row_unetto}:{L(16)}{ce_row_unetto}"
+
+    # Helper per riga KPI con formula
+    def _kpi_row(r, label, formula, fmt, accent=False):
+        c_lbl = ws.cell(row=r, column=1, value=label)
+        c_lbl.font = Font(bold=True, color=SLATE_700)
+        c_lbl.fill = PatternFill("solid", fgColor=SLATE_50)
+        c_lbl.alignment = Alignment(horizontal="left", indent=1)
+        c_lbl.border = _border_thin()
+        c_val = ws.cell(row=r, column=2, value=formula)
+        c_val.number_format = fmt
+        c_val.fill = PatternFill("solid", fgColor=AMBER_BG if accent else SLATE_50)
+        c_val.font = Font(bold=True, color=AMBER_DK if accent else NAVY, size=11)
+        c_val.alignment = Alignment(horizontal="right")
+        c_val.border = _border_thin()
+
+    _kpi_row(kpi_first_row + 0, "Ricavi totali 15 anni",
+             f"=SUM({ricavi_range})", '#,##0" €"')
+    _kpi_row(kpi_first_row + 1, "EBITDA medio annuo",
+             f"=AVERAGE({ebitda_range})", '#,##0" €"')
+    _kpi_row(kpi_first_row + 2, "Margine EBITDA medio",
+             f"=IFERROR(AVERAGE({ebitda_range})/AVERAGE({ricavi_range})*100,0)",
+             '0.0"%"')
+    _kpi_row(kpi_first_row + 3, "Utile netto totale 15 anni",
+             f"=SUM({unetto_range})", '#,##0" €"', accent=True)
+    _kpi_row(kpi_first_row + 4, "FCF cumulato finale (anno 15)",
+             f"={L(16)}{ce_row_fcf_cum}", '#,##0" €"', accent=True)
+    _kpi_row(kpi_first_row + 5, "ROI = Utile netto / Equity",
+             f"=IFERROR(SUM({unetto_range})/$B${equity_row}*100,0)",
+             '0.0"%"', accent=True)
+    # Payback: trova il primo anno in cui FCF cumulato >= 0
+    _kpi_row(
+        kpi_first_row + 6, "Payback (anni, primo FCF cum>=0)",
+        (f'=IFERROR(MATCH(TRUE,{fcf_cum_range}>=0,0),'
+         f'"oltre 15 anni")'),
+        "0",
+    )
+    # IRR equity: array {-equity, FCF1..FCF15}
+    # Trick: usa una helper row nascosta? Meglio: usa NPV+goal-seek non possibile.
+    # Soluzione: costruisci IRR su un range esteso: -equity in cella separata + FCF range.
+    # Workaround: aggiungiamo una RIGA con cash flow per IRR (Y0=-equity, Y1..15=FCF)
+    # Subito sotto KPI block.
+    irr_helper_row = kpi_first_row + 8
+    # Year 0 (col B = -equity)
+    ws.cell(row=irr_helper_row, column=1, value="(serie FCF per IRR/VAN)")
+    ws.cell(row=irr_helper_row, column=1).font = Font(italic=True, size=8, color=SLATE_500)
+    ws.cell(row=irr_helper_row, column=2, value=f"=-${L(2)}${equity_row}")
+    ws.cell(row=irr_helper_row, column=2).number_format = '#,##0" €"'
+    ws.cell(row=irr_helper_row, column=2).font = Font(size=8, color=SLATE_500)
+    # Year 1..15 (cols C..Q): copia FCF
+    for y in range(1, 16):
+        col = 2 + y  # C, D, ..., Q
+        cl_dst = L(col)
+        cl_src = L(1 + y)  # B, C, ..., P (FCF originali)
+        ws.cell(row=irr_helper_row, column=col,
+                value=f"={cl_src}{ce_row_fcf}")
+        ws.cell(row=irr_helper_row, column=col).number_format = '#,##0'
+        ws.cell(row=irr_helper_row, column=col).font = Font(size=8, color=SLATE_500)
+
+    irr_series_range = f"{L(2)}{irr_helper_row}:{L(17)}{irr_helper_row}"
+
+    _kpi_row(kpi_first_row + 7, "IRR equity",
+             f"=IFERROR(IRR({irr_series_range}),0)*100",
+             '0.0"%"', accent=True)
+    # VAN equity: NPV(rate, FCF1..15) - equity (NPV Excel sconta dal periodo 1)
+    npv_disc_ref = "$B$20"
+    fcf_only_range = f"{L(2)}{ce_row_fcf}:{L(16)}{ce_row_fcf}"
+    _kpi_row(kpi_first_row + 9, "VAN equity (al tasso sconto)",
+             f"=NPV({npv_disc_ref}/100,{fcf_only_range})-${L(2)}${equity_row}",
+             '#,##0" €"', accent=True)
+
+    # ============================================================
+    # Larghezze colonne
+    # ============================================================
+    ws.column_dimensions["A"].width = 38
+    ws.column_dimensions["B"].width = 18
+    for y in range(1, 16):
+        ws.column_dimensions[L(1 + y)].width = 13
+    ws.column_dimensions["Q"].width = 13  # last col (irr helper)
+
+    # Freeze: blocca header CE (label + B-K) durante scroll
+    ws.freeze_panes = ws[f"C{ce_header_row + 1}"]

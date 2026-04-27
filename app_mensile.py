@@ -4578,6 +4578,80 @@ with _dl_col1:
             "eta_th":            eta_th,
             "aux_el_pct":        aux_el_pct,
         }
+        # === Aggiunge contesto Business Plan (mode-aware) ===
+        # Tariffa effettiva e parametri BP per la sheet "Business Plan".
+        # Per ogni mode calcoliamo:
+        #   - bp_tariffa_eff_mwh: €/MWh equivalenti (per BP unico mode-agnostic)
+        #   - bp_ore_anno: ore funzionamento (default 8500)
+        if IS_FER2:
+            _bp_tariffa_mwh = float(fer2_tariffa_eff)
+        elif IS_CHP_DM2012:
+            # CHP DM 6/7/2012: TO 280 €/MWh_el (tipico)
+            # se l'utente ha gia' impostato tariffa per biomassa la
+            # prendiamo come weighted average.
+            try:
+                _tk = f"tariffs_eur_mwh_{APP_MODE}"
+                _tar_dict = st.session_state.get(_tk, {})
+                _vals = list(_tar_dict.values())
+                _bp_tariffa_mwh = sum(_vals) / len(_vals) if _vals else 280.0
+            except Exception:
+                _bp_tariffa_mwh = 280.0
+        elif IS_DM2018:
+            if cic_active:
+                # CIC system: tariffa €/MWh equivalente = ricavi / mwh_netti
+                _mwh_for_calc = float(df_res["MWh netti"].sum()) or 1.0
+                _bp_tariffa_mwh = float(tot_revenue) / _mwh_for_calc
+            else:
+                # DM 2018 altri usi: tariffa diretta media
+                try:
+                    _tk = f"tariffs_eur_mwh_{APP_MODE}"
+                    _tar_dict = st.session_state.get(_tk, {})
+                    _vals = list(_tar_dict.values())
+                    _bp_tariffa_mwh = sum(_vals) / len(_vals) if _vals else 110.0
+                except Exception:
+                    _bp_tariffa_mwh = 110.0
+        else:
+            # Biometano DM 2022 (default app)
+            _bp_tariffa_mwh = (
+                float(bp_tariffa_eff) if IS_DM2022 and bp_result is not None
+                else 131.0
+            )
+
+        # Ore anno default 8500 (puo' essere editato in Excel)
+        _bp_ore_anno = 8500.0
+
+        # CAPEX/OPEX defaults per BP: leggi dalle costanti
+        _xlsx_ctx.update({
+            "bp_tariffa_eff_mwh":        _bp_tariffa_mwh,
+            "bp_ore_anno":               _bp_ore_anno,
+            "bp_lt_tasso":               BP_FINANCE_DEFAULTS["lt_tasso"]
+                                          if not IS_DM2022 else bp_lt_tasso,
+            "bp_lt_durata":              (BP_FINANCE_DEFAULTS["lt_durata"]
+                                           if not IS_DM2022 else bp_lt_durata),
+            "bp_lt_leva":                (BP_FINANCE_DEFAULTS["lt_leva"]
+                                           if not IS_DM2022 else bp_lt_leva),
+            "bp_inflazione_pct":         (BP_INFLAZIONE_DEFAULT_PCT
+                                           if not IS_DM2022 else bp_inflazione_pct),
+            "bp_durata_tariffa":         BP_DURATA_TARIFFA_ANNI,
+            "bp_pnrr_pct":               (BP_PNRR_QUOTA_PCT_DEFAULT
+                                           if not IS_DM2022 else bp_pnrr_pct),
+            "bp_ebitda_target_pct":      (24.5 if not IS_DM2022
+                                           else bp_ebitda_target_pct),
+            "bp_tax_rate_pct":           BP_TAX_RATE_PCT,
+            "bp_ammort_anni":            BP_AMMORTAMENTO_ANNI,
+            "bp_npv_disc_rate_pct":      6.0,
+            "bp_massimale_eur_per_smch": BP_MASSIMALE_SPESA_EUR_PER_SMCH,
+            # CAPEX/OPEX breakdown: passa quelli del BP se disponibili
+            "bp_capex_breakdown":        (bp_capex_breakdown
+                                           if IS_DM2022 else None),
+            "bp_capex_forfait":          (bp_capex_forfait
+                                           if IS_DM2022 else None),
+            "bp_opex_breakdown":         (bp_opex_breakdown
+                                           if IS_DM2022 else None),
+            "bp_opex_forfait":           (bp_opex_forfait
+                                           if IS_DM2022 else None),
+            "NM3_TO_MWH":                NM3_TO_MWH,
+        })
         _xlsx_buf = build_metaniq_xlsx(_xlsx_ctx)
         _xlsx_data = _xlsx_buf.getvalue()
         _xlsx_ok = True
