@@ -1678,55 +1678,50 @@ st.markdown(
         color: {TEXT_PRIMARY} !important;
     }}
 
-    /* ---------- Headings ---------- */
+    /* ---------- Design tokens (radius scale) ---------- */
+    /* Standardizzati: 6px (small) · 10px (medium) · 14px (large) */
+
+    /* ---------- Headings (gerarchia + spaziatura coerente 8pt grid) ---------- */
     h1, h2, h3, h4, h5, h6 {{
         font-weight: 600 !important;
-        letter-spacing: -0.4px !important;
+        letter-spacing: -0.3px !important;
         color: {HEADING_COLOR} !important;
+        margin-bottom: 0.5rem !important;
     }}
-    h1 {{ font-weight: 700 !important; letter-spacing: -0.8px !important; }}
-    h2 {{ font-size: 1.7rem !important; margin-top: 1.6rem !important;
-          font-weight: 600 !important; letter-spacing: -0.5px !important; }}
-    h3 {{ font-size: 1.25rem !important; font-weight: 600 !important; }}
-    h4 {{ font-size: 1.05rem !important; font-weight: 600 !important; }}
+    h1 {{ font-weight: 700 !important; letter-spacing: -0.6px !important; }}
+    h2 {{ font-size: 1.5rem !important;
+          margin-top: 1.5rem !important; margin-bottom: 0.75rem !important;
+          font-weight: 600 !important; letter-spacing: -0.4px !important; }}
+    h3 {{ font-size: 1.15rem !important; font-weight: 600 !important;
+          margin-top: 1rem !important; }}
+    h4 {{ font-size: 1rem !important; font-weight: 600 !important; }}
 
-    /* ---------- Brand header (hero) ---------- */
+    /* ---------- Brand header (hero, ridotto) ---------- */
     .methaniq-header {{
         position: relative;
         background:
-            radial-gradient(ellipse 70% 90% at 100% 0%, rgba(245,158,11,0.18) 0%, transparent 55%),
-            radial-gradient(ellipse 60% 80% at 0% 100%, rgba(16,185,129,0.10) 0%, transparent 55%),
+            radial-gradient(ellipse 70% 90% at 100% 0%, rgba(245,158,11,0.16) 0%, transparent 55%),
+            radial-gradient(ellipse 60% 80% at 0% 100%, rgba(16,185,129,0.08) 0%, transparent 55%),
             linear-gradient(135deg, {NAVY} 0%, {NAVY_2} 100%);
-        padding: 56px 40px 48px 40px;
-        border-radius: 18px;
+        padding: 36px 36px 32px 36px;
+        border-radius: 14px;
         color: white;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
         box-shadow:
-            0 20px 40px -16px rgba(15, 23, 42, 0.45),
-            0 4px 8px rgba(15, 23, 42, 0.20),
-            inset 0 1px 0 rgba(255,255,255,0.06);
+            0 12px 32px -12px rgba(15, 23, 42, 0.40),
+            0 2px 6px rgba(15, 23, 42, 0.15);
         text-align: left;
         overflow: hidden;
-        border: 1px solid rgba(245, 158, 11, 0.18);
+        border: 1px solid rgba(245, 158, 11, 0.16);
     }}
-    /* Hex pattern SVG background — molecole CH4 stilizzate */
+    /* Hex pattern SVG sottile */
     .methaniq-header::before {{
         content: "";
         position: absolute;
         inset: 0;
         background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='92' viewBox='0 0 80 92'><g fill='none' stroke='rgba(255,255,255,0.05)' stroke-width='1'><polygon points='40,4 72,22 72,58 40,76 8,58 8,22'/><polygon points='40,28 56,38 56,58 40,68 24,58 24,38'/></g></svg>");
-        background-size: 120px 138px;
-        opacity: 0.55;
-        pointer-events: none;
-    }}
-    .methaniq-header::after {{
-        content: "";
-        position: absolute;
-        top: 50%; right: -40px;
-        transform: translateY(-50%);
-        width: 2px; height: 70%;
-        background: linear-gradient(180deg, transparent 0%, {AMBER} 50%, transparent 100%);
-        opacity: 0.6;
+        background-size: 110px 126px;
+        opacity: 0.5;
         pointer-events: none;
     }}
     .methaniq-header .eyebrow {{
@@ -1734,43 +1729,44 @@ st.markdown(
         z-index: 1;
         display: inline-block;
         font-family: 'JetBrains Mono', monospace !important;
-        font-size: 0.72rem;
+        font-size: 0.7rem;
         font-weight: 500;
         color: {AMBER};
         text-transform: uppercase;
-        letter-spacing: 2.5px;
-        margin-bottom: 14px;
-        padding: 4px 12px;
+        letter-spacing: 2px;
+        margin-bottom: 10px;
+        padding: 3px 10px;
         background: rgba(245, 158, 11, 0.10);
         border: 1px solid rgba(245, 158, 11, 0.28);
-        border-radius: 4px;
+        border-radius: 6px;
     }}
     .methaniq-header h1 {{
         color: #FFFFFF !important;
         margin: 0 !important;
         font-family: 'Space Grotesk', 'Inter', sans-serif !important;
-        font-size: 3.4rem !important;
+        font-size: 2.5rem !important;
         font-weight: 700 !important;
-        letter-spacing: -1.8px !important;
-        line-height: 1.0;
+        letter-spacing: -1.2px !important;
+        line-height: 1.05;
         position: relative;
         z-index: 1;
     }}
     .methaniq-header .tagline {{
         color: #CBD5E1;
         font-weight: 400;
-        font-size: 1.15rem;
-        margin-top: 14px;
-        letter-spacing: -0.1px;
+        font-size: 1.02rem;
+        margin-top: 10px;
+        letter-spacing: 0;
+        line-height: 1.5;
         position: relative;
         z-index: 1;
-        max-width: 640px;
+        max-width: 720px;
     }}
     .methaniq-header .pills {{
         display: flex;
         gap: 6px;
         flex-wrap: wrap;
-        margin-top: 28px;
+        margin-top: 20px;
         position: relative;
         z-index: 1;
     }}
@@ -1778,16 +1774,16 @@ st.markdown(
         background: rgba(255,255,255,0.04);
         border: 1px solid rgba(255,255,255,0.12);
         color: #E2E8F0;
-        padding: 5px 12px;
-        border-radius: 4px;
-        font-size: 0.72rem;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.7rem;
         font-weight: 500;
         font-family: 'JetBrains Mono', monospace !important;
         letter-spacing: 0.2px;
     }}
     .methaniq-header .pill.accent {{
         background: rgba(245, 158, 11, 0.12);
-        border-color: rgba(245, 158, 11, 0.35);
+        border-color: rgba(245, 158, 11, 0.40);
         color: {AMBER};
     }}
 
@@ -1796,21 +1792,27 @@ st.markdown(
         background: {CREDIT_BG};
         border: 1px solid {BORDER};
         border-left: 3px solid {AMBER};
-        padding: 10px 16px;
+        padding: 10px 14px;
         border-radius: 6px;
-        font-size: 0.82rem;
+        font-size: 0.8rem;
         color: {TEXT_SECOND};
         margin-bottom: 20px;
         box-shadow: {SHADOW_CARD};
+        line-height: 1.5;
     }}
     .methaniq-credit b {{ color: {HEADING_COLOR}; font-weight: 600; }}
 
-    /* ---------- Sidebar ---------- */
+    /* ---------- Sidebar (color override piu' targetato) ---------- */
+    /* Evita "*" che rompe i colori semantici di pillole, badge,
+       link AMBER, success/error icons, ecc. */
     section[data-testid="stSidebar"] {{
         background: {SIDEBAR_BG};
         border-right: 1px solid {BORDER};
     }}
-    section[data-testid="stSidebar"] * {{
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] li,
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {{
         color: {TEXT_PRIMARY};
     }}
     section[data-testid="stSidebar"] h2,
@@ -1822,13 +1824,13 @@ st.markdown(
         border-bottom: 1px solid {BORDER};
     }}
 
-    /* ---------- Metrics (KPI cards) ---------- */
+    /* ---------- Metrics (KPI cards, piu' impattanti) ---------- */
     [data-testid="stMetric"] {{
         background: {BG_SURFACE};
-        padding: 18px 20px;
+        padding: 16px 18px;
         border-radius: 10px;
         border: 1px solid {BORDER};
-        border-top: 3px solid {AMBER};
+        border-top: 2px solid {AMBER};
         box-shadow: {SHADOW_CARD};
         transition: all 0.2s ease;
     }}
@@ -1843,53 +1845,60 @@ st.markdown(
         font-size: 0.7rem !important;
         font-weight: 600 !important;
         text-transform: uppercase;
-        letter-spacing: 1.2px;
+        letter-spacing: 1px;
         font-family: 'JetBrains Mono', monospace !important;
+        margin-bottom: 4px !important;
     }}
     [data-testid="stMetricValue"] {{
         color: {HEADING_COLOR} !important;
         font-weight: 700 !important;
-        font-size: 1.85rem !important;
-        letter-spacing: -0.8px;
+        font-size: 2.1rem !important;
+        line-height: 1.1 !important;
+        letter-spacing: -1px !important;
         font-family: 'Space Grotesk', 'Inter', sans-serif !important;
         font-variant-numeric: tabular-nums;
     }}
     [data-testid="stMetricDelta"] {{
         font-family: 'JetBrains Mono', monospace !important;
-        font-size: 0.78rem !important;
+        font-size: 0.76rem !important;
         font-weight: 500 !important;
+        margin-top: 2px !important;
     }}
 
-    /* ---------- Buttons ---------- */
+    /* ---------- Buttons (gerarchia chiara: primary = navy, accent = amber) ---------- */
     .stButton > button {{
         background: {NAVY};
         color: #FFFFFF !important;
         border: 1px solid {NAVY};
-        border-radius: 8px;
-        padding: 0.55rem 1.3rem;
+        border-radius: 6px;
+        padding: 0.5rem 1.2rem;
         font-weight: 600;
         font-size: 0.92rem;
-        letter-spacing: 0.1px;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.10);
-        transition: all 0.18s ease;
+        letter-spacing: 0;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+        transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     }}
     .stButton > button:hover {{
         background: {NAVY_2};
         border-color: {AMBER};
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.20),
-                    0 0 0 3px rgba(245, 158, 11, 0.08);
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18),
+                    0 0 0 3px rgba(245, 158, 11, 0.10);
         transform: translateY(-1px);
     }}
-    .stButton > button:active {{ transform: translateY(0); }}
-    /* Primary button (mode/theme selectors when active) */
+    .stButton > button:active {{ transform: translateY(0); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); }}
+    .stButton > button:focus-visible {{
+        outline: 2px solid {AMBER};
+        outline-offset: 2px;
+    }}
+    /* Primary button (mode/theme selectors quando attivo) */
     .stButton > button[kind="primary"] {{
         background: linear-gradient(135deg, {NAVY} 0%, {NAVY_2} 100%);
         border: 1px solid {AMBER};
         color: #FFFFFF !important;
-        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.20),
-                    inset 0 1px 0 rgba(245, 158, 11, 0.15);
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18),
+                    inset 0 1px 0 rgba(245, 158, 11, 0.18);
     }}
-    /* Secondary button (theme toggle inactive, neutral actions) */
+    /* Secondary button (toggle inactive, neutral actions) */
     .stButton > button[kind="secondary"] {{
         background: {BG_SURFACE} !important;
         color: {TEXT_PRIMARY} !important;
@@ -1901,23 +1910,29 @@ st.markdown(
         background: {BG_SURFACE_2} !important;
         color: {HEADING_COLOR} !important;
     }}
+    /* Download button = AZIONE PRIMARIA AMBER (CTA distintivo) */
     .stDownloadButton > button {{
         background: {AMBER};
         color: #FFFFFF !important;
         border: 1px solid {AMBER};
-        border-radius: 8px;
+        border-radius: 6px;
         font-weight: 600;
-        letter-spacing: 0.2px;
-        box-shadow: 0 1px 2px rgba(245, 158, 11, 0.20);
+        font-size: 0.92rem;
+        padding: 0.5rem 1.2rem;
+        letter-spacing: 0.1px;
+        box-shadow: 0 1px 3px rgba(245, 158, 11, 0.20);
+        transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     }}
     .stDownloadButton > button:hover {{
         background: {AMBER_DK};
         border-color: {AMBER_DK};
-        box-shadow: 0 6px 16px rgba(245, 158, 11, 0.30);
+        box-shadow: 0 5px 14px rgba(245, 158, 11, 0.30),
+                    0 0 0 3px rgba(245, 158, 11, 0.12);
         transform: translateY(-1px);
     }}
+    .stDownloadButton > button:active {{ transform: translateY(0); }}
 
-    /* ---------- Expanders ---------- */
+    /* ---------- Expanders (radius coerente 10px) ---------- */
     .streamlit-expanderHeader, details > summary {{
         background: {BG_SURFACE} !important;
         color: {TEXT_PRIMARY} !important;
@@ -1934,9 +1949,10 @@ st.markdown(
         background: {BG_SURFACE};
         border: 1px solid {BORDER};
         border-radius: 10px;
+        margin-bottom: 8px;
     }}
 
-    /* ---------- Tabs ---------- */
+    /* ---------- Tabs (font + padding piu' generosi) ---------- */
     .stTabs [data-baseweb="tab-list"] {{
         gap: 2px;
         background: {BG_SURFACE};
@@ -1947,9 +1963,9 @@ st.markdown(
     }}
     .stTabs [data-baseweb="tab"] {{
         border-radius: 6px;
-        padding: 8px 16px;
+        padding: 9px 18px;
         font-weight: 500;
-        font-size: 0.92rem;
+        font-size: 0.95rem;
         color: {TEXT_MUTED};
         transition: all 0.15s ease;
     }}
@@ -1965,19 +1981,20 @@ st.markdown(
                     inset 0 -2px 0 {AMBER};
     }}
 
-    /* ---------- Alerts ---------- */
+    /* ---------- Alerts (info/success/warning/error) ---------- */
     [data-testid="stAlert"] {{
         border-radius: 10px;
-        border: none;
+        border: 1px solid {BORDER};
         box-shadow: {SHADOW_CARD};
+        padding: 12px 14px !important;
     }}
 
-    /* ---------- Inputs ---------- */
+    /* ---------- Inputs (radius coerente 6px) ---------- */
     .stNumberInput input, .stTextInput input,
     .stSelectbox [data-baseweb="select"] > div {{
         background: {INPUT_BG} !important;
         color: {TEXT_PRIMARY} !important;
-        border-radius: 8px !important;
+        border-radius: 6px !important;
         border: 1px solid {BORDER} !important;
         transition: all 0.15s ease;
     }}
@@ -1985,6 +2002,7 @@ st.markdown(
         border-color: {AMBER} !important;
         box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18) !important;
     }}
+    /* Slider: track navy + thumb amber con outline navy + ring */
     .stSlider [data-baseweb="slider"] > div > div {{
         background: {NAVY} !important;
     }}
@@ -1993,10 +2011,17 @@ st.markdown(
         border: 2px solid {NAVY} !important;
         box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15) !important;
     }}
+    /* Multiselect / chip styling */
+    .stMultiSelect [data-baseweb="tag"] {{
+        background: rgba(245, 158, 11, 0.12) !important;
+        border: 1px solid rgba(245, 158, 11, 0.40) !important;
+        color: {AMBER_DK} !important;
+        border-radius: 6px !important;
+    }}
 
-    /* ---------- Dataframes ---------- */
+    /* ---------- Dataframes (radius coerente 10px) ---------- */
     [data-testid="stDataFrame"] {{
-        border-radius: 12px;
+        border-radius: 10px;
         overflow: hidden;
         box-shadow: {SHADOW_CARD};
         border: 1px solid {BORDER};
@@ -2004,28 +2029,55 @@ st.markdown(
     [data-testid="stDataFrame"] * {{
         color: {TEXT_PRIMARY} !important;
     }}
+    /* Hover row su data_editor (sottile) */
+    [data-testid="stDataFrameRow"]:hover {{
+        background: {BG_SURFACE_2} !important;
+    }}
 
     /* ---------- Dividers ---------- */
-    hr {{ border-color: {BORDER} !important; margin: 1.5rem 0 !important; }}
+    hr {{
+        border: none !important;
+        border-top: 1px solid {BORDER} !important;
+        margin: 1.5rem 0 !important;
+        opacity: 0.7;
+    }}
 
     /* ---------- Captions ---------- */
     .stCaption, [data-testid="stCaptionContainer"] {{
         color: {TEXT_MUTED} !important;
-        font-size: 0.85rem !important;
+        font-size: 0.82rem !important;
+        line-height: 1.55 !important;
     }}
 
     /* ---------- Subtle section headings ---------- */
     .section-label {{
         display: inline-block;
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 1px;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 1.2px;
         text-transform: uppercase;
         color: {SECTION_PILL_COLOR};
         background: {SECTION_PILL_BG};
         padding: 3px 10px;
         border-radius: 6px;
         margin-bottom: 6px;
+    }}
+
+    /* ---------- Tooltip / help icons leggermente visibili ---------- */
+    [data-testid="stTooltipIcon"] svg {{
+        fill: {TEXT_MUTED} !important;
+        opacity: 0.65;
+        transition: opacity 0.15s ease;
+    }}
+    [data-testid="stTooltipIcon"]:hover svg {{
+        opacity: 1;
+        fill: {AMBER} !important;
+    }}
+
+    /* ---------- Spaziatura blocchi principali ---------- */
+    [data-testid="stVerticalBlock"] > [data-testid="element-container"] {{
+        margin-bottom: 0.4rem;
     }}
     </style>
 
