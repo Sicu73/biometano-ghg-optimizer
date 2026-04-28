@@ -1,21 +1,34 @@
 {
-  "version": "1.0.0",
-  "last_review": "2026-04-26",
-  "reviewer": "Carlo Sicurini",
+  "version": "1.0.1",
+  "last_review": "2026-04-28",
+  "reviewer": "Carlo Sicurini / ChatGPT audit",
   "metadata": {
-    "scopo": "Registro centralizzato delle normative biometano/biogas applicate dal software Metan.iQ. Ogni voce documenta i parametri-chiave cablati nel codice e la data di ultima revisione manuale. Aggiornare questo file (commit GitHub) quando si applica una modifica al codice o si segnala una nuova normativa.",
+    "scopo": "Registro centralizzato delle normative biometano/biogas applicate dal software Metan.iQ. Ogni voce documenta i parametri-chiave cablati nel codice e la data di ultima revisione manuale. Aggiornare questo file quando si applica una modifica al codice o si segnala una nuova normativa.",
     "campi": {
       "id": "Identificatore univoco interno",
       "titolo": "Titolo ufficiale della norma",
       "ambito": "Settore di applicazione",
       "tipo": "decreto | direttiva_ue | dlgs | linee_guida | norma_tecnica",
-      "data_pubblicazione": "Data ufficiale (YYYY-MM-DD)",
+      "data_pubblicazione": "Data ufficiale di pubblicazione (YYYY-MM-DD)",
+      "data_adozione": "Data di adozione/firma, se diversa dalla pubblicazione (YYYY-MM-DD)",
+      "entrata_vigore": "Data di entrata in vigore, se disponibile (YYYY-MM-DD)",
       "applicato_in_app": "true se i parametri sono cablati nei calcoli; false se solo riferimento",
       "ultima_revisione": "Data ultima review/aggiornamento codice (YYYY-MM-DD)",
       "valori_chiave": "Dict dei parametri quantitativi codificati nell'app",
-      "fonte_url": "Link al documento ufficiale",
+      "fonte_url": "Link al documento ufficiale o alla pagina istituzionale",
       "note": "Eventuali note o aggiornamenti collegati"
-    }
+    },
+    "changelog": [
+      {
+        "version": "1.0.1",
+        "date": "2026-04-28",
+        "changes": [
+          "Corretto D.Lgs. RED III: da placeholder '5 marzo 2026' a D.Lgs. 9 gennaio 2026, n. 5, GU n.15 del 20/01/2026, entrata in vigore 04/02/2026.",
+          "Corretto riferimento FER 2: decreto base MASE/MASAF 19 giugno 2024, con modifiche MASE/MASAF 7 agosto 2025 pubblicate dal MASE il 24/09/2025.",
+          "Tariffa FER 2 biogas impostata come default prudenziale 233 €/MWh e premi matrice/CAR disattivati a 0 finché non validati da fonte primaria/GSE."
+        ]
+      }
+    ]
   },
   "norme": [
     {
@@ -25,7 +38,7 @@
       "tipo": "direttiva_ue",
       "data_pubblicazione": "2018-12-11",
       "applicato_in_app": true,
-      "ultima_revisione": "2026-04-25",
+      "ultima_revisione": "2026-04-28",
       "valori_chiave": {
         "soglia_saving_trasporti_post_2021_pct": 65,
         "soglia_saving_trasporti_pre_2021_pct": 50,
@@ -45,7 +58,7 @@
       "tipo": "direttiva_ue",
       "data_pubblicazione": "2023-10-31",
       "applicato_in_app": true,
-      "ultima_revisione": "2026-04-25",
+      "ultima_revisione": "2026-04-28",
       "valori_chiave": {
         "soglia_saving_biometano_nuovi_dal_20_11_2023_pct": 80,
         "soglia_saving_esistenti_lt_10mw_primi_15a_pct": 70,
@@ -59,12 +72,13 @@
     },
     {
       "id": "dlgs_199_2021",
-      "titolo": "D.Lgs. 8 novembre 2021 n.199",
+      "titolo": "D.Lgs. 8 novembre 2021, n. 199",
       "ambito": "Recepimento italiano RED II",
       "tipo": "dlgs",
+      "data_adozione": "2021-11-08",
       "data_pubblicazione": "2021-11-30",
       "applicato_in_app": true,
-      "ultima_revisione": "2026-04-25",
+      "ultima_revisione": "2026-04-28",
       "valori_chiave": {
         "schemi_certificazione_GSE": "ISCC, REDcert, 2BSvs"
       },
@@ -73,26 +87,31 @@
     },
     {
       "id": "dlgs_5_2026",
-      "titolo": "D.Lgs. 5 marzo 2026 (recepimento RED III)",
+      "titolo": "D.Lgs. 9 gennaio 2026, n. 5 — recepimento RED III",
       "ambito": "Recepimento italiano RED III",
       "tipo": "dlgs",
-      "data_pubblicazione": "2026-03-05",
+      "data_adozione": "2026-01-09",
+      "data_pubblicazione": "2026-01-20",
+      "entrata_vigore": "2026-02-04",
       "applicato_in_app": true,
-      "ultima_revisione": "2026-04-25",
+      "ultima_revisione": "2026-04-28",
       "valori_chiave": {
-        "soglie_e_comparatori": "Allineate a RED III (vedi voce red_iii)"
+        "soglie_e_comparatori": "Allineate a RED III (vedi voce red_iii)",
+        "codice_redazionale_gu": "26G00018",
+        "gu_serie_generale": "n.15 del 20-01-2026"
       },
-      "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2026/03/05/...",
-      "note": "Verificare l'URL definitivo della Gazzetta Ufficiale al momento del recepimento."
+      "fonte_url": "https://www.gazzettaufficiale.it/atto/serie_generale/caricaDettaglioAtto/originario?atto.codiceRedazionale=26G00018&atto.dataPubblicazioneGazzetta=2026-01-20&elenco30giorni=false",
+      "note": "Corretto il 2026-04-28: il precedente registro riportava erroneamente 'D.Lgs. 5 marzo 2026'."
     },
     {
       "id": "dm_biometano_2018",
       "titolo": "DM 2 marzo 2018 — Decreto Biometano (CIC)",
       "ambito": "Biometano per trasporti — sistema CIC con double counting Annex IX",
       "tipo": "decreto",
-      "data_pubblicazione": "2018-03-02",
+      "data_adozione": "2018-03-02",
+      "data_pubblicazione": "2018-03-19",
       "applicato_in_app": true,
-      "ultima_revisione": "2026-04-25",
+      "ultima_revisione": "2026-04-28",
       "valori_chiave": {
         "GCAL_PER_CIC": 10.0,
         "MWH_PER_CIC": 11.628,
@@ -102,16 +121,17 @@
         "periodo_incentivo_anni": 10
       },
       "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2018/03/19/18A01821/sg",
-      "note": "Sistema CIC: 1 CIC = 10 Gcal (~11,63 MWh). Avanzato → ×2 (1 CIC ogni 5 Gcal). Aggiornato con DM 15/9/2022 e prassi GSE 2024."
+      "note": "Sistema CIC: 1 CIC = 10 Gcal (~11,63 MWh). Avanzato → ×2 (1 CIC ogni 5 Gcal). Aggiornato con DM 15/9/2022 e prassi GSE."
     },
     {
       "id": "dm_biometano_2022",
       "titolo": "DM 15 settembre 2022 — Biometano",
       "ambito": "Biometano (tariffa diretta €/MWh post-2022)",
       "tipo": "decreto",
-      "data_pubblicazione": "2022-09-15",
+      "data_adozione": "2022-09-15",
+      "data_pubblicazione": "2022-10-15",
       "applicato_in_app": true,
-      "ultima_revisione": "2026-04-25",
+      "ultima_revisione": "2026-04-28",
       "valori_chiave": {
         "BP_TARIFFA_BASE_2026_eur_mwh": 131.0,
         "BP_DURATA_TARIFFA_ANNI": 15,
@@ -128,9 +148,10 @@
       "titolo": "DM 6 luglio 2012 — Biogas CHP",
       "ambito": "Biogas cogenerativo agricolo ≤1 MW (Tariffa Omnicomprensiva)",
       "tipo": "decreto",
-      "data_pubblicazione": "2012-07-06",
+      "data_adozione": "2012-07-06",
+      "data_pubblicazione": "2012-07-10",
       "applicato_in_app": true,
-      "ultima_revisione": "2026-04-25",
+      "ultima_revisione": "2026-04-28",
       "valori_chiave": {
         "tariffa_TO_999_kwe_eur_mwh": 280,
         "premio_CAR_pes_gt_10pct_eur_mwh": 10,
@@ -138,37 +159,38 @@
         "periodo_incentivo_anni": 20
       },
       "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2012/07/10/12A07628/sg",
-      "note": "Tariffa Omnicomprensiva per biogas agricolo <1MWe. Premio CAR per Cogenerazione ad Alto Rendimento (PES > 10%)."
+      "note": "Tariffa Omnicomprensiva per biogas agricolo <1 MWe. Premio CAR per Cogenerazione ad Alto Rendimento (PES > 10%)."
     },
     {
       "id": "dm_fer2_2024",
-      "titolo": "DM 18 settembre 2024 — Decreto FER 2",
+      "titolo": "DM 19 giugno 2024 — Decreto FER 2",
       "ambito": "Biogas CHP piccoli impianti agricoli ≤300 kWe",
       "tipo": "decreto",
-      "data_pubblicazione": "2024-09-18",
+      "data_adozione": "2024-06-19",
+      "data_pubblicazione": "2024-09-09",
       "applicato_in_app": true,
-      "ultima_revisione": "2026-04-25",
+      "ultima_revisione": "2026-04-28",
       "valori_chiave": {
         "FER2_KWE_CAP": 300,
-        "FER2_TARIFFA_BASE_DEFAULT_eur_mwh": 256,
-        "FER2_PREMIO_MATRICE_DEFAULT_eur_mwh": 30,
-        "FER2_PREMIO_CAR_DEFAULT_eur_mwh": 10,
+        "FER2_TARIFFA_BASE_DEFAULT_eur_mwh": 233,
+        "FER2_PREMIO_MATRICE_DEFAULT_eur_mwh": 0,
+        "FER2_PREMIO_CAR_DEFAULT_eur_mwh": 0,
         "FER2_FEEDSTOCK_REQ_THRESHOLD_pct": 80,
         "FER2_PERIODO_ANNI": 20,
         "FER2_GHG_THRESHOLD_pct": 80,
         "cap_colture_dedicate_pct": 20
       },
-      "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2024/09/18/.../sg",
-      "note": "Sostituisce per piccoli impianti il vecchio DM 6/7/2012. Hard cap 300 kWe. Richiede ≥80% sottoprodotti/effluenti per premio matrice."
+      "fonte_url": "https://www.mase.gov.it/portale/-/24-settembre-2025-decreto-del-mase-di-concerto-con-il-masaf-7-agosto-2025-recante-modificazioni-al-decreto-del-ministro-dell-ambiente-e-della-sicurezza-energetica-di-concerto-con-il-ministro-dell-agricoltura-della-sovranita-alimentare-e-delle-foreste-19-g",
+      "note": "Corretto il 2026-04-28: il precedente registro riportava DM 18/09/2024 e default 256+30+10 €/MWh. Il riferimento base è il DM 19/06/2024, modificato dal DM MASE/MASAF 7/08/2025. I premi sono impostati a 0 finché non validati da testo primario/regole operative GSE."
     },
     {
       "id": "gse_lg_biometano_2024",
-      "titolo": "GSE Linee Guida 2024 — Biometano",
+      "titolo": "GSE Linee Guida / Regole applicative Biometano",
       "ambito": "Riconoscimento manure credit, stoccaggio digestato, tracciabilità matrici",
       "tipo": "linee_guida",
-      "data_pubblicazione": "2024-04-30",
+      "data_pubblicazione": "2024-05-30",
       "applicato_in_app": true,
-      "ultima_revisione": "2026-04-25",
+      "ultima_revisione": "2026-04-28",
       "valori_chiave": {
         "manure_credit_liquame_suino_gco2_mj": -45,
         "manure_credit_liquame_bovino_gco2_mj": -45,
@@ -178,8 +200,8 @@
         "stoccaggio_digestato_chiuso_recupero_gas_gco2_mj": 0,
         "stoccaggio_digestato_aperto_jec_v5_gco2_mj": 15
       },
-      "fonte_url": "https://www.gse.it/...",
-      "note": "Manure credit applicato in eec del feedstock (db biomasse). Soglia operativa AVANZATO 70-100%."
+      "fonte_url": "https://www.gse.it/documenti_site/Documenti%20GSE/Servizi%20per%20te/Attuazione%20misure%20PNRR/PRODUZIONE%20DI%20BIOMETANO/Regole%20e%20procedure/DM%20Biometano%2015-9-2022%20-%20Regole%20applicative_v2.pdf",
+      "note": "Manure credit applicato in eec del feedstock (db biomasse). Verificare puntualmente con schema di certificazione usato in audit."
     },
     {
       "id": "uni_ts_11567_2024",
@@ -188,7 +210,7 @@
       "tipo": "norma_tecnica",
       "data_pubblicazione": "2024-01-15",
       "applicato_in_app": true,
-      "ultima_revisione": "2026-04-25",
+      "ultima_revisione": "2026-04-28",
       "valori_chiave": {
         "yield_mais_nm3_ch4_t": 104,
         "yield_sorgo_nm3_ch4_t": 90,
@@ -209,7 +231,7 @@
       "tipo": "norma_tecnica",
       "data_pubblicazione": "2020-04-30",
       "applicato_in_app": true,
-      "ultima_revisione": "2026-04-25",
+      "ultima_revisione": "2026-04-28",
       "valori_chiave": {
         "etd_default_gco2_mj": 0.8,
         "lhv_biomethane_mj_nm3": 35.9,
@@ -225,7 +247,7 @@
       "tipo": "linee_guida",
       "data_pubblicazione": "2019-05-15",
       "applicato_in_app": true,
-      "ultima_revisione": "2026-04-25",
+      "ultima_revisione": "2026-04-28",
       "valori_chiave": {
         "MCF_lagone_aperto_mediterraneo_pct": 25,
         "default_letame_palabile_eec_gco2_mj": -30
@@ -234,5 +256,13 @@
       "note": "Base scientifica per manure credits utilizzati da GSE."
     }
   ],
-  "aggiornamenti_pendenti": []
+  "aggiornamenti_pendenti": [
+    {
+      "id": "fer2_regole_gse_2026",
+      "priorita": "alta",
+      "descrizione": "Verificare e allineare il codice alle Regole Operative GSE FER 2 vigenti, inclusi eventuali aggiornamenti tariffari 2025/2026 e meccanismi di premio/ribasso.",
+      "impatto": "Business plan FER2 e stima ricavi elettrici",
+      "stato": "da validare su fonte primaria"
+    }
+  ]
 }
