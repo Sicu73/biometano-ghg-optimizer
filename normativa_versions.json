@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_review": "2026-04-26",
+  "last_review": "2026-05-02",
   "reviewer": "Carlo Sicurini",
   "metadata": {
     "scopo": "Registro centralizzato delle normative biometano/biogas applicate dal software Metan.iQ. Ogni voce documenta i parametri-chiave cablati nel codice e la data di ultima revisione manuale. Aggiornare questo file (commit GitHub) quando si applica una modifica al codice o si segnala una nuova normativa.",
@@ -82,8 +82,8 @@
       "valori_chiave": {
         "soglie_e_comparatori": "Allineate a RED III (vedi voce red_iii)"
       },
-      "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2026/03/05/...",
-      "note": "Verificare l'URL definitivo della Gazzetta Ufficiale al momento del recepimento."
+      "fonte_url": "https://www.gazzettaufficiale.it/atto/serie_generale/caricaDettaglioAtto/originario?atto.dataPubblicazioneGazzetta=2026-03-05&atto.codiceRedazionale=26G00031",
+      "note": "URL da verificare/aggiornare con numero GU definitivo. D.Lgs. di recepimento RED III (Dir. 2023/2413). Soglie aggiornate in END_USE_THRESHOLDS e COMPARATOR_BY_END_USE."
     },
     {
       "id": "dm_biometano_2018",
@@ -158,8 +158,8 @@
         "FER2_GHG_THRESHOLD_pct": 80,
         "cap_colture_dedicate_pct": 20
       },
-      "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2024/09/18/.../sg",
-      "note": "Sostituisce per piccoli impianti il vecchio DM 6/7/2012. Hard cap 300 kWe. Richiede ≥80% sottoprodotti/effluenti per premio matrice."
+      "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2024/10/17/24A04836/sg",
+      "note": "DM 18/9/2024 pubbl. GU n.244 del 17/10/2024. Hard cap 300 kWe. Richiede >=80% sottoprodotti/effluenti per premio matrice."
     },
     {
       "id": "gse_lg_biometano_2024",
@@ -178,8 +178,8 @@
         "stoccaggio_digestato_chiuso_recupero_gas_gco2_mj": 0,
         "stoccaggio_digestato_aperto_jec_v5_gco2_mj": 15
       },
-      "fonte_url": "https://www.gse.it/...",
-      "note": "Manure credit applicato in eec del feedstock (db biomasse). Soglia operativa AVANZATO 70-100%."
+      "fonte_url": "https://www.gse.it/servizi-per-te/gas/biometano/documenti",
+      "note": "Linee Guida GSE operative per DM 2022. Manure credit applicato in eec del feedstock. Soglia operativa AVANZATO 70-100%."
     },
     {
       "id": "uni_ts_11567_2024",
@@ -234,5 +234,9 @@
       "note": "Base scientifica per manure credits utilizzati da GSE."
     }
   ],
-  "aggiornamenti_pendenti": []
+  "aggiornamenti_pendenti": [
+    "Verificare URL definitivo D.Lgs. 5/2026 su GU (se pubblicato con altro numero)",
+    "Aggiungere RT-31 Accredia (accreditamento calcolo GHG biometano)",
+    "Monitorare eventuale DM luglio/agosto 2025 su rinnovabili"
+  ]
 }

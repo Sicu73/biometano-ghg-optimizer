@@ -160,9 +160,11 @@ def parse_it(value) -> float:
       - '1234.56'    (stile C / anglosassone)
       - '1.800'      (italiano con migliaia, senza decimali -> 1800.0)
       - '26.303'     (idem -> 26303.0)
+      - '0.800'      (zero virgola ottocentesimi -> 0.8 - NON migliaia!)
     Euristica: se non c'e' virgola e c'e' almeno un punto, e gli eventuali
-    gruppi dopo il punto hanno esattamente 3 cifre, i punti sono separatori di
-    migliaia. Altrimenti il punto e' decimale.
+    gruppi dopo il punto hanno esattamente 3 cifre E la parte intera e' != 0,
+    i punti sono separatori di migliaia. Se la parte intera e' 0 il punto
+    e' sempre decimale (es. 0.800 = 0.8, non 800).
     """
     if value is None:
         return 0.0
@@ -185,7 +187,8 @@ def parse_it(value) -> float:
         many_dots = len(parts) > 2
         single_thousand = (len(parts) == 2 and len(parts[1]) == 3
                            and parts[0].lstrip("-").isdigit()
-                           and parts[1].isdigit())
+                           and parts[1].isdigit()
+                           and parts[0].lstrip("-") != "0")  # 0.800=0.8 not 800
         if many_dots or single_thousand:
             s = s.replace(".", "")
     try:
@@ -1130,11 +1133,14 @@ def e_total_feedstock(name: str, ep: float = 0.0) -> float:
     return d["eec"] + ep + d["etd"] - d["esca"]
 
 
-def ghg_summary(masses: dict, aux: float, ep: float = 0.0):
+def ghg_summary(masses: dict, aux: float, ep: float = 0.0,
+                fossil_comparator: float | None = None):
     """
     Ritorna dict con: e_w, saving_pct, nm3_gross, nm3_net, mwh_net
     masses: {feedstock: mass_t}
     ep: contributo processing [gCO2eq/MJ] da applicare a tutto il biometano.
+    fossil_comparator: se None usa il globale FOSSIL_COMPARATOR (default).
+      Passare esplicitamente per evitare race-condition multi-utente.
     """
     total_mj = 0.0
     total_e_mj = 0.0
@@ -1154,7 +1160,8 @@ def ghg_summary(masses: dict, aux: float, ep: float = 0.0):
         saving = 0.0
     else:
         e_w = total_e_mj / total_mj
-        saving = (FOSSIL_COMPARATOR - e_w) / FOSSIL_COMPARATOR * 100
+        _cmp = fossil_comparator if fossil_comparator is not None else FOSSIL_COMPARATOR
+        saving = (_cmp - e_w) / _cmp * 100
     nm3_net = total_nm3 / aux if aux > 0 else 0.0
     return {
         "e_w": e_w,
@@ -3430,7 +3437,7 @@ for _, row in input_df.iterrows():
                 f"Le 3 biomasse fisse gia' superano il fabbisogno lordo."
             )
 
-    summary = ghg_summary(all_masses, aux_factor, ep_total)
+    summary = ghg_summary(all_masses, aux_factor, ep_total, FOSSIL_COMPARATOR)
 
     # Validita' - DUE CONDIZIONI OBBLIGATORIE:
     #   (1) saving GHG >= soglia RED III (80/70/65% a seconda uso finale),
