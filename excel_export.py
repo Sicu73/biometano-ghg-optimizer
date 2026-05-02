@@ -18,6 +18,8 @@ from openpyxl.styles import (
     Alignment, Border, Font, PatternFill, Side,
 )
 from openpyxl.utils import get_column_letter
+
+from i18n_runtime import t as _t
 from openpyxl.worksheet.protection import SheetProtection
 
 
@@ -99,6 +101,7 @@ def build_metaniq_xlsx(ctx: dict, snapshot: bool = False) -> BytesIO:
                 True -> file SNAPSHOT con valori statici (no formule).
     """
     wb = Workbook()
+    lang = ctx.get("lang", "it")  # lingua: 'it' o 'en'
 
     # Forza ricalcolo completo all'apertura del file in Excel.
     try:
@@ -108,26 +111,26 @@ def build_metaniq_xlsx(ctx: dict, snapshot: bool = False) -> BytesIO:
         pass
 
     # === Sheet 1: Database (creata per prima per nome reference) ===
-    ws_db = wb.create_sheet("Database feedstock")
-    _build_database(ws_db, ctx)
+    ws_db = wb.create_sheet(_t("Database feedstock", lang))
+    _build_database(ws_db, ctx, lang=lang)
 
     # === Sheet 2: Piano (main, attiva di default) ===
     ws_piano = wb.active
-    ws_piano.title = "Piano mensile"
-    _build_piano(ws_piano, ctx, ws_db.title, snapshot=snapshot)
+    ws_piano.title = _t("Piano mensile", lang)
+    _build_piano(ws_piano, ctx, ws_db.title, snapshot=snapshot, lang=lang)
 
     # === Sheet 3: Sintesi ===
-    ws_sum = wb.create_sheet("Sintesi annuale")
-    _build_summary(ws_sum, ctx, ws_piano.title)
+    ws_sum = wb.create_sheet(_t("Sintesi annuale", lang))
+    _build_summary(ws_sum, ctx, ws_piano.title, lang=lang)
 
     # === Sheet 4: Business Plan (sempre, anche per snapshot) ===
     # Pro forma 15 anni con formule live: CAPEX, OPEX, CE, cash flow, KPI.
     # Mode-aware: legge taglia + tariffa + autoconsumi dal ctx.
     ws_bp = wb.create_sheet("Business Plan")
-    _build_business_plan(ws_bp, ctx, snapshot=snapshot)
+    _build_business_plan(ws_bp, ctx, snapshot=snapshot, lang=lang)
 
     # Imposta Piano come sheet attiva di default
-    wb.active = wb.sheetnames.index(ws_piano.title)
+    wb.active = wb.sheetnames.index(ws_piano.title)  # after i18n rename
 
     # === SNAPSHOT: protezione sheet (read-only) ===
     # Tutte le celle sono "locked" di default in Excel; abilitando
@@ -183,13 +186,13 @@ def build_metaniq_xlsx_snapshot(ctx: dict) -> BytesIO:
 # Cosi' SUMPRODUCT(C13:F13, Database!$B$2:$E$2) ha entrambe le
 # matrici 1xN -> dot product corretto, no #VALORE.
 # ============================================================
-def _build_database(ws, ctx):
+def _build_database(ws, ctx, lang='it'):
     feeds = ctx["active_feeds"]
     fdb   = ctx["FEEDSTOCK_DB"]
     n     = len(feeds)
 
     # === Riga 1: header (Parametro + nomi biomasse) ===
-    c = ws.cell(row=1, column=1, value="Parametro")
+    c = ws.cell(row=1, column=1, value=_t("Parametro", lang))
     _style_header(c)
     for j, name in enumerate(feeds):
         c = ws.cell(row=1, column=2 + j, value=name)
@@ -227,7 +230,7 @@ def _build_database(ws, ctx):
     c_lbl.alignment = Alignment(horizontal="left", indent=1)
     c_lbl.border = _border_thin()
     for j in range(n):
-        c_val = ws.cell(row=6, column=2 + j, value="='Piano mensile'!$B$9")
+        c_val = ws.cell(row=6, column=2 + j, value=f"='{_t('Piano mensile', lang)}'!$B$9")
         c_val.number_format = "0.00"
         c_val.fill = PatternFill("solid", fgColor=SLATE_50)
         c_val.alignment = Alignment(horizontal="right")
@@ -277,7 +280,7 @@ def _build_database(ws, ctx):
 # ============================================================
 # Sheet 2 — Piano mensile (main, mode-aware + snapshot-aware)
 # ============================================================
-def _build_piano(ws, ctx, db_sheet_name, snapshot: bool = False):
+def _build_piano(ws, ctx, db_sheet_name, snapshot: bool = False, lang='it'):
     feeds   = ctx["active_feeds"]
     n_feed  = len(feeds)
     is_chp  = bool(ctx.get("IS_CHP", False))
@@ -329,8 +332,7 @@ def _build_piano(ws, ctx, db_sheet_name, snapshot: bool = False):
                    end_row=1, end_column=valid_col)
     c = ws.cell(
         row=1, column=1,
-        value=("Metan.iQ — Piano mensile (snapshot)" if snapshot
-               else "Metan.iQ — Piano mensile editabile"),
+        value=("Metan.iQ — Monthly plan (snapshot)" if (snapshot and lang=="en") else "Metan.iQ — Monthly plan (editable)" if lang=="en" else "Metan.iQ — Piano mensile (snapshot)" if snapshot else "Metan.iQ — Piano mensile editabile"),
     )
     c.font = Font(bold=True, size=16, color=WHITE)
     c.fill = PatternFill("solid", fgColor=NAVY)
@@ -457,22 +459,22 @@ def _build_piano(ws, ctx, db_sheet_name, snapshot: bool = False):
     header_row = 15 if is_chp else 12
     if is_chp:
         # Etichette CHP (colonne aggiuntive: MWh el lordi/netti/termici, kW lordi)
-        col_labels = ["Mese", "Ore"] + feeds + [
-            "Sm3 CH4 lordi",      # CH4 equivalente totale (pre-perdite)
-            "Sm3 CH4 al motore",  # post-aux_factor
-            "MWh CH4 netti",      # energia CH4 al motore
-            "MWh el LORDI",       # ai morsetti alternatore
-            "MWh el netti rete",  # post-aux ausiliari (fatturati GSE)
-            "MWh termici",        # recupero calore (uso interno/teleriscaldamento)
+        col_labels = [_t("Mese", lang), _t("Ore", lang)] + feeds + [
+            "Sm3 CH4 lordi"    if lang=="it" else "Gross CH4 Sm³",
+            "Sm3 CH4 al motore" if lang=="it" else "CH4 to engine",
+            "MWh CH4 netti"    if lang=="it" else "Net CH4 MWh",
+            "MWh el LORDI"     if lang=="it" else "Gross MWh el.",
+            "MWh el netti rete" if lang=="it" else "Net MWh el. (grid)",
+            "MWh termici"      if lang=="it" else "Thermal MWh",
             "e_w",
             "Saving %",
-            "kW lordi (medio)",   # potenza media oraria - check vs targa motore
-            "Validita",
+            "kW lordi (medio)" if lang=="it" else "Avg. gross kW",
+            _t("Validità", lang),
         ]
     else:
-        col_labels = ["Mese", "Ore"] + feeds + [
-            "Sm3 lordi", "Sm3 netti", "MWh netti",
-            "e_w", "Saving %", "Sm3/h netti", "Validita",
+        col_labels = [_t("Mese", lang), _t("Ore", lang)] + feeds + [
+            _t("Sm³ lordi", lang), _t("Sm³ netti", lang), _t("MWh netti", lang),
+            "e_w", "Saving %", _t("Sm³/h netti", lang), _t("Validità", lang),
         ]
     for col, h in enumerate(col_labels, start=1):
         c = ws.cell(row=header_row, column=col, value=h)
@@ -879,7 +881,7 @@ def _build_piano(ws, ctx, db_sheet_name, snapshot: bool = False):
 # ============================================================
 # Sheet 3 — Sintesi annuale (mode-aware)
 # ============================================================
-def _build_summary(ws, ctx, piano_sheet_name):
+def _build_summary(ws, ctx, piano_sheet_name, lang='it'):
     feeds  = ctx["active_feeds"]
     n_feed = len(feeds)
     is_chp = bool(ctx.get("IS_CHP", False))
@@ -916,7 +918,7 @@ def _build_summary(ws, ctx, piano_sheet_name):
 
     # === Title ===
     ws.merge_cells("A1:D1")
-    c = ws.cell(row=1, column=1, value="Metan.iQ — Sintesi annuale")
+    c = ws.cell(row=1, column=1, value=_t("Metan.iQ — Sintesi annuale", lang) if lang=="en" else "Metan.iQ — Sintesi annuale")
     c.font = Font(bold=True, size=14, color=WHITE)
     c.fill = PatternFill("solid", fgColor=NAVY)
     c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
@@ -924,8 +926,8 @@ def _build_summary(ws, ctx, piano_sheet_name):
 
     ws.merge_cells("A2:D2")
     c = ws.cell(row=2, column=1,
-                value=("Aggiornata in tempo reale dalla sheet «Piano mensile». "
-                       "Modifica ore/biomasse li' per vedere i KPI cambiare."))
+                value=("Updated in real-time from 'Monthly plan' sheet. Edit hours/feedstocks there to see KPIs change." if lang=="en" else "Aggiornata in tempo reale dalla sheet «Piano mensile». Modifica ore/biomasse li' per vedere i KPI cambiare.")
+                )
     c.font = Font(italic=True, size=9, color=SLATE_500)
     c.alignment = Alignment(horizontal="left", indent=1)
 
@@ -1061,7 +1063,7 @@ def _build_summary(ws, ctx, piano_sheet_name):
         # NB Database orizzontale: yield in row 2, biomassa j -> col (2+j)
         db_yield_col_letter = get_column_letter(2 + j)
         c = ws.cell(row=r, column=4,
-                    value=f"=B{r}*'Database feedstock'!${db_yield_col_letter}$2*"
+                    value=f"=B{r}*'{_t('Database feedstock', lang)}'!${db_yield_col_letter}$2*"
                           f"'{p}'!$B$10/'{p}'!$B$5")
         c.number_format = "#,##0.0"; _style_readonly(c)
 
@@ -1075,7 +1077,7 @@ def _build_summary(ws, ctx, piano_sheet_name):
 # ============================================================
 # Sheet 4 — Business Plan (Pro Forma 15 anni, mode-aware)
 # ============================================================
-def _build_business_plan(ws, ctx, snapshot: bool = False):
+def _build_business_plan(ws, ctx, snapshot: bool = False, lang='it'):
     """Pro forma finanziario completo con formule LIVE.
 
     Inputs editabili (celle gialle): taglia impianto, ore, tariffa,

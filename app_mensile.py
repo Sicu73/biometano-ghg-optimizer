@@ -29,6 +29,9 @@ import plotly.graph_objects as go
 from report_pdf import build_metaniq_pdf
 from excel_export import build_metaniq_xlsx
 
+# ── i18n: selettore lingua + funzione di traduzione ──────────────────────────
+from i18n_runtime import t as _t, get_lang, render_lang_selector, translate_df
+
 # ============================================================
 # REGISTRO NORMATIVA — verifica aggiornamenti via GitHub
 # ============================================================
@@ -1352,6 +1355,9 @@ if "methaniq_theme" not in st.session_state:
     st.session_state.methaniq_theme = "light"
 
 # Mini-toggle sidebar TOP (render before CSS cosi' theme e' gia' noto)
+# ── LINGUA: selettore Italiano/English (prima cosa in sidebar) ──────────────
+_LANG = render_lang_selector()
+
 with st.sidebar:
     st.markdown(
         "<div style='font-size:0.7rem; font-weight:700; letter-spacing:1px; "
@@ -2204,7 +2210,7 @@ with st.sidebar:
         """,
         unsafe_allow_html=True,
     )
-    st.header("🌾 Biomasse del tuo impianto")
+    st.header(_t("🌾 Biomasse del tuo impianto"))
     st.caption(
         f"Seleziona le biomasse che userai (**{len(FEED_NAMES)} disponibili** nel "
         "database UNI-TS 11567:2024 / JEC v5 / RED III). Il solver considerera' "
@@ -2277,7 +2283,7 @@ with st.sidebar:
     )
 
     st.divider()
-    st.header("⚙️ Parametri impianto")
+    st.header(_t("⚙️ Parametri impianto"))
 
     if IS_CHP:
         # Parametri CHP: input utente in kW_el LORDI (potenza nominale motore),
@@ -2387,7 +2393,7 @@ with st.sidebar:
         plant_kwe_net = plant_kwe  # in biometano non c'è distinzione
 
     st.divider()
-    st.header("🏭 Configurazione impianto (ep)")
+    st.header(_t("🏭 Configurazione impianto (ep)"))
     st.caption(
         "I parametri impiantistici concorrono a `ep` (processing), "
         "che incide direttamente sul saving GHG ex RED III."
@@ -2468,7 +2474,7 @@ with st.sidebar:
     # ============================================================
     if IS_DM2018:
         st.divider()
-        st.header("🌿 DM 2018 — Sistema CIC")
+        st.header(_t("🌿 DM 2018 — Sistema CIC"))
 
         # Conteggio Annex IX tra biomasse attive
         n_annex = sum(
@@ -2548,7 +2554,7 @@ with st.sidebar:
     # ============================================================
     if IS_FER2:
         st.divider()
-        st.header("🔋 FER 2 — Tariffa e premi")
+        st.header(_t("🔋 FER 2 — Tariffa e premi"))
 
         # Sottoprodotti = Annex IX A/B + effluenti zootecnici (gia' tutti
         # marcati Annex IX A nel DB), tutto tranne le colture dedicate.
@@ -2578,7 +2584,7 @@ with st.sidebar:
                  f"18/9/2024). Cap residuo per colture dedicate: 20%.",
         ) / 100.0
 
-        st.subheader("💰 Tariffa FER 2 [€/MWh_el]")
+        st.subheader(_t("💰 Tariffa FER 2 [€/MWh_el]"))
         fer2_tariffa_base = st.number_input(
             "Tariffa di Riferimento (TR) base",
             min_value=0.0, max_value=500.0,
@@ -2908,7 +2914,7 @@ with st.sidebar:
     # ========================================================
     # AUX_FACTOR AUTOMATICO (bilancio energetico d'impianto)
     # ========================================================
-    st.header("⚡ Fattore netto→lordo (aux_factor)")
+    st.header(_t("⚡ Fattore netto→lordo (aux_factor)"))
     if IS_CHP:
         st.caption(
             "In modalità **Biogas CHP** il biogas grezzo va direttamente "
@@ -3090,7 +3096,7 @@ with st.sidebar:
     )
 
 # ------------------------- MODE SELECTOR -------------------------
-st.subheader("🎯 Modalità di calcolo")
+st.subheader(_t("🎯 Modalità di calcolo"))
 
 N_active = len(active_feeds)
 MODE_DUAL = f"{N_active-2} biomasse fisse + 2 calcolate  (saving target + produzione)"
@@ -3324,7 +3330,7 @@ with col2:
         )
 
 # ------------------------- TABELLA UNIFICATA (input + risultati) -------------------------
-st.subheader("📆 Tabella mensile – modifica le celle ✏️, il resto si ricalcola")
+st.subheader(_t("📆 Tabella mensile – modifica le celle ✏️, il resto si ricalcola"))
 
 # Valori di default plausibili per biomasse comuni; fallback generico per il resto
 # (il cliente li riaggiusta a mano in tabella mensile)
@@ -3660,7 +3666,7 @@ if warnings_list:
     st.warning("⚠️ Mesi con problemi di fattibilità:\n\n" + "\n\n".join(f"- {w}" for w in warnings_list))
 
 # ------------------------- SINTESI -------------------------
-st.subheader("📈 Sintesi annuale")
+st.subheader(_t("📈 Sintesi annuale"))
 c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("Tot. biomasse (t/anno)",
           fmt_it(df_res["Totale biomasse (t)"].sum(), 0))
@@ -3687,18 +3693,18 @@ c5.metric("Mesi validi", f"{valid_months}/12",
 # Tab "Business Plan" visibile solo in DM 2022 (BP applicabile)
 if IS_DM2022:
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "🌾 Biomasse per mese",
-        "🌍 Sostenibilità",
-        "⚡ Produzione",
-        "🥧 Mix annuale",
-        "💼 Business Plan",
+        _t("🌾 Biomasse per mese"),
+        _t("🌍 Sostenibilità"),
+        _t("⚡ Produzione"),
+        _t("🥧 Mix annuale"),
+        _t("💼 Business Plan"),
     ])
 else:
     tab1, tab2, tab3, tab4 = st.tabs([
-        "🌾 Biomasse per mese",
-        "🌍 Sostenibilità",
-        "⚡ Produzione",
-        "🥧 Mix annuale",
+        _t("🌾 Biomasse per mese"),
+        _t("🌍 Sostenibilità"),
+        _t("⚡ Produzione"),
+        _t("🥧 Mix annuale"),
     ])
     tab5 = None
 
@@ -4295,7 +4301,7 @@ if IS_DM2022 and tab5 is not None and bp_result is not None:
             "margin-bottom:8px;'>// PRO FORMA · DM 2022</div>",
             unsafe_allow_html=True,
         )
-        st.subheader("💼 Business Plan — pro forma 15 anni")
+        st.subheader(_t("💼 Business Plan — pro forma 15 anni"))
         st.caption(
             "Modello derivato dal **benchmark di un impianto medio biometano agricolo (250 Smc/h)** "
             "(maggio 2024), aggiornato 2026 con inflazione ISTAT cumulata e "
@@ -4538,7 +4544,7 @@ st.caption(
 )
 
 # ===== Riga unica: 3 download (XLSX primario, PDF, CSV legacy) =====
-_dl_col1, _dl_col2, _dl_col3 = st.columns([1.2, 1.0, 0.8])
+_dl_col1, _dl_col2, _dl_col3, _dl_col4 = st.columns([1.2, 1.0, 0.8, 0.8])
 
 with _dl_col1:
     # XLSX autocalcolante: download primario
@@ -4651,6 +4657,7 @@ with _dl_col1:
             "bp_opex_forfait":           (bp_opex_forfait
                                            if IS_DM2022 else None),
             "NM3_TO_MWH":                NM3_TO_MWH,
+            "lang":                      _LANG,
         })
         _xlsx_buf = build_metaniq_xlsx(_xlsx_ctx)
         _xlsx_data = _xlsx_buf.getvalue()
@@ -4662,7 +4669,7 @@ with _dl_col1:
 
     if _xlsx_ok:
         st.download_button(
-            "📊 Scarica Excel modificabile",
+            _t("📊 Scarica Excel modificabile"),
             data=_xlsx_data,
             file_name=f"metaniq_{APP_MODE}_editabile.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -4757,6 +4764,7 @@ with _dl_col2:
         "tot_mwh_basis": float(tot_revenue_base_mwh),
         "tariffa_media_ponderata": float(tariffa_media_ponderata),
         "revenue_rows": pdf_revenue_rows,
+        "lang":         _LANG,
     }
     try:
         _pdf_buf = build_metaniq_pdf(_pdf_ctx)
@@ -4768,7 +4776,7 @@ with _dl_col2:
         _pdf_err = str(_exc)
     if _pdf_ok:
         st.download_button(
-            "📄 Scarica Report PDF",
+            _t("📄 Scarica Report PDF"),
             data=_pdf_data,
             file_name=f"metaniq_{APP_MODE}_report.pdf",
             mime="application/pdf",
@@ -4796,7 +4804,7 @@ with _dl_col3:
         _xlsx_snap_err = str(_xs_exc)
     if _xlsx_snap_ok:
         st.download_button(
-            "📋 Excel snapshot",
+            _t("📋 Excel snapshot"),
             data=_xlsx_snap_data,
             file_name=f"metaniq_{APP_MODE}_snapshot.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -4810,6 +4818,31 @@ with _dl_col3:
         )
     else:
         st.error(f"Errore snapshot: {_xlsx_snap_err}")
+
+# ===== Colonna 4: CSV (piano mensile con intestazioni tradotte) =====
+with _dl_col4:
+    try:
+        _csv_df = translate_df(df_res.copy(), _LANG)
+        _csv_data = _csv_df.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig")
+        _csv_ok = True
+    except Exception as _csv_exc:
+        _csv_data = None
+        _csv_ok = False
+        _csv_err = str(_csv_exc)
+    if _csv_ok:
+        _csv_fn = f"metaniq_{APP_MODE}_{'monthly_plan' if _LANG=='en' else 'piano_mensile'}.csv"
+        st.download_button(
+            _t("📥 Scarica CSV"),
+            data=_csv_data,
+            file_name=_csv_fn,
+            mime="text/csv",
+            use_container_width=True,
+            type="secondary",
+            help="CSV del piano mensile con intestazioni tradotte." if _LANG != "en"
+                 else "CSV of the monthly plan with translated headers.",
+        )
+    else:
+        st.error(f"CSV error: {_csv_err}")
 
 st.caption(
     "ℹ️ Database feedstock: letteratura tecnica / UNI/TS 11567:2024 / parametri "

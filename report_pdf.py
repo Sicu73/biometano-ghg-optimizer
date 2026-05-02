@@ -21,6 +21,8 @@ from reportlab.platypus import (
     PageTemplate, Paragraph, Spacer, Table, TableStyle,
 )
 
+from i18n_runtime import t as _t
+
 
 # ============================================================
 # Design tokens (mirror app_mensile.py palette)
@@ -351,7 +353,7 @@ def _build_executive_summary(ctx, styles):
     s = styles
     flow = []
     flow.append(Paragraph("// EXECUTIVE SUMMARY", s["eyebrow"]))
-    flow.append(Paragraph("Sintesi annuale", s["h2"]))
+    flow.append((Paragraph("Annual summary", s["h2"]) if ctx.get("_lang")=="en" else Paragraph("Sintesi annuale", s["h2"])))
     flow.append(Spacer(1, 4 * mm))
 
     # 4 KPI in row — mode-aware
@@ -359,63 +361,63 @@ def _build_executive_summary(ctx, styles):
                      else RED)
     if ctx.get("IS_FER2"):
         # FER 2: KPI dedicati al regime ≤300 kW
-        kpi1 = _kpi_tile("Biomasse",
+        kpi1 = _kpi_tile("Feedstocks" if ctx.get("_lang")=="en" else "Biomasse",
                          _fmt_it(ctx["tot_biomasse_t"], 0),
                          "t/anno (FM)", styles=s)
-        kpi2 = _kpi_tile("Energia el. netta rete",
+        kpi2 = _kpi_tile("Net el. energy (grid)" if ctx.get("_lang")=="en" else "Energia el. netta rete",
                          _fmt_it(ctx["tot_mwh_el_netto"], 0),
                          "MWh/anno", styles=s)
-        kpi3 = _kpi_tile("Quota sottoprodotti",
+        kpi3 = _kpi_tile("By-products share" if ctx.get("_lang")=="en" else "Quota sottoprodotti",
                          _fmt_it(ctx.get("fer2_subprod_share", 0)*100, 1, "%"),
                          (f"OK · soglia {_fmt_it(ctx.get('fer2_matrice_threshold', 0.8)*100, 0, '%')}"
                           if ctx.get("fer2_qualified")
                           else f"KO · sotto soglia {_fmt_it(ctx.get('fer2_matrice_threshold', 0.8)*100, 0, '%')}"),
                          styles=s,
                          accent=EMERALD if ctx.get("fer2_qualified") else RED)
-        kpi4 = _kpi_tile("Ricavi elettrici",
+        kpi4 = _kpi_tile("Electrical revenue" if ctx.get("_lang")=="en" else "Ricavi elettrici",
                          _fmt_it(ctx["tot_revenue"]/1000, 0),
                          f"k€/anno · TR+premi", styles=s)
     elif ctx["IS_CHP"]:
-        kpi1 = _kpi_tile("Biomasse",
+        kpi1 = _kpi_tile("Feedstocks" if ctx.get("_lang")=="en" else "Biomasse",
                          _fmt_it(ctx["tot_biomasse_t"], 0),
                          "t/anno (FM)", styles=s)
-        kpi2 = _kpi_tile("Energia el. netta rete",
+        kpi2 = _kpi_tile("Net el. energy (grid)" if ctx.get("_lang")=="en" else "Energia el. netta rete",
                          _fmt_it(ctx["tot_mwh_el_netto"], 0),
                          "MWh/anno", styles=s)
-        kpi3 = _kpi_tile("Saving GHG medio",
+        kpi3 = _kpi_tile("Avg. GHG saving" if ctx.get("_lang")=="en" else "Saving GHG medio",
                          _fmt_it(ctx["saving_avg"], 1, "%"),
                          f"≥ {_fmt_it(ctx['ghg_threshold']*100, 0, '%')} RED III",
                          styles=s, accent=saving_accent)
-        kpi4 = _kpi_tile("Ricavi elettrici",
+        kpi4 = _kpi_tile("Electrical revenue" if ctx.get("_lang")=="en" else "Ricavi elettrici",
                          _fmt_it(ctx["tot_revenue"]/1000, 0),
                          "k€/anno", styles=s)
     elif ctx.get("IS_DM2018") and ctx.get("cic_active"):
-        kpi1 = _kpi_tile("Biomasse",
+        kpi1 = _kpi_tile("Feedstocks" if ctx.get("_lang")=="en" else "Biomasse",
                          _fmt_it(ctx["tot_biomasse_t"], 0),
                          "t/anno (FM)", styles=s)
-        kpi2 = _kpi_tile("Biometano netto",
+        kpi2 = _kpi_tile("Net biomethane" if ctx.get("_lang")=="en" else "Biometano netto",
                          _fmt_it(ctx["tot_sm3_netti"]/1000, 0),
                          "k Sm³/anno · "
                          f"{_fmt_it(ctx['tot_mwh_netti'], 0)} MWh", styles=s)
-        kpi3 = _kpi_tile("CIC/anno",
+        kpi3 = _kpi_tile("CIC/year" if ctx.get("_lang")=="en" else "CIC/anno",
                          _fmt_it(ctx["tot_n_cic"], 1),
                          ("AVANZATO ×2" if ctx.get("cic_double")
                           else "single counting"),
                          styles=s,
                          accent=AMBER if ctx.get("cic_double") else SLATE_500)
-        kpi4 = _kpi_tile("Ricavi CIC",
+        kpi4 = _kpi_tile("CIC revenue" if ctx.get("_lang")=="en" else "Ricavi CIC",
                          _fmt_it(ctx["tot_revenue"]/1000, 0),
                          "k€/anno", styles=s)
     else:
         # DM 2022 o DM 2018 altri usi
-        kpi1 = _kpi_tile("Biomasse",
+        kpi1 = _kpi_tile("Feedstocks" if ctx.get("_lang")=="en" else "Biomasse",
                          _fmt_it(ctx["tot_biomasse_t"], 0),
                          "t/anno (FM)", styles=s)
-        kpi2 = _kpi_tile("Biometano netto",
+        kpi2 = _kpi_tile("Net biomethane" if ctx.get("_lang")=="en" else "Biometano netto",
                          _fmt_it(ctx["tot_sm3_netti"]/1000, 0),
                          "k Sm³/anno · "
                          f"{_fmt_it(ctx['tot_mwh_netti'], 0)} MWh", styles=s)
-        kpi3 = _kpi_tile("Saving GHG medio",
+        kpi3 = _kpi_tile("Avg. GHG saving" if ctx.get("_lang")=="en" else "Saving GHG medio",
                          _fmt_it(ctx["saving_avg"], 1, "%"),
                          f"≥ {_fmt_it(ctx['ghg_threshold']*100, 0, '%')} RED III",
                          styles=s, accent=saving_accent)
@@ -531,11 +533,12 @@ def _build_plant_config(ctx, styles):
     s = styles
     flow = []
     flow.append(Paragraph("// PLANT CONFIGURATION", s["eyebrow"]))
-    flow.append(Paragraph("Parametri impianto", s["h2"]))
+    flow.append((Paragraph("Plant parameters", s["h2"]) if ctx.get("_lang")=="en" else Paragraph("Parametri impianto", s["h2"])))
     flow.append(Spacer(1, 3 * mm))
 
+    _ln = ctx.get("_lang","it")
     rows = [
-        ["Parametro", "Valore", "Note"],
+        [_t("Parametro",_ln), _t("Valore",_ln), _t("Note",_ln)],
     ]
     if ctx["IS_CHP"]:
         regime_chp = (
@@ -697,20 +700,22 @@ def _build_monthly_table(ctx, styles):
     s = styles
     flow = []
     flow.append(Paragraph("// MONTHLY PLAN", s["eyebrow"]))
-    flow.append(Paragraph("Pianificazione mensile", s["h2"]))
+    flow.append((Paragraph("Monthly planning", s["h2"]) if ctx.get("_lang")=="en" else Paragraph("Pianificazione mensile", s["h2"])))
     flow.append(Spacer(1, 3 * mm))
 
     df = ctx["df_res"]
     if ctx["IS_CHP"]:
         cols = ["Mese", "Ore", "Totale biomasse (t)",
                 "Sm³ netti", "MWh elettrici netti", "Saving %", "Validità"]
-        headers = ["Mese", "Ore", "Biomasse (t)", "CH₄ motore (Sm³)",
-                   "MWh_el netti", "Saving %", "Validità"]
+        _ln = ctx.get("_lang","it")
+        headers = [_t("Mese",_ln), _t("Ore",_ln), "Feedstocks (t)" if _ln=="en" else "Biomasse (t)", "CH₄ engine (Sm³)" if _ln=="en" else "CH₄ motore (Sm³)",
+                   "Net MWh el." if _ln=="en" else "MWh_el netti", "Saving %", _t("Validità",_ln)]
     else:
         cols = ["Mese", "Ore", "Totale biomasse (t)",
                 "Sm³ netti", "MWh netti", "Saving %", "Validità"]
-        headers = ["Mese", "Ore", "Biomasse (t)", "Sm³ netti",
-                   "MWh netti", "Saving %", "Validità"]
+        _ln = ctx.get("_lang","it")
+        headers = [_t("Mese",_ln), _t("Ore",_ln), "Feedstocks (t)" if _ln=="en" else "Biomasse (t)", _t("Sm³ netti",_ln),
+                   _t("MWh netti",_ln), "Saving %", _t("Validità",_ln)]
 
     data = [headers]
     for _, r in df.iterrows():
@@ -727,7 +732,7 @@ def _build_monthly_table(ctx, styles):
 
     # Totals row
     totals = [
-        "TOTALE/MEDIA",
+        "TOTAL/AVG" if ctx.get("_lang")=="en" else "TOTALE/MEDIA",
         _fmt_it(df["Ore"].sum(), 0),
         _fmt_it(df["Totale biomasse (t)"].sum(), 0),
         _fmt_it(df["Sm³ netti"].sum(), 0),
@@ -787,14 +792,15 @@ def _build_revenue(ctx, styles):
     s = styles
     flow = []
     flow.append(Paragraph("// REVENUE & MIX", s["eyebrow"]))
-    flow.append(Paragraph("Mix biomasse e analisi ricavi", s["h2"]))
+    flow.append((Paragraph("Feedstock mix & revenue analysis", s["h2"]) if ctx.get("_lang")=="en" else Paragraph("Mix biomasse e analisi ricavi", s["h2"])))
     flow.append(Spacer(1, 3 * mm))
 
     cic_active = bool(ctx.get("cic_active"))
     if cic_active:
         # In regime CIC: tariffa unica, aggiungo colonna All. IX e CIC/anno
-        headers = ["Biomassa", "All. IX", "t/anno", "MWh netti",
-                   "CIC/anno", "Ricavi €/anno", "Quota %"]
+        _ln = ctx.get("_lang","it")
+        headers = [_t("Biomassa",_ln), _t("All. IX",_ln), "t/year" if _ln=="en" else "t/anno", _t("MWh netti",_ln),
+                   "CIC/year" if _ln=="en" else "CIC/anno", "Revenue €/yr" if _ln=="en" else "Ricavi €/anno", "Share %" if _ln=="en" else "Quota %"]
         data = [headers]
         for n, r in ctx["revenue_rows"]:
             aix = r.get("annex_ix")
@@ -811,7 +817,7 @@ def _build_revenue(ctx, styles):
                 _fmt_it(r["quota"], 1, "%"),
             ])
         data.append([
-            "TOTALE",
+            "TOTAL" if ctx.get("_lang")=="en" else "TOTALE",
             f"{_fmt_it(ctx['annex_mass_share']*100, 1, '%')} mass",
             _fmt_it(ctx["tot_biomasse_t"], 0),
             _fmt_it(ctx["tot_mwh_basis"], 0),
@@ -822,8 +828,9 @@ def _build_revenue(ctx, styles):
         col_w_rel = [38, 12, 14, 18, 14, 28, 12]
     else:
         tar_unit = "€/MWh_el" if ctx["IS_CHP"] else "€/MWh"
-        headers = ["Biomassa", "t/anno", "Resa", "MWh netti",
-                   f"Tariffa ({tar_unit})", "Ricavi €/anno", "Quota %"]
+        _ln = ctx.get("_lang","it")
+        headers = [_t("Biomassa",_ln), "t/year" if _ln=="en" else "t/anno", "Yield" if _ln=="en" else "Resa", _t("MWh netti",_ln),
+                   f"Tariff ({tar_unit})" if _ln=="en" else f"Tariffa ({tar_unit})", "Revenue €/yr" if _ln=="en" else "Ricavi €/anno", "Share %" if _ln=="en" else "Quota %"]
         data = [headers]
         for n, r in ctx["revenue_rows"]:
             data.append([
@@ -837,7 +844,7 @@ def _build_revenue(ctx, styles):
             ])
         # Totals
         data.append([
-            "TOTALE",
+            "TOTAL" if ctx.get("_lang")=="en" else "TOTALE",
             _fmt_it(ctx["tot_biomasse_t"], 0),
             "—",
             _fmt_it(ctx["tot_mwh_basis"], 0),
@@ -1274,6 +1281,8 @@ def build_metaniq_pdf(ctx: dict) -> BytesIO:
     ctx richiesto: vedi `app_mensile.py` per la lista completa dei campi.
     """
     buf = BytesIO()
+    lang = ctx.get("lang", "it")
+    ctx["_lang"] = lang
 
     now = datetime.now()
     months_it = ["gennaio", "febbraio", "marzo", "aprile", "maggio",
