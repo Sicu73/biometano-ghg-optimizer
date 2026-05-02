@@ -129,6 +129,13 @@ def build_metaniq_xlsx(ctx: dict, snapshot: bool = False) -> BytesIO:
     ws_bp = wb.create_sheet("Business Plan")
     _build_business_plan(ws_bp, ctx, snapshot=snapshot, lang=lang)
 
+    # === Sheet 5: Audit Rese BMT (override certificati vs tabella standard) ===
+    # Tracciabilita' completa: per ogni biomassa attiva mostra resa standard,
+    # resa usata, origine (tabella vs BMT certificato laboratorio), nome
+    # certificato, laboratorio, data, riferimento campione.
+    ws_bmt = wb.create_sheet(_t("Audit rese BMT", lang) if lang == "en" else "Audit rese BMT")
+    _build_bmt_audit(ws_bmt, ctx, lang=lang)
+
     # Imposta Piano come sheet attiva di default
     wb.active = wb.sheetnames.index(ws_piano.title)  # after i18n rename
 
@@ -1738,3 +1745,154 @@ def _build_business_plan(ws, ctx, snapshot: bool = False, lang='it'):
 
     # Freeze: blocca header CE (label + B-K) durante scroll
     ws.freeze_panes = ws[f"C{ce_header_row + 1}"]
+
+
+# ============================================================
+# Sheet 5 — Audit Rese BMT (override certificati vs tabella standard)
+# ============================================================
+def _build_bmt_audit(ws, ctx, lang="it"):
+    """Costruisce il foglio audit rese BMT.
+
+    Mostra, per ogni biomassa attiva:
+      - resa standard (tabella interna UNI-TS / JEC v5)
+      - resa usata nei calcoli
+      - unita' (Sm3 biometano/t)
+      - origine resa (tabella standard | BMT certificato laboratorio)
+      - certificato (filename)
+      - laboratorio
+      - data certificato
+      - riferimento campione
+
+    Se non ci sono override BMT, il foglio mostra comunque tutte le
+    biomasse attive con origine "tabella standard" — utile come traccia
+    di compliance per il consulente / auditor.
+    """
+    audit_rows = ctx.get("yield_audit_rows", []) or []
+
+    # Title
+    ws.merge_cells("A1:I1")
+    c = ws.cell(row=1, column=1,
+                value=("Metan.iQ - BMT Yield Audit (certified vs standard)"
+                       if lang == "en" else
+                       "Metan.iQ - Audit Rese BMT (certificate vs standard)"))
+    c.font = Font(bold=True, size=14, color=WHITE)
+    c.fill = PatternFill("solid", fgColor=NAVY)
+    c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws.row_dimensions[1].height = 28
+
+    ws.merge_cells("A2:I2")
+    c = ws.cell(row=2, column=1, value=(
+        "For each active feedstock: standard yield, BMT-certified yield "
+        "(if active), origin, lab metadata. Standard table is never modified."
+        if lang == "en" else
+        "Per ogni biomassa attiva: resa standard, resa BMT certificata "
+        "(se attiva), origine, metadati laboratorio. La tabella standard "
+        "non viene mai modificata."
+    ))
+    c.font = Font(italic=True, size=9, color=SLATE_500)
+    c.alignment = Alignment(horizontal="left", indent=1)
+
+    # Header
+    if lang == "en":
+        headers = [
+            "Feedstock", "Standard yield", "Used yield", "Unit",
+            "Yield source", "Certificate", "Laboratory",
+            "Certificate date", "Sample ref",
+        ]
+    else:
+        headers = [
+            "Biomassa", "Resa standard", "Resa usata", "Unita'",
+            "Origine resa", "Certificato", "Laboratorio",
+            "Data certificato", "Riferimento campione",
+        ]
+    header_row = 4
+    for col, h in enumerate(headers, start=1):
+        c = ws.cell(row=header_row, column=col, value=h)
+        _style_header(c)
+    ws.row_dimensions[header_row].height = 30
+
+    # Data rows
+    if not audit_rows:
+        ws.merge_cells(start_row=header_row + 1, start_column=1,
+                       end_row=header_row + 1, end_column=9)
+        c = ws.cell(row=header_row + 1, column=1,
+                    value=("No active feedstock - select biomasses in the app."
+                           if lang == "en" else
+                           "Nessuna biomassa attiva - seleziona biomasse nell'app."))
+        c.font = Font(italic=True, color=SLATE_500)
+        c.alignment = Alignment(horizontal="center")
+    else:
+        for i, r in enumerate(audit_rows, start=header_row + 1):
+            cells = [
+                r.get("Biomassa", ""),
+                float(r.get("Resa standard", 0.0)),
+                float(r.get("Resa usata", 0.0)),
+                r.get("Unita'", r.get("Unita", r.get("Unitá", r.get("Unit", "")))) or r.get("Unità", "Sm3 biometano/t"),
+                r.get("Origine resa", ""),
+                r.get("Certificato", "-"),
+                r.get("Laboratorio", "-"),
+                r.get("Data certificato", "-"),
+                r.get("Riferimento campione", "-"),
+            ]
+            # Recover unit field robustly: the build_yield_audit_row uses key "Unita'" with combining mark
+            unit_val = ""
+            for k, v in r.items():
+                if "nit" in k.lower():
+                    unit_val = v
+                    break
+            cells[3] = unit_val or "Sm3 biometano/t"
+
+            for col, val in enumerate(cells, start=1):
+                c = ws.cell(row=i, column=col, value=val)
+                _style_readonly(c)
+                c.alignment = Alignment(
+                    horizontal="left" if col in (1, 4, 5, 6, 7, 8, 9)
+                    else "right",
+                    vertical="center",
+                )
+            # Numeric format for yield columns
+            ws.cell(row=i, column=2).number_format = "0.0"
+            ws.cell(row=i, column=3).number_format = "0.0"
+
+            # Highlight rows with BMT override (amber background on origin column)
+            origin = str(r.get("Origine resa", ""))
+            if "BMT" in origin or "certif" in origin.lower():
+                for col in (3, 5):  # Resa usata + Origine resa
+                    cell = ws.cell(row=i, column=col)
+                    cell.fill = PatternFill("solid", fgColor=AMBER_BG)
+                    cell.font = Font(bold=True, color=AMBER_DK)
+
+    # Column widths
+    ws.column_dimensions["A"].width = 28
+    ws.column_dimensions["B"].width = 14
+    ws.column_dimensions["C"].width = 14
+    ws.column_dimensions["D"].width = 18
+    ws.column_dimensions["E"].width = 36
+    ws.column_dimensions["F"].width = 24
+    ws.column_dimensions["G"].width = 22
+    ws.column_dimensions["H"].width = 18
+    ws.column_dimensions["I"].width = 22
+
+    ws.freeze_panes = ws[f"A{header_row + 1}"]
+
+    # Footer note
+    note_row = header_row + len(audit_rows) + 2
+    ws.merge_cells(start_row=note_row, start_column=1,
+                   end_row=note_row, end_column=9)
+    note = (
+        "BMT (Biochemical Methane Test) override: certified lab yield "
+        "replaces the internal standard table for the specific feedstock "
+        "only. Standard table is never modified. Warning issued if BMT "
+        "deviates more than +/-30% from standard."
+        if lang == "en" else
+        "BMT (Biochemical Methane Test) override: la resa certificata "
+        "in laboratorio sostituisce la tabella standard interna SOLO "
+        "per la specifica biomassa. La tabella standard non viene mai "
+        "modificata. Warning emesso se il BMT differisce oltre +/-30% "
+        "dal valore standard."
+    )
+    c = ws.cell(row=note_row, column=1, value=note)
+    c.font = Font(italic=True, size=8, color=SLATE_500)
+    c.alignment = Alignment(horizontal="left", wrap_text=True)
+    ws.row_dimensions[note_row].height = 30
+

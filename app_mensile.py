@@ -32,6 +32,19 @@ from excel_export import build_metaniq_xlsx
 # ── i18n: selettore lingua + funzione di traduzione ──────────────────────────
 from i18n_runtime import t as _t, get_lang, render_lang_selector, translate_df
 
+# ── BMT (Biochemical Methane Test) — override resa certificata laboratorio ──
+from bmt_override import (
+    BMTCertificate,
+    validate_bmt_override,
+    resolve_biomass_yield,
+    build_yield_audit_row,
+    ALLOWED_CERT_EXTS,
+    BMT_DEVIATION_WARN_THRESHOLD,
+    YIELD_UNIT as BMT_YIELD_UNIT,
+    SOURCE_BMT,
+    SOURCE_STD,
+)
+
 # ============================================================
 # REGISTRO NORMATIVA — verifica aggiornamenti via GitHub
 # ============================================================
@@ -1103,6 +1116,36 @@ def _feeds_by_category():
 
 FEEDSTOCK_CATEGORIES = _feeds_by_category()
 
+
+# ============================================================
+# BMT OVERRIDE — Resa effettiva (BMT certificato vs tabella standard)
+# ============================================================
+# `_EFFECTIVE_YIELDS` viene popolato dalla UI sidebar all'inizio di ogni
+# Streamlit run, DOPO che l'utente ha definito eventuali override BMT
+# certificati (vedi bmt_override.py). Tutte le funzioni di calcolo
+# (ghg_summary, solve_*, lp_optimize) e tutte le tabelle/export (UI,
+# CSV, Excel, PDF) leggono la resa via `_yield_of(name)` invece di
+# `FEEDSTOCK_DB[name]["yield"]`, in modo che l'override BMT venga
+# applicato in modo coerente ovunque. La tabella standard NON viene
+# mai modificata: l'override e' solo un "sovrascrittura runtime"
+# tracciabile per la singola biomassa.
+_EFFECTIVE_YIELDS: dict[str, float] = {}
+
+
+def _yield_of(name: str) -> float:
+    """Resa effettiva [Nm3 CH4/t] = override BMT se attivo, altrimenti tabella.
+
+    NB: il valore restituito ha la stessa unità della resa standard
+    (Nm3 CH4/t) per coerenza con tutto il pipeline di calcolo a valle.
+    L'unità BMT (Sm3 biometano/t) e' assimilabile per impianti Italia
+    (gas a 97% CH4); la differenza ~5% Nm3-vs-Sm3 e' coerente con il
+    resto del modello (vedi WARN-11 nell'audit normativo).
+    """
+    if name in _EFFECTIVE_YIELDS:
+        return float(_EFFECTIVE_YIELDS[name])
+    return float(FEEDSTOCK_DB[name]["yield"])
+
+
 # Default biomasse attive: mix iniziale diversificato (colture + effluenti).
 DEFAULT_ACTIVE_FEEDS = [
     "Trinciato di mais",
@@ -1149,7 +1192,7 @@ def ghg_summary(masses: dict, aux: float, ep: float = 0.0,
         if m is None or m <= 0:
             continue
         d = FEEDSTOCK_DB[name]
-        nm3 = m * d["yield"]
+        nm3 = m * _yield_of(name)  # resa effettiva (BMT override se attivo)
         mj = nm3 * LHV_BIOMETHANE
         e = e_total_feedstock(name, ep)
         total_mj += mj
@@ -1182,11 +1225,11 @@ def solve_1_unknown_production(fixed_masses: dict, unknown: str,
     """
     gross_target = plant_net * aux * hours
     covered = sum(
-        (fixed_masses.get(n) or 0.0) * FEEDSTOCK_DB[n]["yield"]
+        (fixed_masses.get(n) or 0.0) * _yield_of(n)
         for n in fixed_masses.keys() if n != unknown
     )
     remaining = gross_target - covered
-    return remaining / FEEDSTOCK_DB[unknown]["yield"]
+    return remaining / _yield_of(unknown)
 
 
 def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
@@ -1211,14 +1254,14 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
         if m is None:
             m = 0.0
         d = FEEDSTOCK_DB[n]
-        y = d["yield"]
+        y = _yield_of(n)  # resa effettiva (BMT override se attivo)
         e = e_total_feedstock(n, ep)
         rhs_prod -= m * y
         rhs_sust -= m * y * (e - target_e_max)
 
     x, y_name = unknowns
     dx = FEEDSTOCK_DB[x]; dy = FEEDSTOCK_DB[y_name]
-    yx = dx["yield"]; yy = dy["yield"]
+    yx = _yield_of(x); yy = _yield_of(y_name)
     ex = e_total_feedstock(x, ep) - target_e_max
     ey = e_total_feedstock(y_name, ep) - target_e_max
 
@@ -1306,7 +1349,7 @@ def find_optimal_pair(aux: float, plant_net: float, ep: float,
     for n in feed_list:
         e_n = e_total_feedstock(n, ep)
         if e_n <= target_e_max + 1e-9:  # saving >= target
-            y_n = FEEDSTOCK_DB[n]["yield"]
+            y_n = _yield_of(n)  # resa effettiva (BMT override se attivo)
             if y_n <= 0:
                 continue
             m_n = gross_target / y_n
@@ -2239,7 +2282,7 @@ with st.sidebar:
             for f in feeds:
                 checked = st.checkbox(
                     f"{f}  · eec={fmt_it(FEEDSTOCK_DB[f]['eec'], 1, signed=True)}"
-                    f"  · resa={fmt_it(FEEDSTOCK_DB[f]['yield'], 0)} Nm³/t",
+                    f"  · resa={fmt_it(_yield_of(f), 0)} Nm³/t",
                     value=(f in st.session_state.active_feeds),
                     key=f"chk_feed_{f}",
                     help=f"Fonte: {FEEDSTOCK_DB[f].get('src', 'n/d')}",
@@ -2288,6 +2331,187 @@ with st.sidebar:
         "</div>",
         unsafe_allow_html=True,
     )
+
+    # ============================================================
+    # BMT OVERRIDE — Resa certificata laboratorio (per biomassa)
+    # ============================================================
+    # Per ogni biomassa attiva, l'utente puo' attivare un override
+    # della resa standard tabellare con una resa BMT certificata
+    # da laboratorio. Vincoli:
+    #   - certificato OBBLIGATORIO (PDF/JPG/PNG/XLSX/CSV)
+    #   - valore BMT > 0
+    #   - laboratorio, data, riferimento campione obbligatori
+    #   - warning se scostamento dal valore standard > +/-30%
+    # La tabella standard NON viene mai modificata: l'override
+    # e' tracciato solo per la singola biomassa.
+    if "bmt_overrides" not in st.session_state:
+        st.session_state["bmt_overrides"] = {}
+
+    with st.expander(
+        _t("🧪 Override resa BMT certificata (opzionale, per biomassa)"),
+        expanded=False,
+    ):
+        st.caption(
+            "Per ciascuna biomassa attiva puoi sostituire la resa standard "
+            "(tabella interna UNI-TS / JEC v5) con una resa BMT certificata "
+            "da laboratorio. Il certificato e' OBBLIGATORIO: senza file "
+            "caricato l'override non viene applicato e viene mostrato un "
+            "errore. La resa BMT vale SOLO per la biomassa selezionata; "
+            "le altre continuano a usare la tabella standard. Lo scostamento "
+            f"oltre il +/-{int(BMT_DEVIATION_WARN_THRESHOLD*100)}% rispetto "
+            "alla tabella standard genera un warning di verifica."
+        )
+
+        # Cleanup: rimuovi override per biomasse non piu' attive
+        for _stale in list(st.session_state["bmt_overrides"].keys()):
+            if _stale not in active_feeds:
+                st.session_state["bmt_overrides"].pop(_stale, None)
+
+        for _bmt_name in active_feeds:
+            _std_y = float(FEEDSTOCK_DB[_bmt_name]["yield"])
+            _key_active = f"bmt_active__{_bmt_name}"
+            _key_value  = f"bmt_value__{_bmt_name}"
+            _key_lab    = f"bmt_lab__{_bmt_name}"
+            _key_date   = f"bmt_date__{_bmt_name}"
+            _key_sample = f"bmt_sample__{_bmt_name}"
+            _key_cert   = f"bmt_cert__{_bmt_name}"
+
+            _bmt_active = st.checkbox(
+                f"🧪 {_bmt_name}  ·  attiva BMT certificato "
+                f"(standard {fmt_it(_std_y, 0)} Nm³/t)",
+                key=_key_active,
+                value=st.session_state.get(_key_active, False),
+                help=(
+                    f"Se attivata, la resa standard {fmt_it(_std_y, 0)} "
+                    f"Nm³/t verra' sostituita dal valore BMT certificato "
+                    f"per **{_bmt_name}**. Il certificato e' obbligatorio."
+                ),
+            )
+
+            if not _bmt_active:
+                # Rimuovi eventuale override precedente
+                st.session_state["bmt_overrides"].pop(_bmt_name, None)
+                continue
+
+            with st.container():
+                _bmt_col1, _bmt_col2 = st.columns([1, 1])
+                with _bmt_col1:
+                    _bmt_value = st.number_input(
+                        f"Resa BMT [{BMT_YIELD_UNIT}]",
+                        min_value=0.0, max_value=2000.0,
+                        value=float(st.session_state.get(
+                            _key_value, _std_y)),
+                        step=1.0, key=_key_value,
+                        help=(
+                            "Resa misurata da test BMT in laboratorio "
+                            f"(unita': {BMT_YIELD_UNIT}). Deve essere > 0."
+                        ),
+                    )
+                    _bmt_lab = st.text_input(
+                        "Laboratorio",
+                        value=st.session_state.get(_key_lab, ""),
+                        key=_key_lab,
+                        help="Nome/ragione sociale del laboratorio emittente.",
+                    )
+                with _bmt_col2:
+                    _bmt_date = st.text_input(
+                        "Data certificato (YYYY-MM-DD)",
+                        value=st.session_state.get(_key_date, ""),
+                        key=_key_date,
+                        help="Data di emissione del rapporto di prova.",
+                    )
+                    _bmt_sample = st.text_input(
+                        "Riferimento campione",
+                        value=st.session_state.get(_key_sample, ""),
+                        key=_key_sample,
+                        help="Numero rapporto di prova / ID campione.",
+                    )
+
+                _bmt_cert_file = st.file_uploader(
+                    f"📎 Certificato BMT — {_bmt_name} "
+                    f"(formati: {', '.join(e.lstrip('.').upper() for e in ALLOWED_CERT_EXTS)})",
+                    type=[e.lstrip(".") for e in ALLOWED_CERT_EXTS],
+                    key=_key_cert,
+                    accept_multiple_files=False,
+                    help=(
+                        "Carica il certificato di analisi BMT del "
+                        "laboratorio. OBBLIGATORIO: senza file l'override "
+                        "non viene applicato."
+                    ),
+                )
+
+                _cert_uploaded = _bmt_cert_file is not None
+                _cert_name = _bmt_cert_file.name if _cert_uploaded else ""
+                _cert_size = _bmt_cert_file.size if _cert_uploaded else 0
+
+                _bmt_valid, _bmt_errs, _bmt_warns = validate_bmt_override(
+                    bmt_value=_bmt_value,
+                    standard_yield=_std_y,
+                    certificate_uploaded=_cert_uploaded,
+                    lab_name=_bmt_lab,
+                    cert_date=_bmt_date,
+                    sample_ref=_bmt_sample,
+                    cert_filename=_cert_name,
+                )
+
+                for _e in _bmt_errs:
+                    st.error(f"❌ {_e}")
+                for _w in _bmt_warns:
+                    st.warning(f"⚠️ {_w}")
+
+                if _bmt_valid:
+                    _cert_obj = BMTCertificate(
+                        biomass_name=_bmt_name,
+                        bmt_value=float(_bmt_value),
+                        lab_name=_bmt_lab.strip(),
+                        cert_date=_bmt_date.strip(),
+                        sample_ref=_bmt_sample.strip(),
+                        cert_filename=_cert_name,
+                        cert_size_bytes=int(_cert_size),
+                    )
+                    st.session_state["bmt_overrides"][_bmt_name] = {
+                        "active": True,
+                        "certificate": _cert_obj,
+                    }
+                    st.success(
+                        f"✅ Override BMT attivo per **{_bmt_name}**: "
+                        f"{fmt_it(_bmt_value, 1)} {BMT_YIELD_UNIT} "
+                        f"(Lab: {_bmt_lab} · Cert: {_cert_name})"
+                    )
+                else:
+                    # Rimuovi qualsiasi override precedente per coerenza
+                    st.session_state["bmt_overrides"].pop(_bmt_name, None)
+                    st.error(
+                        f"⛔ Override BMT NON applicato per **{_bmt_name}**: "
+                        f"resa standard {fmt_it(_std_y, 0)} Nm³/t in uso."
+                    )
+
+                st.markdown("---")
+
+    # ============================================================
+    # Popola _EFFECTIVE_YIELDS in base agli override validati
+    # ============================================================
+    _EFFECTIVE_YIELDS.clear()
+    _yield_audit_rows: list[dict] = []
+    for _bn in active_feeds:
+        _resolved = resolve_biomass_yield(
+            _bn,
+            float(FEEDSTOCK_DB[_bn]["yield"]),
+            st.session_state["bmt_overrides"],
+        )
+        if _resolved["override_active"]:
+            _EFFECTIVE_YIELDS[_bn] = float(_resolved["yield_used"])
+        _yield_audit_rows.append(build_yield_audit_row(_resolved))
+
+    # Mini-banner riepilogo override attivi
+    _n_active = sum(1 for r in _yield_audit_rows if r["Origine resa"] == SOURCE_BMT)
+    if _n_active > 0:
+        st.info(
+            f"🧪 **{_n_active}** override BMT attivi su **{len(active_feeds)}** "
+            f"biomasse. Le rese effettive sono usate in tutti i calcoli, "
+            f"tabelle e export (CSV / Excel / PDF) con tracciabilita' "
+            f"completa di laboratorio, certificato, data e campione."
+        )
 
     st.divider()
     st.header(_t("⚙️ Parametri impianto"))
@@ -3073,7 +3297,7 @@ with st.sidebar:
         rows.append({
             "Feedstock": n,
             "Categoria": d.get("cat", ""),
-            "Resa (Nm³/t)": d["yield"],
+            "Resa (Nm³/t)": _yield_of(n),  # resa effettiva (BMT override se attivo)
             "eec": d["eec"],
             "ep": ep_total,
             "etd": d["etd"],
@@ -3101,6 +3325,30 @@ with st.sidebar:
         "Fonti: UNI-TS 11567:2024, JEC WTT v5, All. IX RED III, GSE LG 2024. "
         "Per certificazione finale: sostituire con valori reali d'impianto."
     )
+
+    # ============================================================
+    # AUDIT RESE — Tracciabilita' BMT vs tabella standard
+    # ============================================================
+    if _yield_audit_rows:
+        st.markdown("##### 🧪 Audit rese biomasse (BMT certificato vs tabella standard)")
+        df_yield_audit = pd.DataFrame(_yield_audit_rows)
+        # Format numerici
+        df_yield_audit_disp = df_yield_audit.copy()
+        df_yield_audit_disp["Resa standard"] = df_yield_audit_disp["Resa standard"].apply(
+            lambda v: fmt_it(v, 1)
+        )
+        df_yield_audit_disp["Resa usata"] = df_yield_audit_disp["Resa usata"].apply(
+            lambda v: fmt_it(v, 1)
+        )
+        st.dataframe(
+            df_yield_audit_disp, hide_index=True, use_container_width=True,
+        )
+        st.caption(
+            f"Origine resa = `{SOURCE_BMT}` se l'utente ha caricato un "
+            f"certificato valido E ha attivato l'override per quella "
+            f"biomassa; altrimenti `{SOURCE_STD}`. La tabella standard "
+            f"NON viene mai modificata."
+        )
 
 # ------------------------- MODE SELECTOR -------------------------
 st.subheader(_t("🎯 Modalità di calcolo"))
@@ -3559,13 +3807,13 @@ for f in fixed_feeds:
     col_cfg[f] = st.column_config.TextColumn(
         f"{f} ✏️ (t)",
         help=f"INPUT – formato italiano (es. 1.800,0) – "
-             f"Resa {fmt_it(FEEDSTOCK_DB[f]['yield'], 0)} Nm³/t FM",
+             f"Resa {fmt_it(_yield_of(f), 0)} Nm³/t FM",
     )
 for u in unknown_feeds:
     col_cfg[u] = st.column_config.TextColumn(
         f"{u} 🧮 (t)",
         disabled=True,
-        help=f"CALCOLATA dal solver – Resa {fmt_it(FEEDSTOCK_DB[u]['yield'], 0)} Nm³/t FM",
+        help=f"CALCOLATA dal solver – Resa {fmt_it(_yield_of(u), 0)} Nm³/t FM",
     )
 col_cfg["Totale biomasse (t)"] = st.column_config.TextColumn("Tot. t", disabled=True)
 _lbl_lordo_col = "Sm³ CH₄ lordi" if IS_CHP else "Sm³ lordi"
@@ -3808,7 +4056,7 @@ with tab4:
     # Mix in MWh netti: ogni biomassa contribuisce in proporzione a (massa x yield)
     # MWh_netti_n = massa_n x yield_n / aux_factor x NM3_TO_MWH
     annual_mwh = {
-        n: max(df_res[n].sum(), 0) * FEEDSTOCK_DB[n]["yield"]
+        n: max(df_res[n].sum(), 0) * _yield_of(n)
            / aux_factor * NM3_TO_MWH
         for n in active_feeds
     }
@@ -4023,7 +4271,7 @@ with tab4:
     tot_n_cic = 0.0
     for n in active_feeds:
         t = annual_t[n]
-        nm3_lordi = t * FEEDSTOCK_DB[n]["yield"]
+        nm3_lordi = t * _yield_of(n)  # resa effettiva (BMT override se attivo)
         nm3_netti = nm3_lordi / aux_factor
         mwh_netti = nm3_netti * NM3_TO_MWH
 
@@ -4058,7 +4306,7 @@ with tab4:
                  if _tot_mwh_basis_raw > 0 else 0)
         pdf_revenue_rows.append((n, {
             "t_anno": t,
-            "yield": FEEDSTOCK_DB[n]["yield"],
+            "yield": _yield_of(n),  # resa effettiva (BMT override se attivo)
             "mwh_netti": mwh_netti,
             "mwh_basis": mwh_revenue,  # base ricavi
             "tariffa": tariffa,
@@ -4070,7 +4318,7 @@ with tab4:
         row_detail = {
             "Biomassa": n,
             "t/anno (FM)":     fmt_it(t, 0),
-            "Resa (Nm³/t)":    fmt_it(FEEDSTOCK_DB[n]["yield"], 0),
+            "Resa (Nm³/t)":    fmt_it(_yield_of(n), 0),  # resa effettiva
             "Sm³ netti/anno":  fmt_it(nm3_netti, 0),
             "MWh netti/anno":  fmt_it(mwh_netti, 1),
         }
@@ -4514,7 +4762,7 @@ if IS_DM2022 and tab5 is not None and bp_result is not None:
         # = resa Nm3 CH4/t / ch4_frac × costo_biogas €/Nm3 (biogas)
         liq_rows = []
         for f in active_feeds[:15]:  # limita a 15 per leggibilità
-            yld = FEEDSTOCK_DB[f]["yield"]  # Nm3 CH4/t (nostro DB)
+            yld = _yield_of(f)  # Nm3 CH4/t — resa effettiva (BMT override se attivo)
             biogas_per_t = yld / bp_result["ch4_frac"]
             liq_eur_t = biogas_per_t * bp_result["costo_biogas_eur_per_nm3"]
             liq_rows.append({
@@ -4665,6 +4913,9 @@ with _dl_col1:
                                            if IS_DM2022 else None),
             "NM3_TO_MWH":                NM3_TO_MWH,
             "lang":                      _LANG,
+            # === BMT override audit (resa effettiva vs standard) ===
+            "yield_audit_rows":          list(_yield_audit_rows),
+            "effective_yields":          dict(_EFFECTIVE_YIELDS),
         })
         _xlsx_buf = build_metaniq_xlsx(_xlsx_ctx)
         _xlsx_data = _xlsx_buf.getvalue()
@@ -4772,6 +5023,9 @@ with _dl_col2:
         "tariffa_media_ponderata": float(tariffa_media_ponderata),
         "revenue_rows": pdf_revenue_rows,
         "lang":         _LANG,
+        # === BMT override audit (resa effettiva vs standard) ===
+        "yield_audit_rows": list(_yield_audit_rows),
+        "effective_yields": dict(_EFFECTIVE_YIELDS),
     }
     try:
         _pdf_buf = build_metaniq_pdf(_pdf_ctx)

@@ -1275,6 +1275,132 @@ def _build_methodology(ctx, styles):
 # ============================================================
 # Public API
 # ============================================================
+
+def _build_bmt_audit(ctx, styles):
+    """Sezione PDF: Audit Rese BMT (override certificati vs tabella standard).
+
+    Mostra una tabella con: Biomassa, Resa standard, Resa usata, Origine,
+    Certificato, Laboratorio, Data, Riferimento campione. Se non ci sono
+    override BMT, la sezione viene comunque inclusa per tracciabilita'.
+    """
+    s = styles
+    flow = []
+    is_en = ctx.get("_lang") == "en"
+    audit_rows = ctx.get("yield_audit_rows", []) or []
+
+    flow.append(Paragraph("// BMT YIELD AUDIT", s["eyebrow"]))
+    flow.append(Paragraph(
+        "BMT yield audit (certified vs standard)" if is_en
+        else "Audit rese BMT (certificate vs tabella standard)",
+        s["h2"],
+    ))
+    flow.append(Spacer(1, 3 * mm))
+
+    n_overrides = sum(
+        1 for r in audit_rows
+        if "BMT" in str(r.get("Origine resa", ""))
+        or "certif" in str(r.get("Origine resa", "")).lower()
+    )
+    intro = (
+        f"Total active feedstocks: {len(audit_rows)}, of which "
+        f"{n_overrides} use a BMT-certified yield (lab measurement). "
+        f"For each row: standard table yield, used yield, source, "
+        f"and full lab traceability metadata. The internal standard "
+        f"table is never permanently modified by BMT overrides."
+        if is_en else
+        f"Biomasse attive totali: {len(audit_rows)}, di cui "
+        f"{n_overrides} usano una resa BMT certificata (misura "
+        f"di laboratorio). Per ogni riga: resa da tabella standard, "
+        f"resa usata, origine e metadati completi di laboratorio. "
+        f"La tabella standard interna NON viene mai modificata in "
+        f"modo permanente dagli override BMT."
+    )
+    flow.append(Paragraph(intro, s["body"]))
+    flow.append(Spacer(1, 4 * mm))
+
+    if not audit_rows:
+        flow.append(Paragraph(
+            "No active feedstocks." if is_en else
+            "Nessuna biomassa attiva.",
+            s["body"],
+        ))
+        return flow
+
+    # Header row
+    if is_en:
+        headers = [
+            "Feedstock", "Standard", "Used", "Source",
+            "Certificate", "Laboratory", "Date", "Sample ref",
+        ]
+    else:
+        headers = [
+            "Biomassa", "Standard", "Usata", "Origine",
+            "Certificato", "Laboratorio", "Data", "Rif. campione",
+        ]
+    rows = [headers]
+    for r in audit_rows:
+        rows.append([
+            str(r.get("Biomassa", ""))[:24],
+            _fmt_it(r.get("Resa standard", 0.0), 1),
+            _fmt_it(r.get("Resa usata", 0.0), 1),
+            "BMT cert. lab." if "BMT" in str(r.get("Origine resa", ""))
+                else ("Std. table" if is_en else "Tab. standard"),
+            str(r.get("Certificato", "-"))[:18],
+            str(r.get("Laboratorio", "-"))[:18],
+            str(r.get("Data certificato", "-"))[:12],
+            str(r.get("Riferimento campione", "-"))[:14],
+        ])
+
+    col_widths = [
+        38 * mm, 18 * mm, 18 * mm, 24 * mm,
+        24 * mm, 26 * mm, 18 * mm, 26 * mm,
+    ]
+    tbl = Table(rows, colWidths=col_widths, repeatRows=1)
+    style_cmds = [
+        ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+        ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
+        ("FONTNAME", (0, 0), (-1, 0), "Courier-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 7),
+        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+        ("TOPPADDING", (0, 0), (-1, 0), 6),
+        # body
+        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 1), (-1, -1), 7),
+        ("ALIGN", (1, 1), (2, -1), "RIGHT"),
+        ("ALIGN", (3, 1), (-1, -1), "LEFT"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 1), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 4),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, SLATE_50]),
+        ("GRID", (0, 0), (-1, -1), 0.25, SLATE_200),
+    ]
+    # Highlight rows with BMT override
+    for i, r in enumerate(audit_rows, start=1):
+        if "BMT" in str(r.get("Origine resa", "")):
+            style_cmds.append(("BACKGROUND", (3, i), (3, i), AMBER_BG))
+            style_cmds.append(("TEXTCOLOR", (3, i), (3, i), AMBER_DK))
+            style_cmds.append(("FONTNAME", (3, i), (3, i), "Helvetica-Bold"))
+    tbl.setStyle(TableStyle(style_cmds))
+    flow.append(tbl)
+
+    flow.append(Spacer(1, 4 * mm))
+    flow.append(Paragraph(
+        "Validation rules: certificate file mandatory (PDF/JPG/PNG/XLSX/CSV); "
+        "BMT value > 0; lab name + date + sample ref mandatory; warning if "
+        "BMT deviates more than +/-30% from the standard table."
+        if is_en else
+        "Regole di validazione: certificato obbligatorio (PDF/JPG/PNG/XLSX/CSV); "
+        "valore BMT > 0; laboratorio + data + riferimento campione obbligatori; "
+        "warning se la resa BMT scosta oltre +/-30% dalla tabella standard.",
+        s["caption"] if "caption" in s else s["body"],
+    ))
+    return flow
+
+
+
 def build_metaniq_pdf(ctx: dict) -> BytesIO:
     """Costruisce il PDF Metan.iQ.
 
@@ -1340,6 +1466,9 @@ def build_metaniq_pdf(ctx: dict) -> BytesIO:
     flow.append(PageBreak())
     # Revenue
     flow.extend(_build_revenue(ctx, s))
+    flow.append(PageBreak())
+    # BMT yield audit (sempre incluso per tracciabilita')
+    flow.extend(_build_bmt_audit(ctx, s))
     flow.append(PageBreak())
     # Business Plan (solo DM 2022 con BP attivo)
     if ctx.get("bp_result") is not None:
