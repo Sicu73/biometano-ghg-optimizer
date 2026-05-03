@@ -9,3 +9,7 @@ venv/
 *.swp
 .DS_Store
 test_*.pdf
+
+# DB locale gestione giornaliera (non versionato)
+data/*.db
+data/
