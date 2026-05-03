@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "last_review": "2026-05-02",
+  "version": "1.1.0",
+  "last_review": "2026-05-03",
   "reviewer": "Carlo Sicurini",
   "metadata": {
     "scopo": "Registro centralizzato delle normative biometano/biogas applicate dal software Metan.iQ. Ogni voce documenta i parametri-chiave cablati nel codice e la data di ultima revisione manuale. Aggiornare questo file (commit GitHub) quando si applica una modifica al codice o si segnala una nuova normativa.",
@@ -73,17 +73,19 @@
     },
     {
       "id": "dlgs_5_2026",
-      "titolo": "D.Lgs. 5 marzo 2026 (recepimento RED III)",
-      "ambito": "Recepimento italiano RED III",
+      "titolo": "D.Lgs. 9 gennaio 2026, n. 5 (recepimento RED III)",
+      "ambito": "Recepimento italiano RED III (Dir. UE 2023/2413)",
       "tipo": "dlgs",
-      "data_pubblicazione": "2026-03-05",
+      "data_pubblicazione": "2026-01-20",
+      "data_entrata_in_vigore": "2026-02-04",
+      "gazzetta_ufficiale": "GU n. 15 del 20/01/2026",
       "applicato_in_app": true,
-      "ultima_revisione": "2026-04-25",
+      "ultima_revisione": "2026-05-03",
       "valori_chiave": {
         "soglie_e_comparatori": "Allineate a RED III (vedi voce red_iii)"
       },
-      "fonte_url": "https://www.gazzettaufficiale.it/atto/serie_generale/caricaDettaglioAtto/originario?atto.dataPubblicazioneGazzetta=2026-03-05&atto.codiceRedazionale=26G00031",
-      "note": "URL da verificare/aggiornare con numero GU definitivo. D.Lgs. di recepimento RED III (Dir. 2023/2413). Soglie aggiornate in END_USE_THRESHOLDS e COMPARATOR_BY_END_USE."
+      "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2026/01/20/26G00005/sg",
+      "note": "D.Lgs. 9 gennaio 2026, n. 5 — pubblicato in GU n. 15 del 20/01/2026, entrato in vigore il 04/02/2026. Recepisce la Direttiva (UE) 2023/2413 (RED III). Soglie aggiornate in END_USE_THRESHOLDS e COMPARATOR_BY_END_USE."
     },
     {
       "id": "dm_biometano_2018",
@@ -142,12 +144,14 @@
     },
     {
       "id": "dm_fer2_2024",
-      "titolo": "DM 18 settembre 2024 — Decreto FER 2",
+      "titolo": "DM 19 giugno 2024 — Decreto FER 2",
       "ambito": "Biogas CHP piccoli impianti agricoli ≤300 kWe",
       "tipo": "decreto",
-      "data_pubblicazione": "2024-09-18",
+      "data_pubblicazione": "2024-06-19",
+      "avviso_gu_codice": "24A04589",
+      "regole_operative_codice": "24A06795",
       "applicato_in_app": true,
-      "ultima_revisione": "2026-04-25",
+      "ultima_revisione": "2026-05-03",
       "valori_chiave": {
         "FER2_KWE_CAP": 300,
         "FER2_TARIFFA_BASE_DEFAULT_eur_mwh": 256,
@@ -158,8 +162,8 @@
         "FER2_GHG_THRESHOLD_pct": 80,
         "cap_colture_dedicate_pct": 20
       },
-      "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2024/10/17/24A04836/sg",
-      "note": "DM 18/9/2024 pubbl. GU n.244 del 17/10/2024. Hard cap 300 kWe. Richiede >=80% sottoprodotti/effluenti per premio matrice."
+      "fonte_url": "https://www.gazzettaufficiale.it/eli/id/2024/avviso/24A04589/sg",
+      "note": "DM 19/06/2024 (FER 2): avviso pubblicato in GU con codice redazionale 24A04589; regole operative GSE pubblicate con codice 24A06795. Hard cap 300 kWe. Richiede >=80% sottoprodotti/effluenti per premio matrice."
     },
     {
       "id": "gse_lg_biometano_2024",
@@ -235,7 +239,6 @@
     }
   ],
   "aggiornamenti_pendenti": [
-    "Verificare URL definitivo D.Lgs. 5/2026 su GU (se pubblicato con altro numero)",
     "Aggiungere RT-31 Accredia (accreditamento calcolo GHG biometano)",
     "Monitorare eventuale DM luglio/agosto 2025 su rinnovabili"
   ]

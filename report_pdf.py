@@ -273,7 +273,7 @@ def _build_cover(ctx, styles):
         cap = ctx.get("fer2_kwe_cap", 300)
         qual = ("matrice OK ≥soglia"
                 if ctx.get("fer2_qualified") else "matrice INSUFFICIENTE")
-        mode_label = (f"Biogas CHP — FER 2 (DM 18/9/2024) · "
+        mode_label = (f"Biogas CHP — FER 2 (DM 19/06/2024) · "
                       f"≤{cap:.0f} kWe · {qual}")
     elif ctx["IS_CHP"]:
         mode_label = "Biogas — Cogenerazione (CHP) · DM 6/7/2012"
@@ -496,7 +496,7 @@ def _build_executive_summary(ctx, styles):
                 f"CAR +{_fmt_it(ctx['fer2_premio_car_eur'], 0)} €/MWh")
         premi_full = (" + " + " + ".join(premi_str)) if premi_str else ""
         bullets.append(
-            f"• <b>FER 2 (DM 18/9/2024, ≤{_fmt_it(ctx.get('fer2_kwe_cap', 300), 0)} kWe)</b>: "
+            f"• <b>FER 2 (DM 19/06/2024, ≤{_fmt_it(ctx.get('fer2_kwe_cap', 300), 0)} kWe)</b>: "
             f"sottoprodotti in massa "
             f"<b>{_fmt_it(ctx.get('fer2_subprod_share', 0)*100, 1, '%')}</b> "
             f"(soglia {_fmt_it(ctx.get('fer2_matrice_threshold', 0.8)*100, 0, '%')}) → "
@@ -542,7 +542,7 @@ def _build_plant_config(ctx, styles):
     ]
     if ctx["IS_CHP"]:
         regime_chp = (
-            f"Biogas CHP — FER 2 (DM 18/9/2024) · cap "
+            f"Biogas CHP — FER 2 (DM 19/06/2024) · cap "
             f"{_fmt_it(ctx.get('fer2_kwe_cap', 300), 0)} kWe"
             if ctx.get("IS_FER2") else
             "Biogas → Cogenerazione (CHP) · DM 6/7/2012 (≤1 MW)"
@@ -892,7 +892,7 @@ def _build_revenue(ctx, styles):
     # Revenue summary card
     if ctx.get("IS_FER2"):
         rev_caption = (
-            f"<b>Calcolo FER 2 (DM 18/9/2024, ≤"
+            f"<b>Calcolo FER 2 (DM 19/06/2024, ≤"
             f"{_fmt_it(ctx.get('fer2_kwe_cap', 300), 0)} kWe)</b> · "
             f"MWh_el lordi = MWh_CH₄ × η_el "
             f"({_fmt_it(ctx['eta_el']*100, 0, '%')}) · "
@@ -1184,7 +1184,7 @@ def _build_methodology(ctx, styles):
          "80% biometano nuovi ≥ 20/11/2023, 65% biocarburanti trasporti, "
          "80% elettricità CHP. Comparator fossile: 80 gCO₂/MJ "
          "(rete/calore), 94 (trasporti), 183 (elettricità EU mix)."),
-        ("D.Lgs. 199/2021 + D.Lgs. 5 marzo 2026",
+        ("D.Lgs. 199/2021 + D.Lgs. 9 gennaio 2026, n. 5 (GU n. 15 del 20/01/2026, vigore 04/02/2026)",
          "Recepimento RED II e RED III. Disposizioni nazionali sui "
          "criteri di sostenibilità per biomasse, biogas e biometano. "
          "Schemi di certificazione GSE (ISCC, REDcert, 2BSvs)."),

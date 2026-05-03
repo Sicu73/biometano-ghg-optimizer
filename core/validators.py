@@ -74,7 +74,7 @@ def validate_plant_config(
         if app_mode == "biogas_chp_fer2" and plant_kwe > 300.0:
             errors.append(
                 f"FER 2: potenza CHP ({plant_kwe} kWe) supera il cap normativo 300 kWe "
-                "(DM 18/9/2024 art. 4)."
+                "(DM 19/06/2024 art. 4)."
             )
 
     is_valid = len(errors) == 0
