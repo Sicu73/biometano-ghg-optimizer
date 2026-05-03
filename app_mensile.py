@@ -42,7 +42,21 @@ from bmt_override import (
     BMT_DEVIATION_WARN_THRESHOLD,
     YIELD_UNIT as BMT_YIELD_UNIT,
     SOURCE_BMT,
-    SOURCE_STD,
+    SOURCE_STD as BMT_SOURCE_STD,
+)
+
+# ── Override fattori emissivi reali da relazione tecnica ────────────────────
+from emission_factors_override import (
+    EmissionFactorReport,
+    validate_real_emission_factor_override,
+    resolve_emission_factors,
+    build_emission_factor_audit_row,
+    calculate_emission_total,
+    ALLOWED_REPORT_EXTS,
+    EMISSION_DEVIATION_WARN_THRESHOLD,
+    EMISSION_UNIT,
+    SOURCE_REAL as EF_SOURCE_REAL,
+    SOURCE_STD as EF_SOURCE_STD,
 )
 
 # ============================================================
@@ -1164,16 +1178,68 @@ MONTH_HOURS = [744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]
 # ============================================================
 # FUNZIONI DI CALCOLO
 # ============================================================
-def e_total_feedstock(name: str, ep: float = 0.0) -> float:
+# ============================================================
+# OVERRIDE FATTORI EMISSIVI REALI — runtime cache
+# ============================================================
+# `_EMISSION_OVERRIDES` viene popolato dalla UI sidebar all'inizio di
+# ogni Streamlit run, DOPO che l'utente ha caricato eventuali relazioni
+# tecniche (vedi emission_factors_override.py). Tutte le funzioni di
+# calcolo (e_total_feedstock, ghg_summary, solve_*, lp_optimize) e i
+# siti di display (database UI, audit, export) leggono i fattori
+# tramite e_total_feedstock() / _emission_factors_of() che consulta
+# automaticamente l'override quando attivo. La tabella standard
+# FEEDSTOCK_DB NON viene mai modificata.
+#
+# Struttura: {name: {"eec":..., "esca":..., "etd":..., "ep":...,
+#                    "extra":..., "source": str, "e_total": float}}
+_EMISSION_OVERRIDES: dict[str, dict] = {}
+
+
+def _emission_factors_of(name: str, ep_default: float = 0.0) -> dict:
+    """Fattori emissivi effettivi per una biomassa.
+
+    Se esiste un override REALE attivo (relazione tecnica caricata),
+    ritorna una COPIA dei fattori reali (la cache non viene mai
+    mutata da chiamanti esterni). Altrimenti ritorna i fattori
+    standard tabellari (FEEDSTOCK_DB) + ep impianto-wide.
+
+    Output dict: eec, esca, etd, ep, extra, source.
     """
-    Emissioni totali gCO2eq/MJ biometano per singolo feedstock.
-    Formula RED III semplificata: E = eec + ep + etd - esca
-      (el, eu, eccs, eccr = 0 per biometano da residui/colture dedicate IT)
-    ep: contributo impiantistico (processing), da configuratore impianto
-        [digestato + upgrading + off-gas + calore + elettricita' ausiliari].
-    """
+    if name in _EMISSION_OVERRIDES:
+        # Defensive shallow copy: previene che eventuali mutazioni nei
+        # consumer (display, audit, etc.) corrompano la cache runtime.
+        return dict(_EMISSION_OVERRIDES[name])
     d = FEEDSTOCK_DB[name]
-    return d["eec"] + ep + d["etd"] - d["esca"]
+    return {
+        "eec":   float(d["eec"]),
+        "esca":  float(d["esca"]),
+        "etd":   float(d["etd"]),
+        "ep":    float(ep_default),
+        "extra": 0.0,
+        "source": EF_SOURCE_STD,
+    }
+
+
+def e_total_feedstock(name: str, ep: float = 0.0) -> float:
+    """Emissioni totali gCO2eq/MJ per singolo feedstock.
+
+    Formula coerente in tutto il software:
+        e_total = eec + etd + ep - esca - crediti_extra
+
+    Convenzione segno:
+      - eec puo' essere negativo (manure credit gia' incorporato)
+      - esca e' un credito positivo SOTTRATTO una sola volta
+      - crediti_extra: crediti AGGIUNTIVI dichiarati nella relazione
+        tecnica (default 0); MAI doppia sottrazione di voci gia' in esca
+
+    Se l'utente ha attivato un override REALE da relazione tecnica
+    per questa biomassa, usa i valori reali. Altrimenti usa i
+    valori standard FEEDSTOCK_DB[name] e ep impianto-wide passato.
+    """
+    f = _emission_factors_of(name, ep)
+    return calculate_emission_total(
+        f["eec"], f["esca"], f["etd"], f["ep"], f.get("extra", 0.0)
+    )
 
 
 def ghg_summary(masses: dict, aux: float, ep: float = 0.0,
@@ -2513,6 +2579,281 @@ with st.sidebar:
             f"completa di laboratorio, certificato, data e campione."
         )
 
+    # ============================================================
+    # FATTORI EMISSIVI REALI — Override da relazione tecnica
+    # ============================================================
+    # Per ogni biomassa l'utente puo' attivare un override dei fattori
+    # emissivi standard (eec, esca, etd, ep + crediti extra) usando i
+    # valori dichiarati in una RELAZIONE TECNICA dell'impianto. Vincoli:
+    #   - relazione tecnica OBBLIGATORIA (PDF/DOCX/XLSX/CSV/JPG/PNG)
+    #   - tutti i fattori numerici, finiti, segno corretto
+    #   - metadati relazione obbligatori (titolo, autore, societa',
+    #     data, impianto, riferimento campione)
+    #   - warning se uno qualsiasi dei fattori scosta >+/-30%
+    # La tabella standard NON viene mai modificata. L'override e'
+    # tracciato solo per la singola biomassa.
+    if "emission_factor_overrides" not in st.session_state:
+        st.session_state["emission_factor_overrides"] = {}
+
+    with st.expander(
+        _t("🧬 Fattori emissivi reali da relazione tecnica (opzionale)"),
+        expanded=False,
+    ):
+        st.caption(
+            "Per ciascuna biomassa attiva puoi sostituire i fattori emissivi "
+            "standard tabellari (eec / esca / etd / ep) con i valori REALI "
+            "dichiarati nella relazione tecnica dell'impianto. La relazione "
+            "e' OBBLIGATORIA: senza file caricato l'override non viene "
+            "applicato e viene mostrato un errore. I valori reali si "
+            "applicano SOLO alla biomassa selezionata. Soglia warning di "
+            f"scostamento: +/-{int(EMISSION_DEVIATION_WARN_THRESHOLD*100)}%. "
+            f"Formula coerente: e_total = eec + etd + ep - esca - crediti_extra."
+        )
+
+        # Cleanup: rimuovi override per biomasse non piu' attive
+        for _stale in list(st.session_state["emission_factor_overrides"].keys()):
+            if _stale not in active_feeds:
+                st.session_state["emission_factor_overrides"].pop(_stale, None)
+
+        for _ef_name in active_feeds:
+            _d_std = FEEDSTOCK_DB[_ef_name]
+            _eec_std = float(_d_std["eec"])
+            _esca_std = float(_d_std["esca"])
+            _etd_std = float(_d_std["etd"])
+
+            _key_active  = f"ef_active__{_ef_name}"
+            _key_eec     = f"ef_eec__{_ef_name}"
+            _key_esca    = f"ef_esca__{_ef_name}"
+            _key_etd     = f"ef_etd__{_ef_name}"
+            _key_ep      = f"ef_ep__{_ef_name}"
+            _key_extra   = f"ef_extra__{_ef_name}"
+            _key_title   = f"ef_title__{_ef_name}"
+            _key_author  = f"ef_author__{_ef_name}"
+            _key_company = f"ef_company__{_ef_name}"
+            _key_date    = f"ef_date__{_ef_name}"
+            _key_plant   = f"ef_plant__{_ef_name}"
+            _key_sample  = f"ef_sample__{_ef_name}"
+            _key_notes   = f"ef_notes__{_ef_name}"
+            _key_report  = f"ef_report__{_ef_name}"
+
+            _ef_active = st.checkbox(
+                f"🧬 {_ef_name}  ·  usa fattori emissivi reali da relazione "
+                f"(std: eec={fmt_it(_eec_std, 1, signed=True)}, "
+                f"esca={fmt_it(_esca_std, 1)}, etd={fmt_it(_etd_std, 1)} {EMISSION_UNIT})",
+                key=_key_active,
+                value=st.session_state.get(_key_active, False),
+                help=(
+                    f"Se attivata, i fattori emissivi standard di **{_ef_name}** "
+                    f"saranno sostituiti dai valori dichiarati nella relazione "
+                    f"tecnica dell'impianto. La relazione tecnica e' obbligatoria."
+                ),
+            )
+
+            if not _ef_active:
+                st.session_state["emission_factor_overrides"].pop(_ef_name, None)
+                continue
+
+            with st.container():
+                _ef_c1, _ef_c2 = st.columns([1, 1])
+                with _ef_c1:
+                    _ef_eec = st.number_input(
+                        f"eec reale [{EMISSION_UNIT}]",
+                        min_value=-200.0, max_value=300.0,
+                        value=float(st.session_state.get(_key_eec, _eec_std)),
+                        step=0.1, format="%.2f", key=_key_eec,
+                        help="Emissioni eec dichiarate nella relazione tecnica. Puo' essere negativo (manure credit gia' incorporato).",
+                    )
+                    _ef_esca = st.number_input(
+                        f"esca reale [{EMISSION_UNIT}] (credito, positivo)",
+                        min_value=0.0, max_value=200.0,
+                        value=float(st.session_state.get(_key_esca, _esca_std)),
+                        step=0.1, format="%.2f", key=_key_esca,
+                        help="Credito esca: dichiarato come valore positivo, sottratto da e_total.",
+                    )
+                    _ef_etd = st.number_input(
+                        f"etd reale [{EMISSION_UNIT}]",
+                        min_value=0.0, max_value=50.0,
+                        value=float(st.session_state.get(_key_etd, _etd_std)),
+                        step=0.1, format="%.2f", key=_key_etd,
+                    )
+                with _ef_c2:
+                    _ef_ep = st.number_input(
+                        f"ep reale [{EMISSION_UNIT}] (per-biomassa)",
+                        min_value=0.0, max_value=200.0,
+                        value=float(st.session_state.get(_key_ep, 0.0)),
+                        step=0.1, format="%.2f", key=_key_ep,
+                        help="Emissioni di processo dichiarate nella relazione (sostituisce l'ep impianto-wide per questa biomassa).",
+                    )
+                    _ef_extra = st.number_input(
+                        f"Crediti emissivi extra [{EMISSION_UNIT}]",
+                        min_value=0.0, max_value=200.0,
+                        value=float(st.session_state.get(_key_extra, 0.0)),
+                        step=0.1, format="%.2f", key=_key_extra,
+                        help="Crediti AGGIUNTIVI dichiarati nella relazione (NON gia' inclusi in esca). Default 0. NON sottrarre due volte la stessa voce.",
+                    )
+
+                _ef_t1, _ef_t2 = st.columns([1, 1])
+                with _ef_t1:
+                    _ef_title = st.text_input(
+                        "Titolo relazione",
+                        value=st.session_state.get(_key_title, ""),
+                        key=_key_title,
+                    )
+                    _ef_author = st.text_input(
+                        "Autore / tecnico redattore",
+                        value=st.session_state.get(_key_author, ""),
+                        key=_key_author,
+                    )
+                    _ef_company = st.text_input(
+                        "Societa' / studio tecnico",
+                        value=st.session_state.get(_key_company, ""),
+                        key=_key_company,
+                    )
+                    _ef_date = st.text_input(
+                        "Data relazione (YYYY-MM-DD)",
+                        value=st.session_state.get(_key_date, ""),
+                        key=_key_date,
+                    )
+                with _ef_t2:
+                    _ef_plant = st.text_input(
+                        "Impianto di riferimento",
+                        value=st.session_state.get(_key_plant, ""),
+                        key=_key_plant,
+                    )
+                    _ef_sample = st.text_input(
+                        "Riferimento campione / lotto",
+                        value=st.session_state.get(_key_sample, ""),
+                        key=_key_sample,
+                    )
+                    _ef_notes = st.text_area(
+                        "Note metodologiche (opzionale)",
+                        value=st.session_state.get(_key_notes, ""),
+                        key=_key_notes, height=68,
+                        help="Metodo dichiarato nella relazione: es. RED III All. V Parte C, JEC v5, ISCC, REDcert, ecc.",
+                    )
+
+                _ef_report_file = st.file_uploader(
+                    f"📎 Relazione tecnica — {_ef_name} "
+                    f"(formati: {', '.join(e.lstrip('.').upper() for e in ALLOWED_REPORT_EXTS)})",
+                    type=[e.lstrip(".") for e in ALLOWED_REPORT_EXTS],
+                    key=_key_report,
+                    accept_multiple_files=False,
+                    help="Carica la relazione tecnica dell'impianto. OBBLIGATORIO.",
+                )
+
+                _r_uploaded = _ef_report_file is not None
+                _r_name = _ef_report_file.name if _r_uploaded else ""
+                _r_size = _ef_report_file.size if _r_uploaded else 0
+
+                # NB: standard_factors NON include 'ep' perche' ep_total
+                # impianto-wide non e' ancora computato in sidebar; il
+                # warning di scostamento per ep verrebbe spurio. Il check
+                # del range plausibilita' su ep_real resta attivo.
+                _ef_valid, _ef_errs, _ef_warns = validate_real_emission_factor_override(
+                    biomass_name=_ef_name,
+                    eec_real=_ef_eec, esca_real=_ef_esca,
+                    etd_real=_ef_etd, ep_real=_ef_ep,
+                    extra_credits_real=_ef_extra,
+                    standard_factors={"eec": _eec_std, "esca": _esca_std,
+                                       "etd": _etd_std},
+                    report_uploaded=_r_uploaded,
+                    report_filename=_r_name,
+                    report_title=_ef_title,
+                    author_name=_ef_author,
+                    company_name=_ef_company,
+                    report_date=_ef_date,
+                    plant_reference=_ef_plant,
+                    sample_lot_ref=_ef_sample,
+                    methodology_notes=_ef_notes,
+                )
+
+                for _e in _ef_errs:
+                    st.error(f"❌ {_e}")
+                for _w in _ef_warns:
+                    st.warning(f"⚠️ {_w}")
+
+                if _ef_valid:
+                    _ef_report_obj = EmissionFactorReport(
+                        biomass_name=_ef_name,
+                        eec_real=float(_ef_eec),
+                        esca_real=float(_ef_esca),
+                        etd_real=float(_ef_etd),
+                        ep_real=float(_ef_ep),
+                        extra_credits_real=float(_ef_extra),
+                        report_title=_ef_title.strip(),
+                        author_name=_ef_author.strip(),
+                        company_name=_ef_company.strip(),
+                        report_date=_ef_date.strip(),
+                        plant_reference=_ef_plant.strip(),
+                        sample_lot_ref=_ef_sample.strip(),
+                        methodology_notes=_ef_notes.strip(),
+                        report_filename=_r_name,
+                        report_size_bytes=int(_r_size),
+                        unit=EMISSION_UNIT,
+                    )
+                    st.session_state["emission_factor_overrides"][_ef_name] = {
+                        "active": True, "report": _ef_report_obj,
+                    }
+                    _e_t = calculate_emission_total(
+                        _ef_eec, _ef_esca, _ef_etd, _ef_ep, _ef_extra)
+                    st.success(
+                        f"✅ Override fattori reali ATTIVO per **{_ef_name}** "
+                        f"·  e_total = {fmt_it(_e_t, 2)} {EMISSION_UNIT} "
+                        f"·  Relazione: {_r_name} ({_ef_company} / {_ef_date})"
+                    )
+                else:
+                    st.session_state["emission_factor_overrides"].pop(_ef_name, None)
+                    st.error(
+                        f"⛔ Override fattori reali NON applicato per **{_ef_name}**: "
+                        f"valori standard restano in uso "
+                        f"(eec={fmt_it(_eec_std, 1, signed=True)} {EMISSION_UNIT})."
+                    )
+                st.markdown("---")
+
+    # ============================================================
+    # Popola _EMISSION_OVERRIDES da session_state per i calcoli
+    # ============================================================
+    _EMISSION_OVERRIDES.clear()
+    _emission_audit_rows: list[dict] = []
+    for _ef_n in active_feeds:
+        _std_d = FEEDSTOCK_DB[_ef_n]
+        _std_factors = {
+            "eec":  float(_std_d["eec"]),
+            "esca": float(_std_d["esca"]),
+            "etd":  float(_std_d["etd"]),
+            "ep":   0.0,  # ep impianto-wide aggiunto in fase di audit display
+        }
+        _resolved = resolve_emission_factors(
+            _ef_n, _std_factors, ep_default=0.0,
+            overrides=st.session_state["emission_factor_overrides"],
+        )
+        if _resolved["override_active"]:
+            _EMISSION_OVERRIDES[_ef_n] = {
+                "eec":   _resolved["eec_used"],
+                "esca":  _resolved["esca_used"],
+                "etd":   _resolved["etd_used"],
+                "ep":    _resolved["ep_used"],
+                "extra": _resolved["extra_credits_used"],
+                "source": _resolved["source"],
+            }
+        _emission_audit_rows.append(
+            build_emission_factor_audit_row(_resolved)
+        )
+
+    _ef_n_active = sum(
+        1 for r in _emission_audit_rows
+        if r["Origine fattori"] == EF_SOURCE_REAL
+    )
+    if _ef_n_active > 0:
+        st.info(
+            f"🧬 **{_ef_n_active}** override fattori emissivi reali attivi su "
+            f"**{len(active_feeds)}** biomasse. I fattori reali sostituiscono "
+            f"quelli standard SOLO per le biomasse indicate; tutti i calcoli "
+            f"(saving GHG, e_total, validita') e tutti gli export (CSV / "
+            f"Excel / PDF) usano i valori reali con tracciabilita' completa "
+            f"(titolo relazione, autore, societa', data, impianto, campione)."
+        )
+
     st.divider()
     st.header(_t("⚙️ Parametri impianto"))
 
@@ -3290,10 +3631,15 @@ with st.sidebar:
 
     st.divider()
     st.header(f"📋 Database feedstock attivi ({len(active_feeds)}/{len(FEED_NAMES)})")
+    # Refresh _EMISSION_OVERRIDES con ep_total impianto-wide per fattori
+    # standard non-overridden (cosi' ep e' coerente nella tabella display)
     rows = []
     for n in active_feeds:
         d = FEEDSTOCK_DB[n]
+        # Fattori effettivi (override real se attivo, altrimenti standard)
+        f_used = _emission_factors_of(n, ep_total)
         e_tot = e_total_feedstock(n, ep_total)
+        is_real = (f_used.get("source") == EF_SOURCE_REAL)
         rows.append({
             "Feedstock": n,
             "Categoria": d.get("cat", ""),
@@ -3302,28 +3648,37 @@ with st.sidebar:
             "ep": ep_total,
             "etd": d["etd"],
             "esca": d["esca"],
+            "Resa (Nm³/t)": d["yield"],
+            "eec":     f_used["eec"],
+            "ep":      f_used["ep"],
+            "etd":     f_used["etd"],
+            "esca":    f_used["esca"],
+            "crediti extra": f_used.get("extra", 0.0),
             "e_total": round(e_tot, 2),
             "saving %": round(
                 (FOSSIL_COMPARATOR - e_tot) / FOSSIL_COMPARATOR * 100, 1
             ),
+            "Origine fattori": ("🧬 Relazione tecnica" if is_real
+                                 else "📚 Tab. standard"),
         })
     df_feed = pd.DataFrame(rows)
     styled_feed = df_feed.style.format({
-        "Resa (Nm³/t)": lambda v: fmt_it(v, 0),
-        "eec":          lambda v: fmt_it(v, 1, signed=True),
-        "ep":           lambda v: fmt_it(v, 1, signed=True),
-        "etd":          lambda v: fmt_it(v, 1, signed=True),
-        "esca":         lambda v: fmt_it(v, 1, signed=True),
-        "e_total":      lambda v: fmt_it(v, 2, signed=True),
-        "saving %":     lambda v: fmt_it(v, 1, "%"),
+        "Resa (Nm³/t)":   lambda v: fmt_it(v, 0),
+        "eec":            lambda v: fmt_it(v, 1, signed=True),
+        "ep":             lambda v: fmt_it(v, 1, signed=True),
+        "etd":            lambda v: fmt_it(v, 1, signed=True),
+        "esca":           lambda v: fmt_it(v, 1, signed=True),
+        "crediti extra":  lambda v: fmt_it(v, 1),
+        "e_total":        lambda v: fmt_it(v, 2, signed=True),
+        "saving %":       lambda v: fmt_it(v, 1, "%"),
     })
     st.dataframe(styled_feed, hide_index=True, use_container_width=True)
     st.caption(
-        "**Formula RED III**: E = eec + ep + etd − esca. "
-        "Manure credit da −45 a −10 gCO₂/MJ in `eec` per effluenti zootecnici "
-        "(proporzionale a stoccaggio anaerobico evitato, IPCC 2019 Vol.4 Cap.10). "
-        "Fonti: UNI-TS 11567:2024, JEC WTT v5, All. IX RED III, GSE LG 2024. "
-        "Per certificazione finale: sostituire con valori reali d'impianto."
+        "**Formula coerente**: e_total = eec + etd + ep − esca − crediti_extra. "
+        "Origine fattori: 🧬 Relazione tecnica = override REALE attivo per quella biomassa; "
+        "📚 Tab. standard = valori UNI-TS 11567:2024 / JEC WTT v5 / All. IX RED III / GSE LG 2024. "
+        "Manure credit incorporato in `eec` (negativo). I crediti emissivi NON "
+        "vengono mai sottratti due volte (esca e crediti_extra sono voci distinte)."
     )
 
     # ============================================================
@@ -3346,8 +3701,45 @@ with st.sidebar:
         st.caption(
             f"Origine resa = `{SOURCE_BMT}` se l'utente ha caricato un "
             f"certificato valido E ha attivato l'override per quella "
-            f"biomassa; altrimenti `{SOURCE_STD}`. La tabella standard "
+            f"biomassa; altrimenti `{BMT_SOURCE_STD}`. La tabella standard "
             f"NON viene mai modificata."
+        )
+
+    # ============================================================
+    # AUDIT FATTORI EMISSIVI — Tracciabilita' override reali vs standard
+    # ============================================================
+    if _emission_audit_rows:
+        # Allinea ep_standard nei rows con il valore impianto-wide attuale
+        # (resolve_emission_factors era stata chiamata con ep_default=0
+        # perche' ep_total non era ancora computato in sidebar)
+        for _r in _emission_audit_rows:
+            if _r["Origine fattori"] == EF_SOURCE_STD:
+                _r["ep standard"] = float(ep_total)
+                _r["ep usato"] = float(ep_total)
+                # ricalcola e_total con ep_total aggiornato
+                _r["e_total"] = calculate_emission_total(
+                    _r["eec usato"], _r["esca usato"],
+                    _r["etd usato"], _r["ep usato"],
+                    _r.get("Crediti extra", 0.0),
+                )
+
+        st.markdown("##### 🧬 Audit fattori emissivi (relazione tecnica vs standard)")
+        df_ef_audit = pd.DataFrame(_emission_audit_rows)
+        # Format numeric columns
+        df_ef_audit_disp = df_ef_audit.copy()
+        for _c in ("eec standard", "eec usato", "esca standard", "esca usato",
+                    "etd standard", "etd usato", "ep standard", "ep usato",
+                    "Crediti extra", "e_total"):
+            if _c in df_ef_audit_disp.columns:
+                df_ef_audit_disp[_c] = df_ef_audit_disp[_c].apply(
+                    lambda v: fmt_it(v, 2, signed=(_c in ("eec standard", "eec usato", "e_total")))
+                )
+        st.dataframe(df_ef_audit_disp, hide_index=True, use_container_width=True)
+        st.caption(
+            f"Origine = `{EF_SOURCE_REAL}` se l'utente ha caricato la relazione "
+            f"tecnica E ha attivato l'override per quella biomassa; altrimenti "
+            f"`{EF_SOURCE_STD}`. La tabella standard NON viene mai modificata. "
+            f"Soglia warning scostamento: ±{int(EMISSION_DEVIATION_WARN_THRESHOLD*100)}%."
         )
 
 # ------------------------- MODE SELECTOR -------------------------
@@ -4916,6 +5308,9 @@ with _dl_col1:
             # === BMT override audit (resa effettiva vs standard) ===
             "yield_audit_rows":          list(_yield_audit_rows),
             "effective_yields":          dict(_EFFECTIVE_YIELDS),
+            # === Audit fattori emissivi reali (relazione tecnica) ===
+            "emission_audit_rows":       list(_emission_audit_rows),
+            "emission_overrides":        dict(_EMISSION_OVERRIDES),
         })
         _xlsx_buf = build_metaniq_xlsx(_xlsx_ctx)
         _xlsx_data = _xlsx_buf.getvalue()
@@ -5026,6 +5421,9 @@ with _dl_col2:
         # === BMT override audit (resa effettiva vs standard) ===
         "yield_audit_rows": list(_yield_audit_rows),
         "effective_yields": dict(_EFFECTIVE_YIELDS),
+        # === Audit fattori emissivi reali (relazione tecnica) ===
+        "emission_audit_rows": list(_emission_audit_rows),
+        "emission_overrides":  dict(_EMISSION_OVERRIDES),
     }
     try:
         _pdf_buf = build_metaniq_pdf(_pdf_ctx)

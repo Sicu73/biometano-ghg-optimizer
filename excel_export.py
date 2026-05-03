@@ -135,6 +135,14 @@ def build_metaniq_xlsx(ctx: dict, snapshot: bool = False) -> BytesIO:
     # certificato, laboratorio, data, riferimento campione.
     ws_bmt = wb.create_sheet(_t("Audit rese BMT", lang) if lang == "en" else "Audit rese BMT")
     _build_bmt_audit(ws_bmt, ctx, lang=lang)
+    # === Sheet 5: Audit fattori emissivi (override REALI vs standard) ===
+    # Tracciabilita' completa: per ogni biomassa attiva mostra fattori
+    # standard, fattori usati, scostamento %, origine (relazione vs
+    # tabella), metadati relazione (titolo, autore, societa', data,
+    # impianto, riferimento campione, note metodologiche).
+    if ctx.get("emission_audit_rows"):
+        ws_ef = wb.create_sheet("Audit fattori emissivi")
+        _build_emission_audit(ws_ef, ctx, lang=lang)
 
     # Imposta Piano come sheet attiva di default
     wb.active = wb.sheetnames.index(ws_piano.title)  # after i18n rename
@@ -1746,6 +1754,9 @@ def _build_business_plan(ws, ctx, snapshot: bool = False, lang='it'):
     # Freeze: blocca header CE (label + B-K) durante scroll
     ws.freeze_panes = ws[f"C{ce_header_row + 1}"]
 
+    # Freeze: blocca header CE (label + B-K) durante scroll
+    ws.freeze_panes = ws[f"C{ce_header_row + 1}"]
+
 
 # ============================================================
 # Sheet 5 — Audit Rese BMT (override certificati vs tabella standard)
@@ -1895,4 +1906,167 @@ def _build_bmt_audit(ws, ctx, lang="it"):
     c.font = Font(italic=True, size=8, color=SLATE_500)
     c.alignment = Alignment(horizontal="left", wrap_text=True)
     ws.row_dimensions[note_row].height = 30
+
+
+# ============================================================
+# Sheet 6 - Audit Fattori Emissivi (override REALI vs standard)
+# ============================================================
+# ============================================================
+# Sheet 5 - Audit Fattori Emissivi (override REALI vs standard)
+# ============================================================
+def _build_emission_audit(ws, ctx, lang="it"):
+    """Foglio audit fattori emissivi reali da relazione tecnica.
+
+    Mostra, per ogni biomassa attiva: fattori standard (eec/esca/etd/ep),
+    fattori usati nei calcoli, scostamento % (solo se override attivo),
+    crediti extra, e_total, origine, metadati relazione.
+
+    Le righe con override REALE attivo sono evidenziate in giallo amber
+    sulla colonna Origine + colonne fattori usati. La tabella standard
+    NON viene mai modificata: questo foglio serve solo come traccia
+    di compliance.
+    """
+    audit_rows = ctx.get("emission_audit_rows", []) or []
+
+    # Title
+    # Headers: 20 columns (A..T) — merge title across full width
+    ws.merge_cells("A1:T1")
+    c = ws.cell(row=1, column=1,
+                value=("Metan.iQ - Real Emission Factors Audit"
+                       if lang == "en" else
+                       "Metan.iQ - Audit Fattori Emissivi (relazione tecnica vs standard)"))
+    c.font = Font(bold=True, size=14, color=WHITE)
+    c.fill = PatternFill("solid", fgColor=NAVY)
+    c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws.row_dimensions[1].height = 28
+
+    ws.merge_cells("A2:T2")
+    c = ws.cell(row=2, column=1, value=(
+        "Formula: e_total = eec + etd + ep - esca - extra_credits. "
+        "The standard table is never permanently modified by overrides."
+        if lang == "en" else
+        "Formula: e_total = eec + etd + ep - esca - crediti_extra. "
+        "La tabella standard NON viene mai modificata permanentemente."
+    ))
+    c.font = Font(italic=True, size=9, color=SLATE_500)
+    c.alignment = Alignment(horizontal="left", indent=1)
+
+    # Header
+    if lang == "en":
+        headers = [
+            "Feedstock", "Source", "eec std", "eec used", "eec dev.%",
+            "esca std", "esca used", "etd std", "etd used",
+            "ep std", "ep used", "extra credits", "e_total",
+            "Tech. report", "Author", "Company", "Date",
+            "Plant ref.", "Sample ref.", "Methodology notes",
+        ]
+    else:
+        headers = [
+            "Biomassa", "Origine", "eec std", "eec usato", "eec scost.%",
+            "esca std", "esca usato", "etd std", "etd usato",
+            "ep std", "ep usato", "Crediti extra", "e_total",
+            "Relazione", "Autore", "Societa'", "Data",
+            "Impianto", "Rif. campione", "Note metodol.",
+        ]
+    header_row = 4
+    for col, h in enumerate(headers, start=1):
+        c = ws.cell(row=header_row, column=col, value=h)
+        _style_header(c)
+    ws.row_dimensions[header_row].height = 36
+
+    # Data rows
+    if not audit_rows:
+        ws.merge_cells(start_row=header_row + 1, start_column=1,
+                       end_row=header_row + 1, end_column=len(headers))
+        c = ws.cell(row=header_row + 1, column=1,
+                    value=("No active feedstock." if lang == "en"
+                           else "Nessuna biomassa attiva."))
+        c.font = Font(italic=True, color=SLATE_500)
+        c.alignment = Alignment(horizontal="center")
+    else:
+        for i, r in enumerate(audit_rows, start=header_row + 1):
+            cells = [
+                r.get("Biomassa", ""),
+                r.get("Origine fattori", ""),
+                float(r.get("eec standard", 0.0)),
+                float(r.get("eec usato", 0.0)),
+                r.get("eec scost. %", ""),
+                float(r.get("esca standard", 0.0)),
+                float(r.get("esca usato", 0.0)),
+                float(r.get("etd standard", 0.0)),
+                float(r.get("etd usato", 0.0)),
+                float(r.get("ep standard", 0.0)),
+                float(r.get("ep usato", 0.0)),
+                float(r.get("Crediti extra", 0.0)),
+                float(r.get("e_total", 0.0)),
+                r.get("Relazione tecnica", "-"),
+                r.get("Autore", "-"),
+                r.get("Societa'", "-"),
+                r.get("Data relazione", "-"),
+                r.get("Impianto rif.", "-"),
+                r.get("Riferimento campione", "-"),
+                r.get("Note metodologiche", "-"),
+            ]
+            for col, val in enumerate(cells, start=1):
+                c = ws.cell(row=i, column=col, value=val)
+                _style_readonly(c)
+                # Numeric formatting per columns
+                if col in (3, 4):
+                    c.number_format = "+0.00;-0.00"
+                elif col in (6, 7, 8, 9, 10, 11, 12):
+                    c.number_format = "0.00"
+                elif col == 13:  # e_total
+                    c.number_format = "+0.00;-0.00"
+                c.alignment = Alignment(
+                    horizontal="left" if col in (1, 2, 5, 14, 15, 16, 17, 18, 19, 20)
+                    else "right",
+                    vertical="center",
+                )
+
+            # Highlight rows with REAL override
+            origin = str(r.get("Origine fattori", ""))
+            if "Relazione" in origin or "elaz" in origin.lower():
+                for col in (2, 4, 7, 9, 11, 12, 13):
+                    cell = ws.cell(row=i, column=col)
+                    cell.fill = PatternFill("solid", fgColor=AMBER_BG)
+                    cell.font = Font(bold=True, color=AMBER_DK)
+
+    # Column widths
+    widths = [
+        ("A", 26), ("B", 28), ("C", 11), ("D", 11), ("E", 12),
+        ("F", 11), ("G", 11), ("H", 11), ("I", 11),
+        ("J", 11), ("K", 11), ("L", 13), ("M", 11),
+        ("N", 22), ("O", 18), ("P", 18), ("Q", 12),
+        ("R", 22), ("S", 18), ("T", 28),
+    ]
+    for col, w in widths:
+        ws.column_dimensions[col].width = w
+    ws.freeze_panes = ws[f"A{header_row + 1}"]
+
+    # Footer
+    note_row = header_row + max(len(audit_rows), 1) + 2
+    ws.merge_cells(start_row=note_row, start_column=1,
+                   end_row=note_row, end_column=len(headers))
+    note = (
+        "Real Emission Factors override: technical-report values replace "
+        "the internal standard table for the specific feedstock only. "
+        "Standard table is never modified. Warning issued if a real factor "
+        "deviates more than +/-30% from standard. Validation rules: report "
+        "file mandatory (PDF/DOCX/XLSX/CSV/JPG/PNG); numeric finite values; "
+        "esca/etd/ep/extra_credits >= 0; complete metadata; biomass-bound."
+        if lang == "en" else
+        "Override Fattori Emissivi Reali: i valori dichiarati nella relazione "
+        "tecnica sostituiscono la tabella standard interna SOLO per la "
+        "biomassa specifica. La tabella standard non viene mai modificata. "
+        "Warning se un fattore reale scosta oltre +/-30% dallo standard. "
+        "Regole di validazione: relazione tecnica obbligatoria "
+        "(PDF/DOCX/XLSX/CSV/JPG/PNG); valori numerici finiti; "
+        "esca/etd/ep/crediti_extra >= 0; metadati completi; "
+        "fattori applicati solo alla biomassa associata."
+    )
+    c = ws.cell(row=note_row, column=1, value=note)
+    c.font = Font(italic=True, size=8, color=SLATE_500)
+    c.alignment = Alignment(horizontal="left", wrap_text=True)
+    ws.row_dimensions[note_row].height = 60
+
 

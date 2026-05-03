@@ -1400,6 +1400,195 @@ def _build_bmt_audit(ctx, styles):
     return flow
 
 
+def _build_emission_audit(ctx, styles):
+    """Sezione PDF: Audit fattori emissivi REALI da relazione tecnica.
+
+    Mostra una tabella compatta con: Biomassa, Origine, fattori
+    standard vs usati, scostamento, e_total, metadati relazione.
+    Sezione inclusa SEMPRE per tracciabilita' compliance.
+    """
+    s = styles
+    flow = []
+    is_en = ctx.get("_lang") == "en"
+    audit_rows = ctx.get("emission_audit_rows", []) or []
+
+    flow.append(Paragraph("// EMISSION FACTORS AUDIT", s["eyebrow"]))
+    flow.append(Paragraph(
+        "Real emission factors audit (technical report vs standard)" if is_en
+        else "Audit fattori emissivi reali (relazione tecnica vs standard)",
+        s["h2"],
+    ))
+    flow.append(Spacer(1, 3 * mm))
+
+    n_overrides = sum(
+        1 for r in audit_rows
+        if "Relazione" in str(r.get("Origine fattori", ""))
+        or "Real" in str(r.get("Origine fattori", ""))
+        or "elaz" in str(r.get("Origine fattori", "")).lower()
+    )
+
+    # Spiegazione metodologica
+    if n_overrides > 0:
+        meth = (
+            f"Real emission factors from technical report were applied to "
+            f"{n_overrides} of {len(audit_rows)} active feedstocks. For these "
+            f"feedstocks the values declared in the uploaded technical report "
+            f"replace the internal standard table values in all calculations "
+            f"(saving GHG, e_total, monthly validity, revenue). The standard "
+            f"table is never permanently modified. Formula: "
+            f"<b>e_total = eec + etd + ep - esca - extra_credits</b>. Credits "
+            f"are subtracted only once (esca and extra_credits are distinct "
+            f"slots, no double-counting)."
+            if is_en else
+            f"Sono stati applicati fattori emissivi reali da relazione tecnica "
+            f"per {n_overrides} delle {len(audit_rows)} biomasse attive. Per "
+            f"tali biomasse i valori dichiarati nella relazione tecnica caricata "
+            f"sostituiscono i valori standard tabellari nei calcoli emissivi "
+            f"previsionali (saving GHG, e_total, validita' mensile, ricavi). "
+            f"La tabella standard NON viene mai modificata in modo permanente. "
+            f"Formula: <b>e_total = eec + etd + ep - esca - crediti_extra</b>. "
+            f"I crediti vengono sottratti UNA SOLA VOLTA (esca e crediti_extra "
+            f"sono voci distinte, nessuna doppia sottrazione)."
+        )
+    else:
+        meth = (
+            f"All {len(audit_rows)} active feedstocks use the internal standard "
+            f"emission factors (UNI/TS 11567:2024 / JEC WTT v5 / Annex IX RED III "
+            f"/ GSE LG 2024). No technical report override is currently active. "
+            f"Formula: <b>e_total = eec + etd + ep - esca</b>."
+            if is_en else
+            f"Tutte le {len(audit_rows)} biomasse attive utilizzano i fattori "
+            f"emissivi standard interni (UNI/TS 11567:2024 / JEC WTT v5 / "
+            f"All. IX RED III / GSE LG 2024). Nessun override da relazione "
+            f"tecnica e' attualmente attivo. Formula: "
+            f"<b>e_total = eec + etd + ep - esca</b>."
+        )
+    flow.append(Paragraph(meth, s["body"]))
+    flow.append(Spacer(1, 4 * mm))
+
+    if not audit_rows:
+        flow.append(Paragraph(
+            "No active feedstocks." if is_en else "Nessuna biomassa attiva.",
+            s["body"],
+        ))
+        return flow
+
+    # Tabella riassuntiva: una riga per biomassa con fattori principali
+    if is_en:
+        headers = [
+            "Feedstock", "Source", "eec used", "etd", "ep",
+            "esca", "Extra cr.", "e_total", "Report",
+        ]
+    else:
+        headers = [
+            "Biomassa", "Origine", "eec usato", "etd", "ep",
+            "esca", "Cred. extra", "e_total", "Relazione",
+        ]
+    rows = [headers]
+    for r in audit_rows:
+        rows.append([
+            str(r.get("Biomassa", ""))[:22],
+            ("Real lab" if "Relazione" in str(r.get("Origine fattori", "")) else "Standard"),
+            _fmt_it(r.get("eec usato", 0.0), 2, signed=True),
+            _fmt_it(r.get("etd usato", 0.0), 2),
+            _fmt_it(r.get("ep usato", 0.0), 2),
+            _fmt_it(r.get("esca usato", 0.0), 2),
+            _fmt_it(r.get("Crediti extra", 0.0), 2),
+            _fmt_it(r.get("e_total", 0.0), 2, signed=True),
+            str(r.get("Relazione tecnica", "-"))[:18],
+        ])
+
+    col_widths = [
+        32 * mm, 18 * mm, 18 * mm, 14 * mm, 14 * mm,
+        14 * mm, 18 * mm, 18 * mm, 24 * mm,
+    ]
+    tbl = Table(rows, colWidths=col_widths, repeatRows=1)
+    style_cmds = [
+        ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+        ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
+        ("FONTNAME", (0, 0), (-1, 0), "Courier-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 7),
+        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+        ("TOPPADDING", (0, 0), (-1, 0), 6),
+        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 1), (-1, -1), 7),
+        ("ALIGN", (2, 1), (7, -1), "RIGHT"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 1), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 4),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, SLATE_50]),
+        ("GRID", (0, 0), (-1, -1), 0.25, SLATE_200),
+    ]
+    for i, r in enumerate(audit_rows, start=1):
+        if "Relazione" in str(r.get("Origine fattori", "")):
+            style_cmds.append(("BACKGROUND", (1, i), (1, i), AMBER_BG))
+            style_cmds.append(("TEXTCOLOR", (1, i), (1, i), AMBER_DK))
+            style_cmds.append(("FONTNAME", (1, i), (1, i), "Helvetica-Bold"))
+            style_cmds.append(("FONTNAME", (7, i), (7, i), "Helvetica-Bold"))
+    tbl.setStyle(TableStyle(style_cmds))
+    flow.append(tbl)
+
+    # Sezione metadati relazione (solo per biomasse con override REALE)
+    real_rows = [
+        r for r in audit_rows
+        if "Relazione" in str(r.get("Origine fattori", ""))
+    ]
+    if real_rows:
+        flow.append(Spacer(1, 6 * mm))
+        flow.append(Paragraph(
+            "Technical report metadata (per feedstock with active override):"
+            if is_en else
+            "Metadati relazioni tecniche (per ciascuna biomassa con override attivo):",
+            s["h3"],
+        ))
+        flow.append(Spacer(1, 2 * mm))
+        for r in real_rows:
+            meta = (
+                f"<b>{r.get('Biomassa', '')}</b> &mdash; "
+                f"Report: {r.get('Relazione tecnica', '-')} &middot; "
+                f"Title: {r.get('Titolo relazione', '-')} &middot; "
+                f"Author: {r.get('Autore', '-')} ({r.get('Societa\'', '-')}) &middot; "
+                f"Date: {r.get('Data relazione', '-')} &middot; "
+                f"Plant: {r.get('Impianto rif.', '-')} &middot; "
+                f"Sample: {r.get('Riferimento campione', '-')}"
+                if is_en else
+                f"<b>{r.get('Biomassa', '')}</b> &mdash; "
+                f"Relazione: {r.get('Relazione tecnica', '-')} &middot; "
+                f"Titolo: {r.get('Titolo relazione', '-')} &middot; "
+                f"Autore: {r.get('Autore', '-')} ({r.get('Societa\'', '-')}) &middot; "
+                f"Data: {r.get('Data relazione', '-')} &middot; "
+                f"Impianto: {r.get('Impianto rif.', '-')} &middot; "
+                f"Campione: {r.get('Riferimento campione', '-')}"
+            )
+            flow.append(Paragraph(meta, s["body"]))
+            notes = r.get("Note metodologiche", "")
+            if notes and notes != "-":
+                lab_notes = "Methodology" if is_en else "Note metodologiche"
+                flow.append(Paragraph(
+                    f"<i>{lab_notes}: {notes}</i>", s["body"]))
+            flow.append(Spacer(1, 1 * mm))
+
+    flow.append(Spacer(1, 4 * mm))
+    flow.append(Paragraph(
+        "Validation rules: technical report file mandatory "
+        "(PDF/DOCX/XLSX/CSV/JPG/PNG); numeric finite values; "
+        "esca/etd/ep/extra_credits >= 0; complete metadata "
+        "(title, author, company, date, plant ref, sample ref); "
+        "warning if a real factor deviates more than +/-30% from standard."
+        if is_en else
+        "Regole di validazione: relazione tecnica obbligatoria "
+        "(PDF/DOCX/XLSX/CSV/JPG/PNG); valori numerici finiti; "
+        "esca/etd/ep/crediti_extra >= 0; metadati completi (titolo, "
+        "autore, societa', data, impianto, riferimento campione); "
+        "warning se uno qualsiasi dei fattori reali scosta oltre "
+        "+/-30% dal valore standard.",
+        s["body"],
+    ))
+    return flow
+
 
 def build_metaniq_pdf(ctx: dict) -> BytesIO:
     """Costruisce il PDF Metan.iQ.
@@ -1469,6 +1658,8 @@ def build_metaniq_pdf(ctx: dict) -> BytesIO:
     flow.append(PageBreak())
     # BMT yield audit (sempre incluso per tracciabilita')
     flow.extend(_build_bmt_audit(ctx, s))
+    # Emission Factors Audit (sempre incluso per tracciabilita')
+    flow.extend(_build_emission_audit(ctx, s))
     flow.append(PageBreak())
     # Business Plan (solo DM 2022 con BP attivo)
     if ctx.get("bp_result") is not None:
