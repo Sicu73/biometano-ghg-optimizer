@@ -87,4 +87,17 @@ IT_EN: dict = {
     "Ore annue":"Annual hours","Ore mensili":"Monthly hours",
     "Colture dedicate":"Dedicated crops","Effluenti zootecnici":"Livestock effluents",
     "Sottoprodotti agroindustriali":"Agro-industrial by-products","FORSU/Rifiuti":"OFMSW/Waste",
+    # BMT Override (resa certificata laboratorio)
+    "🧪 Override resa BMT certificata (opzionale, per biomassa)":
+        "🧪 BMT certified yield override (optional, per feedstock)",
+    "Audit rese BMT":"BMT yield audit",
+    "Audit rese biomasse (BMT certificato vs tabella standard)":
+        "Feedstock yield audit (BMT certificate vs standard table)",
+    "Resa standard":"Standard yield","Resa usata":"Used yield",
+    "Origine resa":"Yield source","Certificato":"Certificate",
+    "Laboratorio":"Laboratory","Data certificato":"Certificate date",
+    "Riferimento campione":"Sample reference",
+    "BMT certificato laboratorio":"BMT certified laboratory",
+    "Tabella standard software / UNI-TS / default interno":
+        "Software standard table / UNI-TS / internal default",
 }
