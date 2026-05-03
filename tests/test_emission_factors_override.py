@@ -315,6 +315,34 @@ class TestValidationWarnings:
         assert errors == []
         assert len(warnings) >= 1
 
+    def test_no_deviation_warning_when_standard_is_zero(self):
+        """Quando std=0 (es. esca standard) NON si emette warning di
+        scostamento (qualunque valore reale "differisce dell'infinito" e
+        il messaggio sarebbe non informativo). L'utente sa che sta
+        inserendo un valore in piu' rispetto allo standard 0.
+        """
+        # std esca=0 (default per molti feedstock), real esca=5.0
+        kw = self._kw(esca_real=5.0)
+        kw["standard_factors"] = {"eec": 26.0, "esca": 0.0,
+                                  "etd": 0.8, "ep": 5.0}
+        is_valid, errors, warnings = validate_real_emission_factor_override(**kw)
+        assert is_valid is True
+        # NESSUN warning di scostamento per esca (std=0)
+        deviation_w = [w for w in warnings if "esca" in w.lower()
+                       and "differisce" in w.lower()]
+        assert deviation_w == []
+
+    def test_no_deviation_warning_when_ep_standard_missing(self):
+        """Se standard_factors NON include la chiave 'ep' (caso UI sidebar
+        in cui ep_total non e' ancora computato), nessun warning per ep."""
+        kw = self._kw(ep_real=10.0)
+        # standard_factors senza ep
+        kw["standard_factors"] = {"eec": 26.0, "esca": 0.0, "etd": 0.8}
+        _, _, warnings = validate_real_emission_factor_override(**kw)
+        ep_dev = [w for w in warnings if "ep:" in w.lower()
+                  and "differisce" in w.lower()]
+        assert ep_dev == []
+
 
 # ============================================================
 # 5) resolve_emission_factors
@@ -445,6 +473,60 @@ class TestAuditRow:
         assert row["Autore"] == "—"
         # scostamento 0 quando real == standard
         assert row["eec scost. %"] in ("0.0%", "+0.0%", "-0.0%")
+
+    def test_audit_row_dev_pct_when_std_zero_and_real_nonzero(self):
+        """Quando lo standard e' 0 e il valore reale e' non-zero,
+        il rapporto e' indefinito → restituire 'n/a' (no '+50M%')."""
+        # esca standard = 0, esca reale = 5.0 → scostamento "n/a"
+        report = _make_valid_report(eec=-45, esca=5.0, etd=0.8, ep=5)
+        overrides = {"Liquame suino": {"active": True, "report": report}}
+        res = resolve_emission_factors("Liquame suino", STD_LIQUAME, 5.0,
+                                         overrides)
+        row = build_emission_factor_audit_row(res)
+        assert row["esca scost. %"] == "n/a"
+
+    def test_audit_row_empty_strings_normalized_to_em_dash(self):
+        """Note metodologiche vuote (override attivo + notes='') →
+        normalizzate a '—' per coerenza con l'output 'no override'."""
+        # report con methodology_notes vuoto
+        rep = EmissionFactorReport(
+            "X", -10, 0, 1, 5,
+            "Title", "Author", "Company", "2025-01-01",
+            "Plant", "Sample", "r.pdf",
+            methodology_notes="",  # esplicitamente vuoto
+        )
+        res = resolve_emission_factors(
+            "X", {"eec":-10,"esca":0,"etd":1,"ep":5}, 5.0,
+            {"X": {"active": True, "report": rep}},
+        )
+        row = build_emission_factor_audit_row(res)
+        # vuoto deve essere normalizzato a "—"
+        assert row["Note metodologiche"] == "—"
+        # ma i campi reali sono preservati
+        assert row["Autore"] == "Author"
+        assert row["Societa'"] == "Company"
+
+    def test_audit_row_whitespace_only_normalized(self):
+        """Anche stringhe con soli spazi vengono normalizzate a '—'."""
+        rep = EmissionFactorReport(
+            "X", -10, 0, 1, 5,
+            "Title", "Author", "Company", "2025-01-01",
+            "Plant", "Sample", "r.pdf",
+            methodology_notes="   ",  # solo spazi
+        )
+        res = resolve_emission_factors(
+            "X", {"eec":-10}, 5.0,
+            {"X": {"active": True, "report": rep}},
+        )
+        row = build_emission_factor_audit_row(res)
+        assert row["Note metodologiche"] == "—"
+
+    def test_audit_row_dev_pct_when_both_zero(self):
+        """Quando std e real sono entrambi 0 → '0.0%'."""
+        res = resolve_emission_factors("Liquame suino", STD_LIQUAME, 5.0, {})
+        row = build_emission_factor_audit_row(res)
+        # esca standard = 0, esca usato = 0 → "0.0%"
+        assert row["esca scost. %"] == "0.0%"
 
     def test_audit_row_complete_keys(self):
         """REQ-8/9: audit row contiene TUTTI i campi richiesti per export."""

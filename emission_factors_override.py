@@ -303,9 +303,14 @@ def validate_real_emission_factor_override(
             std_f = float(std_val)
         except (TypeError, ValueError):
             continue
-        # Per evitare divisioni instabili su valori vicini a 0,
-        # confrontiamo in valore assoluto.
-        denom = max(abs(std_f), 1e-6)
+        # Se il valore standard e' esattamente 0, il rapporto relativo
+        # diverge: in questo caso e' piu' utile NON emettere warning di
+        # scostamento (qualunque valore reale "differisce dell'infinito").
+        # L'utente sa che sta inserendo un valore che lo standard non ha.
+        # Eventuali warning utili: range plausibilita' (gia' coperto sopra).
+        if std_f == 0:
+            continue
+        denom = abs(std_f)
         deviation = abs(real_val - std_f) / denom
         if deviation > EMISSION_DEVIATION_WARN_THRESHOLD:
             sign = "superiore" if real_val > std_f else "inferiore"
@@ -457,15 +462,32 @@ def build_emission_factor_audit_row(resolved: dict) -> dict:
     std = resolved.get("standard_factors", {})
 
     def _dev_pct(real, std_v):
+        """Restituisce lo scostamento % real-vs-standard come stringa.
+
+        Edge cases:
+          - real o std non numerici -> ""
+          - real == 0 e std == 0     -> "0.0%"
+          - std == 0 e real != 0     -> "n/a" (rapporto indefinito,
+                                          evita output tipo "+50M%")
+          - altrimenti               -> "+/-XX.X%"
+        """
         try:
             real_f = float(real)
             std_f = float(std_v)
         except (TypeError, ValueError):
             return ""
-        denom = max(abs(std_f), 1e-6)
         if std_f == 0 and real_f == 0:
             return "0.0%"
-        return f"{((real_f - std_f) / denom) * 100:+.1f}%"
+        if std_f == 0:
+            return "n/a"
+        return f"{((real_f - std_f) / abs(std_f)) * 100:+.1f}%"
+
+    # Helper: normalizza stringhe vuote in "—" per coerenza export
+    def _s(v):
+        if v is None:
+            return "—"
+        s = str(v).strip()
+        return s if s else "—"
 
     return {
         "Biomassa":             resolved.get("biomass_name", ""),
@@ -489,14 +511,14 @@ def build_emission_factor_audit_row(resolved: dict) -> dict:
                                           std.get("ep")),
         "Crediti extra":        float(resolved.get("extra_credits_used", 0.0)),
         "e_total":              float(resolved.get("e_total", 0.0)),
-        "Relazione tecnica":    (report.report_filename if report else "—"),
-        "Titolo relazione":     (report.report_title if report else "—"),
-        "Autore":               (report.author_name if report else "—"),
-        "Societa'":             (report.company_name if report else "—"),
-        "Data relazione":       (report.report_date if report else "—"),
-        "Impianto rif.":        (report.plant_reference if report else "—"),
-        "Riferimento campione": (report.sample_lot_ref if report else "—"),
-        "Note metodologiche":   (report.methodology_notes if report else "—"),
+        "Relazione tecnica":    _s(report.report_filename if report else None),
+        "Titolo relazione":     _s(report.report_title if report else None),
+        "Autore":               _s(report.author_name if report else None),
+        "Societa'":             _s(report.company_name if report else None),
+        "Data relazione":       _s(report.report_date if report else None),
+        "Impianto rif.":        _s(report.plant_reference if report else None),
+        "Riferimento campione": _s(report.sample_lot_ref if report else None),
+        "Note metodologiche":   _s(report.methodology_notes if report else None),
     }
 
 

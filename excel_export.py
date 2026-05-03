@@ -1767,7 +1767,8 @@ def _build_emission_audit(ws, ctx, lang="it"):
     audit_rows = ctx.get("emission_audit_rows", []) or []
 
     # Title
-    ws.merge_cells("A1:N1")
+    # Headers: 20 columns (A..T) — merge title across full width
+    ws.merge_cells("A1:T1")
     c = ws.cell(row=1, column=1,
                 value=("Metan.iQ - Real Emission Factors Audit"
                        if lang == "en" else
@@ -1777,7 +1778,7 @@ def _build_emission_audit(ws, ctx, lang="it"):
     c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
     ws.row_dimensions[1].height = 28
 
-    ws.merge_cells("A2:N2")
+    ws.merge_cells("A2:T2")
     c = ws.cell(row=2, column=1, value=(
         "Formula: e_total = eec + etd + ep - esca - extra_credits. "
         "The standard table is never permanently modified by overrides."

@@ -1156,11 +1156,16 @@ def _emission_factors_of(name: str, ep_default: float = 0.0) -> dict:
     """Fattori emissivi effettivi per una biomassa.
 
     Se esiste un override REALE attivo (relazione tecnica caricata),
-    ritorna i fattori reali. Altrimenti i fattori standard tabellari.
+    ritorna una COPIA dei fattori reali (la cache non viene mai
+    mutata da chiamanti esterni). Altrimenti ritorna i fattori
+    standard tabellari (FEEDSTOCK_DB) + ep impianto-wide.
+
     Output dict: eec, esca, etd, ep, extra, source.
     """
     if name in _EMISSION_OVERRIDES:
-        return _EMISSION_OVERRIDES[name]
+        # Defensive shallow copy: previene che eventuali mutazioni nei
+        # consumer (display, audit, etc.) corrompano la cache runtime.
+        return dict(_EMISSION_OVERRIDES[name])
     d = FEEDSTOCK_DB[name]
     return {
         "eec":   float(d["eec"]),
@@ -2516,13 +2521,17 @@ with st.sidebar:
                 _r_name = _ef_report_file.name if _r_uploaded else ""
                 _r_size = _ef_report_file.size if _r_uploaded else 0
 
+                # NB: standard_factors NON include 'ep' perche' ep_total
+                # impianto-wide non e' ancora computato in sidebar; il
+                # warning di scostamento per ep verrebbe spurio. Il check
+                # del range plausibilita' su ep_real resta attivo.
                 _ef_valid, _ef_errs, _ef_warns = validate_real_emission_factor_override(
                     biomass_name=_ef_name,
                     eec_real=_ef_eec, esca_real=_ef_esca,
                     etd_real=_ef_etd, ep_real=_ef_ep,
                     extra_credits_real=_ef_extra,
                     standard_factors={"eec": _eec_std, "esca": _esca_std,
-                                       "etd": _etd_std, "ep": 0.0},
+                                       "etd": _etd_std},
                     report_uploaded=_r_uploaded,
                     report_filename=_r_name,
                     report_title=_ef_title,

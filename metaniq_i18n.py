@@ -87,4 +87,17 @@ IT_EN: dict = {
     "Ore annue":"Annual hours","Ore mensili":"Monthly hours",
     "Colture dedicate":"Dedicated crops","Effluenti zootecnici":"Livestock effluents",
     "Sottoprodotti agroindustriali":"Agro-industrial by-products","FORSU/Rifiuti":"OFMSW/Waste",
+    # Override fattori emissivi reali (relazione tecnica)
+    "🧬 Fattori emissivi reali da relazione tecnica (opzionale)":
+        "🧬 Real emission factors from technical report (optional)",
+    "Audit fattori emissivi":"Emission factors audit",
+    "Origine fattori":"Factors source","Relazione tecnica":"Technical report",
+    "Titolo relazione":"Report title","Autore":"Author",
+    "Societa'":"Company","Data relazione":"Report date",
+    "Impianto rif.":"Plant ref.","Riferimento campione":"Sample reference",
+    "Note metodologiche":"Methodology notes",
+    "Relazione tecnica impianto":"Plant technical report",
+    "Valori standard software / normativa / default interno":
+        "Standard software values / regulatory / internal default",
+    "Crediti extra":"Extra credits",
 }
