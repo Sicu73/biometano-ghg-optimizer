@@ -5667,6 +5667,310 @@ if _HAS_OUTPUT_MODEL:
     except Exception as _expl_exc:  # noqa: BLE001
         st.caption(f"(Sezione spiegazioni non disponibile: {_expl_exc})")
 
+# ============================================================
+# GESTIONE GIORNALIERA + VERIFICA SOSTENIBILITA' MENSILE
+# ------------------------------------------------------------
+# Sezione operativa "giorno per giorno" con verifica di sostenibilita'
+# applicata sull'AGGREGATO MENSILE (regola di compliance).
+# Tutta la logica risiede nei moduli core/output/export — qui solo UI.
+# ============================================================
+try:
+    import datetime as _dt
+    import pandas as _pd_daily
+    from core.calendar import generate_month_days as _gen_days, month_label as _mlabel
+    from core.daily_model import DailyEntry as _DEntry, compute_daily as _compute_daily
+    from core.monthly_aggregate import (
+        aggregate_month as _agg_month,
+        progressive_to_date as _prog_to_date,
+    )
+    from core.sustainability import (
+        evaluate_monthly_sustainability as _eval_sust,
+    )
+    from core.persistence import (
+        init_db as _init_db,
+        save_month as _save_month,
+        load_month as _load_month,
+        list_saved_months as _list_months,
+    )
+    from core.validators import validate_daily_entry as _validate_daily
+    from output.daily_table_view import build_daily_dataframe as _build_daily_df
+    from output.monthly_kpis import build_monthly_kpis as _build_kpis
+    from output.guidance import compute_end_of_month_guidance as _build_guidance
+    from export.daily_csv import build_daily_csv as _build_daily_csv
+    from export.daily_excel import build_daily_excel as _build_daily_xlsx
+    from export.daily_pdf import build_daily_pdf as _build_daily_pdf
+    _DAILY_OPS_AVAILABLE = True
+except Exception as _daily_imp_exc:  # noqa: BLE001
+    _DAILY_OPS_AVAILABLE = False
+    _DAILY_IMP_ERR = str(_daily_imp_exc)
+
+if _DAILY_OPS_AVAILABLE:
+    st.markdown("---")
+    st.subheader("📅 Gestione Giornaliera — Verifica sostenibilità mensile")
+    st.info(
+        "ℹ️ **Il controllo ufficiale è MENSILE.** "
+        "Gli indicatori giornalieri (saving) sono solo informativi: anche se "
+        "alcuni giorni risultano isolatamente \"non sostenibili\", il mese "
+        "può chiudere sostenibile aggregando il totale biomasse."
+    )
+
+    _today = _dt.date.today()
+    _col_a, _col_b, _col_c = st.columns([1, 1, 2])
+    with _col_a:
+        _do_year = st.number_input(
+            "Anno", min_value=2020, max_value=2100,
+            value=int(_today.year), step=1, key="do_year",
+        )
+    with _col_b:
+        _do_month = st.selectbox(
+            "Mese", list(range(1, 13)),
+            index=_today.month - 1,
+            format_func=lambda m: _mlabel(int(_do_year), int(m), _LANG),
+            key="do_month",
+        )
+    with _col_c:
+        _do_plant = st.text_input(
+            "ID impianto",
+            value=st.session_state.get("do_plant_id", "default"),
+            key="do_plant_id",
+        )
+
+    _do_key = f"do_data_{_do_plant}_{int(_do_year)}_{int(_do_month)}"
+    if _do_key not in st.session_state:
+        try:
+            _init_db()
+            _loaded = _load_month(int(_do_year), int(_do_month), plant_id=_do_plant)
+        except Exception as _load_exc:  # noqa: BLE001
+            st.warning(f"Impossibile caricare il mese salvato: {_load_exc}")
+            _loaded = []
+        _all_days = _gen_days(int(_do_year), int(_do_month))
+        _data_map: dict = {d: {} for d in _all_days}
+        for _e in _loaded:
+            if _e.date in _data_map:
+                _data_map[_e.date] = dict(_e.feedstocks)
+        st.session_state[_do_key] = _data_map
+
+    _bcol1, _bcol2, _bcol3 = st.columns([1, 1, 4])
+    with _bcol1:
+        if st.button("🔄 Ricarica da DB", key="do_btn_reload"):
+            try:
+                _init_db()
+                _loaded = _load_month(int(_do_year), int(_do_month), plant_id=_do_plant)
+                _all_days = _gen_days(int(_do_year), int(_do_month))
+                _data_map = {d: {} for d in _all_days}
+                for _e in _loaded:
+                    if _e.date in _data_map:
+                        _data_map[_e.date] = dict(_e.feedstocks)
+                st.session_state[_do_key] = _data_map
+                st.success("Mese ricaricato.")
+            except Exception as _exc:  # noqa: BLE001
+                st.warning(f"Errore ricarica: {_exc}")
+    with _bcol2:
+        if st.button("🆕 Nuovo mese (vuoto)", key="do_btn_new"):
+            _all_days = _gen_days(int(_do_year), int(_do_month))
+            st.session_state[_do_key] = {d: {} for d in _all_days}
+            st.success("Mese azzerato.")
+
+    _do_active_feeds = list(active_feeds) if active_feeds else list(FEED_NAMES)[:6]
+    _data_map = st.session_state[_do_key]
+    _all_days = sorted(_data_map.keys())
+
+    _edit_rows = []
+    for _d in _all_days:
+        _row = {"Data": _d}
+        for _fname in _do_active_feeds:
+            _row[_fname] = float((_data_map.get(_d) or {}).get(_fname, 0.0))
+        _edit_rows.append(_row)
+    _edit_df = _pd_daily.DataFrame(_edit_rows)
+
+    st.caption(
+        f"Inserisci le biomasse t/giorno. Mese: **{_mlabel(int(_do_year), int(_do_month), _LANG)}** "
+        f"({len(_all_days)} giorni). Tipologie modificabili: "
+        f"{len(_do_active_feeds)} (basate sulle biomasse attive nella sidebar)."
+    )
+
+    _edited = st.data_editor(
+        _edit_df,
+        key=f"do_editor_{_do_key}",
+        num_rows="fixed",
+        hide_index=True,
+        column_config={
+            "Data": st.column_config.DateColumn("Data", disabled=True, format="DD/MM/YYYY"),
+            **{
+                _f: st.column_config.NumberColumn(_f, min_value=0.0, step=0.1, format="%.2f")
+                for _f in _do_active_feeds
+            },
+        },
+        use_container_width=True,
+    )
+
+    try:
+        for _, _r in _edited.iterrows():
+            _d = _r["Data"]
+            if hasattr(_d, "to_pydatetime"):
+                _d = _d.to_pydatetime().date()
+            elif isinstance(_d, _dt.datetime):
+                _d = _d.date()
+            _data_map[_d] = {
+                _f: float(_r[_f] or 0.0) for _f in _do_active_feeds
+                if (_r[_f] or 0.0) > 0
+            }
+        st.session_state[_do_key] = _data_map
+    except Exception as _upd_exc:  # noqa: BLE001
+        st.warning(f"Aggiornamento tabella fallito: {_upd_exc}")
+
+    _ctx = {
+        "aux_factor": float(aux_factor),
+        "ep": float(ep_total),
+        "fossil_comparator": float(FOSSIL_COMPARATOR),
+        "plant_net_smch": float(plant_net_smch),
+        "hours_per_day": 24.0,
+    }
+    _entries_list: list = []
+    _computed_list: list = []
+    for _d in _all_days:
+        _entry = _DEntry(date=_d, feedstocks=dict(_data_map.get(_d) or {}))
+        _entries_list.append(_entry)
+        try:
+            _computed_list.append(_compute_daily(_entry, ctx=_ctx))
+        except Exception as _cexc:  # noqa: BLE001
+            st.warning(f"Calcolo giornaliero fallito per {_d}: {_cexc}")
+
+    _agg = _agg_month(_computed_list, ctx=_ctx,
+                       year=int(_do_year), month=int(_do_month))
+
+    _regime_lbl = "DM 2022 (RED III)" if IS_DM2022 else (
+        "DM 2018" if IS_DM2018 else APP_MODE
+    )
+    _regime_constraints = {
+        "max_sm3h_authorized": float(plant_net_smch) if plant_net_smch else None,
+    }
+    _sust = _eval_sust(_agg, regime=_regime_lbl,
+                        threshold=float(ghg_threshold),
+                        regime_constraints=_regime_constraints)
+    _kpis = _build_kpis(_agg, _sust)
+
+    st.markdown("### 📊 KPI Mensili (esito ufficiale)")
+    _k1, _k2, _k3, _k4 = st.columns(4)
+    _k1.metric("Saving GHG mese",
+               f"{_kpis['saving_pct']:.2f}%",
+               delta=f"{_kpis['margin']:+.2f} pt vs soglia")
+    _k2.metric("Soglia normativa", f"{_kpis['threshold']:.2f}%")
+    _k3.metric("Biomassa totale", f"{_kpis['biomass_total_t']:,.1f} t".replace(",", "."))
+    _k4.metric("MWh netti mese", f"{_kpis['mwh']:,.1f}".replace(",", "."))
+
+    if _kpis["compliant"]:
+        st.success(
+            f"✅ **MESE COMPLIANT** ({_regime_lbl}) — "
+            f"saving {_kpis['saving_pct']:.2f}% ≥ soglia {_kpis['threshold']:.2f}%."
+        )
+    else:
+        st.error(
+            f"❌ **MESE NON COMPLIANT** ({_regime_lbl}) — "
+            f"saving {_kpis['saving_pct']:.2f}% < soglia {_kpis['threshold']:.2f}%."
+        )
+
+    if _kpis.get("constraints_status"):
+        with st.expander("📋 Stato vincoli regime", expanded=False):
+            for _c in _kpis["constraints_status"]:
+                _icon = "✅" if _c.get("ok") else "❌"
+                st.write(f"{_icon} **{_c.get('name','?')}** — {_c.get('msg','')}")
+
+    with st.expander("📋 Tabella giornaliera dettagliata (cumulati inclusi)",
+                     expanded=False):
+        _daily_df = _build_daily_df(_entries_list, _computed_list,
+                                     feed_columns=_do_active_feeds)
+        st.dataframe(_daily_df, use_container_width=True, hide_index=True)
+
+    _guidance = _build_guidance(_agg, _sust, regime=_regime_lbl)
+    with st.expander("🎯 Indicazioni operative fine mese", expanded=True):
+        for _g in _guidance:
+            st.write(f"- {_g}")
+
+    _audit = {
+        "Regime applicato": _regime_lbl,
+        "Soglia normativa (%)": f"{_kpis['threshold']:.2f}",
+        "Comparatore fossile (gCO2eq/MJ)": f"{FOSSIL_COMPARATOR:.2f}",
+        "Aux factor (lordo/netto)": f"{aux_factor:.4f}",
+        "EP totale (gCO2eq/MJ)": f"{ep_total:.3f}",
+        "Plant net (Sm³/h)": f"{plant_net_smch:.2f}",
+        "Origine rese": "BMT override se attivo, altrimenti standard FEEDSTOCK_DB",
+        "Origine fattori emissivi": "Override relazione tecnica se attivo, altrimenti UNI-TS 11567:2024",
+        "Formula sostenibilità (mensile)": "Sostenibile_mese = (saving_GHG_mese >= soglia) AND (vincoli regime OK)",
+        "Giorni con dati": f"{_kpis['n_days_with_data']}",
+        "Giorni cap autorizzativo violato": f"{len(_kpis.get('cap_violation_days', []))}",
+    }
+    with st.expander("🧾 Audit Trail mese", expanded=False):
+        for _k, _v in _audit.items():
+            st.write(f"- **{_k}**: {_v}")
+
+    st.markdown("### 💾 Salva ed esporta")
+    _scol1, _scol2, _scol3, _scol4 = st.columns(4)
+    with _scol1:
+        if st.button("💾 Salva mese", key="do_btn_save"):
+            try:
+                _init_db()
+                _has_err = False
+                for _e in _entries_list:
+                    _ok, _errs, _ = _validate_daily(
+                        _e.date, _e.feedstocks, allowed_feeds=list(FEED_NAMES))
+                    if not _ok:
+                        st.warning(f"{_e.date}: {'; '.join(_errs)}")
+                        _has_err = True
+                if not _has_err:
+                    _n = _save_month(
+                        int(_do_year), int(_do_month), _entries_list,
+                        plant_id=_do_plant, regime=_regime_lbl,
+                        threshold=float(ghg_threshold),
+                    )
+                    st.success(f"Mese salvato ({_n} record).")
+            except Exception as _exc:  # noqa: BLE001
+                st.error(f"Errore salvataggio: {_exc}")
+
+    _daily_df_full = _build_daily_df(_entries_list, _computed_list,
+                                      feed_columns=_do_active_feeds)
+
+    with _scol2:
+        try:
+            _csv_bytes = _build_daily_csv(_daily_df_full)
+            st.download_button(
+                "⬇️ CSV giornaliero",
+                _csv_bytes,
+                file_name=f"giornaliero_{int(_do_year)}_{int(_do_month):02d}.csv",
+                mime="text/csv", key="do_btn_csv",
+            )
+        except Exception as _exc:  # noqa: BLE001
+            st.warning(f"CSV non disponibile: {_exc}")
+    with _scol3:
+        try:
+            _xlsx_bytes = _build_daily_xlsx(_daily_df_full, _kpis, _audit)
+            st.download_button(
+                "⬇️ Excel giornaliero+mensile",
+                _xlsx_bytes,
+                file_name=f"giornaliero_{int(_do_year)}_{int(_do_month):02d}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="do_btn_xlsx",
+            )
+        except Exception as _exc:  # noqa: BLE001
+            st.warning(f"Excel non disponibile: {_exc}")
+    with _scol4:
+        try:
+            _pdf_bytes = _build_daily_pdf(_daily_df_full, _kpis, _audit, _guidance)
+            st.download_button(
+                "⬇️ PDF report",
+                _pdf_bytes,
+                file_name=f"giornaliero_{int(_do_year)}_{int(_do_month):02d}.pdf",
+                mime="application/pdf", key="do_btn_pdf",
+            )
+        except Exception as _exc:  # noqa: BLE001
+            st.warning(f"PDF non disponibile: {_exc}")
+else:
+    st.markdown("---")
+    st.warning(
+        "📅 Gestione Giornaliera non disponibile in questa build "
+        f"({_DAILY_IMP_ERR if '_DAILY_IMP_ERR' in dir() else 'moduli mancanti'})."
+    )
+
 st.markdown("<div style='margin-top:40px;'></div>", unsafe_allow_html=True)
 st.markdown(
     """

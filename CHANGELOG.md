@@ -1,5 +1,53 @@
 # CHANGELOG — Metan.iQ
 
+## [unreleased] — branch `feature/daily-ops-monthly-sustainability`
+
+### Added — Gestione giornaliera + verifica sostenibilità mensile
+- **Nuovi moduli core/**:
+  - `core/calendar.py` — `generate_month_days`, `month_label`, `is_leap_year`,
+    `days_in_month` (gestione bisestile gregoriana).
+  - `core/daily_model.py` — dataclass `DailyEntry` (input giornaliero) e
+    `DailyComputed` (risultati derivati); `compute_daily(entry, ctx)` che
+    riusa `ghg_summary` dal motore esistente per non duplicare formule.
+  - `core/monthly_aggregate.py` — `MonthlyAggregate`, `aggregate_month`
+    e `progressive_to_date`. La saving% mensile è ricalcolata
+    sull'AGGREGATO (regola di compliance: la sostenibilità è mensile).
+  - `core/sustainability.py` — `evaluate_monthly_sustainability` con
+    vincoli regime (cap colture dedicate, FER2 sottoprodotti, CIC
+    Annex IX, cap autorizzativo Sm³/h, cap MWh/anno).
+  - `core/persistence.py` — SQLite locale (`data/metaniq_daily.db`)
+    con `init_db`, `save_month`, `load_month`, `list_saved_months`,
+    `delete_month`. Schema: `daily_entries`, `month_meta`.
+- **Nuovi moduli output/**:
+  - `output/daily_table_view.py` — `build_daily_dataframe` con cumulati
+    mese (Sm³, MWh, t) e cap_ok per giorno.
+  - `output/monthly_kpis.py` — `build_monthly_kpis` (esito ufficiale,
+    saving, soglia, margine, vincoli).
+  - `output/guidance.py` — `compute_end_of_month_guidance` con
+    suggerimenti operativi italiani per chiudere il mese sostenibile.
+- **Nuovi moduli export/**:
+  - `export/daily_csv.py` — CSV giornaliero (sep `;`, decimale `,`).
+  - `export/daily_excel.py` — XLSX 4 fogli (Giornaliero / Mensile KPI /
+    Vincoli / Audit Trail).
+  - `export/daily_pdf.py` — PDF report (KPI, vincoli, guidance, audit,
+    tabella giornaliera) con fallback testuale se ReportLab manca.
+- **Validazione**: `core.validators.validate_daily_entry` (rifiuta
+  quantità negative, valida date, segnala tipologie sconosciute).
+- **UI Streamlit**: nuova sezione "📅 Gestione Giornaliera" in fondo a
+  `app_mensile.py` con selettore mese/anno, tabella editabile per
+  giorno, KPI mensili in evidenza, badge Compliant/Non Compliant,
+  vincoli regime, audit trail mese, salvataggio SQLite, download
+  CSV/Excel/PDF.
+- **Test**: 18 nuovi test `tests/test_daily_ops.py` (192 totali).
+- **DAILY_OPS_GUIDE.md**: guida operativa utente, esempio mese,
+  spiegazione regola compliance mensile vs giornaliero.
+- **.gitignore**: esclusione `data/*.db` (DB locale non versionato).
+
+### Compliance rule
+- La sostenibilità è valutata sul **totale mese aggregato**.
+- Singoli giorni "non sostenibili" sono ammessi se il totale mese
+  rispetta la soglia (test `test_sustainability_isolated_bad_day_but_month_ok`).
+
 ## [unreleased] — branch `refactor/output-simplification`
 
 ### Added
