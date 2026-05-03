@@ -1,5 +1,57 @@
 # CHANGELOG — Metan.iQ
 
+## [unreleased] — branch `refactor/output-simplification`
+
+### Added
+- **Architettura output centralizzata**: nuovi pacchetti `core/`, `output/`, `export/`.
+  - `core/calculation_engine.py` — proxy che ri-espone le funzioni di calcolo
+    di `app_mensile.py` (compute_business_plan, ghg_summary, solve_*,
+    find_optimal_pair, e_total_feedstock, fmt_it, parse_it, ecc.) senza
+    duplicare logica. Include fallback minimali per test isolati.
+  - `core/validators.py` — funzioni `validate_plant_config`,
+    `validate_feedstock_selection`, `validate_monthly_input`,
+    `validate_ghg_results` con firma standard `(is_valid, errors, warnings)`.
+  - `output/output_builder.py` — `build_output_model(ctx) -> dict` produce
+    l'output_model unificato con chiavi: metadata, input_summary,
+    calculation_summary, monthly_table, feedstock_table, ghg_table,
+    business_plan_table, audit_trail, warnings, errors, explanations.
+  - `output/tables.py` — `build_monthly_table`, `build_feedstock_table`,
+    `build_ghg_table`, `build_business_plan_table`, `build_audit_table`
+    restituiscono pd.DataFrame (o list[dict] se pandas non disponibile).
+  - `output/explanations.py` — testi spiegativi IT/EN per `yield_origin`,
+    `emission_factor_origin`, `ghg_method`, `regulatory_basis`.
+  - `export/csv_export.py` — `build_csv_from_output(model, sheet)` per
+    sheet "monthly" / "feedstock" / "ghg" / "business_plan" / "audit",
+    formato italiano (separatore ';', decimale ',', UTF-8 BOM).
+  - `export/excel_export.py` — `build_excel_from_output(model, snapshot)`
+    adapter che ricostruisce il ctx legacy e chiama
+    `excel_export.build_metaniq_xlsx`. Fallback openpyxl se legacy non
+    disponibile.
+  - `export/pdf_export.py` — `build_pdf_from_output(model)` adapter che
+    ricostruisce il ctx legacy e chiama `report_pdf.build_metaniq_pdf`.
+    Fallback reportlab se legacy non disponibile.
+- **Documentazione**: `OUTPUT_REFACTOR_MAP.md` (mappa input/output
+  attuali, KPI, duplicazioni, piano interventi) e
+  `OUTPUT_REFACTOR_REPORT.md` (report finale).
+- **47 nuovi test pytest** in `tests/test_output_model.py` e
+  `tests/test_exports.py` che coprono: struttura output_model, KPI,
+  tabelle, audit trail, warnings/errors, explanations IT/EN,
+  CSV per tutti gli sheet, XLSX magic bytes (PK), PDF magic bytes (%PDF),
+  fallback su ctx vuoto, ValueError su input invalido.
+
+### Changed
+- Nessuna modifica a `app_mensile.py`, `excel_export.py`, `report_pdf.py`,
+  `bmt_override.py`, `emission_factors_override.py`. La parte input
+  Streamlit e la logica di calcolo rimangono **invariate**.
+
+### Architecture
+- Tutti gli export (CSV, XLSX, PDF) leggono **dallo stesso `output_model`**.
+- Nessuna formula duplicata: gli adapter trasformano l'output_model nel
+  ctx legacy senza ricalcolare nulla.
+- Strategia "proxy + adapter" per minimizzare il rischio di regressione.
+
+---
+
 ## [unreleased] — branch `feature/real-emission-factors`
 
 ### Added

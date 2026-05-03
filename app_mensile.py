@@ -29,6 +29,28 @@ import plotly.graph_objects as go
 from report_pdf import build_metaniq_pdf
 from excel_export import build_metaniq_xlsx
 
+# === Refactor output (Fase 2) — output_model unificato ======================
+# Carica le funzioni nuove con fallback per non rompere il vecchio percorso.
+try:
+    from output.output_builder import build_output_model as _build_output_model
+    from output.tables import (
+        build_feedstock_table as _build_feedstock_table_om,
+        build_ghg_table       as _build_ghg_table_om,
+        build_audit_table     as _build_audit_table_om,
+    )
+    from output.explanations import (
+        explain_yield_origin            as _explain_yield_origin,
+        explain_emission_factor_origin  as _explain_emission_factor_origin,
+        explain_ghg_method              as _explain_ghg_method,
+        explain_regulatory_basis        as _explain_regulatory_basis,
+    )
+    from export.csv_export import build_csv_from_output as _build_csv_from_output
+    _HAS_OUTPUT_MODEL = True
+    _OM_IMPORT_ERR = ""
+except Exception as _om_imp_exc:  # noqa: BLE001
+    _HAS_OUTPUT_MODEL = False
+    _OM_IMPORT_ERR = str(_om_imp_exc)
+
 # ── i18n: selettore lingua + funzione di traduzione ──────────────────────────
 from i18n_runtime import t as _t, get_lang, render_lang_selector, translate_df
 
@@ -5174,6 +5196,90 @@ elif IS_DM2022 and tab5 is not None:
             "nella sidebar (expander «💼 Pro Forma»)."
         )
 
+# ============================================================
+# OUTPUT MODEL UNIFICATO (Fase 2 refactor)
+# ------------------------------------------------------------
+# Costruisce un'unica struttura `output_model` da cui leggono i nuovi
+# export modulari (CSV, e in futuro Excel/PDF). I percorsi legacy
+# restano attivi come fallback (try/except sotto).
+# ============================================================
+output_model = None
+if _HAS_OUTPUT_MODEL:
+    try:
+        _annual_t   = {n: float(max(df_res[n].sum(), 0.0)) for n in active_feeds}
+        _annual_mwh = {
+            n: float(max(df_res[n].sum(), 0.0)) * _yield_of(n) * NM3_TO_MWH / aux_factor
+            for n in active_feeds
+        }
+        _om_ctx = {
+            # Identita' / scenario
+            "APP_MODE":          APP_MODE,
+            "APP_MODE_LABEL":    {
+                "biometano":        "Biometano DM 2022",
+                "biometano_2018":   "Biometano DM 2018 (CIC)",
+                "biogas_chp":       "Biogas CHP DM 6/7/2012",
+                "biogas_chp_fer2":  "Biogas CHP FER 2 (≤300 kW)",
+            }.get(APP_MODE, APP_MODE),
+            "lang":              _LANG,
+            # Flag normativi
+            "IS_CHP":            IS_CHP,
+            "IS_CHP_DM2012":     IS_CHP_DM2012,
+            "IS_FER2":           IS_FER2,
+            "IS_DM2018":         IS_DM2018,
+            "IS_DM2022":         IS_DM2022,
+            # Impianto
+            "plant_net_smch":    plant_net_smch,
+            "plant_kwe":         plant_kwe,
+            "aux_factor":        aux_factor,
+            "ep_total":          ep_total,
+            "end_use":           end_use,
+            "ghg_threshold":     ghg_threshold,
+            "fossil_comparator": FOSSIL_COMPARATOR,
+            "upgrading_opt":     upgrading_opt,
+            "offgas_opt":        offgas_opt,
+            "injection_opt":     injection_opt,
+            # Dati / DB
+            "active_feeds":      active_feeds,
+            "FEEDSTOCK_DB":      FEEDSTOCK_DB,
+            # Tabella mensile e annuali
+            "df_res":            df_res,
+            "annual_t":          _annual_t,
+            "annual_mwh":        _annual_mwh,
+            "revenue_rows":      pdf_revenue_rows,
+            # KPI aggregati
+            "tot_biomasse_t":    float(df_res["Totale biomasse (t)"].sum()),
+            "tot_sm3_netti":     float(df_res["Sm³ netti"].sum()),
+            "tot_mwh_netti":     float(df_res["MWh netti"].sum()),
+            "tot_mwh":           float(tot_mwh),
+            "saving_avg":        float(df_res["Saving %"].mean()),
+            "valid_months":      int(df_res["Validità"].str.startswith("✅").sum()),
+            "tot_revenue":       float(tot_revenue),
+            "tot_n_cic":         float(tot_n_cic) if IS_DM2018 else 0.0,
+            "cic_active":        bool(cic_active) if IS_DM2018 else False,
+            "is_advanced":       bool(is_advanced) if IS_DM2018 else False,
+            "tariffa_media_ponderata": float(tariffa_media_ponderata)
+                                       if 'tariffa_media_ponderata' in dir() else 0.0,
+            "tot_mwh_el_lordo":  float(df_res["MWh elettrici lordi"].sum())
+                                 if IS_CHP and "MWh elettrici lordi" in df_res
+                                 else 0.0,
+            "tot_mwh_el_netto":  float(df_res["MWh elettrici netti"].sum())
+                                 if IS_CHP and "MWh elettrici netti" in df_res
+                                 else 0.0,
+            # Business plan (DM 2022)
+            "bp_result":         bp_result if IS_DM2022 else None,
+            # Audit
+            "yield_audit_rows":     list(_yield_audit_rows),
+            "emission_audit_rows":  list(_emission_audit_rows),
+            "emission_overrides":   dict(_EMISSION_OVERRIDES),
+        }
+        output_model = _build_output_model(_om_ctx)
+    except Exception as _om_exc:  # noqa: BLE001
+        output_model = None
+        st.warning(
+            "Output model non disponibile in questa run "
+            f"(fallback al percorso legacy): {_om_exc}"
+        )
+
 # ------------------------- EXPORT -------------------------
 st.divider()
 st.markdown(
@@ -5480,14 +5586,28 @@ with _dl_col3:
 
 # ===== Colonna 4: CSV (piano mensile con intestazioni tradotte) =====
 with _dl_col4:
-    try:
-        _csv_df = translate_df(df_res.copy(), _LANG)
-        _csv_data = _csv_df.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig")
-        _csv_ok = True
-    except Exception as _csv_exc:
-        _csv_data = None
-        _csv_ok = False
-        _csv_err = str(_csv_exc)
+    _csv_data = None
+    _csv_ok = False
+    _csv_err = ""
+    # Percorso nuovo (output_model) — se disponibile e abilitato.
+    if _HAS_OUTPUT_MODEL and output_model is not None:
+        try:
+            _csv_data = _build_csv_from_output(output_model, sheet="monthly")
+            _csv_ok = True
+        except Exception as _csv_om_exc:  # noqa: BLE001
+            _csv_ok = False
+            _csv_err = f"output_model CSV: {_csv_om_exc}"
+    # Fallback legacy
+    if not _csv_ok:
+        try:
+            _csv_df = translate_df(df_res.copy(), _LANG)
+            _csv_data = _csv_df.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig")
+            _csv_ok = True
+            _csv_err = ""
+        except Exception as _csv_exc:
+            _csv_data = None
+            _csv_ok = False
+            _csv_err = str(_csv_exc)
     if _csv_ok:
         _csv_fn = f"metaniq_{APP_MODE}_{'monthly_plan' if _LANG=='en' else 'piano_mensile'}.csv"
         st.download_button(
@@ -5509,6 +5629,43 @@ st.caption(
     "(pollina ovaiole, liquame suino). Per certificazione GSE sostituire con "
     "valori reali d'impianto."
 )
+
+# ============================================================
+# ORIGINE DEI DATI E METODO DI CALCOLO  (Fase 2 refactor)
+# ------------------------------------------------------------
+# Sezione esplicativa unica che documenta provenienza rese, fattori
+# emissivi, metodo GHG e base normativa. Letta dall'output_model
+# explanations (con fallback a chiamate dirette per robustezza).
+# ============================================================
+if _HAS_OUTPUT_MODEL:
+    try:
+        _expl_ctx = {
+            "lang":                 _LANG,
+            "APP_MODE":             APP_MODE,
+            "yield_audit_rows":     list(_yield_audit_rows),
+            "emission_audit_rows":  list(_emission_audit_rows),
+        }
+        _expl = (output_model or {}).get("explanations") or {
+            "yield_origin":           _explain_yield_origin(_expl_ctx),
+            "emission_factor_origin": _explain_emission_factor_origin(_expl_ctx),
+            "ghg_method":             _explain_ghg_method(_expl_ctx),
+            "regulatory_basis":       _explain_regulatory_basis(_expl_ctx),
+        }
+        with st.expander(
+            "📚 Origine dei dati e metodo di calcolo "
+            "(rese, fattori emissivi, GHG, base normativa)",
+            expanded=False,
+        ):
+            st.markdown("**Origine delle rese biomassa**")
+            st.text(_expl.get("yield_origin", ""))
+            st.markdown("**Origine dei fattori emissivi**")
+            st.text(_expl.get("emission_factor_origin", ""))
+            st.markdown("**Metodo di calcolo GHG (RED III)**")
+            st.text(_expl.get("ghg_method", ""))
+            st.markdown("**Base normativa applicata**")
+            st.text(_expl.get("regulatory_basis", ""))
+    except Exception as _expl_exc:  # noqa: BLE001
+        st.caption(f"(Sezione spiegazioni non disponibile: {_expl_exc})")
 
 st.markdown("<div style='margin-top:40px;'></div>", unsafe_allow_html=True)
 st.markdown(
