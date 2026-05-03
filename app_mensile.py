@@ -54,6 +54,13 @@ except Exception as _om_imp_exc:  # noqa: BLE001
 # ── i18n: selettore lingua + funzione di traduzione ──────────────────────────
 from i18n_runtime import t as _t, get_lang, render_lang_selector, translate_df
 
+# ── Versione canonica software ──────────────────────────────────────────────
+try:
+    from core.version import __version__ as _APP_VERSION, FOOTER as _APP_FOOTER
+except Exception:  # noqa: BLE001
+    _APP_VERSION = "0.4.0"
+    _APP_FOOTER = "Metan.iQ v0.4.0 — © 2026"
+
 # ── BMT (Biochemical Methane Test) — override resa certificata laboratorio ──
 from bmt_override import (
     BMTCertificate,
@@ -336,9 +343,10 @@ DM2018_END_USES = {
 }
 
 # ============================================================
-# DM 18 SETTEMBRE 2024 — "FER 2" / Biogas CHP piccoli impianti agricoli
+# DM 19 GIUGNO 2024 — "FER 2" / Biogas CHP piccoli impianti agricoli
+# (avviso GU 24A04589; regole operative GSE 24A06795)
 # ============================================================
-# Riferimenti: DM 18/9/2024 (Decreto FER 2), focus piccoli impianti
+# Riferimenti: DM 19/06/2024 (Decreto FER 2), focus piccoli impianti
 # biogas cogenerativi <= 300 kWe destinati ad agricoltura sostenibile.
 #
 # Caratteristiche normative:
@@ -1590,7 +1598,7 @@ with st.sidebar:
             use_container_width=True,
             type="primary" if st.session_state.app_mode == "biogas_chp_fer2" else "secondary",
             key="btn_mode_chp_fer2",
-            help="Biogas CHP FER 2 (DM 18/9/2024) — taglia max 300 kWe, "
+            help="Biogas CHP FER 2 (DM 19/06/2024) — taglia max 300 kWe, "
                  "matrice ≥80% sottoprodotti/effluenti, TR + premi "
                  "matrice/CAR, periodo 20 anni.",
         ):
@@ -2238,7 +2246,7 @@ st.markdown(
         <span class="eyebrow">// Decision Intelligence Platform</span>
         <h1>Metan<span style="color:""" + AMBER + """; font-weight:700;">.</span>iQ</h1>
         <div class="tagline">""" + (
-            "DM 18/9/2024 · CHP biogas piccoli impianti agricoli ≤300 kWe. Tariffa di Riferimento + premi matrice (≥80% sottoprodotti) e CAR. Periodo 20 anni, saving 80% RED III."
+            "DM 19/06/2024 · CHP biogas piccoli impianti agricoli ≤300 kWe. Tariffa di Riferimento + premi matrice (≥80% sottoprodotti) e CAR. Periodo 20 anni, saving 80% RED III."
             if IS_FER2 else
             "Pianificazione e business case per impianti biogas cogenerativi (DM 6/7/2012, ≤1 MW). Bilancio elettrico-termico, tariffa T.O. e saving RED III."
             if IS_CHP else
@@ -2254,7 +2262,7 @@ st.markdown(
                 "BIOMETANO · DM 15/9/2022"
             ) + """</span>
             <span class="pill">""" + (
-                "DM 18/9/2024 · FER 2" if IS_FER2 else
+                "DM 19/06/2024 · FER 2" if IS_FER2 else
                 "RED II · ALL. IX (avanzato)" if IS_DM2018 else
                 "RED III · D.LGS 5/2026"
             ) + """</span>
@@ -2896,7 +2904,7 @@ with st.sidebar:
             help="Rendimento termico recuperato (fumi + acqua motore). "
                  "Tipico 40-45%. Per CAR richiesto PES > 10%.",
         )
-        # Cap dimensionale: FER 2 ha hard cap a 300 kWe (DM 18/9/2024).
+        # Cap dimensionale: FER 2 ha hard cap a 300 kWe (DM 19/06/2024).
         # DM 6/7/2012 fino a 1 MW agricolo (cap pratico 999 kWe per evitare
         # passaggio a fascia successiva). Manteniamo max wide-range per
         # consentire scenari simulativi anche fuori normativa.
@@ -2905,7 +2913,7 @@ with st.sidebar:
             _kwe_max   = FER2_KWE_CAP
             _kwe_value = min(DEFAULT_PLANT_KWE_FER2, FER2_KWE_CAP)
             _kwe_help  = (
-                f"FER 2 (DM 18/9/2024): hard cap **{fmt_it(FER2_KWE_CAP, 0)} kWe**. "
+                f"FER 2 (DM 19/06/2024): hard cap **{fmt_it(FER2_KWE_CAP, 0)} kWe**. "
                 f"Targa motore = potenza ai morsetti alternatore. Esempi tipici "
                 f"<300 kWe: Jenbacher JMC 312 GS = 250 kWe, MAN E0834 = 250 kWe."
             )
@@ -2997,13 +3005,13 @@ with st.sidebar:
     if IS_CHP:
         # Per biogas CHP: solo destinazione elettrica, soglia 80% (RED III).
         # Comparator 183 gCO2/MJ (mix elettrico EU).
-        end_use = ("Elettricità CHP — FER 2 (DM 18/9/2024, ≤300 kW)"
+        end_use = ("Elettricità CHP — FER 2 (DM 19/06/2024, ≤300 kW)"
                    if IS_FER2 else "Elettricità CHP — DM 6/7/2012 (≤1 MW)")
         ghg_threshold = 0.80
         # FOSSIL_COMPARATOR gia' settato a 183 nel mode selector
         if IS_FER2:
             st.info(
-                "🔋 **Biogas → CHP FER 2** (DM 18/9/2024) · Taglia max "
+                "🔋 **Biogas → CHP FER 2** (DM 19/06/2024) · Taglia max "
                 f"**{fmt_it(FER2_KWE_CAP, 0)} kWe** · Comparator fossile "
                 "RED III: **183 gCO₂/MJ** (mix elettrico EU) · "
                 "Soglia saving: 80% · Periodo incentivo: 20 anni"
@@ -6022,7 +6030,8 @@ st.markdown(
             flex-wrap: wrap; gap: 12px;
         '>
             <div>
-                Ideato e sviluppato da
+                Metan.iQ <b style='color:#FFFFFF;'>v""" + _APP_VERSION + """</b>
+                &nbsp;·&nbsp; Ideato e sviluppato da
                 <b style='color:#FFFFFF; font-weight:600;'>Carlo Sicurini</b>
                 &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp; Tutti i diritti riservati
                 &nbsp;·&nbsp;

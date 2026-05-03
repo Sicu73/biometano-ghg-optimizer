@@ -49,10 +49,13 @@ except ImportError:
         }
 
 # ---------------------------------------------------------------------------
-# Versione software
+# Versione software (singolo punto di verita': core/version.py)
 # ---------------------------------------------------------------------------
-_SOFTWARE_NAME = "Metan.iQ"
-_SOFTWARE_VERSION = "2.0.0-refactor"
+try:
+    from core.version import __version__ as _SOFTWARE_VERSION, __product__ as _SOFTWARE_NAME
+except Exception:  # noqa: BLE001
+    _SOFTWARE_NAME = "Metan.iQ"
+    _SOFTWARE_VERSION = "0.4.0"
 
 
 # ---------------------------------------------------------------------------
