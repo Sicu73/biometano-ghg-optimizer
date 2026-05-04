@@ -85,7 +85,17 @@ _GHG_METHOD_IT = (
     "   - Rete/elettricità/calore: 80 gCO₂eq/MJ (RED III Annex VI Part B)\n"
     "   - Trasporti (BioCNG/BioGNL): 94 gCO₂eq/MJ (RED III Annex V Part C)\n"
     "   - Biogas CHP (mix elettrico EU): 183 gCO₂eq/MJ (RED III Annex VI)\n"
-    "5. Il biometano netto = biogas lordo / aux_factor (autoconsumo impianto)."
+    "5. Il biometano netto = biogas lordo / aux_factor (autoconsumo impianto).\n"
+    "\n"
+    "BASE SOSTENIBILITA': LORDO.\n"
+    "Il calcolo del saving GHG e dei vincoli normativi e' riferito alla\n"
+    "produzione LORDA (Sm³ lordi · LHV = MJ lordi). Questa e' la base\n"
+    "ufficiale per RED III, DM 15/9/2022 (biometano in rete), DM 2/3/2018\n"
+    "(biometano CIC trasporti/altri usi), DM 6/7/2012 (biogas CHP) e\n"
+    "DM 18/9/2024 (FER 2). L'intera energia prodotta deve essere sostenibile,\n"
+    "non solo la quota immessa in rete. Per il biometano nei report viene\n"
+    "esposta la doppia vista LORDO + NETTO come riferimento informativo,\n"
+    "ma il vincolo di sostenibilita' resta sul LORDO."
 )
 
 _GHG_METHOD_EN = (
@@ -99,7 +109,16 @@ _GHG_METHOD_EN = (
     "   - Grid/electricity/heat: 80 gCO₂eq/MJ (RED III Annex VI Part B)\n"
     "   - Transport (BioCNG/BioLNG): 94 gCO₂eq/MJ (RED III Annex V Part C)\n"
     "   - Biogas CHP (EU electricity mix): 183 gCO₂eq/MJ (RED III Annex VI)\n"
-    "5. Net biomethane = gross biogas / aux_factor (plant self-consumption)."
+    "5. Net biomethane = gross biogas / aux_factor (plant self-consumption).\n"
+    "\n"
+    "SUSTAINABILITY BASIS: GROSS.\n"
+    "GHG saving and regulatory constraints are computed on the GROSS\n"
+    "production (Sm3 gross x LHV = gross MJ). This is the official basis\n"
+    "for RED III, DM 15/9/2022, DM 2/3/2018, DM 6/7/2012 (CHP) and\n"
+    "DM 18/9/2024 (FER 2). The entire produced energy must be sustainable,\n"
+    "not only the share injected into the grid. For biomethane the reports\n"
+    "expose the dual view GROSS + NET as informative reference, but the\n"
+    "sustainability constraint remains on the GROSS basis."
 )
 
 _REGULATORY_BASIS_IT = (
@@ -211,6 +230,55 @@ def explain_regulatory_basis(ctx: dict) -> str:
     return base
 
 
+def explain_sustainability_basis(ctx: dict) -> str:
+    """Testo che dichiara esplicitamente la base (LORDO/NETTO) usata.
+
+    Per ogni regime spiega quale grandezza energetica e' usata come base
+    del calcolo GHG e quali soglie si applicano. Sottolinea che il
+    vincolo di sostenibilita' e' sul LORDO; il NETTO (biometano) e'
+    riferimento informativo aggiuntivo.
+    """
+    lang = ctx.get("lang", "it") if isinstance(ctx, dict) else "it"
+    app_mode = ctx.get("APP_MODE", "biometano") if isinstance(ctx, dict) else "biometano"
+    is_chp = bool(ctx.get("IS_CHP", False)) if isinstance(ctx, dict) else False
+    is_biomethane = (not is_chp) and app_mode in ("biometano", "biometano_2018")
+
+    if lang == "en":
+        head = (
+            "Sustainability basis: GROSS.\n"
+            "GHG saving and constraints are evaluated on the gross energy\n"
+            "(Sm3 gross x LHV biomethane = gross MJ). This is the basis\n"
+            "required by RED III (Annex V Part C), DM 15/9/2022 (DM 2022),\n"
+            "DM 2/3/2018 (CIC), DM 6/7/2012 (biogas CHP) and DM 18/9/2024\n"
+            "(FER 2): the whole produced energy must be sustainable.\n"
+        )
+        if is_biomethane:
+            head += (
+                "\nFor biomethane the reports also show the NET view\n"
+                "(Sm3 net = Sm3 gross / aux_factor) as informative\n"
+                "reference for the energy actually injected into the grid.\n"
+                "The regulatory constraint stays on the GROSS basis.\n"
+            )
+        return head
+
+    head = (
+        "Base sostenibilita': LORDO.\n"
+        "Il saving GHG ed i vincoli normativi sono valutati sull'energia\n"
+        "LORDA (Sm3 lordi x LHV biometano = MJ lordi). E' la base richiesta\n"
+        "da RED III (Allegato V Parte C), DM 15/9/2022 (DM 2022),\n"
+        "DM 2/3/2018 (CIC), DM 6/7/2012 (biogas CHP) e DM 18/9/2024 (FER 2):\n"
+        "l'intera energia prodotta deve essere sostenibile.\n"
+    )
+    if is_biomethane:
+        head += (
+            "\nPer il biometano i report espongono anche la vista NETTO\n"
+            "(Sm3 netti = Sm3 lordi / aux_factor) come riferimento\n"
+            "informativo per l'energia effettivamente immessa in rete.\n"
+            "Il vincolo normativo resta sul LORDO.\n"
+        )
+    return head
+
+
 def build_all_explanations(ctx: dict) -> dict:
     """Costruisce il dict completo delle spiegazioni per il output_model."""
     return {
@@ -218,4 +286,5 @@ def build_all_explanations(ctx: dict) -> dict:
         "emission_factor_origin":  explain_emission_factor_origin(ctx),
         "ghg_method":              explain_ghg_method(ctx),
         "regulatory_basis":        explain_regulatory_basis(ctx),
+        "sustainability_basis":    explain_sustainability_basis(ctx),
     }

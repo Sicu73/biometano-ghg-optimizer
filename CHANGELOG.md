@@ -1,6 +1,48 @@
 # CHANGELOG — Metan.iQ
 
-## [unreleased] — branch `feature/daily-ops-monthly-sustainability`
+## [unreleased] — audit/gross-net-sustainability
+
+### Audit base LORDO vs NETTO per controllo sostenibilità GHG
+
+- **Diagnosi**: il motore `core.calculation_engine.ghg_summary` calcola già
+  correttamente saving% e e_w come **intensità gCO₂eq/MJ sull'energia
+  LORDA** (Sm³ lordi · LHV). Vincoli sostenibilità (RED III, DM 2022,
+  DM 2018, DM 2012/CHP, DM 2024/FER 2) restano sul **LORDO**. Nessuna
+  formula corretta è stata cambiata.
+- **Esposizione esplicita**: aggiunti campi `tot_sm3_lordi`,
+  `tot_mwh_lordi`, `sustainability_basis`, `sustainability_basis_note`,
+  `biomethane_dual_view` in `output/output_builder.calculation_summary`.
+- **Doppia vista biometano**: per regimi DM 2018 / DM 2022 i report
+  mostrano **LORDO + NETTO** (NETTO = LORDO/aux_factor è l'effettiva
+  immissione in rete). La base normativa resta esplicitamente sul LORDO.
+- **MonthlyAggregate**: nuovi campi `mwh_gross`, `saving_pct_net`,
+  `sustainability_basis = "LORDO"` con docstring che esplicita la
+  semantica e la base usata.
+- **Spiegazioni** (`output/explanations.py`): nuova funzione
+  `explain_sustainability_basis(ctx)` (IT/EN) che dichiara LORDO come
+  base e cita RED III, DM 15/9/2022, DM 2/3/2018, DM 6/7/2012, DM 18/9/2024.
+  `explain_ghg_method` aggiornato con sezione `BASE SOSTENIBILITA': LORDO`.
+- **Tabelle** (`output/tables.py`): nuova
+  `build_sustainability_basis_table(om)` con righe Sm³/MWh/Saving e
+  colonna esplicita `Base normativa applicata`.
+- **Export**:
+  - `export/csv_export.py` — metadata mensile + `_empty_csv` espongono
+    Sm³/MWh LORDI/NETTI, base, nota.
+  - `export/excel_export.py` — sheet `Riepilogo` con righe LORDO/NETTO
+    + Base sostenibilità + flag vista NETTO biometano.
+  - `export/pdf_export.py` — KPI box con doppia riga LORDO/NETTO
+    (Sm³ + MWh) + Base sostenibilità.
+- **Test**: `tests/test_gross_net_sustainability.py` (8 test):
+  invarianza saving su aux_factor, dual view biometano, no dual view per
+  CHP, presenza LORDO+NETTO in CSV, tabella basis, spiegazione dichiara
+  LORDO+RED III, MonthlyAggregate field check, monthly_kpis include base.
+- **Doc**: `AUDIT_GROSS_NET.md` con mappatura completa calcoli, regimi,
+  base usata, esempi I/O, raccomandazioni.
+
+Backward compat 100%: nessuna firma rotta, le nuove key sono additive,
+fallback `getattr(..., default)` ovunque rilevante. 247/247 test verdi.
+
+## [precedente] — branch `feature/daily-ops-monthly-sustainability`
 
 ### Added — Gestione giornaliera + verifica sostenibilità mensile
 - **Nuovi moduli core/**:

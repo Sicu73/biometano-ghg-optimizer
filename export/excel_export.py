@@ -224,9 +224,14 @@ def _build_fallback_xlsx(output_model: dict, error: str | None = None) -> BytesI
     ws3.append(["Generato", meta.get("generated_at", "")])
     ws3.append(["Scenario", meta.get("scenario_name", "")])
     ws3.append(["Totale biomasse (t)", calc.get("tot_biomasse_t", 0.0)])
-    ws3.append(["Totale Sm³ netti", calc.get("tot_sm3_netti", 0.0)])
-    ws3.append(["Totale MWh", calc.get("tot_mwh", 0.0)])
-    ws3.append(["Saving medio (%)", calc.get("saving_avg", 0.0)])
+    # Doppia vista LORDO / NETTO + base sostenibilita' esplicita
+    ws3.append(["Totale Sm³ LORDI (base sostenibilita')", calc.get("tot_sm3_lordi", 0.0)])
+    ws3.append(["Totale Sm³ NETTI (immesso in rete)", calc.get("tot_sm3_netti", 0.0)])
+    ws3.append(["Totale MWh LORDI (base sostenibilita')", calc.get("tot_mwh_lordi", 0.0)])
+    ws3.append(["Totale MWh NETTI (immesso in rete)", calc.get("tot_mwh", 0.0)])
+    ws3.append(["Saving medio (%) — base LORDA", calc.get("saving_avg", 0.0)])
+    ws3.append(["Base sostenibilita'", calc.get("sustainability_basis", "LORDO")])
+    ws3.append(["Vista NETTO biometano", "Si" if calc.get("biomethane_dual_view") else "No"])
     ws3.append(["Mesi validi", calc.get("valid_months", 0)])
     ws3.append(["Ricavi totali (EUR)", calc.get("total_revenue", 0.0)])
 

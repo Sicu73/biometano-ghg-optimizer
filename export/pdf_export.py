@@ -274,13 +274,22 @@ def _build_fallback_pdf(output_model: dict, error: str | None = None) -> BytesIO
     ))
     story.append(Spacer(1, 6*mm))
 
-    # KPI box
+    # KPI box (con doppia vista LORDO/NETTO + base sostenibilita' esplicita)
     kpi_data = [
         ["KPI", "Valore"],
         ["Totale biomasse (t/anno)", f"{calc.get('tot_biomasse_t', 0.0):,.0f}"],
-        ["Totale Sm³ netti/anno",    f"{calc.get('tot_sm3_netti', 0.0):,.0f}"],
-        ["Totale MWh netti/anno",    f"{calc.get('tot_mwh', 0.0):,.0f}"],
-        ["Saving GHG medio (%)",     f"{calc.get('saving_avg', 0.0):,.1f}"],
+        ["Sm³ LORDI/anno (base sostenibilita')",
+         f"{calc.get('tot_sm3_lordi', 0.0):,.0f}"],
+        ["Sm³ NETTI/anno (immesso in rete)",
+         f"{calc.get('tot_sm3_netti', 0.0):,.0f}"],
+        ["MWh LORDI/anno (base sostenibilita')",
+         f"{calc.get('tot_mwh_lordi', 0.0):,.0f}"],
+        ["MWh NETTI/anno (immesso in rete)",
+         f"{calc.get('tot_mwh', 0.0):,.0f}"],
+        ["Saving GHG medio (%) - base LORDA",
+         f"{calc.get('saving_avg', 0.0):,.1f}"],
+        ["Base sostenibilita'",
+         str(calc.get("sustainability_basis", "LORDO"))],
         ["Mesi validi (≥soglia)",    f"{calc.get('valid_months', 0)}/12"],
         ["Ricavi totali (EUR)",      f"{calc.get('total_revenue', 0.0):,.0f}"],
     ]

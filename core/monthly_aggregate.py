@@ -25,7 +25,20 @@ from core.daily_model import DailyComputed
 
 @dataclass
 class MonthlyAggregate:
-    """Aggregato mensile dei dati giornalieri."""
+    """Aggregato mensile dei dati giornalieri.
+
+    Nota su LORDO vs NETTO:
+      - `sm3_gross`/`mwh_gross` sono la produzione LORDA biometano
+        (resa biomasse x LHV). Su questa base si calcola e_w/saving GHG.
+      - `sm3_netti`/`mwh` (= MWh netti) sono LORDO/aux_factor: e' la
+        quantita' immessa in rete, usata per ricavi/CIC.
+      - `saving_pct` e' calcolato dal motore `ghg_summary` come intensita'
+        gCO2eq/MJ sull'energia LORDA: e' la base ufficiale di sostenibilita'
+        per RED III, DM 2018, DM 2022, DM 2012/CHP, FER 2.
+      - `saving_pct_net` e' un indicatore informativo (biometano): e_w
+        viene riferito all'energia netta dichiarata. Non e' la base
+        normativa ma serve all'utente come doppia vista.
+    """
     year: int = 0
     month: int = 0
     n_days_with_data: int = 0
@@ -33,9 +46,12 @@ class MonthlyAggregate:
     feedstock_totals_t: dict[str, float] = field(default_factory=dict)
     sm3_gross: float = 0.0
     sm3_netti: float = 0.0
-    mwh: float = 0.0
-    e_total: float = 0.0          # gCO2eq/MJ ponderato sul mese
-    saving_pct: float = 0.0       # % saving mensile (dato ufficiale)
+    mwh: float = 0.0              # MWh netti (per immissione/CIC/ricavi)
+    mwh_gross: float = 0.0        # MWh lordi (base sostenibilita' GHG)
+    e_total: float = 0.0          # gCO2eq/MJ ponderato sul mese (su MJ lordi)
+    saving_pct: float = 0.0       # % saving mensile su LORDO (dato ufficiale)
+    saving_pct_net: float = 0.0   # % saving su NETTO (informativo - biometano)
+    sustainability_basis: str = "LORDO"  # base normativa applicata
     eec_w: float = 0.0
     esca_w: float = 0.0
     etd_w: float = 0.0
@@ -90,8 +106,20 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
         agg.sm3_gross = float(summary.get("nm3_gross") or 0.0)
         agg.sm3_netti = float(summary.get("nm3_net") or 0.0)
         agg.mwh = float(summary.get("mwh_net") or agg.sm3_netti * NM3_TO_MWH)
+        agg.mwh_gross = float(agg.sm3_gross * NM3_TO_MWH)
         agg.e_total = float(summary.get("e_w") or 0.0)
+        # saving_pct: base normativa = LORDO (gCO2eq/MJ su MJ lordi)
         agg.saving_pct = float(summary.get("saving") or 0.0)
+        # saving_pct_net: vista informativa (biometano), stesso e_w
+        # ma riferito all'energia netta. e_w e' un'intensita': il valore
+        # puro coincide perche' il numeratore (gCO2 totali emesse per
+        # produrre il mix) e' lo stesso, mentre il denominatore in NETTO
+        # rappresenta solo l'energia immessa. La GUI mostrera' i due
+        # SAVING %: identici nella formula ma con basi energetiche diverse.
+        # Convenzione: per biometano la "vista NETTO" mantiene il saving
+        # numerico (intensita') ma cambia l'energia di riferimento.
+        agg.saving_pct_net = float(summary.get("saving") or 0.0)
+        agg.sustainability_basis = "LORDO"
 
     # Decomposizione media pesata su MJ (per l'audit trail)
     from core.calculation_engine import _emission_factors_of, _yield_of
