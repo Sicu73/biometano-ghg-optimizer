@@ -5701,7 +5701,10 @@ try:
         list_saved_months as _list_months,
     )
     from core.validators import validate_daily_entry as _validate_daily
-    from output.daily_table_view import build_daily_dataframe as _build_daily_df
+    from output.daily_table_view import (
+        build_daily_dataframe as _build_daily_df,
+        style_daily_dataframe as _style_daily_df,
+    )
     from output.monthly_kpis import build_monthly_kpis as _build_kpis
     from output.guidance import compute_end_of_month_guidance as _build_guidance
     from export.daily_csv import build_daily_csv as _build_daily_csv
@@ -5884,11 +5887,30 @@ if _DAILY_OPS_AVAILABLE:
                 _icon = "✅" if _c.get("ok") else "❌"
                 st.write(f"{_icon} **{_c.get('name','?')}** — {_c.get('msg','')}")
 
-    with st.expander("📋 Tabella giornaliera dettagliata (cumulati inclusi)",
-                     expanded=False):
+    with st.expander(
+        "📋 Tabella giornaliera dettagliata — include Sm³/h netti e Saving GHG "
+        "(celle rosse = oltre cap autorizzato / sotto soglia normativa)",
+        expanded=True,
+    ):
         _daily_df = _build_daily_df(_entries_list, _computed_list,
                                      feed_columns=_do_active_feeds)
-        st.dataframe(_daily_df, use_container_width=True, hide_index=True)
+        try:
+            _cap_smch = float(plant_net_smch) if plant_net_smch else 0.0
+            _thr_pct = float(_kpis.get("threshold") or 0.0)
+            _styler = _style_daily_df(
+                _daily_df,
+                cap_smch=_cap_smch,
+                ghg_threshold_pct=_thr_pct,
+            )
+            st.dataframe(_styler, use_container_width=True, hide_index=True)
+            st.caption(
+                f"🔴 Sm³/h netti > {_cap_smch:,.2f} (cap autorizzato) · "
+                f"🔴 Saving giornaliero < {_thr_pct:,.2f}% (soglia normativa). "
+                "I valori giornalieri sono solo informativi: la conformità ufficiale è mensile."
+            )
+        except Exception as _style_exc:  # noqa: BLE001
+            st.dataframe(_daily_df, use_container_width=True, hide_index=True)
+            st.caption(f"(Highlight non applicabile: {_style_exc})")
 
     _guidance = _build_guidance(_agg, _sust, regime=_regime_lbl)
     with st.expander("🎯 Indicazioni operative fine mese", expanded=True):
