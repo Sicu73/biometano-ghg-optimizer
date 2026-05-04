@@ -5888,17 +5888,25 @@ if _DAILY_OPS_AVAILABLE:
                 st.write(f"{_icon} **{_c.get('name','?')}** — {_c.get('msg','')}")
 
     with st.expander(
-        "📋 Tabella giornaliera dettagliata — include Sm³/h netti e Saving GHG "
+        "📋 Tabella giornaliera — biomasse, Sm³/h netti, Saving GHG "
         "(celle rosse = oltre cap autorizzato / sotto soglia normativa)",
         expanded=True,
     ):
         _daily_df = _build_daily_df(_entries_list, _computed_list,
                                      feed_columns=_do_active_feeds)
+        # Vista snella: solo Data + biomasse t/giorno + Sm³/h netti + Saving GHG
+        _compact_cols = (
+            ["Data"]
+            + [c for c in _do_active_feeds if c in _daily_df.columns]
+            + [c for c in ("Sm³/h netti", "Saving giornaliero (stima %)")
+               if c in _daily_df.columns]
+        )
+        _daily_df_view = _daily_df[_compact_cols] if not _daily_df.empty else _daily_df
         try:
             _cap_smch = float(plant_net_smch) if plant_net_smch else 0.0
             _thr_pct = float(_kpis.get("threshold") or 0.0)
             _styler = _style_daily_df(
-                _daily_df,
+                _daily_df_view,
                 cap_smch=_cap_smch,
                 ghg_threshold_pct=_thr_pct,
             )
@@ -5906,10 +5914,11 @@ if _DAILY_OPS_AVAILABLE:
             st.caption(
                 f"🔴 Sm³/h netti > {_cap_smch:,.2f} (cap autorizzato) · "
                 f"🔴 Saving giornaliero < {_thr_pct:,.2f}% (soglia normativa). "
-                "I valori giornalieri sono solo informativi: la conformità ufficiale è mensile."
+                "I valori giornalieri sono solo informativi: la conformità ufficiale è mensile. "
+                "I calcoli completi (MWh, eec/esca/etd/ep, cumulati) sono inclusi negli export CSV/Excel/PDF."
             )
         except Exception as _style_exc:  # noqa: BLE001
-            st.dataframe(_daily_df, use_container_width=True, hide_index=True)
+            st.dataframe(_daily_df_view, use_container_width=True, hide_index=True)
             st.caption(f"(Highlight non applicabile: {_style_exc})")
 
     _guidance = _build_guidance(_agg, _sust, regime=_regime_lbl)
