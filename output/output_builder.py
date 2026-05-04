@@ -164,8 +164,27 @@ def build_output_model(ctx: dict) -> dict:
                                   "Totale biomasse (t)", warnings)
     tot_sm3_netti = _safe_float(ctx.get("tot_sm3_netti"), monthly_table,
                                  "Sm³ netti", warnings)
+    tot_sm3_lordi = _safe_float(ctx.get("tot_sm3_lordi"), monthly_table,
+                                 "Sm³ lordi", warnings)
     tot_mwh = _safe_float(ctx.get("tot_mwh_netti") or ctx.get("tot_mwh"), None,
                            None, warnings)
+    # MWh lordi: se non passato dall'app, derivato dai Sm3 lordi.
+    # NM3_TO_MWH = 0.00997 MWh/Sm3 (biometano puro CH4 al ~100%, LHV).
+    _NM3_TO_MWH = 0.00997
+    tot_mwh_lordi_ctx = ctx.get("tot_mwh_lordi")
+    if tot_mwh_lordi_ctx is not None:
+        try:
+            tot_mwh_lordi = float(tot_mwh_lordi_ctx)
+        except (TypeError, ValueError):
+            tot_mwh_lordi = tot_sm3_lordi * _NM3_TO_MWH
+    else:
+        tot_mwh_lordi = tot_sm3_lordi * _NM3_TO_MWH
+        # Fallback: se manca il lordo ma c'e' il netto + aux, derivalo
+        if tot_mwh_lordi <= 0 and tot_mwh > 0 and aux_factor > 0:
+            tot_mwh_lordi = tot_mwh * aux_factor
+        # Se manca anche il Sm3 lordi ma abbiamo Sm3 netti + aux
+        if tot_sm3_lordi <= 0 and tot_sm3_netti > 0 and aux_factor > 0:
+            tot_sm3_lordi = tot_sm3_netti * aux_factor
     saving_avg = _safe_float(ctx.get("saving_avg"), monthly_table,
                               "Saving %", warnings, is_mean=True)
     valid_months = ctx.get("valid_months")
@@ -176,10 +195,32 @@ def build_output_model(ctx: dict) -> dict:
         )
     total_revenue = float(ctx.get("tot_revenue", 0.0))
 
+    # --- Sostenibilita': base normativa esplicita ---------------------------
+    # La saving% RED III/DM 2022/DM 2018/DM 2012/FER 2 e' calcolata come
+    # intensita' gCO2eq/MJ sull'energia LORDA (Sm3 lordi x LHV).
+    # Per il biometano (DM 2018 / DM 2022) esponiamo anche la vista NETTO
+    # come informativo aggiuntivo (Sm3 netti = effettiva immissione in rete).
+    is_biomethane = bool(is_dm2018 or is_dm2022) and not is_chp
+    sustainability_basis = "LORDO"
+    sustainability_basis_note = (
+        "Saving GHG calcolato come intensita' gCO2eq/MJ sull'ENERGIA LORDA "
+        "(Sm3 lordi x LHV biometano). Base ufficiale per RED III, DM 15/9/2022, "
+        "DM 2/3/2018, DM 6/7/2012 (CHP) e DM 18/9/2024 (FER 2)."
+    )
+    if is_biomethane:
+        sustainability_basis_note += (
+            " Per il biometano viene esposta anche la vista NETTO "
+            "(Sm3 netti = Sm3 lordi / aux_factor) come riferimento "
+            "informativo aggiuntivo per l'energia effettivamente immessa "
+            "in rete; il vincolo normativo resta sul LORDO."
+        )
+
     calculation_summary: dict[str, Any] = {
         "tot_biomasse_t": tot_biomasse_t,
         "tot_sm3_netti": tot_sm3_netti,
+        "tot_sm3_lordi": tot_sm3_lordi,
         "tot_mwh": tot_mwh,
+        "tot_mwh_lordi": tot_mwh_lordi,
         "saving_avg": saving_avg,
         "valid_months": int(valid_months) if valid_months is not None else 0,
         "total_revenue": total_revenue,
@@ -192,6 +233,10 @@ def build_output_model(ctx: dict) -> dict:
         "is_advanced": bool(ctx.get("is_advanced", False)),
         # tariffa
         "tariffa_media_ponderata": float(ctx.get("tariffa_media_ponderata", 0.0)),
+        # base sostenibilita' esplicita
+        "sustainability_basis": sustainability_basis,
+        "sustainability_basis_note": sustainability_basis_note,
+        "biomethane_dual_view": bool(is_biomethane),
     }
 
     # --- feedstock_table (dettaglio per biomassa) ----------------------------

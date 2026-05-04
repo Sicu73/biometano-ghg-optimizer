@@ -30,6 +30,57 @@ def _to_df_or_list(rows: list[dict[str, Any]]) -> Any:
     return rows
 
 
+def build_sustainability_basis_table(output_model: dict) -> Any:
+    """Tabella riassuntiva della base sostenibilita' (LORDO vs NETTO).
+
+    Espone in modo esplicito quale grandezza energetica e' usata per il
+    saving GHG e quale e' la vista informativa NETTO (per biometano).
+    Colonne: Voce, LORDO (base sostenibilita'), NETTO (immesso in rete),
+             Note.
+    """
+    calc = output_model.get("calculation_summary", {}) or {}
+    tot_sm3_lordi = float(calc.get("tot_sm3_lordi", 0.0) or 0.0)
+    tot_sm3_netti = float(calc.get("tot_sm3_netti", 0.0) or 0.0)
+    tot_mwh_lordi = float(calc.get("tot_mwh_lordi", 0.0) or 0.0)
+    tot_mwh_netti = float(calc.get("tot_mwh", 0.0) or 0.0)
+    saving_avg = float(calc.get("saving_avg", 0.0) or 0.0)
+    basis = str(calc.get("sustainability_basis", "LORDO") or "LORDO")
+    is_dual = bool(calc.get("biomethane_dual_view", False))
+
+    rows: list[dict[str, Any]] = [
+        {
+            "Voce": "Sm³ biometano",
+            "LORDO (base sostenibilita')": tot_sm3_lordi,
+            "NETTO (immesso in rete)": tot_sm3_netti,
+            "Note": "LORDO = resa biomasse · NETTO = LORDO/aux_factor",
+        },
+        {
+            "Voce": "MWh biometano",
+            "LORDO (base sostenibilita')": tot_mwh_lordi,
+            "NETTO (immesso in rete)": tot_mwh_netti,
+            "Note": "Conversione 1 Sm³ ≈ 0,00997 MWh (LHV)",
+        },
+        {
+            "Voce": "Saving GHG (%)",
+            "LORDO (base sostenibilita')": saving_avg,
+            "NETTO (immesso in rete)": (saving_avg if is_dual else None),
+            "Note": (
+                "Intensita' gCO2eq/MJ riferita all'energia LORDA "
+                "(base normativa RED III/DM 2022/DM 2018/DM 2012/FER 2)."
+            ),
+        },
+        {
+            "Voce": "Base normativa applicata",
+            "LORDO (base sostenibilita')": basis,
+            "NETTO (immesso in rete)": (
+                "vista informativa" if is_dual else "non applicabile"
+            ),
+            "Note": calc.get("sustainability_basis_note", ""),
+        },
+    ]
+    return _to_df_or_list(rows)
+
+
 # ---------------------------------------------------------------------------
 # Tabella mensile
 # ---------------------------------------------------------------------------

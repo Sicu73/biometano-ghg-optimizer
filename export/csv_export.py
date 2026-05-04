@@ -173,8 +173,9 @@ def _fmt_csv(value: Any) -> str:
 
 
 def _empty_csv(output_model: dict, sheet: str) -> bytes:
-    """CSV vuoto con info metadata."""
+    """CSV vuoto con info metadata + base sostenibilita' esplicita."""
     meta = output_model.get("metadata", {})
+    calc = output_model.get("calculation_summary", {}) or {}
     lines = [
         f"# {meta.get('software_name', 'Metan.iQ')} - {meta.get('version', '')}",
         f"# Generato: {meta.get('generated_at', '')}",
@@ -182,6 +183,18 @@ def _empty_csv(output_model: dict, sheet: str) -> bytes:
         f"# Sheet: {sheet}",
         "# (nessun dato disponibile)",
     ]
+    if sheet == "monthly":
+        # Anche su sheet vuoto esponiamo i totali LORDO/NETTO + base
+        lines.extend([
+            f"# Sm3 LORDI (base sostenibilita'): {_fmt_csv(calc.get('tot_sm3_lordi', 0.0))}",
+            f"# Sm3 NETTI (immesso in rete): {_fmt_csv(calc.get('tot_sm3_netti', 0.0))}",
+            f"# MWh LORDI (base sostenibilita'): {_fmt_csv(calc.get('tot_mwh_lordi', 0.0))}",
+            f"# MWh NETTI (immesso in rete): {_fmt_csv(calc.get('tot_mwh', 0.0))}",
+            f"# Base sostenibilita': {calc.get('sustainability_basis', 'LORDO')}",
+        ])
+        _basis_note = str(calc.get("sustainability_basis_note", "")).replace("\r", " ").replace("\n", " ")
+        if _basis_note:
+            lines.append(f"# Nota base: {_basis_note}")
     return ("﻿" + "\r\n".join(lines) + "\r\n").encode("utf-8")
 
 
@@ -198,6 +211,15 @@ def _append_metadata(buf: io.StringIO, output_model: dict, sheet: str) -> None:
         buf.write(f"# Mesi validi: {calc.get('valid_months', 0)}/12\r\n")
         buf.write(f"# Saving medio (%): {_fmt_csv(calc.get('saving_avg', 0.0))}\r\n")
         buf.write(f"# Totale ricavi (EUR): {_fmt_csv(calc.get('total_revenue', 0.0))}\r\n")
+        # Doppia vista LORDO/NETTO + base sostenibilita' esplicita
+        buf.write(f"# Sm3 LORDI (base sostenibilita'): {_fmt_csv(calc.get('tot_sm3_lordi', 0.0))}\r\n")
+        buf.write(f"# Sm3 NETTI (immesso in rete): {_fmt_csv(calc.get('tot_sm3_netti', 0.0))}\r\n")
+        buf.write(f"# MWh LORDI (base sostenibilita'): {_fmt_csv(calc.get('tot_mwh_lordi', 0.0))}\r\n")
+        buf.write(f"# MWh NETTI (immesso in rete): {_fmt_csv(calc.get('tot_mwh', 0.0))}\r\n")
+        buf.write(f"# Base sostenibilita': {calc.get('sustainability_basis', 'LORDO')}\r\n")
+        _basis_note = str(calc.get("sustainability_basis_note", "")).replace("\r", " ").replace("\n", " ")
+        if _basis_note:
+            buf.write(f"# Nota base: {_basis_note}\r\n")
     warnings = output_model.get("warnings", [])
     errors = output_model.get("errors", [])
     for w in warnings:
