@@ -45,11 +45,39 @@ def render_lang_selector() -> str:
 
     Chiamare una sola volta all'inizio di ``with st.sidebar:``.
     Ritorna la lingua corrente ('it' o 'en').
+
+    Cross-platform flag rendering:
+        Le bandiere unicode (🇮🇹 🇬🇧) sono "Regional Indicator Symbols". Il
+        rendering nativo varia per OS:
+          - macOS/iOS: Apple Color Emoji → bandiere disegnate
+          - Android: Noto Color Emoji → bandiere disegnate
+          - Windows: Segoe UI Emoji NON disegna le bandiere (mostra "IT/GB"
+            in quadratini)
+        Iniettiamo Google Fonts "Noto Color Emoji" e una font-family con
+        fallback ordinato (prima i font color emoji, poi sistema) sui bottoni
+        della sidebar, così la bandiera è visibile su tutti i dispositivi.
     """
     import streamlit as st
 
     if "lang" not in st.session_state:
         st.session_state["lang"] = "it"
+
+    st.sidebar.markdown(
+        """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
+section[data-testid="stSidebar"] .stButton > button,
+section[data-testid="stSidebar"] .stButton > button p,
+section[data-testid="stSidebar"] .stButton > button span {
+    font-family: 'Apple Color Emoji', 'Segoe UI Emoji',
+                 'Noto Color Emoji', 'Twemoji Mozilla', 'EmojiOne Color',
+                 'Android Emoji', 'Segoe UI', 'Helvetica Neue',
+                 sans-serif !important;
+}
+</style>
+        """,
+        unsafe_allow_html=True,
+    )
 
     st.sidebar.markdown(
         "<div style='font-size:0.7rem;font-weight:700;letter-spacing:1px;"
