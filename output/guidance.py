@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from core.monthly_aggregate import MonthlyAggregate
+from i18n_runtime import t as _t
 
 
 def compute_end_of_month_guidance(
@@ -31,40 +32,27 @@ def compute_end_of_month_guidance(
     margin = float(sustainability_eval.get("margin", saving - threshold))
     compliant = bool(sustainability_eval.get("compliant", False))
 
-    msgs.append(f"Regime applicato: {regime or 'RED III'}.")
+    msgs.append(f"{_t('Regime applicato:')} {regime or 'RED III'}.")
     msgs.append(
-        f"Saving mese ad oggi: {saving:.2f}% (soglia {threshold:.2f}%)."
+        f"{_t('Saving mese ad oggi:')} {saving:.2f}% ({_t('soglia')} {threshold:.2f}%)."
     )
     msgs.append(
-        f"Margine: {'+' if margin >= 0 else ''}{margin:.2f} punti percentuali."
+        f"{_t('Margine:')} {'+' if margin >= 0 else ''}{margin:.2f} {_t('punti percentuali.')}"
     )
 
     if compliant:
-        msgs.append(
-            "Esito provvisorio: COMPLIANT. Mantenere il mix attuale fino a fine mese."
-        )
+        msgs.append(_t("Esito provvisorio: COMPLIANT. Mantenere il mix attuale fino a fine mese."))
     else:
-        msgs.append(
-            "Esito provvisorio: NON COMPLIANT. Servono azioni correttive entro fine mese."
-        )
+        msgs.append(_t("Esito provvisorio: NON COMPLIANT. Servono azioni correttive entro fine mese."))
         # Suggerimenti generici
-        msgs.append(
-            "Suggerimento: aumentare la quota di sottoprodotti/effluenti "
-            "(eec basso o nullo) nei giorni rimanenti."
-        )
-        msgs.append(
-            "Suggerimento: ridurre la quota di colture dedicate/insilati "
-            "ad alto eec (mais, sorgo, triticale, ecc.)."
-        )
-        msgs.append(
-            "Suggerimento: verificare che le biomasse Annex IX (avanzate) "
-            "siano valorizzate per migliorare la classificazione GHG."
-        )
+        msgs.append(_t("Suggerimento: aumentare la quota di sottoprodotti/effluenti (eec basso o nullo) nei giorni rimanenti."))
+        msgs.append(_t("Suggerimento: ridurre la quota di colture dedicate/insilati ad alto eec (mais, sorgo, triticale, ecc.)."))
+        msgs.append(_t("Suggerimento: verificare che le biomasse Annex IX (avanzate) siano valorizzate per migliorare la classificazione GHG."))
 
     # Vincoli specifici falliti
     for c in (sustainability_eval.get("constraints_status") or []):
         if not c.get("ok", True):
-            msgs.append(f"ATTENZIONE - {c.get('name','?')}: {c.get('msg','')}.")
+            msgs.append(f"{_t('ATTENZIONE -')} {c.get('name','?')}: {c.get('msg','')}.")
 
     # Cap autorizzativi
     cap_viol = list(getattr(monthly_agg, "cap_violation_days", []) or [])
@@ -72,15 +60,12 @@ def compute_end_of_month_guidance(
         days_str = ", ".join(d.isoformat() for d in cap_viol[:5])
         suffix = "..." if len(cap_viol) > 5 else ""
         msgs.append(
-            f"Vincolo autorizzativo: superato in {len(cap_viol)} giorno/i "
-            f"({days_str}{suffix}). Ridurre l'alimentazione giornaliera."
+            f"{_t('Vincolo autorizzativo: superato in')} {len(cap_viol)} {_t('giorno/i')} "
+            f"({days_str}{suffix}). {_t('Ridurre l\\'alimentazione giornaliera.')}"
         )
 
     # Avviso compliance mensile
-    msgs.append(
-        "NB: il controllo ufficiale e' MENSILE. Singoli giorni 'non sostenibili' "
-        "sono ammessi se il totale mese rispetta la soglia."
-    )
+    msgs.append(_t("NB: il controllo ufficiale e' MENSILE. Singoli giorni 'non sostenibili' sono ammessi se il totale mese rispetta la soglia."))
     return msgs
 
 

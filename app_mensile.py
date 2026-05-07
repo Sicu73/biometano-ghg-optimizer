@@ -2289,9 +2289,9 @@ st.markdown(
     f"text-transform:uppercase; color:{SECTION_PILL_COLOR}; background:{SECTION_PILL_BG}; "
     f"padding:3px 10px; border-radius:6px; margin-right:10px;'>SOLVER</span>"
     f"<span style='color:{TEXT_SECOND}; font-size:0.95rem;'>"
-    f"Pianificazione mensile biomasse — solver <b>dual-constraint</b> "
-    f"(saving GHG + produzione target) con configurazione impianto <code style='background:{CODE_BG}; "
-    f"padding:2px 6px; border-radius:4px; font-size:0.85em; color:{CODE_COLOR};'>ep</code> ex RED III."
+    f"{_t('Pianificazione mensile biomasse — solver <b>dual-constraint</b> ')}"
+    f"{_t('(saving GHG + produzione target) con configurazione impianto')} <code style='background:{CODE_BG}; "
+    f"padding:2px 6px; border-radius:4px; font-size:0.85em; color:{CODE_COLOR};'>ep</code> {_t('ex RED III.')}"
     f"</span></div>",
     unsafe_allow_html=True,
 )
@@ -5937,11 +5937,11 @@ if _DAILY_OPS_AVAILABLE:
         "Giorni con dati": f"{_kpis['n_days_with_data']}",
         "Giorni cap autorizzativo violato": f"{len(_kpis.get('cap_violation_days', []))}",
     }
-    with st.expander("🧾 Audit Trail mese", expanded=False):
+    with st.expander(_t("🧾 Audit Trail mese"), expanded=False):
         for _k, _v in _audit.items():
             st.write(f"- **{_k}**: {_v}")
 
-    st.markdown("### 💾 Salva ed esporta")
+    st.markdown(f"### {_t('💾 Salva ed esporta')}")
     _scol1, _scol2, _scol3, _scol4 = st.columns(4)
     with _scol1:
         if st.button("💾 Salva mese", key="do_btn_save"):
@@ -6048,8 +6048,7 @@ st.markdown(
             font-size: 0.9rem; color: #94A3B8;
             margin-top: 8px; position: relative; z-index: 1;
             max-width: 640px; line-height: 1.5;
-        '>Decision intelligence platform per la pianificazione mensile e
-        l'ottimizzazione GHG di impianti di biometano e biogas cogenerativo.</div>
+        '>{_t("Decision intelligence platform per la pianificazione mensile e l\\'ottimizzazione GHG di impianti di biometano e biogas cogenerativo.")}</div>
         <div style='
             margin-top: 18px; padding-top: 16px;
             border-top: 1px solid rgba(148, 163, 184, 0.12);
