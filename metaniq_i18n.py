@@ -52,14 +52,21 @@ IT_EN: dict = {
     "🎯 Modalità di calcolo":"🎯 Calculation mode",
     "📆 Tabella mensile – modifica le celle ✏️, il resto si ricalcola":
         "📆 Monthly table – edit cells ✏️, the rest recalculates",
+    "📆 Tabella mensile - modifica le celle ✏️, il resto si ricalcola":
+        "📆 Monthly table – edit cells ✏️, the rest recalculates",
     "💼 Business Plan — pro forma 15 anni":
+        "💼 Business Plan — 15-year pro forma",
+    "💼 Business Plan - pro forma 15 anni":
         "💼 Business Plan — 15-year pro forma",
     "🌾 Biomasse del tuo impianto":"🌾 Your plant feedstocks",
     "⚙️ Parametri impianto":"⚙️ Plant parameters",
     "🏭 Configurazione impianto (ep)":"🏭 Plant configuration (ep)",
     "🌿 DM 2018 — Sistema CIC":"🌿 DM 2018 — CIC system",
+    "🌿 DM 2018 - Sistema CIC":"🌿 DM 2018 — CIC system",
     "🔋 FER 2 — Tariffa e premi":"🔋 FER 2 — Tariff & bonuses",
+    "🔋 FER 2 - Tariffa e premi":"🔋 FER 2 — Tariff & bonuses",
     "⚡ Fattore netto→lordo (aux_factor)":"⚡ Net→gross factor (aux_factor)",
+    "⚡ Fattore netto lordo (aux_factor)":"⚡ Net→gross factor (aux_factor)",
     "💰 Tariffa FER 2 [€/MWh_el]":"💰 FER 2 tariff [€/MWh_el]",
     # Download
     "📊 Scarica Excel modificabile":"📊 Download editable Excel",
