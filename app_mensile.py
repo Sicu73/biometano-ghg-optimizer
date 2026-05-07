@@ -2247,13 +2247,13 @@ st.markdown(
         <span class="eyebrow">// Decision Intelligence Platform</span>
         <h1>Metan<span style="color:""" + AMBER + """; font-weight:700;">.</span>iQ</h1>
         <div class="tagline">""" + (
-            "DM 19/06/2024 · CHP biogas piccoli impianti agricoli ≤300 kWe. Tariffa di Riferimento + premi matrice (≥80% sottoprodotti) e CAR. Periodo 20 anni, saving 80% RED III."
+            _t("DM 19/06/2024 · CHP biogas piccoli impianti agricoli ≤300 kWe. Tariffa di Riferimento + premi matrice (≥80% sottoprodotti) e CAR. Periodo 20 anni, saving 80% RED III.")
             if IS_FER2 else
-            "Pianificazione e business case per impianti biogas cogenerativi (DM 6/7/2012, ≤1 MW). Bilancio elettrico-termico, tariffa T.O. e saving RED III."
+            _t("Pianificazione e business case per impianti biogas cogenerativi (DM 6/7/2012, ≤1 MW). Bilancio elettrico-termico, tariffa T.O. e saving RED III.")
             if IS_CHP else
-            "DM 2/3/2018 · sistema CIC con double counting per matrici Annex IX (biometano avanzato). Pianificazione mensile, sostenibilità RED II/III e simulazione CIC."
+            _t("DM 2/3/2018 · sistema CIC con double counting per matrici Annex IX (biometano avanzato). Pianificazione mensile, sostenibilità RED II/III e simulazione CIC.")
             if IS_DM2018 else
-            "DM 15/9/2022 · pianificazione mensile e ottimizzazione GHG per biometano: tariffa diretta €/MWh, saving RED III/D.Lgs. 5/2026 per uso finale."
+            _t("DM 15/9/2022 · pianificazione mensile e ottimizzazione GHG per biometano: tariffa diretta €/MWh, saving RED III/D.Lgs. 5/2026 per uso finale.")
         ) + """</div>
         <div class="pills">
             <span class="pill accent">""" + (
@@ -2274,8 +2274,8 @@ st.markdown(
         </div>
     </div>
     <div class="methaniq-credit">
-        Ideato e sviluppato da <b>Carlo Sicurini</b> &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp;
-        Pianificazione mensile e ottimizzazione GHG per impianti di biometano e biogas cogenerativo.
+        """ + _t("Ideato e sviluppato da") + """ <b>Carlo Sicurini</b> &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp;
+        """ + _t("Pianificazione mensile e ottimizzazione GHG per impianti di biometano e biogas cogenerativo.") + """
     </div>
     """,
     unsafe_allow_html=True,
@@ -3777,8 +3777,8 @@ with st.sidebar:
 st.subheader(_t("🎯 Modalità di calcolo"))
 
 N_active = len(active_feeds)
-MODE_DUAL = f"{N_active-2} biomasse fisse + 2 calcolate  (saving target + produzione)"
-MODE_SINGLE = f"{N_active-1} biomasse fisse + 1 calcolata  (solo produzione)"
+MODE_DUAL = f"{N_active-2} {_t('biomasse fisse + 2 calcolate  (saving target + produzione)')}"
+MODE_SINGLE = f"{N_active-1} {_t('biomasse fisse + 1 calcolata  (solo produzione)')}"
 
 # --- Applica eventuali risultati ottimizzazione PRIMA di creare i widget ---
 # (Streamlit non consente di modificare session_state di una chiave-widget
@@ -3845,9 +3845,9 @@ _prod_label = (
     else f"{fmt_it(plant_net_smch, 0)} Sm³/h netti"
 )
 st.markdown(
-    f"##### ⚡ Auto-calcolo ottimale – enumera le **{_n_combinations} combinazioni** "
-    f"possibili tra le {N_active} biomasse attive e minimizza la massa totale "
-    f"(saving ≥ {fmt_it(ghg_threshold*100, 0, '%')}, produzione = {_prod_label})"
+    f"##### ⚡ {_t('Auto-calcolo ottimale')} – {_t('enumera le')} **{_n_combinations} {_t('combinazioni')}** "
+    f"{_t('possibili tra le')} {N_active} {_t('biomasse attive e minimizza la massa totale')} "
+    f"({_t('saving')} ≥ {fmt_it(ghg_threshold*100, 0, '%')}, {_t('produzione')} = {_prod_label})"
 )
 optimize_clicked = st.button(
     "🚀 OTTIMIZZA  (minimizza massa totale biomasse)",
@@ -3911,7 +3911,7 @@ if optimize_clicked:
 
 # -------- RADIO MODALITA' --------------------------------------------------
 mode = st.radio(
-    "Scegli modalità:",
+    _t("Scegli modalità:"),
     options=[MODE_DUAL, MODE_SINGLE],
     index=0,
     horizontal=False,
@@ -3930,26 +3930,23 @@ with col1:
         if not all(p in active_feeds for p in prev_default):
             st.session_state["fixed_multiselect"] = default_fixed
         fixed_feeds = st.multiselect(
-            f"Seleziona {N_active-2} biomasse fisse (le altre 2 saranno calcolate):" if N_active > 2
-            else "Seleziona 0 biomasse fisse — il solver calcola entrambe:",
+            f"{_t('Seleziona')} {N_active-2} {_t('biomasse fisse (le altre 2 saranno calcolate):')}" if N_active > 2
+            else _t("Seleziona 0 biomasse fisse — il solver calcola entrambe:"),
             options=active_feeds,
             default=default_fixed if "fixed_multiselect" not in st.session_state else None,
             max_selections=max(N_active - 2, 0),
-            help="Suggerimento: lascia come 'calcolate' almeno 1 biomassa ad alta eec "
-                 "(mais/sorgo) + 1 a manure credit (liquami). Il sistema risolve "
-                 "2 equazioni: produzione + saving.",
+            help=_t("Suggerimento: lascia come 'calcolate' almeno 1 biomassa ad alta eec (mais/sorgo) + 1 a manure credit (liquami). Il sistema risolve 2 equazioni: produzione + saving."),
             key="fixed_multiselect",
         )
         # Numero di fisse richieste: N-2 (possono essere 0 se N=2)
         required_fixed = max(N_active - 2, 0)
         if len(fixed_feeds) != required_fixed:
-            st.warning(f"Seleziona esattamente **{required_fixed}** biomasse fisse "
-                       f"(le altre 2 saranno calcolate). Attualmente: {len(fixed_feeds)}.")
+            st.warning(f"{_t('Seleziona esattamente')} **{required_fixed}** {_t('biomasse fisse (le altre 2 saranno calcolate). Attualmente:')} {len(fixed_feeds)}.")
             st.stop()
         unknown_feeds = [n for n in active_feeds if n not in fixed_feeds]
     else:
         unknown_feed = st.selectbox(
-            "Biomassa incognita (calcolata automaticamente):",
+            _t("Biomassa incognita (calcolata automaticamente):"),
             active_feeds,
             index=min(N_active - 1, 3),
             key="single_unknown_select",
@@ -3963,48 +3960,48 @@ if _opt_info:
     if _opt_info.get("is_mono"):
         mono = _opt_info["mono"]
         st.success(
-            f"🚀 **Ottimo LP – MONO biomassa**: unica attiva **{mono}** "
+            f"🚀 **{_t('Ottimo LP – MONO biomassa')}**: {_t('unica attiva')} **{mono}** "
             f"(le altre {N_active - 1} = 0). "
-            f"Massa totale annua minima ≈ "
+            f"{_t('Massa totale annua minima ≈')} "
             f"**{fmt_it(_opt_info['total_year'], 0)} t/anno**. "
-            f"Il saving e' oltre la soglia con la sola **{mono}**."
+            f"{_t('Il saving e\\' oltre la soglia con la sola')} **{mono}**."
         )
     else:
         unused_str = ", ".join([f"**{u}**" for u in _opt_info['unused'][:6]])
         if len(_opt_info['unused']) > 6:
             unused_str += f" + altre {len(_opt_info['unused']) - 6}"
         st.success(
-            f"🚀 **Ottimo LP**: biomasse attive **{_opt_info['pair'][0]}** + "
+            f"🚀 **{_t('Ottimo LP')}**: {_t('biomasse attive')} **{_opt_info['pair'][0]}** + "
             f"**{_opt_info['pair'][1]}** (le altre = 0: {unused_str}). "
-            f"Massa totale annua minima ≈ "
+            f"{_t('Massa totale annua minima ≈')} "
             f"**{fmt_it(_opt_info['total_year'], 0)} t/anno** "
-            f"(saving target **{fmt_it(target_saving*100, 0, '%')}**, "
-            f"produzione **{_prod_label}**)."
+            f"({_t('saving')} **{fmt_it(target_saving*100, 0, '%')}**, "
+            f"{_t('produzione')} **{_prod_label}**)."
         )
 
 with col2:
     if is_dual_mode:
         if N_active > 2:
             st.info(
-                f"**Modalità dual-constraint**: inserisci le quantità (t/mese) di "
-                f"**{N_active-2} biomasse fisse**. "
-                f"Il solver calcola le 2 incognite (**{unknown_feeds[0]}** e "
-                f"**{unknown_feeds[1]}**) per ottenere saving "
+                f"**{_t('Modalità dual-constraint')}**: {_t('inserisci le quantità (t/mese) di')} "
+                f"**{N_active-2} {_t('biomasse fisse')}**. "
+                f"{_t('Il solver calcola le 2 incognite')} (**{unknown_feeds[0]}** e "
+                f"**{unknown_feeds[1]}**) {_t('per ottenere saving')} "
                 f"**{fmt_it(target_saving*100, 0, '%')}** "
-                f"e produzione **{_prod_label}**."
+                f"e {_t('produzione')} **{_prod_label}**."
             )
         else:
             st.info(
-                f"**Modalità dual-constraint** (N=2): il solver calcola entrambe "
-                f"(**{unknown_feeds[0]}** + **{unknown_feeds[1]}**) per ottenere "
-                f"saving **{fmt_it(target_saving*100, 0, '%')}** + produzione "
+                f"**{_t('Modalità dual-constraint')}** (N=2): {_t('il solver calcola entrambe')} "
+                f"(**{unknown_feeds[0]}** + **{unknown_feeds[1]}**) {_t('per ottenere saving')} "
+                f"**{fmt_it(target_saving*100, 0, '%')}** + {_t('produzione')} "
                 f"**{_prod_label}**."
             )
     else:
         st.info(
-            f"**Modalità produzione-only**: inserisci {N_active-1} biomasse; "
-            f"il sistema calcola **{unknown_feeds[0]}** per chiudere la produzione. "
-            f"Il saving sarà una conseguenza (verificato in tabella)."
+            f"**{_t('Modalità produzione-only')}**: {_t('inserisci')} {N_active-1} {_t('biomasse')}; "
+            f"{_t('il sistema calcola')} **{unknown_feeds[0]}** {_t('per chiudere la produzione')}. "
+            f"{_t('Il saving sarà una conseguenza (verificato in tabella)')}."
         )
 
 # ------------------------- TABELLA UNIFICATA (input + risultati) -------------------------
@@ -6063,12 +6060,12 @@ st.markdown(
         '>
             <div>
                 Metan.iQ <b style='color:#FFFFFF;'>v""" + _APP_VERSION + """</b>
-                &nbsp;·&nbsp; Ideato e sviluppato da
+                &nbsp;·&nbsp; """ + _t("Ideato e sviluppato da") + """
                 <b style='color:#FFFFFF; font-weight:600;'>Carlo Sicurini</b>
-                &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp; Tutti i diritti riservati
+                &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp; """ + _t("Tutti i diritti riservati") + """
                 &nbsp;·&nbsp;
                 <span style='color:#94A3B8; font-style:italic;'>
-                    Software fornito «così com'è», senza garanzie né assistenza
+                    """ + _t("Software fornito «così com'è», senza garanzie né assistenza") + """
                 </span>
             </div>
             <div style='display: flex; gap: 6px; flex-wrap: wrap;'>
