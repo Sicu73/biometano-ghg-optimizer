@@ -1366,7 +1366,7 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
     b = np.array([rhs_prod, rhs_sust], dtype=float)
 
     if abs(np.linalg.det(A)) < 1e-9:
-        return {x: 0.0, y_name: 0.0}, False, "Sistema singolare: le 2 biomasse incognite sono linearmente dipendenti."
+        return {x: 0.0, y_name: 0.0}, False, _t("Sistema singolare: le 2 biomasse incognite sono linearmente dipendenti.")
 
     sol = np.linalg.solve(A, b)
     mx, my = float(sol[0]), float(sol[1])
@@ -1378,20 +1378,20 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
     # Infeasibile: forza il negativo a 0 e ricalcola l'altro con sola produzione
     note = []
     if mx < 0:
-        note.append(f"{x} richiederebbe {fmt_it(mx, 1)} t (<0)")
+        note.append(f"{x} {_t('richiederebbe')} {fmt_it(mx, 1)} {_t('t (<0)')}")
         mx = 0.0
         my = rhs_prod / yy
         if my < 0:
             my = 0.0
-            note.append(f"anche {y_name} <0: entrambe azzerate")
+            note.append(f"{_t('anche')} {y_name} <0: {_t('entrambe azzerate')}")
     elif my < 0:
-        note.append(f"{y_name} richiederebbe {fmt_it(my, 1)} t (<0)")
+        note.append(f"{y_name} {_t('richiederebbe')} {fmt_it(my, 1)} {_t('t (<0)')}")
         my = 0.0
         mx = rhs_prod / yx
         if mx < 0:
             mx = 0.0
-            note.append(f"anche {x} <0: entrambe azzerate")
-    msg = "Infeasibile: " + "; ".join(note) + ". Saving e/o produzione non saranno entrambi soddisfatti."
+            note.append(f"{_t('anche')} {x} <0: {_t('entrambe azzerate')}")
+    msg = _t("Infeasibile:") + " " + "; ".join(note) + ". " + _t("Saving e/o produzione non saranno entrambi soddisfatti.")
     return {x: mx, y_name: my}, False, msg
 
 
@@ -4338,7 +4338,7 @@ if not new_input.equals(old_input):
     st.rerun()
 
 if warnings_list:
-    st.warning("⚠️ Mesi con problemi di fattibilità:\n\n" + "\n\n".join(f"- {w}" for w in warnings_list))
+    st.warning(_t("⚠️ Mesi con problemi di fattibilità:") + "\n\n" + "\n\n".join(f"- {w}" for w in warnings_list))
 
 # ------------------------- SINTESI -------------------------
 st.subheader(_t("📈 Sintesi annuale"))
@@ -4360,8 +4360,8 @@ else:
 c4.metric("Saving medio (%)",
           fmt_it(df_res["Saving %"].mean(), 1))
 valid_months = df_res["Validità"].str.startswith("✅").sum()
-c5.metric("Mesi validi", f"{valid_months}/12",
-          delta="OK" if valid_months == 12 else f"{12-valid_months} NON validi",
+c5.metric(_t("Mesi validi"), f"{valid_months}/12",
+          delta="OK" if valid_months == 12 else f"{12-valid_months}{_t(' NON validi')}",
           delta_color="normal" if valid_months == 12 else "inverse")
 
 # ------------------------- GRAFICI -------------------------
@@ -5294,13 +5294,13 @@ st.markdown(
     f"color:{TEXT_MUTED}; margin-bottom:10px;'>// EXPORT</div>",
     unsafe_allow_html=True,
 )
-st.caption(
+st.caption(_t(
     "**Excel autocalcolante** ✏️: scarica il file `.xlsx`, modifica le "
     "celle gialle (Ore + Biomasse) direttamente in Excel/Numbers/LibreOffice "
     "e tutti i calcoli (produzione, saving GHG, validità) si aggiornano "
     "**istantaneamente** grazie alle formule live integrate. "
     "Niente upload, niente roundtrip — il file fa tutto da solo."
-)
+))
 
 # ===== Riga unica: 3 download (XLSX primario, PDF, CSV legacy) =====
 _dl_col1, _dl_col2, _dl_col3, _dl_col4 = st.columns([1.2, 1.0, 0.8, 0.8])
@@ -5657,16 +5657,16 @@ if _HAS_OUTPUT_MODEL:
             "ghg_method":             _explain_ghg_method(_expl_ctx),
             "regulatory_basis":       _explain_regulatory_basis(_expl_ctx),
         }
-        with st.expander(
+        with st.expander(_t(
             "📚 Origine dei dati e metodo di calcolo "
-            "(rese, fattori emissivi, GHG, base normativa)",
+            "(rese, fattori emissivi, GHG, base normativa)"),
             expanded=False,
         ):
-            st.markdown("**Origine delle rese biomassa**")
+            st.markdown(f"**{_t('Origine delle rese biomassa')}**")
             st.text(_expl.get("yield_origin", ""))
-            st.markdown("**Origine dei fattori emissivi**")
+            st.markdown(f"**{_t('Origine dei fattori emissivi')}**")
             st.text(_expl.get("emission_factor_origin", ""))
-            st.markdown("**Metodo di calcolo GHG (RED III)**")
+            st.markdown(f"**{_t('Metodo di calcolo GHG (RED III)')}**")
             st.text(_expl.get("ghg_method", ""))
             st.markdown("**Base normativa applicata**")
             st.text(_expl.get("regulatory_basis", ""))
@@ -5715,12 +5715,10 @@ except Exception as _daily_imp_exc:  # noqa: BLE001
 
 if _DAILY_OPS_AVAILABLE:
     st.markdown("---")
-    st.subheader("📅 Gestione Giornaliera — Verifica sostenibilità mensile")
+    st.subheader(_t("📅 Gestione Giornaliera — Verifica sostenibilità mensile"))
     st.info(
-        "ℹ️ **Il controllo ufficiale è MENSILE.** "
-        "Gli indicatori giornalieri (saving) sono solo informativi: anche se "
-        "alcuni giorni risultano isolatamente \"non sostenibili\", il mese "
-        "può chiudere sostenibile aggregando il totale biomasse."
+        "ℹ️ **" + _t("Il controllo ufficiale è MENSILE.") + "** " +
+        _t("Gli indicatori giornalieri (saving) sono solo informativi: anche se alcuni giorni risultano isolatamente \"non sostenibili\", il mese può chiudere sostenibile aggregando il totale biomasse.")
     )
 
     _today = _dt.date.today()
@@ -5793,9 +5791,9 @@ if _DAILY_OPS_AVAILABLE:
     _edit_df = _pd_daily.DataFrame(_edit_rows)
 
     st.caption(
-        f"Inserisci le biomasse t/giorno. Mese: **{_mlabel(int(_do_year), int(_do_month), _LANG)}** "
-        f"({len(_all_days)} giorni). Tipologie modificabili: "
-        f"{len(_do_active_feeds)} (basate sulle biomasse attive nella sidebar)."
+        f"{_t('Inserisci le biomasse t/giorno. Mese:')} **{_mlabel(int(_do_year), int(_do_month), _LANG)}** "
+        f"({len(_all_days)} {_t('giorni')}). {_t('Tipologie modificabili:')} "
+        f"{len(_do_active_feeds)} {_t('(basate sulle biomasse attive nella sidebar).')}"
     )
 
     _edited = st.data_editor(
@@ -6004,8 +6002,8 @@ if _DAILY_OPS_AVAILABLE:
 else:
     st.markdown("---")
     st.warning(
-        "📅 Gestione Giornaliera non disponibile in questa build "
-        f"({_DAILY_IMP_ERR if '_DAILY_IMP_ERR' in dir() else 'moduli mancanti'})."
+        _t("📅 Gestione Giornaliera non disponibile in questa build ") +
+        f"({_DAILY_IMP_ERR if '_DAILY_IMP_ERR' in dir() else _t('moduli mancanti')})."
     )
 
 st.markdown("<div style='margin-top:40px;'></div>", unsafe_allow_html=True)

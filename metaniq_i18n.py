@@ -214,5 +214,20 @@ IT_EN: dict = {
     "(saving GHG + produzione target) con configurazione impianto": "(GHG saving + target production) with plant configuration",
     "ex RED III.": "ex RED III.",
     "Decision intelligence platform per la pianificazione mensile e l'ottimizzazione GHG di impianti di biometano e biogas cogenerativo.": "Decision intelligence platform for monthly planning and GHG optimization of biomethane and biogas CHP plants.",
-    "l'ottimizzazione GHG di impianti di biometano e biogas cogenerativo.": "GHG optimization of biomethane and biogas CHP plants."
+    "l'ottimizzazione GHG di impianti di biometano e biogas cogenerativo.": "GHG optimization of biomethane and biogas CHP plants.",
+    "Sistema singolare: le 2 biomasse incognite sono linearmente dipendenti.": "Singular system: the 2 unknown feedstocks are linearly dependent.",
+    "richiederebbe": "would require",
+    "t (<0)": "t (<0)",
+    "anche": "also",
+    "entrambe azzerate": "both set to 0",
+    "Infeasibile:": "Infeasible:",
+    "Saving e/o produzione non saranno entrambi soddisfatti.": "Saving and/or production will not be both satisfied.",
+    "📚 Origine dei dati e metodo di calcolo (rese, fattori emissivi, GHG, base normativa)": "📚 Data origin and calculation method (yields, emission factors, GHG, regulatory basis)",
+    "Origine delle rese biomassa": "Biomass yields origin",
+    "Origine dei fattori emissivi": "Emission factors origin",
+    "Metodo di calcolo GHG (RED III)": "GHG calculation method (RED III)",
+    "📅 Gestione Giornaliera non disponibile in questa build ": "📅 Daily Management not available in this build ",
+    "moduli mancanti": "missing modules",
+    "Mesi validi": "Valid months",
+    " NON validi": " INVALID"
 }

@@ -61,7 +61,7 @@ def compute_end_of_month_guidance(
         suffix = "..." if len(cap_viol) > 5 else ""
         msgs.append(
             f"{_t('Vincolo autorizzativo: superato in')} {len(cap_viol)} {_t('giorno/i')} "
-            f"({days_str}{suffix}). {_t('Ridurre l\\'alimentazione giornaliera.')}"
+            f"({days_str}{suffix}). " + _t("Ridurre l'alimentazione giornaliera.")
         )
 
     # Avviso compliance mensile
