@@ -1503,6 +1503,7 @@ if "methaniq_theme" not in st.session_state:
 # Mini-toggle sidebar TOP (render before CSS cosi' theme e' gia' noto)
 # ── LINGUA: selettore Italiano/English (prima cosa in sidebar) ──────────────
 _LANG = render_lang_selector()
+MONTHS = [_t(m) for m in MONTHS]
 
 with st.sidebar:
     st.markdown(
