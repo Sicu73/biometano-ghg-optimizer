@@ -3963,8 +3963,8 @@ if _opt_info:
             f"🚀 **{_t('Ottimo LP – MONO biomassa')}**: {_t('unica attiva')} **{mono}** "
             f"(le altre {N_active - 1} = 0). "
             f"{_t('Massa totale annua minima ≈')} "
-            f"**{fmt_it(_opt_info['total_year'], 0)} t/anno**. "
-            f"{_t('Il saving e\\' oltre la soglia con la sola')} **{mono}**."
+            f"**{fmt_it(_opt_info['total_year'], 0)} t/anno**. " +
+            _t("Il saving e' oltre la soglia con la sola") + f" **{mono}**."
         )
     else:
         unused_str = ", ".join([f"**{u}**" for u in _opt_info['unused'][:6]])
