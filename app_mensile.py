@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 BioMethane Monthly Planner - Dual-Constraint Solver
 ---------------------------------------------------
@@ -5125,7 +5125,7 @@ st.caption(_t(
 ))
 
 # ===== Riga unica: 3 download (XLSX primario, PDF, CSV legacy) =====
-_dl_col1, _dl_col2, _dl_col3, _dl_col4 = st.columns([1.2, 1.0, 0.8, 0.8])
+_dl_col1, _dl_col2, _dl_col_pptx, _dl_col3, _dl_col4 = st.columns([1.2, 1.0, 1.0, 0.8, 0.8])
 
 with _dl_col1:
     # XLSX autocalcolante: download primario
@@ -5381,6 +5381,31 @@ with _dl_col2:
         )
     else:
         st.error(f"Errore generazione PDF: {_pdf_err}")
+
+# ===== Colonna PPTX: Esportazione in PowerPoint =====
+with _dl_col_pptx:
+    try:
+        from export.pptx_export import build_metaniq_pptx
+        _pptx_buf = build_metaniq_pptx(_pdf_ctx)
+        _pptx_data = _pptx_buf.getvalue()
+        _pptx_ok = True
+    except Exception as _exc:  # noqa: BLE001
+        _pptx_data = None
+        _pptx_ok = False
+        _pptx_err = str(_exc)
+    
+    if _pptx_ok:
+        st.download_button(
+            _t("ðŸ“Š Presentazione PPTX"),
+            data=_pptx_data,
+            file_name=f"metaniq_{APP_MODE}_presentazione.pptx",
+            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            use_container_width=True,
+            type="primary",
+            help="Scarica una presentazione di 15 slide editabile con i risultati del progetto.",
+        )
+    else:
+        st.error(f"Errore generazione PPTX: {_pptx_err}")
 
 # ===== Colonna 3: XLSX SNAPSHOT (read-only, valori statici) =====
 with _dl_col3:
@@ -5913,3 +5938,4 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
