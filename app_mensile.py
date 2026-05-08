@@ -1322,11 +1322,35 @@ def e_total_feedstock(name: str, ep: float = 0.0) -> float:
 def ghg_summary(masses: dict, aux: float, ep: float = 0.0,
                 fossil_comparator: float | None = None):
     """
-    Ritorna dict con: e_w, saving_pct, nm3_gross, nm3_net, mwh_net
-    masses: {feedstock: mass_t}
-    ep: contributo processing [gCO2eq/MJ] da applicare a tutto il biometano.
-    fossil_comparator: se None usa il globale FOSSIL_COMPARATOR (default).
-      Passare esplicitamente per evitare race-condition multi-utente.
+    Calcola il bilancio GHG del biometano secondo RED III / Allegato V Parte C.
+
+    PRINCIPIO NORMATIVO (RED III + GSE Regole Applicative DM 2022):
+    ─────────────────────────────────────────────────────────────────
+    • La SOSTENIBILITÀ va verificata su TUTTA la biomassa consumata
+      (comprensiva degli autoconsumi per caldaia, CHP interno, upgrading):
+        → GHG saving = f(e_w calcolato sul LORDO)
+    • L'INCENTIVO (tariffa €/MWh) si applica ai Sm³ NETTI immessi in rete
+        → Ricavi = nm3_net × NM3_TO_MWH × tariffa
+    • Il coefficiente SA (Servizi Ausiliari) del GSE è l'equivalente di (aux - 1)
+      applicato sulla quota di autoconsumo energetico dell'impianto.
+    • Fonte: D.Lgs. 199/2021 All.V Parte C, GSE Regole Applicative DM 2022
+             Rev. maggio 2024 (Decreto n.248/2024)
+
+    Parametri:
+      masses: {feedstock_name: massa_t}  — biomasse del periodo
+      aux:    aux_factor = Sm³_lordi / Sm³_netti  (da compute_aux_factor)
+      ep:     contributo processing impianto [gCO2eq/MJ] (upgrading+calore+elettr.)
+      fossil_comparator: comparator fossile [gCO2eq/MJ]; se None usa FOSSIL_COMPARATOR
+
+    Ritorna dict con:
+      e_w           — emissioni ponderate [gCO2eq/MJ] (sul lordo, norma RED III)
+      saving        — saving GHG [%] rispetto al comparator fossile
+      nm3_gross     — Sm³ biogas lordo totale (da biomassa → fermentatori)
+      nm3_net       — Sm³ biometano netto (a valle upgrading + autoconsumi)
+      mwh_net       — MWh biometano netto (base ricavi incentivo)
+      mj_gross      — MJ energia biogas lordo (base calcolo sostenibilità)
+      mj_net        — MJ energia biometano netto
+      sustainability_basis — 'gross' (conferma che il GHG è calcolato sul lordo)
     """
     total_mj = 0.0
     total_e_mj = 0.0
@@ -1334,27 +1358,31 @@ def ghg_summary(masses: dict, aux: float, ep: float = 0.0,
     for name, m in masses.items():
         if m is None or m <= 0:
             continue
-        d = FEEDSTOCK_DB[name]
-        nm3 = m * _yield_of(name)  # resa effettiva (BMT override se attivo)
-        mj = nm3 * LHV_BIOMETHANE
-        e = e_total_feedstock(name, ep)
-        total_mj += mj
+        nm3 = m * _yield_of(name)  # Sm³ biogas lordo da questa biomassa
+        mj  = nm3 * LHV_BIOMETHANE  # MJ sul lordo (PCI biometano ~97% CH4 equiv.)
+        e   = e_total_feedstock(name, ep)
+        total_mj   += mj
         total_e_mj += e * mj
-        total_nm3 += nm3
+        total_nm3  += nm3
     if total_mj <= 0:
-        e_w = 0.0
+        e_w    = 0.0
         saving = 0.0
     else:
-        e_w = total_e_mj / total_mj
-        _cmp = fossil_comparator if fossil_comparator is not None else FOSSIL_COMPARATOR
+        e_w    = total_e_mj / total_mj   # gCO2eq/MJ — calcolato sul LORDO (norma)
+        _cmp   = fossil_comparator if fossil_comparator is not None else FOSSIL_COMPARATOR
         saving = (_cmp - e_w) / _cmp * 100
+    # Netto: Sm³ e MJ a valle upgrading + autoconsumi (base ricavi)
     nm3_net = total_nm3 / aux if aux > 0 else 0.0
+    mj_net  = nm3_net * LHV_BIOMETHANE
     return {
-        "e_w": e_w,
-        "saving": saving,
-        "nm3_gross": total_nm3,
-        "nm3_net": nm3_net,
-        "mwh_net": nm3_net * NM3_TO_MWH,
+        "e_w":                e_w,
+        "saving":             saving,
+        "nm3_gross":          total_nm3,    # lordo: base sostenibilità RED III
+        "nm3_net":            nm3_net,      # netto: base ricavi/incentivo
+        "mwh_net":            nm3_net * NM3_TO_MWH,
+        "mj_gross":           total_mj,     # MJ lordo (per audit GHG)
+        "mj_net":             mj_net,       # MJ netto (per PCI check)
+        "sustainability_basis": "gross",    # conferma normativa
     }
 
 
