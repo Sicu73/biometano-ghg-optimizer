@@ -1804,9 +1804,17 @@ st.markdown(
     h1, h2 {{
         font-family: 'Segoe UI Variable Display', 'Segoe UI Variable', 'Segoe UI', sans-serif !important;
     }}
-    /* Fluent Design UI Corners */
+    /* Fluent Design UI Corners & Input Colors */
     .stButton button, div[data-baseweb="select"] > div, div[data-baseweb="input"] > div, .stAlert, div[data-testid="stExpander"] {{
         border-radius: 8px !important;
+    }}
+    div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {{
+        background-color: {INPUT_BG} !important;
+        border-color: {BORDER} !important;
+        color: {TEXT_PRIMARY} !important;
+    }}
+    div[data-baseweb="select"] span, div[data-baseweb="input"] input {{
+        color: {TEXT_PRIMARY} !important;
     }}
     /* Preserve Material Icons / Symbols font */
     [class*="material-icons"], [class*="material-symbols"],
@@ -1826,6 +1834,62 @@ st.markdown(
     .stApp {{
         background: {BG_APP};
         color: {TEXT_PRIMARY};
+    }}
+
+
+    /* ---------- Sidebar theming (light + dark) ---------- */
+    section[data-testid="stSidebar"] {{
+        background: {SIDEBAR_BG} !important;
+        border-right: 1px solid {BORDER} !important;
+    }}
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] .stMarkdown,
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {{
+        color: {TEXT_PRIMARY} !important;
+    }}
+
+    /* ---------- Widget & form element theming ---------- */
+    div[data-baseweb="select"] > div {{
+        background-color: {INPUT_BG} !important;
+        border-color: {BORDER} !important;
+    }}
+    div[data-baseweb="select"] span,
+    div[data-baseweb="select"] div {{
+        color: {TEXT_PRIMARY} !important;
+        background-color: transparent !important;
+    }}
+    div[data-baseweb="input"] > div {{
+        background-color: {INPUT_BG} !important;
+        border-color: {BORDER} !important;
+    }}
+    div[data-baseweb="input"] input {{
+        color: {TEXT_PRIMARY} !important;
+    }}
+    div[data-testid="stExpander"] > div:first-child {{
+        background-color: {BG_SURFACE} !important;
+        border-color: {BORDER} !important;
+    }}
+    div[data-testid="stExpander"] summary span {{
+        color: {TEXT_PRIMARY} !important;
+    }}
+    div[data-testid="stNumberInput"] label,
+    div[data-testid="stTextInput"] label,
+    div[data-testid="stSelectbox"] label,
+    div[data-testid="stSlider"] label {{
+        color: {TEXT_SECOND} !important;
+        font-weight: 500 !important;
+    }}
+    [data-baseweb="menu"] {{
+        background-color: {BG_SURFACE} !important;
+        border: 1px solid {BORDER} !important;
+    }}
+    [data-baseweb="menu"] li {{
+        color: {TEXT_PRIMARY} !important;
+    }}
+    [data-baseweb="menu"] li:hover {{
+        background-color: {BG_SURFACE_2} !important;
     }}
 
     /* ---------- Body text ---------- */

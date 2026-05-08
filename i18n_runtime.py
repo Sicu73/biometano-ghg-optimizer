@@ -74,8 +74,8 @@ def render_lang_selector() -> str:
             background-size: cover !important;
             background-position: center !important;
             background-repeat: no-repeat !important;
-            border-radius: 4px !important;
-            height: 40px !important;
+            border-radius: 6px !important;
+            height: 60px !important; /* Aumentato da 40 a 60 per proporzioni migliori */
             border: 1px solid rgba(0,0,0,0.2) !important;
             transition: transform 0.2s, box-shadow 0.2s;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
