@@ -66,11 +66,11 @@ def render_lang_selector() -> str:
         """
         <style>
         /* Nascondiamo il testo interno ai bottoni della lingua */
-        div[data-testid="stSidebarUserContent"] > div > div:nth-child(3) button p {
+        div[data-testid="stVerticalBlock"] > div:has(#lang_anchor) + div button p {
             color: transparent !important;
         }
         /* Stile base bottoni lingua */
-        div[data-testid="stSidebarUserContent"] > div > div:nth-child(3) button {
+        div[data-testid="stVerticalBlock"] > div:has(#lang_anchor) + div button {
             background-size: cover;
             background-position: center;
             border-radius: 6px !important;
@@ -79,25 +79,25 @@ def render_lang_selector() -> str:
             transition: transform 0.2s, box-shadow 0.2s;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        div[data-testid="stSidebarUserContent"] > div > div:nth-child(3) button:hover {
+        div[data-testid="stVerticalBlock"] > div:has(#lang_anchor) + div button:hover {
             transform: scale(1.05);
             box-shadow: 0 4px 6px rgba(0,0,0,0.15);
             border-color: #CBD5E1;
         }
         /* Bandiera Italiana (Colonna 1) */
-        div[data-testid="stSidebarUserContent"] > div > div:nth-child(3) div[data-testid="column"]:nth-child(1) button {
+        div[data-testid="stVerticalBlock"] > div:has(#lang_anchor) + div div[data-testid="column"]:nth-child(1) button {
             background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzIDIiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjIiIGZpbGw9IiMwMDhDNDUiLz48cmVjdCB3aWR0aD0iMSIgaGVpZ2h0PSIyIiB4PSIxIiBmaWxsPSIjRjRGNUYwIi8+PHJlY3Qgd2lkdGg9IjEiIGhlaWdodD0iMiIgeD0iMiIgZmlsbD0iI0NEMjEyQSIvPjwvc3ZnPg==');
         }
         /* Bandiera UK (Colonna 2) */
-        div[data-testid="stSidebarUserContent"] > div > div:nth-child(3) div[data-testid="column"]:nth-child(2) button {
+        div[data-testid="stVerticalBlock"] > div:has(#lang_anchor) + div div[data-testid="column"]:nth-child(2) button {
             background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MCAzMCI+PGNsaXBQYXRoIGlkPSJ0Ij48cGF0aCBkPSJNMzAsMTUgaDMwIHYxNSB6IHYxNSBoLTMwIHogaC0zMCB2LTE1IHogdi0xNSBoMzAgeiIvPjwvY2xpcFBhdGg+PHBhdGggZD0iTTAsMCB2MzAgaDYwIHYtMzAgeiIgZmlsbD0iIzAxMjE2OSIvPjxwYXRoIGQ9Ik0wLDAgTDYwLDMwIE02MCwwIEwwLDMwIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNiIvPjxwYXRoIGQ9Ik0wLDAgTDYwLDMwIE02MCwwIEwwLDMwIiBjbGlwLXBhdGg9InVybCgjdCkiIHN0cm9rZT0iI0M4MTAyRSIgc3Ryb2tlLXdpZHRoPSI0Ii8+PHBhdGggZD0iTTMwLDAgdjMwIE0wLDE1IGg2MCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjEwIi8+PHBhdGggZD0iTTMwLDAgdjMwIE0wLDE1IGg2MCIgc3Ryb2tlPSIjQzgxMDJFIiBzdHJva2Utd2lkdGg9IjYiLz48L3N2Zz4=');
         }
         /* Opacità per la lingua NON attiva */
-        div[data-testid="stSidebarUserContent"] > div > div:nth-child(3) button[kind="secondary"] {
+        div[data-testid="stVerticalBlock"] > div:has(#lang_anchor) + div button[kind="secondary"] {
             opacity: 0.4;
             filter: grayscale(60%);
         }
-        div[data-testid="stSidebarUserContent"] > div > div:nth-child(3) button[kind="primary"] {
+        div[data-testid="stVerticalBlock"] > div:has(#lang_anchor) + div button[kind="primary"] {
             opacity: 1.0;
             border: 2px solid #0F172A;
             box-shadow: 0 0 0 2px rgba(255,255,255,0.5);
@@ -108,12 +108,11 @@ def render_lang_selector() -> str:
     )
 
     st.sidebar.markdown(
-        "<div style='font-size:0.7rem;font-weight:600;letter-spacing:1px;"
+        "<div id='lang_anchor' style='font-size:0.7rem;font-weight:600;letter-spacing:1px;"
         "text-transform:uppercase;color:#64748B;margin-bottom:4px;"
         "padding-left:2px;'>🌐 Language / Lingua</div>",
         unsafe_allow_html=True,
     )
-    # NB: Questo DEVE essere il primo st.columns() della sidebar per far funzionare il CSS nth-of-type(1)
     _lc1, _lc2 = st.sidebar.columns(2)
     with _lc1:
         if st.button(
