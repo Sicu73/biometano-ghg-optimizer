@@ -26,7 +26,7 @@ def fmt_it(value: float, decimals: int = 0, suffix: str = "",
     sign = "+" if (signed and v > 0) else ""
     fmt = f"{v:,.{decimals}f}"
     # Converti da formato Python (1,234.56) a italiano (1.234,56)
-    formatted = fmt.replace(",", "X").replace(".", ",").replace("X", ".")
+    formatted = fmt.replace(",", "X").replace(".", ",").replace("X", "'")
     return f"{sign}{formatted}{suffix}"
 
 
@@ -66,7 +66,7 @@ def parse_it(text: object) -> float:
     """
     if isinstance(text, (int, float)):
         return float(text)
-    s = str(text).strip().replace("��", "").replace("%", "").strip()
+    s = str(text).strip().replace("€", "").replace("%", "").replace("'", "").strip()
     if not s or s == "-":
         return 0.0
     has_comma = "," in s

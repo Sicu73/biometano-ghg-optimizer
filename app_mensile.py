@@ -203,7 +203,7 @@ def fmt_it(value, decimals: int = 0, suffix: str = "", signed: bool = False) -> 
         s = f"{value:+,.{decimals}f}"      # es. "+1,234.50" / "-4.00"
     else:
         s = f"{value:,.{decimals}f}"       # es. "1,234,567.89"
-    s = s.replace(",", "§").replace(".", ",").replace("§", ".")
+    s = s.replace(",", "§").replace(".", ",").replace("§", "'")
     return s + suffix
 
 
@@ -228,7 +228,7 @@ def parse_it(value) -> float:
         if isinstance(value, float) and (np.isnan(value) or np.isinf(value)):
             return 0.0
         return float(value)
-    s = str(value).strip().replace("€", "").replace("%", "").strip()
+    s = str(value).strip().replace("€", "").replace("%", "").replace("'", "").strip()
     if not s or s == "-":
         return 0.0
     has_comma = "," in s

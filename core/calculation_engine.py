@@ -104,7 +104,7 @@ def fmt_it(value, decimals: int = 0, suffix: str = "", signed: bool = False) -> 
         s = f"{f:+,.{decimals}f}"
     else:
         s = f"{f:,.{decimals}f}"
-    s = s.replace(",", "§").replace(".", ",").replace("§", ".")
+    s = s.replace(",", "§").replace(".", ",").replace("§", "'")
     return s + suffix
 
 
@@ -113,7 +113,7 @@ def parse_it(value) -> float:  # type: ignore[misc]
         return 0.0
     if isinstance(value, (int, float)):
         return float(value)
-    s = str(value).strip().replace("€", "").replace("%", "").strip()
+    s = str(value).strip().replace("€", "").replace("%", "").replace("'", "").strip()
     if not s or s == "-":
         return 0.0
     if "," in s:
