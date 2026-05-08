@@ -3785,7 +3785,7 @@ if optimize_clicked:
         st.rerun()
 
 # -------- SMART SOLVER MENU --------------------------------------------------
-st.markdown(f"**{_t('Seleziona le biomasse da inserire manualmente in tabella:')}**")
+
 st.caption(_t("Le biomasse NON selezionate verranno calcolate automaticamente dal sistema. Lasciane 1 fuori per centrare la produzione, lasciane 2 fuori per centrare produzione e saving. Selezionale tutte per una pura simulazione."))
 
 default_fixed = active_feeds[:min(2, N_active)]
@@ -3798,8 +3798,7 @@ fixed_feeds = st.multiselect(
     options=active_feeds,
     default=default_fixed if "fixed_multiselect" not in st.session_state else None,
     help=_t("Scegli le biomasse fisse."),
-    key="fixed_multiselect",
-    label_visibility="collapsed"
+    key="fixed_multiselect"
 )
 
 unknown_feeds = [n for n in active_feeds if n not in fixed_feeds]
