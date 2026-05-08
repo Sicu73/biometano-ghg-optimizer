@@ -2490,21 +2490,92 @@ with st.sidebar:
                     delta=f"-{fmt_it(aux_el_pct*100, 1, '%')} {_t('aux')}")
         colC.metric("🔥 " + _t("Termico"), fmt_it(plant_kwe * eta_th / eta_el, 0, " kW_th"))
     else:
-        plant_net_smch = st.number_input(
-            "🎯 " + _t("Netto autorizzato [Sm³/h netti]"),
-            min_value=10.0, max_value=2000.0,
-            value=DEFAULT_PLANT_NET_SMCH, step=5.0,
-            help=_t("Taglia netta dell'impianto. Cambia il setpoint di produzione: tutte le biomasse vengono ricalcolate per centrare questo valore."),
+        # ── Modalità unità di misura: Netti o Lordi ──────────────────────────
+        _unit_key = "plant_input_unit"
+        if _unit_key not in st.session_state:
+            st.session_state[_unit_key] = "netti"
+
+        _unit_opts = [_t("Sm³/h NETTI"), _t("Sm³/h LORDI")]
+        _unit_idx  = 0 if st.session_state[_unit_key] == "netti" else 1
+        _unit_sel  = st.radio(
+            _t("📐 Inserisci taglia come"),
+            options=_unit_opts,
+            index=_unit_idx,
+            horizontal=True,
+            help=_t(
+                "• **Netti**: Sm³/h di biometano a valle dell'upgrading, pronti per l'iniezione o l'utilizzo (valore del Decreto e del contatore di rete).\n"
+                "• **Lordi**: Sm³/h di biogas grezzo in ingresso all'upgrading, prima della rimozione di CO₂ e delle perdite di processo."
+            ),
+            key="plant_unit_radio",
         )
-        st.caption(_t("ℹ️ Il **fattore netto→lordo** viene calcolato automaticamente dalla configurazione impianto qui sotto (upgrading, fonte calore, fonte elettricita'). Puoi comunque sovrascriverlo manualmente."))
-        st.metric(_t("Taglia netta"), fmt_it(plant_net_smch, 0, " Sm³/h"))
-        # Per coerenza in mode biometano: eta_el/eta_th/aux_el_pct inutilizzati
-        # ma definiti per evitare NameError in blocchi condivisi.
-        eta_el = ETA_EL_DEFAULT
-        eta_th = ETA_TH_DEFAULT
-        aux_el_pct = 0.0
-        plant_kwe = plant_net_smch * eta_el * 9.97  # info-only (non usato)
-        plant_kwe_net = plant_kwe  # in biometano non c'è distinzione
+        st.session_state[_unit_key] = "netti" if _unit_sel == _unit_opts[0] else "lordi"
+
+        # Fattore upgrading: leggiamo dal session_state se già configurato
+        # (viene scritto dalla sezione Config. Tecnica), altrimenti usiamo 95%.
+        _up_eff   = st.session_state.get("upgrading_eff", 0.95)   # resa upgrading (CH4 recovery)
+        _up_label = f"{fmt_it(_up_eff * 100, 1)} % CH₄ recovery"
+
+        if st.session_state[_unit_key] == "netti":
+            _plant_input = st.number_input(
+                "🎯 " + _t("Netto autorizzato [Sm³/h netti]"),
+                min_value=10.0, max_value=2000.0,
+                value=float(st.session_state.get("plant_net_smch_saved", DEFAULT_PLANT_NET_SMCH)),
+                step=5.0,
+                help=_t(
+                    "Portata di biometano **netto** a valle upgrading. "
+                    "È il valore del contatore di rete / decreto autorizzativo. "
+                    "Il corrispondente valore lordo viene calcolato automaticamente."
+                ),
+                key="input_smch_netti",
+            )
+            plant_net_smch  = _plant_input
+            plant_gross_smch = plant_net_smch / _up_eff if _up_eff > 0 else plant_net_smch
+        else:
+            _plant_input = st.number_input(
+                "🎯 " + _t("Portata biogas grezzo [Sm³/h lordi]"),
+                min_value=10.0, max_value=10000.0,
+                value=float(st.session_state.get("plant_gross_smch_saved",
+                            DEFAULT_PLANT_NET_SMCH / 0.95)),
+                step=5.0,
+                help=_t(
+                    "Portata di biogas **lordo** in ingresso all'upgrading (prima della rimozione CO₂ e delle perdite). "
+                    "Il biometano netto viene calcolato automaticamente applicando il fattore di recupero CH₄ dell'upgrading."
+                ),
+                key="input_smch_lordi",
+            )
+            plant_gross_smch = _plant_input
+            plant_net_smch   = plant_gross_smch * _up_eff
+
+        # Salvo i valori in session_state per ricordarli al prossimo switch
+        st.session_state["plant_net_smch_saved"]   = plant_net_smch
+        st.session_state["plant_gross_smch_saved"] = plant_gross_smch
+
+        # Riepilogo visivo lordi ↔ netti
+        _c1, _c2, _c3 = st.columns(3)
+        _c1.metric(
+            "📥 " + _t("Lordi"), fmt_it(plant_gross_smch, 0, " Sm³/h"),
+            help=_t("Portata biogas grezzo in ingresso upgrading"),
+        )
+        _c2.metric(
+            "📤 " + _t("Netti"), fmt_it(plant_net_smch, 0, " Sm³/h"),
+            help=_t("Portata biometano a valle upgrading (valore decreto)"),
+        )
+        _c3.metric(
+            "⚙️ " + _t("Resa up."), _up_label,
+            help=_t("Fattore CH₄ recovery upgrading (dalla Config. Tecnica)"),
+        )
+        st.caption(
+            _t("ℹ️ Il **fattore netto→lordo** viene calcolato dalla configurazione upgrading "
+               "in **Config. Tecnica → Upgrading**. Puoi modificarlo lì.")
+            + f" [{_up_label}]"
+        )
+
+        # Per coerenza in mode biometano: eta_el/eta_th/aux_el_pct non usati
+        eta_el      = ETA_EL_DEFAULT
+        eta_th      = ETA_TH_DEFAULT
+        aux_el_pct  = 0.0
+        plant_kwe     = plant_net_smch * eta_el * 9.97   # info-only
+        plant_kwe_net = plant_kwe
 
     st.markdown("---")
     st.markdown("### " + _t("🌾 Biomasse attive"))
