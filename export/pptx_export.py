@@ -1,4 +1,4 @@
-import io
+﻿import io
 import datetime
 try:
     from pptx import Presentation
@@ -58,6 +58,7 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     def add_title(slide, text, x=0.5, y=0.4, size=32):
         txBox = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(12), Inches(1))
         tf = txBox.text_frame
+        tf.word_wrap = True
         p = tf.paragraphs[0]
         p.text = text
         p.font.size = Pt(size)
@@ -132,6 +133,7 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     
     tx = s1.shapes.add_textbox(Inches(1.3), Inches(2.3), Inches(10), Inches(2.5))
     tf = tx.text_frame
+    tf.word_wrap = True
     p = tf.paragraphs[0]
     p.text = "Metan.iQ Simulator"
     p.font.size = Pt(56)
@@ -198,6 +200,7 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
                 
     tx = s3.shapes.add_textbox(Inches(0.5), Inches(5.5), Inches(12.3), Inches(1.5))
     tf = tx.text_frame
+    tf.word_wrap = True
     p = tf.paragraphs[0]
     p.text = f"Il fabbisogno e' dimensionato considerando gli ausiliari ({_fmt_num((aux-1)*100, 0, '%')}). Base calcolo GHG: {_fmt_num(taglia*aux,0)} Sm3/h lordi equivalenti."
     p.font.size = Pt(16)
@@ -217,6 +220,7 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
 
     tx = s4.shapes.add_textbox(Inches(0.5), Inches(4.8), Inches(12.3), Inches(2))
     tf = tx.text_frame
+    tf.word_wrap = True
     tf.add_paragraph().text = f"Il valore cumulato dei ricavi sui 15 anni di vita utile del progetto si attesta intorno a {_fmt_num(rev * 15, 0, ' €')}."
     tf.paragraphs[0].font.size = Pt(18)
     tf.paragraphs[0].font.color.rgb = C_TEXT_MAIN
@@ -234,6 +238,7 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
 
     tx = s5.shapes.add_textbox(Inches(0.5), Inches(4.8), Inches(12.3), Inches(2))
     tf = tx.text_frame
+    tf.word_wrap = True
     p = tf.paragraphs[0]
     p.text = "I dati OPEX includono la stima dei costi variabili basati sui listini delle biomasse immesse nel simulatore. E' fortemente raccomandato validare questi costi con fornitori locali in fase esecutiva."
     p.font.size = Pt(16)
@@ -264,6 +269,7 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     
     tx = s7.shapes.add_textbox(Inches(0.5), Inches(2.0), Inches(12.3), Inches(4))
     tf = tx.text_frame
+    tf.word_wrap = True
     tf.add_paragraph().text = "Il Metan.iQ Solver verifica mensilmente il mix in ingresso."
     tf.add_paragraph().text = f"Mesi Conformi dal punto di vista ambientale: {valid_months} su 12."
     tf.add_paragraph().text = ""
@@ -282,6 +288,7 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     
     tx = s8.shapes.add_textbox(Inches(0.5), Inches(2.0), Inches(12.3), Inches(4))
     tf = tx.text_frame
+    tf.word_wrap = True
     
     if compliant and avg_ebitda > 0:
         conc_text = "FATTIBILITÀ CONFERMATA\n\nIl mix di biomasse analizzato rispetta pienamente la Direttiva RED III.\nIl quadro economico proietta una marginalità positiva e stabile."
@@ -307,6 +314,7 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     for slide in prs.slides:
         tx = slide.shapes.add_textbox(Inches(0.5), Inches(7.0), Inches(12.3), Inches(0.5))
         tf = tx.text_frame
+        tf.word_wrap = True
         p = tf.paragraphs[0]
         p.text = "Metan.iQ Simulator | Riservato"
         p.font.size = Pt(11)
