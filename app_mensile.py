@@ -1775,8 +1775,8 @@ else:
     HEADING_COLOR = NAVY
     CODE_BG       = "#F1F5F9"
     CODE_COLOR    = NAVY
-    SHADOW_CARD   = "0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06)"
-    SHADOW_HOVER  = "0 8px 24px rgba(15, 23, 42, 0.10)"
+    SHADOW_CARD   = "0 2px 8px rgba(0,0,0,0.08)"
+    SHADOW_HOVER  = "0 8px 24px rgba(0,0,0,0.12)"
     CREDIT_BG     = "#FFFFFF"
     SECTION_PILL_BG = "#FEF3C7"
     SECTION_PILL_COLOR = AMBER_DK
@@ -1785,30 +1785,30 @@ else:
 # Metan.iQ Design System — Commercial SaaS grade
 # Palette:  primary #0B8A5A (verde petrolio) → #1CC491 (mint)
 #           accent  #F59E0B (amber) · slate #0F172A · bg #F8FAFC
-# Font:     Inter (Google Fonts) — standard SaaS moderno
+# Font:     Segoe UI Variable (Windows 11 Fluent)
 # ===========================================================
 st.markdown(
     f"""
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-
     <style>
-    /* ---------- Global typography ---------- */
-    /* Body: Inter · Display headings (h1/h2): Space Grotesk · Numbers/code: JetBrains Mono */
+    /* ---------- Global typography (Windows 11 Fluent) ---------- */
+    /* Body: Segoe UI Variable Text · Headings: Segoe UI Variable Display */
     html, body, .stApp, .stMarkdown, .stText,
     .stButton button, .stSelectbox label, .stNumberInput label,
     .stSlider label, .stCheckbox label, .stRadio label,
     .stExpander, .stDataFrame, .stTabs, .stAlert,
     p, h3, h4, h5, h6 {{
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+        font-family: 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', -apple-system, sans-serif !important;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
     }}
     h1, h2 {{
-        font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+        font-family: 'Segoe UI Variable Display', 'Segoe UI Variable', 'Segoe UI', sans-serif !important;
     }}
-    /* Preserve Material Icons / Symbols font (Streamlit internal) */
+    /* Fluent Design UI Corners */
+    .stButton button, div[data-baseweb="select"] > div, div[data-baseweb="input"] > div, .stAlert, div[data-testid="stExpander"] {{
+        border-radius: 8px !important;
+    }}
+    /* Preserve Material Icons / Symbols font */
     [class*="material-icons"], [class*="material-symbols"],
     .material-icons, .material-symbols-outlined, .material-symbols-rounded,
     span[data-testid*="icon"], i[class*="icon"] {{
@@ -1819,6 +1819,7 @@ st.markdown(
         font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
         background: {CODE_BG} !important;
         color: {CODE_COLOR} !important;
+        border-radius: 4px !important;
     }}
 
     /* ---------- Page background ---------- */
@@ -1833,10 +1834,7 @@ st.markdown(
         color: {TEXT_PRIMARY} !important;
     }}
 
-    /* ---------- Design tokens (radius scale) ---------- */
-    /* Standardizzati: 6px (small) · 10px (medium) · 14px (large) */
-
-    /* ---------- Headings (gerarchia + spaziatura coerente 8pt grid) ---------- */
+    /* ---------- Headings ---------- */
     h1, h2, h3, h4, h5, h6 {{
         font-weight: 600 !important;
         letter-spacing: -0.3px !important;
@@ -1859,15 +1857,13 @@ st.markdown(
             radial-gradient(ellipse 60% 80% at 0% 100%, rgba(16,185,129,0.08) 0%, transparent 55%),
             linear-gradient(135deg, {NAVY} 0%, {NAVY_2} 100%);
         padding: 36px 36px 32px 36px;
-        border-radius: 14px;
+        border-radius: 8px;
         color: white;
         margin-bottom: 12px;
-        box-shadow:
-            0 12px 32px -12px rgba(15, 23, 42, 0.40),
-            0 2px 6px rgba(15, 23, 42, 0.15);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.12);
         text-align: left;
         overflow: hidden;
-        border: 1px solid rgba(245, 158, 11, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.08);
     }}
     /* Hex pattern SVG sottile */
     .methaniq-header::before {{
@@ -1893,12 +1889,12 @@ st.markdown(
         padding: 3px 10px;
         background: rgba(245, 158, 11, 0.10);
         border: 1px solid rgba(245, 158, 11, 0.28);
-        border-radius: 6px;
+        border-radius: 4px;
     }}
     .methaniq-header h1 {{
         color: #FFFFFF !important;
         margin: 0 !important;
-        font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+        font-family: 'Segoe UI Variable Display', 'Segoe UI Variable', 'Segoe UI', sans-serif !important;
         font-size: 2.5rem !important;
         font-weight: 700 !important;
         letter-spacing: -1.2px !important;

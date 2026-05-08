@@ -64,43 +64,74 @@ def render_lang_selector() -> str:
 
     st.sidebar.markdown(
         """
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
-section[data-testid="stSidebar"] .stButton > button,
-section[data-testid="stSidebar"] .stButton > button p,
-section[data-testid="stSidebar"] .stButton > button span {
-    font-family: 'Apple Color Emoji', 'Segoe UI Emoji',
-                 'Noto Color Emoji', 'Twemoji Mozilla', 'EmojiOne Color',
-                 'Android Emoji', 'Segoe UI', 'Helvetica Neue',
-                 sans-serif !important;
-}
-</style>
+        <style>
+        /* Nascondiamo il testo interno ai bottoni della lingua */
+        section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:nth-of-type(1) button p {
+            color: transparent !important;
+        }
+        /* Stile base bottoni lingua */
+        section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:nth-of-type(1) button {
+            background-size: cover;
+            background-position: center;
+            border-radius: 6px;
+            height: 38px;
+            border: 1px solid rgba(0,0,0,0.15);
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:nth-of-type(1) button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+            border-color: #CBD5E1;
+        }
+        /* Bandiera Italiana (Colonna 1) */
+        section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:nth-of-type(1) div[data-testid="column"]:nth-child(1) button {
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzIDIiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjIiIGZpbGw9IiMwMDhDNDUiLz48cmVjdCB3aWR0aD0iMSIgaGVpZ2h0PSIyIiB4PSIxIiBmaWxsPSIjRjRGNUYwIi8+PHJlY3Qgd2lkdGg9IjEiIGhlaWdodD0iMiIgeD0iMiIgZmlsbD0iI0NEMjEyQSIvPjwvc3ZnPg==');
+        }
+        /* Bandiera UK (Colonna 2) */
+        section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:nth-of-type(1) div[data-testid="column"]:nth-child(2) button {
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MCAzMCI+PGNsaXBQYXRoIGlkPSJ0Ij48cGF0aCBkPSJNMzAsMTUgaDMwIHYxNSB6IHYxNSBoLTMwIHogaC0zMCB2LTE1IHogdi0xNSBoMzAgeiIvPjwvY2xpcFBhdGg+PHBhdGggZD0iTTAsMCB2MzAgaDYwIHYtMzAgeiIgZmlsbD0iIzAxMjE2OSIvPjxwYXRoIGQ9Ik0wLDAgTDYwLDMwIE02MCwwIEwwLDMwIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNiIvPjxwYXRoIGQ9Ik0wLDAgTDYwLDMwIE02MCwwIEwwLDMwIiBjbGlwLXBhdGg9InVybCgjdCkiIHN0cm9rZT0iI0M4MTAyRSIgc3Ryb2tlLXdpZHRoPSI0Ii8+PHBhdGggZD0iTTMwLDAgdjMwIE0wLDE1IGg2MCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjEwIi8+PHBhdGggZD0iTTMwLDAgdjMwIE0wLDE1IGg2MCIgc3Ryb2tlPSIjQzgxMDJFIiBzdHJva2Utd2lkdGg9IjYiLz48L3N2Zz4=');
+        }
+        /* Opacità per la lingua NON attiva */
+        section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:nth-of-type(1) button[kind="secondary"] {
+            opacity: 0.4;
+            filter: grayscale(60%);
+        }
+        section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:nth-of-type(1) button[kind="primary"] {
+            opacity: 1.0;
+            border: 2px solid #0F172A;
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.5);
+        }
+        </style>
         """,
         unsafe_allow_html=True,
     )
 
     st.sidebar.markdown(
-        "<div style='font-size:0.7rem;font-weight:700;letter-spacing:1px;"
+        "<div style='font-size:0.7rem;font-weight:600;letter-spacing:1px;"
         "text-transform:uppercase;color:#64748B;margin-bottom:4px;"
         "padding-left:2px;'>🌐 Language / Lingua</div>",
         unsafe_allow_html=True,
     )
+    # NB: Questo DEVE essere il primo st.columns() della sidebar per far funzionare il CSS nth-of-type(1)
     _lc1, _lc2 = st.sidebar.columns(2)
     with _lc1:
         if st.button(
-            "🇮🇹 Italiano",
+            "IT",
             use_container_width=True,
             type="primary" if st.session_state["lang"] == "it" else "secondary",
             key="btn_lang_it",
+            help="Italiano",
         ):
             st.session_state["lang"] = "it"
             st.rerun()
     with _lc2:
         if st.button(
-            "🇬🇧 English",
+            "EN",
             use_container_width=True,
             type="primary" if st.session_state["lang"] == "en" else "secondary",
             key="btn_lang_en",
+            help="English",
         ):
             st.session_state["lang"] = "en"
             st.rerun()
