@@ -2418,7 +2418,7 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
     st.markdown("---")
-    st.markdown("### " + _t("ðŸŽ¯ Taglia Impianto"))
+    st.markdown("### " + _t("🎯 Taglia Impianto"))
 
     if IS_CHP:
         # Parametri CHP: input utente in kW_el LORDI (potenza nominale motore),
