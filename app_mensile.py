@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 BioMethane Monthly Planner - Dual-Constraint Solver
 ---------------------------------------------------
@@ -2357,6 +2357,96 @@ with st.sidebar:
         """,
         unsafe_allow_html=True,
     )
+    st.markdown("---")
+    st.markdown("### " + _t("ðŸŽ¯ Taglia Impianto"))
+
+    if IS_CHP:
+        # Parametri CHP: input utente in kW_el LORDI (potenza nominale motore),
+        # convertito internamente in Sm3/h CH4 al motore (unit del solver).
+        eta_el = st.slider(
+            _t("Efficienza elettrica CHP [η_el]"),
+            min_value=0.30, max_value=0.45,
+            value=ETA_EL_DEFAULT, step=0.01,
+            help=_t("Rendimento elettrico motore cogeneratore. Tipico 38-42% per motori biogas 500-1000 kWe (Jenbacher, MWM, Guascor)."),
+        )
+        eta_th = st.slider(
+            _t("Efficienza termica CHP [η_th]"),
+            min_value=0.30, max_value=0.50,
+            value=ETA_TH_DEFAULT, step=0.01,
+            help=_t("Rendimento termico recuperato (fumi + acqua motore). Tipico 40-45%. Per CAR richiesto PES > 10%."),
+        )
+        # Cap dimensionale: FER 2 ha hard cap a 300 kWe (DM 19/06/2024).
+        # DM 6/7/2012 fino a 1 MW agricolo (cap pratico 999 kWe per evitare
+        # passaggio a fascia successiva). Manteniamo max wide-range per
+        # consentire scenari simulativi anche fuori normativa.
+        if IS_FER2:
+            _kwe_min   = 50.0
+            _kwe_max   = FER2_KWE_CAP
+            _kwe_value = min(DEFAULT_PLANT_KWE_FER2, FER2_KWE_CAP)
+            _kwe_help  = _t("FER 2 (DM 19/06/2024): hard cap **{fmt_it(FER2_KWE_CAP, 0)} kWe**. Targa motore = potenza ai morsetti alternatore. Esempi tipici <300 kWe: Jenbacher JMC 312 GS = 250 kWe, MAN E0834 = 250 kWe.").replace("{fmt_it(FER2_KWE_CAP, 0)}", fmt_it(FER2_KWE_CAP, 0))
+        else:
+            _kwe_min   = 50.0
+            _kwe_max   = 10000.0
+            _kwe_value = DEFAULT_PLANT_KWE
+            _kwe_help  = _t("Potenza elettrica nominale al morsetti alternatore (dato di targa motore). Esempi: Jenbacher JMC 420 GS-BL = 999 kWe, MWM TCG 2020V20 = 2000 kWe. L'autoconsumo ausiliari viene sottratto separatamente qui sotto.")
+        plant_kwe = st.number_input(
+            "🎯 " + _t("Potenza elettrica LORDA (targa motore) [kW_el]")
+            + (f" — {_t('max ')}{fmt_it(FER2_KWE_CAP, 0)} {_t('kWe (cap FER 2)')}"
+               if IS_FER2 else ""),
+            min_value=_kwe_min, max_value=_kwe_max,
+            value=_kwe_value, step=10.0,
+            help=_kwe_help,
+        )
+        # Sanity check: se IS_FER2 e per qualche motivo plant_kwe > cap
+        # (es. riapertura pagina con valore precedente da altro mode)
+        if IS_FER2 and plant_kwe > FER2_KWE_CAP:
+            st.error(
+                f"❌ {_t('FER 2 prevede taglia max ')}**{fmt_it(FER2_KWE_CAP, 0)} kWe**. "
+                f"{_t('Impostato ')}{fmt_it(plant_kwe, 0)} kWe → {_t('fuori normativa.')}"
+            )
+            plant_kwe = FER2_KWE_CAP
+        aux_el_pct = st.slider(
+            "⚙️ " + _t("Autoconsumo elettrico ausiliari [% del lordo]"),
+            min_value=0.0, max_value=20.0,
+            value=AUX_EL_DEFAULT * 100, step=0.5,
+            help=_t("Assorbimento elettrico dei servizi d'impianto (pompe alimentazione, agitatori digestori, desolforatore, soffiante, PLC, illuminazione, trattamento digestato). Tipico 8-10% del lordo. Impianti ben ottimizzati 5-7% (con FV a supporto). Impianti vecchi/biologie difficili 10-13%."),
+        ) / 100.0
+        # Potenza netta immessa in rete (quella che fattura)
+        plant_kwe_net = plant_kwe * (1.0 - aux_el_pct)
+        # Conversione: il CH4 serve per il LORDO (prima del prelievo aux)
+        # 1 Sm3/h CH4 eq → η_el × 9.97 kW_el lordo
+        plant_net_smch = plant_kwe / (eta_el * 9.97)  # Sm3/h CH4 eq al motore
+        st.caption(
+            f"📐 **{_t('Bilancio elettrico')}**: "
+            f"{fmt_it(plant_kwe, 0)} {_t('kW_el lordi −')} "
+            f"{fmt_it(plant_kwe * aux_el_pct, 0)} {_t('kW aux')} "
+            f"({fmt_it(aux_el_pct*100, 1, '%')}) = "
+            f"**{fmt_it(plant_kwe_net, 0)} {_t('kW_el netti')}** {_t('(rete). CH₄ al motore:')} "
+            f"{fmt_it(plant_net_smch, 1)} {_t('Sm³/h.')}"
+        )
+        colA, colB, colC = st.columns(3)
+        colA.metric("🔌 " + _t("Lordo motore"), fmt_it(plant_kwe, 0, " kWₑ"))
+        colB.metric("⚡ " + _t("Netto in rete"), fmt_it(plant_kwe_net, 0, " kWₑ"),
+                    delta=f"-{fmt_it(aux_el_pct*100, 1, '%')} {_t('aux')}")
+        colC.metric("🔥 " + _t("Termico"), fmt_it(plant_kwe * eta_th / eta_el, 0, " kW_th"))
+    else:
+        plant_net_smch = st.number_input(
+            "🎯 " + _t("Netto autorizzato [Sm³/h netti]"),
+            min_value=10.0, max_value=2000.0,
+            value=DEFAULT_PLANT_NET_SMCH, step=5.0,
+            help=_t("Taglia netta dell'impianto. Cambia il setpoint di produzione: tutte le biomasse vengono ricalcolate per centrare questo valore."),
+        )
+        st.caption(_t("ℹ️ Il **fattore netto→lordo** viene calcolato automaticamente dalla configurazione impianto qui sotto (upgrading, fonte calore, fonte elettricita'). Puoi comunque sovrascriverlo manualmente."))
+        st.metric(_t("Taglia netta"), fmt_it(plant_net_smch, 0, " Sm³/h"))
+        # Per coerenza in mode biometano: eta_el/eta_th/aux_el_pct inutilizzati
+        # ma definiti per evitare NameError in blocchi condivisi.
+        eta_el = ETA_EL_DEFAULT
+        eta_th = ETA_TH_DEFAULT
+        aux_el_pct = 0.0
+        plant_kwe = plant_net_smch * eta_el * 9.97  # info-only (non usato)
+        plant_kwe_net = plant_kwe  # in biometano non c'è distinzione
+
+    st.markdown("---")
     st.markdown("### " + _t("🌾 Biomasse attive"))
     active_feeds_sel = st.multiselect(
         _t("Scegli biomasse"),
@@ -2825,95 +2915,6 @@ with tab_tech:
             f"Excel / PDF) usano i valori reali con tracciabilita' completa "
             f"(titolo relazione, autore, societa', data, impianto, campione)."
         )
-
-    st.divider()
-    st.header(_t("⚙️ Parametri impianto"))
-
-    if IS_CHP:
-        # Parametri CHP: input utente in kW_el LORDI (potenza nominale motore),
-        # convertito internamente in Sm3/h CH4 al motore (unit del solver).
-        eta_el = st.slider(
-            _t("Efficienza elettrica CHP [η_el]"),
-            min_value=0.30, max_value=0.45,
-            value=ETA_EL_DEFAULT, step=0.01,
-            help=_t("Rendimento elettrico motore cogeneratore. Tipico 38-42% per motori biogas 500-1000 kWe (Jenbacher, MWM, Guascor)."),
-        )
-        eta_th = st.slider(
-            _t("Efficienza termica CHP [η_th]"),
-            min_value=0.30, max_value=0.50,
-            value=ETA_TH_DEFAULT, step=0.01,
-            help=_t("Rendimento termico recuperato (fumi + acqua motore). Tipico 40-45%. Per CAR richiesto PES > 10%."),
-        )
-        # Cap dimensionale: FER 2 ha hard cap a 300 kWe (DM 19/06/2024).
-        # DM 6/7/2012 fino a 1 MW agricolo (cap pratico 999 kWe per evitare
-        # passaggio a fascia successiva). Manteniamo max wide-range per
-        # consentire scenari simulativi anche fuori normativa.
-        if IS_FER2:
-            _kwe_min   = 50.0
-            _kwe_max   = FER2_KWE_CAP
-            _kwe_value = min(DEFAULT_PLANT_KWE_FER2, FER2_KWE_CAP)
-            _kwe_help  = _t("FER 2 (DM 19/06/2024): hard cap **{fmt_it(FER2_KWE_CAP, 0)} kWe**. Targa motore = potenza ai morsetti alternatore. Esempi tipici <300 kWe: Jenbacher JMC 312 GS = 250 kWe, MAN E0834 = 250 kWe.").replace("{fmt_it(FER2_KWE_CAP, 0)}", fmt_it(FER2_KWE_CAP, 0))
-        else:
-            _kwe_min   = 50.0
-            _kwe_max   = 10000.0
-            _kwe_value = DEFAULT_PLANT_KWE
-            _kwe_help  = _t("Potenza elettrica nominale al morsetti alternatore (dato di targa motore). Esempi: Jenbacher JMC 420 GS-BL = 999 kWe, MWM TCG 2020V20 = 2000 kWe. L'autoconsumo ausiliari viene sottratto separatamente qui sotto.")
-        plant_kwe = st.number_input(
-            "🎯 " + _t("Potenza elettrica LORDA (targa motore) [kW_el]")
-            + (f" — {_t('max ')}{fmt_it(FER2_KWE_CAP, 0)} {_t('kWe (cap FER 2)')}"
-               if IS_FER2 else ""),
-            min_value=_kwe_min, max_value=_kwe_max,
-            value=_kwe_value, step=10.0,
-            help=_kwe_help,
-        )
-        # Sanity check: se IS_FER2 e per qualche motivo plant_kwe > cap
-        # (es. riapertura pagina con valore precedente da altro mode)
-        if IS_FER2 and plant_kwe > FER2_KWE_CAP:
-            st.error(
-                f"❌ {_t('FER 2 prevede taglia max ')}**{fmt_it(FER2_KWE_CAP, 0)} kWe**. "
-                f"{_t('Impostato ')}{fmt_it(plant_kwe, 0)} kWe → {_t('fuori normativa.')}"
-            )
-            plant_kwe = FER2_KWE_CAP
-        aux_el_pct = st.slider(
-            "⚙️ " + _t("Autoconsumo elettrico ausiliari [% del lordo]"),
-            min_value=0.0, max_value=20.0,
-            value=AUX_EL_DEFAULT * 100, step=0.5,
-            help=_t("Assorbimento elettrico dei servizi d'impianto (pompe alimentazione, agitatori digestori, desolforatore, soffiante, PLC, illuminazione, trattamento digestato). Tipico 8-10% del lordo. Impianti ben ottimizzati 5-7% (con FV a supporto). Impianti vecchi/biologie difficili 10-13%."),
-        ) / 100.0
-        # Potenza netta immessa in rete (quella che fattura)
-        plant_kwe_net = plant_kwe * (1.0 - aux_el_pct)
-        # Conversione: il CH4 serve per il LORDO (prima del prelievo aux)
-        # 1 Sm3/h CH4 eq → η_el × 9.97 kW_el lordo
-        plant_net_smch = plant_kwe / (eta_el * 9.97)  # Sm3/h CH4 eq al motore
-        st.caption(
-            f"📐 **{_t('Bilancio elettrico')}**: "
-            f"{fmt_it(plant_kwe, 0)} {_t('kW_el lordi −')} "
-            f"{fmt_it(plant_kwe * aux_el_pct, 0)} {_t('kW aux')} "
-            f"({fmt_it(aux_el_pct*100, 1, '%')}) = "
-            f"**{fmt_it(plant_kwe_net, 0)} {_t('kW_el netti')}** {_t('(rete). CH₄ al motore:')} "
-            f"{fmt_it(plant_net_smch, 1)} {_t('Sm³/h.')}"
-        )
-        colA, colB, colC = st.columns(3)
-        colA.metric("🔌 " + _t("Lordo motore"), fmt_it(plant_kwe, 0, " kWₑ"))
-        colB.metric("⚡ " + _t("Netto in rete"), fmt_it(plant_kwe_net, 0, " kWₑ"),
-                    delta=f"-{fmt_it(aux_el_pct*100, 1, '%')} {_t('aux')}")
-        colC.metric("🔥 " + _t("Termico"), fmt_it(plant_kwe * eta_th / eta_el, 0, " kW_th"))
-    else:
-        plant_net_smch = st.number_input(
-            "🎯 " + _t("Netto autorizzato [Sm³/h netti]"),
-            min_value=10.0, max_value=2000.0,
-            value=DEFAULT_PLANT_NET_SMCH, step=5.0,
-            help=_t("Taglia netta dell'impianto. Cambia il setpoint di produzione: tutte le biomasse vengono ricalcolate per centrare questo valore."),
-        )
-        st.caption(_t("ℹ️ Il **fattore netto→lordo** viene calcolato automaticamente dalla configurazione impianto qui sotto (upgrading, fonte calore, fonte elettricita'). Puoi comunque sovrascriverlo manualmente."))
-        st.metric(_t("Taglia netta"), fmt_it(plant_net_smch, 0, " Sm³/h"))
-        # Per coerenza in mode biometano: eta_el/eta_th/aux_el_pct inutilizzati
-        # ma definiti per evitare NameError in blocchi condivisi.
-        eta_el = ETA_EL_DEFAULT
-        eta_th = ETA_TH_DEFAULT
-        aux_el_pct = 0.0
-        plant_kwe = plant_net_smch * eta_el * 9.97  # info-only (non usato)
-        plant_kwe_net = plant_kwe  # in biometano non c'è distinzione
 
     st.divider()
     st.header(_t("🏭 Configurazione impianto (ep)"))
