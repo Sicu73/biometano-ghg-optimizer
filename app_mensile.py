@@ -1559,9 +1559,9 @@ def find_optimal_pair(aux: float, plant_net: float, ep: float,
     return best  # (pair, total_per_hour, masses_per_hour) o None
 
 
-# ============================================================
+# ===========================================================
 # UI
-# ============================================================
+# ===========================================================
 st.set_page_config(
     page_title="Metan.iQ — Biometano (DM 2018/2022) & Biogas CHP (DM 2012/FER 2)",
     page_icon="🧬",
@@ -1575,22 +1575,34 @@ st.set_page_config(
 if "methaniq_theme" not in st.session_state:
     st.session_state.methaniq_theme = "light"
 
-# Mini-toggle sidebar TOP (render before CSS cosi' theme e' gia' noto)
 # ── LINGUA: selettore Italiano/English (prima cosa in sidebar) ──────────────
 _LANG = render_lang_selector()
 MONTHS = [_t(m) for m in MONTHS]
 
 with st.sidebar:
     st.markdown(
-        "<div style='font-size:0.7rem; font-weight:700; letter-spacing:1px; "
-        "text-transform:uppercase; color:#64748B; margin-bottom:6px; padding-left:2px;'>"
-        "🎨 Tema</div>",
+        f"""
+        <div style='font-size:0.85rem; font-weight:800; letter-spacing:1.5px; 
+             text-transform:uppercase; color:{AMBER}; margin-bottom:15px; border-bottom: 2px solid {AMBER}; padding-bottom:4px;'>
+             ⚙️ Settings / Opzioni
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        f"""
+        <div style='font-size:0.7rem; font-weight:700; letter-spacing:1px; 
+             text-transform:uppercase; color:#64748B; margin-bottom:8px; margin-left:2px;'>
+             🎨 Tema / Appearance
+        </div>
+        """,
         unsafe_allow_html=True,
     )
     _tc1, _tc2 = st.columns(2)
     with _tc1:
         if st.button(
-            "☀️ Chiaro",
+            "☀️ Light",
             use_container_width=True,
             type="primary" if st.session_state.methaniq_theme == "light" else "secondary",
             key="btn_theme_light",
@@ -1599,21 +1611,17 @@ with st.sidebar:
             st.rerun()
     with _tc2:
         if st.button(
-            "🌙 Scuro",
+            "🌙 Dark",
             use_container_width=True,
             type="primary" if st.session_state.methaniq_theme == "dark" else "secondary",
             key="btn_theme_dark",
         ):
             st.session_state.methaniq_theme = "dark"
             st.rerun()
-    st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-bottom:15px;'></div>", unsafe_allow_html=True)
 
 # ===========================================================
 # Metan.iQ Mode Selector (4 modalita' in griglia 2x2)
-# - "biometano"        = legacy alias DM 2022 (mantenuto per session_state)
-# - "biometano_2018"   = sistema CIC + double counting avanzato
-# - "biogas_chp"       = CHP DM 6/7/2012 (<=1 MW agricolo) + premio CAR
-# - "biogas_chp_fer2"  = CHP FER 2 (<=300 kWe), tariffa TR + premi matrice/CAR
 # ===========================================================
 _VALID_MODES = ("biometano", "biometano_2018",
                 "biogas_chp", "biogas_chp_fer2")
@@ -1626,9 +1634,12 @@ if st.session_state.app_mode not in _VALID_MODES:
 
 with st.sidebar:
     st.markdown(
-        "<div style='font-size:0.7rem; font-weight:700; letter-spacing:1px; "
-        "text-transform:uppercase; color:#64748B; margin-bottom:6px; padding-left:2px;'>"
-        "🏭 Tipologia impianto / regime incentivante</div>",
+        f"""
+        <div style='font-size:0.7rem; font-weight:700; letter-spacing:1px; 
+             text-transform:uppercase; color:#64748B; margin-bottom:8px; margin-left:2px;'>
+             🏭 Regime Incentivante / Mode
+        </div>
+        """,
         unsafe_allow_html=True,
     )
     # Riga 1: regimi BIOMETANO
@@ -1639,19 +1650,17 @@ with st.sidebar:
             use_container_width=True,
             type="primary" if st.session_state.app_mode == "biometano" else "secondary",
             key="btn_mode_biometano",
-            help="Biometano DM 15/9/2022 — tariffa diretta €/MWh + premio "
-                 "matrice/upgrading. Saving RED III per uso finale.",
+            help="Biometano DM 15/9/2022 — tariffa diretta €/MWh. Saving RED III.",
         ):
             st.session_state.app_mode = "biometano"
             st.rerun()
     with _mc2:
         if st.button(
-            "🌿 DM 2018 CIC",
+            "🌿 DM 2018",
             use_container_width=True,
             type="primary" if st.session_state.app_mode == "biometano_2018" else "secondary",
             key="btn_mode_biometano_2018",
-            help="Biometano DM 2/3/2018 — sistema CIC con double counting "
-                 "per matrici Annex IX (avanzato). Saving RED II/III.",
+            help="Biometano DM 2/3/2018 — sistema CIC (avanzato). Saving RED II/III.",
         ):
             st.session_state.app_mode = "biometano_2018"
             st.rerun()
@@ -1659,24 +1668,21 @@ with st.sidebar:
     _mc3, _mc4 = st.columns(2)
     with _mc3:
         if st.button(
-            "⚡ CHP DM 2012",
+            "⚡ CHP 2012",
             use_container_width=True,
             type="primary" if st.session_state.app_mode == "biogas_chp" else "secondary",
             key="btn_mode_chp",
-            help="Biogas → cogenerazione elettrica DM 6/7/2012 (<=1 MW "
-                 "agricolo). Tariffa Omnicomprensiva + premio CAR.",
+            help="Biogas → cogenerazione DM 6/7/2012. Tariffa Omnicomprensiva + premio CAR.",
         ):
             st.session_state.app_mode = "biogas_chp"
             st.rerun()
     with _mc4:
         if st.button(
-            "🔋 CHP FER 2",
+            "🔋 FER 2",
             use_container_width=True,
             type="primary" if st.session_state.app_mode == "biogas_chp_fer2" else "secondary",
             key="btn_mode_chp_fer2",
-            help="Biogas CHP FER 2 (DM 19/06/2024) — taglia max 300 kWe, "
-                 "matrice ≥80% sottoprodotti/effluenti, TR + premi "
-                 "matrice/CAR, periodo 20 anni.",
+            help="Biogas CHP FER 2 (DM 19/06/2024) — taglia max 300 kWe, TR + premi.",
         ):
             st.session_state.app_mode = "biogas_chp_fer2"
             st.rerun()
@@ -1706,9 +1712,9 @@ with st.sidebar:
                 _badge = "✅" if n.get("applicato_in_app") else "⚪"
                 st.markdown(
                     f"<div style='font-size:0.78rem; padding:3px 0; "
-                    f"border-bottom:1px solid #E2E8F0;'>"
+                    f"border-bottom:1px solid {BORDER};'>"
                     f"{_badge} <b>{n.get('titolo', 'n/d')}</b><br/>"
-                    f"<span style='color:#64748B; font-size:0.72rem;'>"
+                    f"<span style='color:{TEXT_MUTED}; font-size:0.72rem;'>"
                     f"📍 {n.get('ambito', '')} · "
                     f"rev {n.get('ultima_revisione', 'n/d')}"
                     f"</span></div>",
@@ -1799,585 +1805,230 @@ if IS_CHP:
 IS_DARK = st.session_state.methaniq_theme == "dark"
 
 # ============================================================
-# Metan.iQ Design System v2 — "Navy Consulting Grade"
-# Palette:
-#   PRIMARY    Navy       #0F172A (slate-900)  - frame, headers, CTA primary
-#   PRIMARY_2  Slate      #1E293B (slate-800)  - hover/depth
-#   ACCENT     Amber      #F59E0B (amber-500)  - hero dot, highlight, download
-#   ACCENT_DK  Amber dark #B45309 (amber-700)  - hover
-#   BRAND      Forest     #065F46 (emerald-800) - "biomethane" semantic accent
-#   BRAND_2    Emerald    #10B981 (emerald-500) - saving / positive metrics
-#   CHART_NAVY #1E3A8A · CHART_TEAL #0E9384 · CHART_AMBER #D97706
-# Font:  General Sans (display h1/h2) + Inter (body) + JetBrains Mono (code/KPI)
+# Metan.iQ Design System v3 — "Google Material 3 / Material You"
 # ============================================================
-NAVY        = "#0F172A"
-NAVY_2      = "#1E293B"
-AMBER       = "#F59E0B"
+PRIMARY     = "#006494"  # Material 3 Primary
+SECONDARY   = "#4A6267"  # Muted Teal
+TERTIARY    = "#625B71"  # Muted Purple
+ACCENT      = "#F59E0B"
+SUCCESS     = "#10B981"
+
+# Aliases per compatibilita' legacy
+AMBER       = ACCENT
+NAVY        = PRIMARY
+NAVY_2      = SECONDARY
+BRAND       = SUCCESS
+BRAND_2     = SUCCESS
 AMBER_DK    = "#B45309"
-BRAND       = "#065F46"   # forest green per accenti "biometano"
-BRAND_2     = "#10B981"   # mint per "saving %" positivi
 
 if IS_DARK:
-    BG_APP        = "linear-gradient(180deg, #0A0F1F 0%, #0F172A 100%)"
-    BG_SURFACE    = "#15233D"
-    BG_SURFACE_2  = "#0F172A"
-    TEXT_PRIMARY  = "#F1F5F9"
-    TEXT_SECOND   = "#CBD5E1"
-    TEXT_MUTED    = "#94A3B8"
-    BORDER        = "#1E293B"
-    BORDER_HOVER  = AMBER
-    INPUT_BG      = "#15233D"
-    SIDEBAR_BG    = "linear-gradient(180deg, #0F172A 0%, #15233D 100%)"
-    HEADING_COLOR = "#F8FAFC"
-    CODE_BG       = "#1E293B"
-    CODE_COLOR    = "#F1F5F9"
-    SHADOW_CARD   = "0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.25)"
-    SHADOW_HOVER  = "0 8px 24px rgba(0,0,0,0.5)"
-    CREDIT_BG     = "#15233D"
-    SECTION_PILL_BG = "rgba(245, 158, 11, 0.12)"
-    SECTION_PILL_COLOR = "#FCD34D"
+    BG_APP        = "#1A1C1E"
+    BG_SURFACE    = "#212427"
+    BG_SURFACE_2  = "#2A2D31"
+    TEXT_PRIMARY  = "#E2E2E6"
+    TEXT_SECOND   = "#C2C6CF"
+    TEXT_MUTED    = "#8E9199"
+    BORDER        = "#43474E"
+    BORDER_HOVER  = "#D1E4FF"
+    INPUT_BG      = "#212427"
+    SIDEBAR_BG    = "#1A1C1E"
+    HEADING_COLOR = "#E2E2E6"
+    CODE_BG       = "#2A2D31"
+    CODE_COLOR    = "#D1E4FF"
+    SHADOW_CARD   = "0 1px 2px rgba(0,0,0,0.3)"
+    SHADOW_HOVER  = "0 4px 8px rgba(0,0,0,0.4)"
+    CREDIT_BG     = "#212427"
+    SECTION_PILL_BG = "rgba(0, 100, 148, 0.2)"
+    SECTION_PILL_COLOR = "#D1E4FF"
 else:
-    BG_APP        = "linear-gradient(180deg, #F8FAFC 0%, #EEF2F7 100%)"
-    BG_SURFACE    = "#FFFFFF"
-    BG_SURFACE_2  = "#F8FAFC"
-    TEXT_PRIMARY  = "#0F172A"
-    TEXT_SECOND   = "#334155"
-    TEXT_MUTED    = "#64748B"
-    BORDER        = "#E2E8F0"
-    BORDER_HOVER  = AMBER
-    INPUT_BG      = "#FFFFFF"
-    SIDEBAR_BG    = "linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)"
-    HEADING_COLOR = NAVY
-    CODE_BG       = "#F1F5F9"
-    CODE_COLOR    = NAVY
-    SHADOW_CARD   = "0 2px 8px rgba(0,0,0,0.08)"
-    SHADOW_HOVER  = "0 8px 24px rgba(0,0,0,0.12)"
+    BG_APP        = "#FDFBFF"
+    BG_SURFACE    = "#F1F4F9"
+    BG_SURFACE_2  = "#E1E2E9"
+    TEXT_PRIMARY  = "#1A1C1E"
+    TEXT_SECOND   = "#43474E"
+    TEXT_MUTED    = "#73777F"
+    BORDER        = "#DDE2EA"
+    BORDER_HOVER  = PRIMARY
+    INPUT_BG      = "#FDFBFF"
+    SIDEBAR_BG    = "#F8F9FF"
+    HEADING_COLOR = "#1A1C1E"
+    CODE_BG       = "#E1E2E9"
+    CODE_COLOR    = PRIMARY
+    SHADOW_CARD   = "0 1px 3px rgba(0,0,0,0.05)"
+    SHADOW_HOVER  = "0 8px 16px rgba(0,0,0,0.08)"
     CREDIT_BG     = "#FFFFFF"
-    SECTION_PILL_BG = "#FEF3C7"
-    SECTION_PILL_COLOR = AMBER_DK
+    SECTION_PILL_BG = "#D1E4FF"
+    SECTION_PILL_COLOR = "#001D34"
 
-# ===========================================================
-# Metan.iQ Design System — Commercial SaaS grade
-# Palette:  primary #0B8A5A (verde petrolio) → #1CC491 (mint)
-#           accent  #F59E0B (amber) · slate #0F172A · bg #F8FAFC
-# Font:     Segoe UI Variable (Windows 11 Fluent)
-# ===========================================================
 st.markdown(
     f"""
     <style>
-    /* ---------- Global typography (Windows 11 Fluent) ---------- */
-    /* Body: Segoe UI Variable Text · Headings: Segoe UI Variable Display */
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+    
+    /* ---------- Material 3 Global Reset ---------- */
     html, body, .stApp, .stMarkdown, .stText,
     .stButton button, .stSelectbox label, .stNumberInput label,
     .stSlider label, .stCheckbox label, .stRadio label,
     .stExpander, .stDataFrame, .stTabs, .stAlert,
-    p, h3, h4, h5, h6 {{
-        font-family: 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', -apple-system, sans-serif !important;
+    p, h1, h2, h3, h4, h5, h6 {{
+        font-family: 'Outfit', 'Inter', -apple-system, sans-serif !important;
         -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
     }}
-    h1, h2 {{
-        font-family: 'Segoe UI Variable Display', 'Segoe UI Variable', 'Segoe UI', sans-serif !important;
-    }}
-    /* Fluent Design UI Corners & Input Colors */
-    .stButton button, div[data-baseweb="select"] > div, div[data-baseweb="input"] > div, .stAlert, div[data-testid="stExpander"] {{
-        border-radius: 8px !important;
-    }}
-    div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {{
-        background-color: {INPUT_BG} !important;
-        border-color: {BORDER} !important;
-        color: {TEXT_PRIMARY} !important;
-    }}
-    div[data-baseweb="select"] span, div[data-baseweb="input"] input {{
-        color: {TEXT_PRIMARY} !important;
-    }}
-    /* Preserve Material Icons / Symbols font */
-    [class*="material-icons"], [class*="material-symbols"],
-    .material-icons, .material-symbols-outlined, .material-symbols-rounded,
-    span[data-testid*="icon"], i[class*="icon"] {{
-        font-family: 'Material Symbols Rounded', 'Material Icons',
-                     'Material Symbols Outlined', sans-serif !important;
-    }}
-    code, pre, .stCode, code * {{
-        font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
-        background: {CODE_BG} !important;
-        color: {CODE_COLOR} !important;
-        border-radius: 4px !important;
-    }}
+    
+    .stApp {{ background-color: {BG_APP}; color: {TEXT_PRIMARY}; }}
 
-    /* ---------- Page background ---------- */
-    .stApp {{
-        background: {BG_APP};
-        color: {TEXT_PRIMARY};
-    }}
-
-
-    /* ---------- Sidebar theming (light + dark) ---------- */
-    section[data-testid="stSidebar"] {{
-        background: {SIDEBAR_BG} !important;
-        border-right: 1px solid {BORDER} !important;
-    }}
-    section[data-testid="stSidebar"] p,
-    section[data-testid="stSidebar"] span,
-    section[data-testid="stSidebar"] label,
-    section[data-testid="stSidebar"] .stMarkdown,
-    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {{
-        color: {TEXT_PRIMARY} !important;
-    }}
-
-    /* ---------- Widget & form element theming ---------- */
-    div[data-baseweb="select"] > div {{
-        background-color: {INPUT_BG} !important;
-        border-color: {BORDER} !important;
-    }}
-    div[data-baseweb="select"] span,
-    div[data-baseweb="select"] div {{
-        color: {TEXT_PRIMARY} !important;
-        background-color: transparent !important;
-    }}
-    div[data-baseweb="input"] > div {{
-        background-color: {INPUT_BG} !important;
-        border-color: {BORDER} !important;
-    }}
-    div[data-baseweb="input"] input {{
-        color: {TEXT_PRIMARY} !important;
-    }}
-    div[data-testid="stExpander"] > div:first-child {{
+    /* ---------- Pill Buttons ---------- */
+    .stButton button {{
+        border-radius: 28px !important;
+        padding: 10px 24px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        border: 1px solid {BORDER} !important;
         background-color: {BG_SURFACE} !important;
-        border-color: {BORDER} !important;
-    }}
-    div[data-testid="stExpander"] summary span {{
         color: {TEXT_PRIMARY} !important;
     }}
-    div[data-testid="stNumberInput"] label,
-    div[data-testid="stTextInput"] label,
-    div[data-testid="stSelectbox"] label,
-    div[data-testid="stSlider"] label {{
-        color: {TEXT_SECOND} !important;
-        font-weight: 500 !important;
+    .stButton button:hover {{
+        background-color: {BG_SURFACE_2} !important;
+        border-color: {PRIMARY} !important;
+        box-shadow: {SHADOW_HOVER} !important;
+        transform: translateY(-1px);
     }}
-    [data-baseweb="menu"] {{
+    .stButton button[kind="primary"] {{
+        background-color: {PRIMARY} !important;
+        color: white !important;
+        border: none !important;
+    }}
+
+    /* ---------- Material Inputs ---------- */
+    div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {{
+        border-radius: 12px !important;
         background-color: {BG_SURFACE} !important;
         border: 1px solid {BORDER} !important;
-    }}
-    [data-baseweb="menu"] li {{
         color: {TEXT_PRIMARY} !important;
     }}
-    [data-baseweb="menu"] li:hover {{
-        background-color: {BG_SURFACE_2} !important;
+    
+    /* ---------- Cards & Expanders ---------- */
+    div[data-testid="stExpander"] {{
+        background-color: {BG_SURFACE} !important;
+        border-radius: 20px !important;
+        border: 1px solid {BORDER} !important;
+        box-shadow: {SHADOW_CARD} !important;
+        margin-bottom: 1.2rem !important;
+        padding: 4px !important;
+    }}
+    div[data-testid="stExpander"] > div:first-child {{
+        border: none !important;
+        background: transparent !important;
+    }}
+    
+    /* ---------- Sidebar Modernization ---------- */
+    section[data-testid="stSidebar"] {{
+        background-color: {SIDEBAR_BG} !important;
+        border-right: 1px solid {BORDER} !important;
+    }}
+    
+    [data-testid="stSidebarNav"] li div[aria-selected="true"] {{
+        background-color: {SECTION_PILL_BG} !important;
+        border-radius: 24px !important;
+        margin: 4px 8px !important;
     }}
 
-    /* ---------- Body text ---------- */
-    .stMarkdown p, .stMarkdown li, .stMarkdown span,
-    .stText, [data-testid="stMarkdownContainer"] p {{
-        color: {TEXT_PRIMARY} !important;
-    }}
-
-    /* ---------- Headings ---------- */
-    h1, h2, h3, h4, h5, h6 {{
-        font-weight: 600 !important;
-        letter-spacing: -0.3px !important;
-        color: {HEADING_COLOR} !important;
-        margin-bottom: 0.5rem !important;
-    }}
-    h1 {{ font-weight: 700 !important; letter-spacing: -0.6px !important; }}
-    h2 {{ font-size: 1.5rem !important;
-          margin-top: 1.5rem !important; margin-bottom: 0.75rem !important;
-          font-weight: 600 !important; letter-spacing: -0.4px !important; }}
-    h3 {{ font-size: 1.15rem !important; font-weight: 600 !important;
-          margin-top: 1rem !important; }}
-    h4 {{ font-size: 1rem !important; font-weight: 600 !important; }}
-
-    /* ---------- Brand header (hero, ridotto) ---------- */
+    /* ---------- Hero Header (Material You Style) ---------- */
     .methaniq-header {{
-        position: relative;
-        background:
-            radial-gradient(ellipse 70% 90% at 100% 0%, rgba(245,158,11,0.16) 0%, transparent 55%),
-            radial-gradient(ellipse 60% 80% at 0% 100%, rgba(16,185,129,0.08) 0%, transparent 55%),
-            linear-gradient(135deg, {NAVY} 0%, {NAVY_2} 100%);
-        padding: 36px 36px 32px 36px;
-        border-radius: 8px;
+        background: linear-gradient(135deg, {PRIMARY} 0%, {SECONDARY} 100%);
+        padding: 56px;
+        border-radius: 32px;
         color: white;
-        margin-bottom: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.12);
-        text-align: left;
+        margin-bottom: 32px;
+        position: relative;
         overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 12px 40px rgba(0, 100, 148, 0.2);
     }}
-    /* Hex pattern SVG sottile */
-    .methaniq-header::before {{
+    .methaniq-header::after {{
         content: "";
         position: absolute;
-        inset: 0;
-        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='92' viewBox='0 0 80 92'><g fill='none' stroke='rgba(255,255,255,0.05)' stroke-width='1'><polygon points='40,4 72,22 72,58 40,76 8,58 8,22'/><polygon points='40,28 56,38 56,58 40,68 24,58 24,38'/></g></svg>");
-        background-size: 110px 126px;
-        opacity: 0.5;
-        pointer-events: none;
-    }}
-    .methaniq-header .eyebrow {{
-        position: relative;
-        z-index: 1;
-        display: inline-block;
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 0.7rem;
-        font-weight: 500;
-        color: {AMBER};
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        margin-bottom: 10px;
-        padding: 3px 10px;
-        background: rgba(245, 158, 11, 0.10);
-        border: 1px solid rgba(245, 158, 11, 0.28);
-        border-radius: 4px;
+        top: -30%;
+        right: -10%;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+        border-radius: 50%;
     }}
     .methaniq-header h1 {{
-        color: #FFFFFF !important;
-        margin: 0 !important;
-        font-family: 'Segoe UI Variable Display', 'Segoe UI Variable', 'Segoe UI', sans-serif !important;
-        font-size: 2.5rem !important;
+        color: white !important;
+        font-size: 3.5rem !important;
         font-weight: 700 !important;
-        letter-spacing: -1.2px !important;
-        line-height: 1.05;
-        position: relative;
-        z-index: 1;
+        letter-spacing: -0.04em !important;
+        margin: 0 !important;
+        line-height: 1.1 !important;
     }}
     .methaniq-header .tagline {{
-        color: #CBD5E1;
+        color: rgba(255, 255, 255, 0.95);
+        font-size: 1.25rem;
+        margin-top: 16px;
+        max-width: 700px;
         font-weight: 400;
-        font-size: 1.02rem;
-        margin-top: 10px;
-        letter-spacing: 0;
         line-height: 1.5;
-        position: relative;
-        z-index: 1;
-        max-width: 720px;
     }}
     .methaniq-header .pills {{
         display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-        margin-top: 20px;
-        position: relative;
-        z-index: 1;
+        gap: 12px;
+        margin-top: 32px;
     }}
     .methaniq-header .pill {{
-        background: rgba(255,255,255,0.04);
-        border: 1px solid rgba(255,255,255,0.12);
-        color: #E2E8F0;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 0.7rem;
-        font-weight: 500;
-        font-family: 'JetBrains Mono', monospace !important;
-        letter-spacing: 0.2px;
-    }}
-    .methaniq-header .pill.accent {{
-        background: rgba(245, 158, 11, 0.12);
-        border-color: rgba(245, 158, 11, 0.40);
-        color: {AMBER};
-    }}
-
-    /* ---------- Credit box ---------- */
-    .methaniq-credit {{
-        background: {CREDIT_BG};
-        border: 1px solid {BORDER};
-        border-left: 3px solid {AMBER};
-        padding: 10px 14px;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        color: {TEXT_SECOND};
-        margin-bottom: 20px;
-        box-shadow: {SHADOW_CARD};
-        line-height: 1.5;
-    }}
-    .methaniq-credit b {{ color: {HEADING_COLOR}; font-weight: 600; }}
-
-    /* ---------- Sidebar (color override piu' targetato) ---------- */
-    /* Evita "*" che rompe i colori semantici di pillole, badge,
-       link AMBER, success/error icons, ecc. */
-    section[data-testid="stSidebar"] {{
-        background: {SIDEBAR_BG};
-        border-right: 1px solid {BORDER};
-    }}
-    section[data-testid="stSidebar"] p,
-    section[data-testid="stSidebar"] label,
-    section[data-testid="stSidebar"] li,
-    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {{
-        color: {TEXT_PRIMARY};
-    }}
-    section[data-testid="stSidebar"] h2,
-    section[data-testid="stSidebar"] h3 {{
-        font-size: 1rem !important;
-        color: {HEADING_COLOR} !important;
-        margin-top: 1.2rem !important;
-        padding-bottom: 6px;
-        border-bottom: 1px solid {BORDER};
-    }}
-
-    /* ---------- Metrics (KPI cards, piu' impattanti) ---------- */
-    [data-testid="stMetric"] {{
-        background: {BG_SURFACE};
-        padding: 16px 18px;
-        border-radius: 10px;
-        border: 1px solid {BORDER};
-        border-top: 2px solid {AMBER};
-        box-shadow: {SHADOW_CARD};
-        transition: all 0.2s ease;
-    }}
-    [data-testid="stMetric"]:hover {{
-        box-shadow: {SHADOW_HOVER};
-        border-color: {BORDER_HOVER};
-        border-top-color: {AMBER};
-        transform: translateY(-2px);
-    }}
-    [data-testid="stMetricLabel"] {{
-        color: {TEXT_MUTED} !important;
-        font-size: 0.7rem !important;
-        font-weight: 600 !important;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-family: 'JetBrains Mono', monospace !important;
-        margin-bottom: 4px !important;
-    }}
-    [data-testid="stMetricValue"] {{
-        color: {HEADING_COLOR} !important;
-        font-weight: 700 !important;
-        font-size: 2.1rem !important;
-        line-height: 1.1 !important;
-        letter-spacing: -1px !important;
-        font-family: 'Space Grotesk', 'Inter', sans-serif !important;
-        font-variant-numeric: tabular-nums;
-    }}
-    [data-testid="stMetricDelta"] {{
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 0.76rem !important;
-        font-weight: 500 !important;
-        margin-top: 2px !important;
-    }}
-
-    /* ---------- Buttons (gerarchia chiara: primary = navy, accent = amber) ---------- */
-    .stButton > button {{
-        background: {NAVY};
-        color: #FFFFFF !important;
-        border: 1px solid {NAVY};
-        border-radius: 6px;
-        padding: 0.5rem 1.2rem;
+        background: rgba(255, 255, 255, 0.18);
+        padding: 8px 20px;
+        border-radius: 24px;
+        font-size: 0.85rem;
         font-weight: 600;
-        font-size: 0.92rem;
-        letter-spacing: 0;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
-        transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }}
-    .stButton > button:hover {{
-        background: {NAVY_2};
-        border-color: {AMBER};
-        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18),
-                    0 0 0 3px rgba(245, 158, 11, 0.10);
-        transform: translateY(-1px);
-    }}
-    .stButton > button:active {{ transform: translateY(0); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); }}
-    .stButton > button:focus-visible {{
-        outline: 2px solid {AMBER};
-        outline-offset: 2px;
-    }}
-    /* Primary button (mode/theme selectors quando attivo) */
-    .stButton > button[kind="primary"] {{
-        background: linear-gradient(135deg, {NAVY} 0%, {NAVY_2} 100%);
-        border: 1px solid {AMBER};
-        color: #FFFFFF !important;
-        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18),
-                    inset 0 1px 0 rgba(245, 158, 11, 0.18);
-    }}
-    /* Secondary button (toggle inactive, neutral actions) */
-    .stButton > button[kind="secondary"] {{
-        background: {BG_SURFACE} !important;
-        color: {TEXT_PRIMARY} !important;
-        border: 1px solid {BORDER} !important;
-        box-shadow: {SHADOW_CARD};
-    }}
-    .stButton > button[kind="secondary"]:hover {{
-        border-color: {AMBER} !important;
-        background: {BG_SURFACE_2} !important;
-        color: {HEADING_COLOR} !important;
-    }}
-    /* Download buttons = AZIONE PRIMARIA AMBER (CTA distintivo)
-       TUTTI i download_button (primary o secondary) sono amber per
-       coerenza visiva nella riga export. !important per battere
-       eventuali override default di Streamlit per kind="secondary". */
-    .stDownloadButton > button,
-    .stDownloadButton > button[kind="primary"],
-    .stDownloadButton > button[kind="secondary"],
-    .stDownloadButton > button[data-testid="stBaseButton-secondary"],
-    .stDownloadButton > button[data-testid="stBaseButton-primary"] {{
-        background: {AMBER} !important;
-        color: #FFFFFF !important;
-        border: 1px solid {AMBER} !important;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 0.92rem;
-        padding: 0.5rem 1.2rem;
-        letter-spacing: 0.1px;
-        box-shadow: 0 1px 3px rgba(245, 158, 11, 0.20);
-        transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-    }}
-    .stDownloadButton > button:hover {{
-        background: {AMBER_DK} !important;
-        border-color: {AMBER_DK} !important;
-        box-shadow: 0 5px 14px rgba(245, 158, 11, 0.30),
-                    0 0 0 3px rgba(245, 158, 11, 0.12);
-        transform: translateY(-1px);
-    }}
-    .stDownloadButton > button:active {{ transform: translateY(0); }}
-
-    /* ---------- Expanders (radius coerente 10px) ---------- */
-    .streamlit-expanderHeader, details > summary {{
-        background: {BG_SURFACE} !important;
-        color: {TEXT_PRIMARY} !important;
-        border-radius: 10px !important;
-        border: 1px solid {BORDER} !important;
-        font-weight: 600 !important;
-        padding: 10px 14px !important;
-        transition: all 0.15s ease;
-    }}
-    .streamlit-expanderHeader:hover {{
-        border-color: {BORDER_HOVER} !important;
-    }}
-    [data-testid="stExpander"] {{
-        background: {BG_SURFACE};
-        border: 1px solid {BORDER};
-        border-radius: 10px;
-        margin-bottom: 8px;
-    }}
-
-    /* ---------- Tabs (font + padding piu' generosi) ---------- */
+    
+    /* ---------- Tabs ---------- */
     .stTabs [data-baseweb="tab-list"] {{
-        gap: 2px;
-        background: {BG_SURFACE};
-        padding: 4px;
-        border-radius: 10px;
-        border: 1px solid {BORDER};
-        box-shadow: {SHADOW_CARD};
+        gap: 8px !important;
+        background-color: transparent !important;
     }}
     .stTabs [data-baseweb="tab"] {{
-        border-radius: 6px;
-        padding: 9px 18px;
-        font-weight: 500;
-        font-size: 0.95rem;
-        color: {TEXT_MUTED};
-        transition: all 0.15s ease;
-    }}
-    .stTabs [data-baseweb="tab"]:hover {{
-        background: {BG_SURFACE_2};
-        color: {TEXT_PRIMARY};
+        border-radius: 20px !important;
+        padding: 8px 20px !important;
+        background-color: {BG_SURFACE} !important;
+        border: 1px solid {BORDER} !important;
+        transition: all 0.2s !important;
     }}
     .stTabs [aria-selected="true"] {{
-        background: {NAVY} !important;
-        color: #FFFFFF !important;
-        font-weight: 600;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25),
-                    inset 0 -2px 0 {AMBER};
+        background-color: {PRIMARY} !important;
+        color: white !important;
+        border-color: {PRIMARY} !important;
     }}
-
-    /* ---------- Alerts (info/success/warning/error) ---------- */
-    [data-testid="stAlert"] {{
-        border-radius: 10px;
-        border: 1px solid {BORDER};
-        box-shadow: {SHADOW_CARD};
-        padding: 12px 14px !important;
-    }}
-
-    /* ---------- Inputs (radius coerente 6px) ---------- */
-    .stNumberInput input, .stTextInput input,
-    .stSelectbox [data-baseweb="select"] > div {{
-        background: {INPUT_BG} !important;
-        color: {TEXT_PRIMARY} !important;
-        border-radius: 6px !important;
-        border: 1px solid {BORDER} !important;
-        transition: all 0.15s ease;
-    }}
-    .stNumberInput input:focus, .stTextInput input:focus {{
-        border-color: {AMBER} !important;
-        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18) !important;
-    }}
-    /* Slider: track navy + thumb amber con outline navy + ring */
-    .stSlider [data-baseweb="slider"] > div > div {{
-        background: {NAVY} !important;
-    }}
-    .stSlider [data-baseweb="slider"] [role="slider"] {{
-        background: {AMBER} !important;
-        border: 2px solid {NAVY} !important;
-        box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15) !important;
-    }}
-    /* Multiselect / chip styling */
-    .stMultiSelect [data-baseweb="tag"] {{
-        background: rgba(245, 158, 11, 0.12) !important;
-        border: 1px solid rgba(245, 158, 11, 0.40) !important;
-        color: {AMBER_DK} !important;
-        border-radius: 6px !important;
-    }}
-
-    /* ---------- Dataframes (radius coerente 10px) ---------- */
+    
+    /* ---------- DataFrames & Tables ---------- */
     [data-testid="stDataFrame"] {{
-        border-radius: 10px;
-        overflow: hidden;
+        border-radius: 16px !important;
+        overflow: hidden !important;
+        border: 1px solid {BORDER} !important;
+    }}
+    
+    /* ---------- Metrics ---------- */
+    [data-testid="stMetric"] {{
+        background-color: {BG_SURFACE} !important;
+        padding: 20px !important;
+        border-radius: 24px !important;
+        border: 1px solid {BORDER} !important;
+        box-shadow: {SHADOW_CARD} !important;
+    }}
+    
+    /* ---------- Credit Box ---------- */
+    .methaniq-credit {{
+        background: {BG_SURFACE};
+        border-radius: 24px;
+        border-left: 8px solid {ACCENT};
+        padding: 24px;
+        margin: 32px 0;
         box-shadow: {SHADOW_CARD};
-        border: 1px solid {BORDER};
-    }}
-    [data-testid="stDataFrame"] * {{
-        color: {TEXT_PRIMARY} !important;
-    }}
-    /* Hover row su data_editor (sottile) */
-    [data-testid="stDataFrameRow"]:hover {{
-        background: {BG_SURFACE_2} !important;
-    }}
-
-    /* ---------- Dividers ---------- */
-    hr {{
-        border: none !important;
-        border-top: 1px solid {BORDER} !important;
-        margin: 1.5rem 0 !important;
-        opacity: 0.7;
-    }}
-
-    /* ---------- Captions ---------- */
-    .stCaption, [data-testid="stCaptionContainer"] {{
-        color: {TEXT_MUTED} !important;
-        font-size: 0.82rem !important;
-        line-height: 1.55 !important;
-    }}
-
-    /* ---------- Subtle section headings ---------- */
-    .section-label {{
-        display: inline-block;
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 0.7rem;
-        font-weight: 600;
-        letter-spacing: 1.2px;
-        text-transform: uppercase;
-        color: {SECTION_PILL_COLOR};
-        background: {SECTION_PILL_BG};
-        padding: 3px 10px;
-        border-radius: 6px;
-        margin-bottom: 6px;
-    }}
-
-    /* ---------- Tooltip / help icons leggermente visibili ---------- */
-    [data-testid="stTooltipIcon"] svg {{
-        fill: {TEXT_MUTED} !important;
-        opacity: 0.65;
-        transition: opacity 0.15s ease;
-    }}
-    [data-testid="stTooltipIcon"]:hover svg {{
-        opacity: 1;
-        fill: {AMBER} !important;
-    }}
-
-    /* ---------- Spaziatura blocchi principali ---------- */
-    [data-testid="stVerticalBlock"] > [data-testid="element-container"] {{
-        margin-bottom: 0.4rem;
     }}
     </style>
-
     <div class="methaniq-header">
         <span class="eyebrow">// Decision Intelligence Platform</span>
         <h1>Metan<span style="color:""" + AMBER + """; font-weight:700;">.</span>iQ</h1>
@@ -2436,7 +2087,7 @@ with st.sidebar:
     st.markdown(
         """
         <div style='
-            position: relative;
+            
             padding: 18px 16px;
             background: linear-gradient(135deg, """ + NAVY + """ 0%, """ + NAVY_2 + """ 100%);
             border-radius: 10px;
@@ -6284,10 +5935,10 @@ st.markdown("<div style='margin-top:40px;'></div>", unsafe_allow_html=True)
 st.markdown(
     """
     <div style='
-        position: relative;
+        
         text-align: center;
         padding: 32px 28px;
-        margin-top: 20px;
+        
         background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
         border-radius: 12px;
         color: #ffffff;
@@ -6307,27 +5958,27 @@ st.markdown(
             color: #F59E0B; letter-spacing: 2px;
             text-transform: uppercase;
             margin-bottom: 8px;
-            position: relative; z-index: 1;
+             
         '>// Metan.iQ Platform</div>
         <div style='
             font-family: "Space Grotesk", "Inter", sans-serif;
             font-size: 1.7rem; font-weight: 700; letter-spacing: -0.8px;
             color: #FFFFFF;
-            position: relative; z-index: 1;
+             
             line-height: 1;
         '>Metan<span style="color:#F59E0B; font-weight:700;">.</span>iQ</div>
         <div style='
             font-size: 0.9rem; color: #94A3B8;
-            margin-top: 8px; position: relative; z-index: 1;
+            margin-top: 8px;  
             max-width: 640px; line-height: 1.5;
         '>{_t("Decision intelligence platform per la pianificazione mensile e l\\'ottimizzazione GHG di impianti di biometano e biogas cogenerativo.")}</div>
         <div style='
             margin-top: 18px; padding-top: 16px;
             border-top: 1px solid rgba(148, 163, 184, 0.12);
             font-size: 0.78rem; color: #CBD5E1;
-            position: relative; z-index: 1;
+             
             display: flex; justify-content: space-between; align-items: center;
-            flex-wrap: wrap; gap: 12px;
+            flex-wrap: wr gap: 12px;
         '>
             <div>
                 Metan.iQ <b style='color:#FFFFFF;'>v""" + _APP_VERSION + """</b>
@@ -6339,7 +5990,7 @@ st.markdown(
                     """ + _t("Software fornito «così com'è», senza garanzie né assistenza") + """
                 </span>
             </div>
-            <div style='display: flex; gap: 6px; flex-wrap: wrap;'>
+            <div style='display: flex; gap: 6px; flex-wrap: wr'>
                 <span style='background: rgba(245, 158, 11, 0.10);
                     border: 1px solid rgba(245, 158, 11, 0.28);
                     color: #F59E0B; padding: 3px 10px; border-radius: 4px;
