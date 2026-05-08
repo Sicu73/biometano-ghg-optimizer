@@ -477,7 +477,7 @@ def compute_business_plan(
     schema finanziamento. Tutti i valori in euro nominali (non attualizzati).
     """
     # --- CAPEX ---
-    capex_impiantistico = sum(capex_breakdown.values()) * plant_smch
+    capex_impiantistico = sum(capex_breakdown.values())
     capex_forfait_tot = sum(capex_forfait.values())
     capex_totale = capex_impiantistico + capex_forfait_tot
 
@@ -494,7 +494,7 @@ def compute_business_plan(
     biometano_mwh_anno = biometano_smc_anno * pci_kwh_per_smc / 1000.0
 
     # --- OPEX ---
-    opex_scalabile_anno = sum(opex_breakdown.values()) * plant_smch
+    opex_scalabile_anno = sum(opex_breakdown.values())
     opex_forfait_anno = sum(opex_forfait.values())
     opex_anno_base = opex_scalabile_anno + opex_forfait_anno
 
@@ -3194,51 +3194,55 @@ with tab_bp:
             )
 
             # ---- CAPEX breakdown ----
-            st.markdown("##### 🏗️ CAPEX (€/(Smc/h) per macrovoce)")
+            st.markdown("##### 🏗️ CAPEX ([€] Valori Totali)")
             st.caption(
-                "Ogni voce viene moltiplicata per la taglia (Smc/h). "
-                "Le voci forfait sono fisse a livello d'impianto."
+                _t("Inserisci i costi totali del tuo impianto in €. I valori di default "
+                   "sono pre-calcolati sulla base della taglia (Smc/h) selezionata "
+                   "usando benchmark di settore.")
             )
             bp_capex_breakdown = {}
             for k, v in BP_CAPEX_DEFAULTS_PER_SMCH.items():
+                # Calcola il default in base alla taglia dell'impianto
+                default_abs = float(v * plant_net_smch)
                 bp_capex_breakdown[k] = st.number_input(
-                    f"{k}",
-                    min_value=0.0, max_value=50000.0,
-                    value=v, step=100.0,
+                    f"{k} [€]",
+                    min_value=0.0, max_value=100_000_000.0,
+                    value=default_abs, step=5000.0,
                     key=f"bp_capex_{k}",
-                    help=f"CAPEX €/(Smc/h). Default benchmark impianto medio 2026.",
+                    help=_t("CAPEX totale in €. Default scalato per taglia impianto."),
                 )
-            st.markdown("**CAPEX forfait**")
+            st.markdown("**CAPEX forfait [€]**")
             bp_capex_forfait = {}
             for k, v in BP_CAPEX_FORFAIT_DEFAULTS.items():
                 bp_capex_forfait[k] = st.number_input(
-                    f"{k}",
-                    min_value=0.0, max_value=2000000.0,
-                    value=v, step=1000.0,
+                    f"{k} [€]",
+                    min_value=0.0, max_value=10_000_000.0,
+                    value=float(v), step=1000.0,
                     key=f"bp_capex_ff_{k}",
                 )
 
             # ---- OPEX ----
-            st.markdown("##### 🔧 OPEX (€/anno per (Smc/h))")
+            st.markdown("##### 🔧 OPEX ([€/anno] Valori Totali)")
             st.caption(
-                "OPEX scalabili (digestione, upgrading, gestore) - voci "
-                "fisse (assicurazioni, tasse) separate sotto."
+                _t("OPEX totali in €/anno. I valori di default sono scalati per taglia "
+                   "(digestione, upgrading) o fissi (assicurazioni).")
             )
             bp_opex_breakdown = {}
             for k, v in BP_OPEX_DEFAULTS_PER_SMCH_YEAR.items():
+                default_abs = float(v * plant_net_smch)
                 bp_opex_breakdown[k] = st.number_input(
-                    f"{k}",
-                    min_value=0.0, max_value=10000.0,
-                    value=v, step=10.0,
+                    f"{k} [€/anno]",
+                    min_value=0.0, max_value=50_000_000.0,
+                    value=default_abs, step=1000.0,
                     key=f"bp_opex_{k}",
                 )
-            st.markdown("**OPEX fissi (€/anno)**")
+            st.markdown("**OPEX fissi [€/anno]**")
             bp_opex_forfait = {}
             for k, v in BP_OPEX_FORFAIT_DEFAULTS.items():
                 bp_opex_forfait[k] = st.number_input(
-                    f"{k}",
-                    min_value=0.0, max_value=200000.0,
-                    value=v, step=500.0,
+                    f"{k} [€/anno]",
+                    min_value=0.0, max_value=5_000_000.0,
+                    value=float(v), step=500.0,
                     key=f"bp_opex_ff_{k}",
                 )
 
