@@ -66,41 +66,43 @@ def render_lang_selector() -> str:
         """
         <style>
         /* Nascondiamo il testo interno ai bottoni della lingua */
-        div[data-testid="stVerticalBlock"] > div:has(#lang_anchor) + div button p {
+        div:has(#lang_anchor) ~ div button p {
             color: transparent !important;
         }
         /* Stile base bottoni lingua */
-        div[data-testid="stVerticalBlock"] > div:has(#lang_anchor) + div button {
-            background-size: cover;
-            background-position: center;
-            border-radius: 6px !important;
-            height: 38px;
-            border: 1px solid rgba(0,0,0,0.15);
+        div:has(#flag_it) + div button, div:has(#flag_en) + div button {
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            border-radius: 4px !important;
+            height: 40px !important;
+            border: 1px solid rgba(0,0,0,0.2) !important;
             transition: transform 0.2s, box-shadow 0.2s;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        div[data-testid="stVerticalBlock"] > div:has(#lang_anchor) + div button:hover {
+        div:has(#flag_it) + div button:hover, div:has(#flag_en) + div button:hover {
             transform: scale(1.05);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
-            border-color: #CBD5E1;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            border-color: #94A3B8 !important;
         }
-        /* Bandiera Italiana (Colonna 1) */
-        div[data-testid="stVerticalBlock"] > div:has(#lang_anchor) + div div[data-testid="column"]:nth-child(1) button {
-            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzIDIiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjIiIGZpbGw9IiMwMDhDNDUiLz48cmVjdCB3aWR0aD0iMSIgaGVpZ2h0PSIyIiB4PSIxIiBmaWxsPSIjRjRGNUYwIi8+PHJlY3Qgd2lkdGg9IjEiIGhlaWdodD0iMiIgeD0iMiIgZmlsbD0iI0NEMjEyQSIvPjwvc3ZnPg==');
+        /* Bandiera Italiana (Ancorata) */
+        div:has(#flag_it) + div button {
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzIDIiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjIiIGZpbGw9IiMwMDhDNDUiLz48cmVjdCB3aWR0aD0iMSIgaGVpZ2h0PSIyIiB4PSIxIiBmaWxsPSIjRjRGNUYwIi8+PHJlY3Qgd2lkdGg9IjEiIGhlaWdodD0iMiIgeD0iMiIgZmlsbD0iI0NEMjEyQSIvPjwvc3ZnPg==') !important;
         }
-        /* Bandiera UK (Colonna 2) */
-        div[data-testid="stVerticalBlock"] > div:has(#lang_anchor) + div div[data-testid="column"]:nth-child(2) button {
-            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MCAzMCI+PGNsaXBQYXRoIGlkPSJ0Ij48cGF0aCBkPSJNMzAsMTUgaDMwIHYxNSB6IHYxNSBoLTMwIHogaC0zMCB2LTE1IHogdi0xNSBoMzAgeiIvPjwvY2xpcFBhdGg+PHBhdGggZD0iTTAsMCB2MzAgaDYwIHYtMzAgeiIgZmlsbD0iIzAxMjE2OSIvPjxwYXRoIGQ9Ik0wLDAgTDYwLDMwIE02MCwwIEwwLDMwIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNiIvPjxwYXRoIGQ9Ik0wLDAgTDYwLDMwIE02MCwwIEwwLDMwIiBjbGlwLXBhdGg9InVybCgjdCkiIHN0cm9rZT0iI0M4MTAyRSIgc3Ryb2tlLXdpZHRoPSI0Ii8+PHBhdGggZD0iTTMwLDAgdjMwIE0wLDE1IGg2MCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjEwIi8+PHBhdGggZD0iTTMwLDAgdjMwIE0wLDE1IGg2MCIgc3Ryb2tlPSIjQzgxMDJFIiBzdHJva2Utd2lkdGg9IjYiLz48L3N2Zz4=');
+        /* Bandiera UK (Ancorata) */
+        div:has(#flag_en) + div button {
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MCAzMCI+PGNsaXBQYXRoIGlkPSJ0Ij48cGF0aCBkPSJNMzAsMTUgaDMwIHYxNSB6IHYxNSBoLTMwIHogaC0zMCB2LTE1IHogdi0xNSBoMzAgeiIvPjwvY2xpcFBhdGg+PHBhdGggZD0iTTAsMCB2MzAgaDYwIHYtMzAgeiIgZmlsbD0iIzAxMjE2OSIvPjxwYXRoIGQ9Ik0wLDAgTDYwLDMwIE02MCwwIEwwLDMwIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNiIvPjxwYXRoIGQ9Ik0wLDAgTDYwLDMwIE02MCwwIEwwLDMwIiBjbGlwLXBhdGg9InVybCgjdCkiIHN0cm9rZT0iI0M4MTAyRSIgc3Ryb2tlLXdpZHRoPSI0Ii8+PHBhdGggZD0iTTMwLDAgdjMwIE0wLDE1IGg2MCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjEwIi8+PHBhdGggZD0iTTMwLDAgdjMwIE0wLDE1IGg2MCIgc3Ryb2tlPSIjQzgxMDJFIiBzdHJva2Utd2lkdGg9IjYiLz48L3N2Zz4=') !important;
         }
         /* Opacità per la lingua NON attiva */
-        div[data-testid="stVerticalBlock"] > div:has(#lang_anchor) + div button[kind="secondary"] {
-            opacity: 0.4;
-            filter: grayscale(60%);
+        div:has(#flag_it) + div button[kind="secondary"], div:has(#flag_en) + div button[kind="secondary"] {
+            opacity: 0.3 !important;
+            filter: grayscale(80%) !important;
         }
-        div[data-testid="stVerticalBlock"] > div:has(#lang_anchor) + div button[kind="primary"] {
-            opacity: 1.0;
-            border: 2px solid #0F172A;
+        div:has(#flag_it) + div button[kind="primary"], div:has(#flag_en) + div button[kind="primary"] {
+            opacity: 1.0 !important;
+            border: 2px solid #0F172A !important;
             box-shadow: 0 0 0 2px rgba(255,255,255,0.5);
+            filter: none !important;
         }
         </style>
         """,
@@ -115,6 +117,7 @@ def render_lang_selector() -> str:
     )
     _lc1, _lc2 = st.sidebar.columns(2)
     with _lc1:
+        st.markdown("<div id='flag_it'></div>", unsafe_allow_html=True)
         if st.button(
             "IT",
             use_container_width=True,
@@ -125,6 +128,7 @@ def render_lang_selector() -> str:
             st.session_state["lang"] = "it"
             st.rerun()
     with _lc2:
+        st.markdown("<div id='flag_en'></div>", unsafe_allow_html=True)
         if st.button(
             "EN",
             use_container_width=True,
