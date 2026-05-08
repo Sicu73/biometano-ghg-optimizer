@@ -2367,14 +2367,9 @@ with st.sidebar:
     )
     st.session_state.active_feeds = active_feeds_sel
     active_feeds = st.session_state.active_feeds
-
-    if len(active_feeds) < 2:
-        st.error(
-            f"⚠️ Seleziona almeno **2 biomasse** per usare il solver dual-constraint. "
-            f"Attualmente: {len(active_feeds)}."
-        )
+    if not active_feeds:
+        st.warning(_t("⚠️ Seleziona almeno 1 biomassa per procedere."))
         st.stop()
-
 # ============================================================
 # TABS PRINCIPALI (Main Area)
 # ============================================================
