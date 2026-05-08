@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 BioMethane Monthly Planner - Dual-Constraint Solver
 ---------------------------------------------------
@@ -5396,13 +5396,13 @@ with _dl_col_pptx:
     
     if _pptx_ok:
         st.download_button(
-            _t("ðŸ“Š Presentazione PPTX"),
+            _t("📊 Presentazione PPTX"),
             data=_pptx_data,
             file_name=f"metaniq_{APP_MODE}_presentazione.pptx",
             mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
             use_container_width=True,
             type="primary",
-            help="Scarica una presentazione di 15 slide editabile con i risultati del progetto.",
+            help="Scarica una presentazione di 8 slide ad alto impatto con i risultati del progetto (stile moderno).",
         )
     else:
         st.error(f"Errore generazione PPTX: {_pptx_err}")
