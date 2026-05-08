@@ -2510,10 +2510,13 @@ with st.sidebar:
         )
         st.session_state[_unit_key] = "netti" if _unit_sel == _unit_opts[0] else "lordi"
 
-        # Fattore upgrading: leggiamo dal session_state se già configurato
-        # (viene scritto dalla sezione Config. Tecnica), altrimenti usiamo 95%.
-        _up_eff   = st.session_state.get("upgrading_eff", 0.95)   # resa upgrading (CH4 recovery)
-        _up_label = f"{fmt_it(_up_eff * 100, 1)} % CH₄ recovery"
+        # Fattore globale lordi->netti: legge aux_factor da Config. Tecnica
+        # (include upgrading slip + caldaia + CHP interno + margini)
+        # Default = DEFAULT_AUX_FACTOR = 1.29 (calcolato JRC-CONCAWE)
+        _aux   = st.session_state.get("aux_factor", DEFAULT_AUX_FACTOR)
+        _up_eff = 1.0 / _aux if _aux > 0 else (1.0 / DEFAULT_AUX_FACTOR)
+        _detail = st.session_state.get("aux_factor_detail", {})
+        _up_label = f"1 / {fmt_it(_aux, 3)} = {fmt_it(_up_eff*100, 1)} %"
 
         if st.session_state[_unit_key] == "netti":
             _plant_input = st.number_input(
@@ -2554,21 +2557,36 @@ with st.sidebar:
         _c1, _c2, _c3 = st.columns(3)
         _c1.metric(
             "📥 " + _t("Lordi"), fmt_it(plant_gross_smch, 0, " Sm³/h"),
-            help=_t("Portata biogas grezzo in ingresso upgrading"),
+            help=_t("Portata biogas totale prodotta (input upgrading + autoconsumo caldaia + CHP interno)"),
         )
         _c2.metric(
             "📤 " + _t("Netti"), fmt_it(plant_net_smch, 0, " Sm³/h"),
-            help=_t("Portata biometano a valle upgrading (valore decreto)"),
+            help=_t("Portata biometano a valle upgrading (valore contatore rete / decreto)"),
         )
         _c3.metric(
-            "⚙️ " + _t("Resa up."), _up_label,
-            help=_t("Fattore CH₄ recovery upgrading (dalla Config. Tecnica)"),
+            "⚙️ " + _t("aux"), fmt_it(_aux, 3),
+            help=_t("Fattore lordi/netti dalla Config. Tecnica (upgrading + caldaia + CHP interno)"),
         )
-        st.caption(
-            _t("ℹ️ Il **fattore netto→lordo** viene calcolato dalla configurazione upgrading "
-               "in **Config. Tecnica → Upgrading**. Puoi modificarlo lì.")
-            + f" [{_up_label}]"
-        )
+        # Breakdown autoconsumi se disponibile
+        if _detail:
+            _f_heat = _detail.get("f_heat", 0)
+            _f_elec = _detail.get("f_elec", 0)
+            _f_slip = _detail.get("f_slip", 0)
+            _f_marg = _detail.get("f_margin", 0)
+            st.caption(
+                f"📊 **Breakdown autoconsumo** (% del lordo): "
+                f"🔥 Caldaia {fmt_it(_f_heat*100, 1, '%')} · "
+                f"⚡ CHP {fmt_it(_f_elec*100, 1, '%')} · "
+                f"💨 Slip {fmt_it(_f_slip*100, 1, '%')} · "
+                f"🔧 Margine {fmt_it(_f_marg*100, 1, '%')} "
+                f"→ Totale {fmt_it((_f_heat+_f_elec+_f_slip+_f_marg)*100, 1, '%')} ≡ aux {fmt_it(_aux, 3)}"
+            )
+        else:
+            st.caption(
+                _t("ℹ️ Vai in **Config. Tecnica** per calcolare il fattore lordi/netti reale "
+                   "(include upgrading, caldaia e CHP interno). Ora uso default: "
+                   f"aux = {fmt_it(_aux, 3)} ({fmt_it((1-_up_eff)*100, 0, '%')} autoconsumo totale).")
+            )
 
         # Per coerenza in mode biometano: eta_el/eta_th/aux_el_pct non usati
         eta_el      = ETA_EL_DEFAULT
@@ -3622,6 +3640,12 @@ with tab_bp:
                 fmt_it(aux_factor, 3),
                 delta=f"{fmt_it(aux_auto_data['f_tot']*100, 1, '%')} autoconsumo totale",
             )
+
+    # ── Salva aux_factor in session_state per uso nella sidebar ──────────
+    st.session_state["aux_factor"]    = aux_factor
+    st.session_state["upgrading_eff"] = 1.0 / aux_factor if aux_factor > 0 else 0.95
+    if not IS_CHP:
+        st.session_state["aux_factor_detail"] = aux_auto_data
 
     # Breakdown aux_factor (solo in mode biometano: in CHP e' banale)
     if not IS_CHP:
