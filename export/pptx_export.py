@@ -1,4 +1,4 @@
-﻿import io
+import io
 import datetime
 try:
     from pptx import Presentation
@@ -103,12 +103,12 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
             p3.alignment = PP_ALIGN.CENTER
 
     # Estrazione Dati Base
-    ghg_saving = ctx.get("saving_avg", 0.0)
-    mwh = ctx.get("tot_mwh_basis", 0.0)
-    rev = ctx.get("tot_revenue", 0.0)
-    taglia = ctx.get("plant_net_smch", 300.0)
-    aux = ctx.get("aux_factor", 1.29)
-    valid_months = ctx.get("valid_months", 0)
+    ghg_saving = ctx.get("saving_avg") or 0.0
+    mwh = ctx.get("tot_mwh_basis") or 0.0
+    rev = ctx.get("tot_revenue") or 0.0
+    taglia = ctx.get("plant_net_smch") or 300.0
+    aux = ctx.get("aux_factor") or 1.29
+    valid_months = ctx.get("valid_months") or 0
     compliant = ghg_saving >= 80 and valid_months == 12
     
     # Dati BP
@@ -171,7 +171,7 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     add_background(s3)
     add_title(s3, "Configurazione Impianto & Mix Biomasse")
     
-    feedstock_rows = ctx.get("revenue_rows", [])
+    feedstock_rows = ctx.get("revenue_rows") or []
     rows = len(feedstock_rows) + 1
     cols = 3
     if rows > 1:
@@ -213,7 +213,7 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     add_background(s4)
     add_title(s4, "Struttura dei Ricavi & Base Tariffaria")
     
-    tariffa = ctx.get("tariffa_media_ponderata", 0.0)
+    tariffa = ctx.get("tariffa_media_ponderata") or 0.0
     
     draw_kpi_card(s4, 0.5, 1.8, 5.9, 2.5, "TARIFFA MEDIA PONDERATA", _fmt_num(tariffa, 2, ' €/MWh'), subtitle="Risultato base d'asta post-ribasso")
     draw_kpi_card(s4, 6.9, 1.8, 5.9, 2.5, "RICAVO TOTALE ANNUO", _fmt_num(rev, 0, ' €'), subtitle="Proiezione media")
