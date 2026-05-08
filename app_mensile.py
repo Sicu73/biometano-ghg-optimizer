@@ -3679,18 +3679,12 @@ MODE_SINGLE = f"{N_active-1} {_t('biomasse fisse + 1 calcolata  (solo produzione
 # legge (e quindi sovrascritta dai default _default_mass).
 _pending_opt = st.session_state.pop("_pending_optimization", None)
 if _pending_opt is not None:
-    # Hash chiave config attiva (deve combaciare con line ~3170).
     _opt_active_hash = str(hash(tuple(sorted(active_feeds))))[:8]
     if _pending_opt.get("is_mono"):
-        # Caso mono: 1 sola biomassa attiva -> (N-1)+1 con la mono come
-        # incognita calcolata e le altre (N-1) fisse a 0 (per ogni mese).
         mono = _pending_opt["mono"]
         others = [n for n in active_feeds if n != mono]
-        st.session_state["mode_radio"] = MODE_SINGLE
-        st.session_state["single_unknown_select"] = mono
-        new_state_key = (
-            f"mens_in_single_{_opt_active_hash}_{'-'.join(others)}"
-        )
+        st.session_state["fixed_multiselect"] = others
+        new_state_key = f"mens_in_1unk_{_opt_active_hash}_{'-'.join(others)}"
         rows_init = []
         for mm, hh in zip(MONTHS, MONTH_HOURS):
             r = {"Mese": mm, "Ore": hh}
@@ -3699,14 +3693,8 @@ if _pending_opt is not None:
             rows_init.append(r)
         st.session_state[new_state_key] = pd.DataFrame(rows_init)
     else:
-        # Caso coppia: 2 biomasse attive -> (N-2)+2 con le (N-2) non attive
-        # come "fisse a 0".
-        st.session_state["mode_radio"] = MODE_DUAL
         st.session_state["fixed_multiselect"] = list(_pending_opt["unused"])
-        new_state_key = (
-            f"mens_in_dual_{_opt_active_hash}_"
-            f"{'-'.join(_pending_opt['unused'])}"
-        )
+        new_state_key = f"mens_in_2unk_{_opt_active_hash}_{'-'.join(_pending_opt['unused'])}"
         rows_init = []
         for mm, hh in zip(MONTHS, MONTH_HOURS):
             r = {"Mese": mm, "Ore": hh}
@@ -3714,7 +3702,7 @@ if _pending_opt is not None:
                 r[f] = 0.0
             rows_init.append(r)
         st.session_state[new_state_key] = pd.DataFrame(rows_init)
-    # Flag per banner informativo (consumato dopo il rendering dei controlli)
+    
     st.session_state["_optimize_info"] = {
         "pair": _pending_opt["pair"],
         "unused": _pending_opt["unused"],
@@ -3722,7 +3710,6 @@ if _pending_opt is not None:
         "is_mono": _pending_opt.get("is_mono", False),
         "mono": _pending_opt.get("mono"),
     }
-
 # -------- PULSANTE OTTIMIZZA (tutta larghezza, sempre visibile) ------------
 from math import comb as _comb
 _n_combinations = _comb(N_active, 2) if N_active >= 2 else 0
@@ -3797,100 +3784,39 @@ if optimize_clicked:
         }
         st.rerun()
 
-# -------- RADIO MODALITA' --------------------------------------------------
-mode = st.radio(
-    _t("Scegli modalità:"),
-    options=[MODE_DUAL, MODE_SINGLE],
-    index=0,
-    horizontal=False,
-    key="mode_radio",
+# -------- SMART SOLVER MENU --------------------------------------------------
+st.markdown(f"**{_t('Seleziona le biomasse da inserire manualmente in tabella:')}**")
+st.caption(_t("Le biomasse NON selezionate verranno calcolate automaticamente dal sistema. Lasciane 1 fuori per centrare la produzione, lasciane 2 fuori per centrare produzione e saving. Selezionale tutte per una pura simulazione."))
+
+default_fixed = active_feeds[:min(2, N_active)]
+prev_default = st.session_state.get("fixed_multiselect", [])
+if not all(p in active_feeds for p in prev_default):
+    st.session_state["fixed_multiselect"] = default_fixed
+
+fixed_feeds = st.multiselect(
+    _t("Biomasse manuali"),
+    options=active_feeds,
+    default=default_fixed if "fixed_multiselect" not in st.session_state else None,
+    help=_t("Scegli le biomasse fisse."),
+    key="fixed_multiselect",
+    label_visibility="collapsed"
 )
 
-is_dual_mode = mode.startswith(f"{N_active-2} ") or (N_active == 2 and "calcolate" in mode)
+unknown_feeds = [n for n in active_feeds if n not in fixed_feeds]
 
-col1, col2 = st.columns([2, 3])
-with col1:
-    if is_dual_mode:
-        # Default: prime 2 biomasse attive (indipendente dal nome)
-        default_fixed = active_feeds[:min(2, N_active)]
-        # Se le biomasse attive sono cambiate, resetta il default
-        prev_default = st.session_state.get("fixed_multiselect", [])
-        if not all(p in active_feeds for p in prev_default):
-            st.session_state["fixed_multiselect"] = default_fixed
-        fixed_feeds = st.multiselect(
-            f"{_t('Seleziona')} {N_active-2} {_t('biomasse fisse (le altre 2 saranno calcolate):')}" if N_active > 2
-            else _t("Seleziona 0 biomasse fisse — il solver calcola entrambe:"),
-            options=active_feeds,
-            default=default_fixed if "fixed_multiselect" not in st.session_state else None,
-            max_selections=max(N_active - 2, 0),
-            help=_t("Suggerimento: lascia come 'calcolate' almeno 1 biomassa ad alta eec (mais/sorgo) + 1 a manure credit (liquami). Il sistema risolve 2 equazioni: produzione + saving."),
-            key="fixed_multiselect",
-        )
-        # Numero di fisse richieste: N-2 (possono essere 0 se N=2)
-        required_fixed = max(N_active - 2, 0)
-        if len(fixed_feeds) != required_fixed:
-            st.warning(f"{_t('Seleziona esattamente')} **{required_fixed}** {_t('biomasse fisse (le altre 2 saranno calcolate). Attualmente:')} {len(fixed_feeds)}.")
-            st.stop()
-        unknown_feeds = [n for n in active_feeds if n not in fixed_feeds]
-    else:
-        unknown_feed = st.selectbox(
-            _t("Biomassa incognita (calcolata automaticamente):"),
-            active_feeds,
-            index=min(N_active - 1, 3),
-            key="single_unknown_select",
-        )
-        fixed_feeds = [n for n in active_feeds if n != unknown_feed]
-        unknown_feeds = [unknown_feed]
+if len(unknown_feeds) > 2:
+    st.warning(_t("Il sistema può risolvere al massimo 2 incognite (produzione + saving). Seleziona più biomasse manuali."))
+    st.stop()
 
-# Banner risultato ottimizzazione (mostrato 1 sola volta dopo click)
-_opt_info = st.session_state.pop("_optimize_info", None)
-if _opt_info:
-    if _opt_info.get("is_mono"):
-        mono = _opt_info["mono"]
-        st.success(
-            f"🚀 **{_t('Ottimo LP – MONO biomassa')}**: {_t('unica attiva')} **{mono}** "
-            f"(le altre {N_active - 1} = 0). "
-            f"{_t('Massa totale annua minima ≈')} "
-            f"**{fmt_it(_opt_info['total_year'], 0)} t/anno**. " +
-            _t("Il saving e' oltre la soglia con la sola") + f" **{mono}**."
-        )
-    else:
-        unused_str = ", ".join([f"**{u}**" for u in _opt_info['unused'][:6]])
-        if len(_opt_info['unused']) > 6:
-            unused_str += f" + altre {len(_opt_info['unused']) - 6}"
-        st.success(
-            f"🚀 **{_t('Ottimo LP')}**: {_t('biomasse attive')} **{_opt_info['pair'][0]}** + "
-            f"**{_opt_info['pair'][1]}** (le altre = 0: {unused_str}). "
-            f"{_t('Massa totale annua minima ≈')} "
-            f"**{fmt_it(_opt_info['total_year'], 0)} t/anno** "
-            f"({_t('saving')} **{fmt_it(target_saving*100, 0, '%')}**, "
-            f"{_t('produzione')} **{_prod_label}**)."
-        )
+# Info Banner depending on unknowns
+if len(unknown_feeds) == 2:
+    st.info(f"**{_t('Modalità dual-constraint')}**: {_t('il solver calcola')} **{unknown_feeds[0]}** e **{unknown_feeds[1]}** {_t('per ottenere saving')} **{fmt_it(target_saving*100, 0, '%')}** e {_t('produzione')} **{_prod_label}**.")
+elif len(unknown_feeds) == 1:
+    st.info(f"**{_t('Modalità produzione-only')}**: {_t('il sistema calcola')} **{unknown_feeds[0]}** {_t('per chiudere la produzione')}. {_t('Il saving sarà una conseguenza.')}")
+else:
+    st.info(f"**{_t('Modalità simulazione')}**: {_t('nessuna incognita. Inserisci tutte le quantità manualmente in tabella per vedere i risultati.')}")
 
-with col2:
-    if is_dual_mode:
-        if N_active > 2:
-            st.info(
-                f"**{_t('Modalità dual-constraint')}**: {_t('inserisci le quantità (t/mese) di')} "
-                f"**{N_active-2} {_t('biomasse fisse')}**. "
-                f"{_t('Il solver calcola le 2 incognite')} (**{unknown_feeds[0]}** e "
-                f"**{unknown_feeds[1]}**) {_t('per ottenere saving')} "
-                f"**{fmt_it(target_saving*100, 0, '%')}** "
-                f"e {_t('produzione')} **{_prod_label}**."
-            )
-        else:
-            st.info(
-                f"**{_t('Modalità dual-constraint')}** (N=2): {_t('il solver calcola entrambe')} "
-                f"(**{unknown_feeds[0]}** + **{unknown_feeds[1]}**) {_t('per ottenere saving')} "
-                f"**{fmt_it(target_saving*100, 0, '%')}** + {_t('produzione')} "
-                f"**{_prod_label}**."
-            )
-    else:
-        st.info(
-            f"**{_t('Modalità produzione-only')}**: {_t('inserisci')} {N_active-1} {_t('biomasse')}; "
-            f"{_t('il sistema calcola')} **{unknown_feeds[0]}** {_t('per chiudere la produzione')}. "
-            f"{_t('Il saving sarà una conseguenza (verificato in tabella)')}."
-        )
+is_dual_mode = (len(unknown_feeds) == 2)
 
 # ------------------------- TABELLA UNIFICATA (input + risultati) -------------------------
 st.subheader(_t("📆 Tabella mensile – modifica le celle ✏️, il resto si ricalcola"))
@@ -3947,7 +3873,7 @@ def _default_mass(feed):
 # Chiave state univoca per combinazione mode+fisse+active_feeds, cosi' cambio
 # biomasse attive -> nuovo state (evita contaminazioni tra configurazioni diverse).
 _active_hash = str(hash(tuple(sorted(active_feeds))))[:8]
-state_key = f"mens_in_{'dual' if is_dual_mode else 'single'}_{_active_hash}_{'-'.join(fixed_feeds)}"
+state_key = f"mens_in_{len(unknown_feeds)}unk_{_active_hash}_{'-'.join(fixed_feeds)}"
 if state_key not in st.session_state:
     init_rows = []
     for m, h in zip(MONTHS, MONTH_HOURS):
@@ -3972,7 +3898,7 @@ for _, row in input_df.iterrows():
     fixed_map = {n: float(row[n]) for n in fixed_feeds}
     hours = float(row["Ore"])
 
-    if is_dual_mode:
+    if len(unknown_feeds) >= 2:
         sol, feasible, msg = solve_2_unknowns_dual(
             fixed_map, unknown_feeds, hours, aux_factor, plant_net_smch,
             ep_total, target_e_max,
@@ -3980,7 +3906,7 @@ for _, row in input_df.iterrows():
         all_masses = {**fixed_map, **sol}
         if not feasible:
             warnings_list.append(f"**{row['Mese']}**: {msg}")
-    else:
+    elif len(unknown_feeds) == 1:
         computed = solve_1_unknown_production(
             fixed_map, unknown_feeds[0], hours, aux_factor, plant_net_smch
         )
@@ -3990,8 +3916,12 @@ for _, row in input_df.iterrows():
         if not feasible:
             warnings_list.append(
                 f"**{row['Mese']}**: {unknown_feeds[0]} = {fmt_it(computed, 1)} t (<0). "
-                f"Le 3 biomasse fisse gia' superano il fabbisogno lordo."
+                f"Le biomasse fisse gia' superano il fabbisogno lordo."
             )
+    else:
+        # Simulazione pura: nessuna incognita
+        all_masses = dict(fixed_map)
+        feasible = True
 
     summary = ghg_summary(all_masses, aux_factor, ep_total, FOSSIL_COMPARATOR)
 
