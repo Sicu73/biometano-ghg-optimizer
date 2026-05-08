@@ -3813,7 +3813,7 @@ else:
 is_dual_mode = (len(unknown_feeds) == 2)
 
 # ------------------------- TABELLA UNIFICATA (input + risultati) -------------------------
-st.subheader(_t("📆 Tabella mensile – modifica le celle ✏️, il resto si ricalcola"))
+
 
 # Valori di default plausibili per biomasse comuni; fallback generico per il resto
 # (il cliente li riaggiusta a mano in tabella mensile)
@@ -3868,6 +3868,14 @@ def _default_mass(feed):
 # biomasse attive -> nuovo state (evita contaminazioni tra configurazioni diverse).
 _active_hash = str(hash(tuple(sorted(active_feeds))))[:8]
 state_key = f"mens_in_{len(unknown_feeds)}unk_{_active_hash}_{'-'.join(fixed_feeds)}"
+
+col_tab_title, col_tab_btn = st.columns([4, 1], vertical_alignment="bottom")
+with col_tab_title:
+    st.subheader(_t("📆 Tabella mensile – modifica le celle ✏️, il resto si ricalcola"))
+with col_tab_btn:
+    if st.button("🔄 Resetta", use_container_width=True, help=_t("Ripristina i valori iniziali di default per questa configurazione.")):
+        st.session_state.pop(state_key, None)
+        st.rerun()
 if state_key not in st.session_state:
     init_rows = []
     for m, h in zip(MONTHS, MONTH_HOURS):
