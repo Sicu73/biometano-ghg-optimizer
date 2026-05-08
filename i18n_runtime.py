@@ -59,84 +59,117 @@ def render_lang_selector() -> str:
     """
     import streamlit as st
 
-    if "lang" not in st.session_state:
-        st.session_state["lang"] = "it"
+    lang = st.session_state.get("lang", "it")
+
+    # SVG bandiere inline (encoded)
+    FLAG_IT = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 2'>
+      <rect width='1' height='2' fill='#009246'/>
+      <rect x='1' width='1' height='2' fill='#FFFFFF'/>
+      <rect x='2' width='1' height='2' fill='#CE2B37'/>
+    </svg>"""
+
+    FLAG_UK = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 30'>
+      <clipPath id='s'><path d='M0,0 v30 h60 v-30 z'/></clipPath>
+      <clipPath id='t'><path d='M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z'/></clipPath>
+      <path d='M0,0 v30 h60 v-30 z' fill='#012169'/>
+      <path d='M0,0 L60,30 M60,0 L0,30' stroke='#fff' stroke-width='6'/>
+      <path d='M0,0 L60,30 M60,0 L0,30' clip-path='url(#t)' stroke='#C8102E' stroke-width='4'/>
+      <path d='M30,0 v30 M0,15 h60' stroke='#fff' stroke-width='10'/>
+      <path d='M30,0 v30 M0,15 h60' stroke='#C8102E' stroke-width='6'/>
+    </svg>"""
+
+    import base64
+    flag_it_b64 = base64.b64encode(FLAG_IT.encode()).decode()
+    flag_uk_b64 = base64.b64encode(FLAG_UK.encode()).decode()
+
+    active_it  = "border: 3px solid #0F172A; box-shadow: 0 0 0 1px #0F172A; opacity:1;"
+    inactive   = "opacity: 0.35; filter: grayscale(70%);"
+    style_it   = active_it  if lang == "it" else inactive
+    style_en   = active_it  if lang == "en" else inactive
 
     st.sidebar.markdown(
-        """
+        f"""
         <style>
-        /* Nascondiamo il testo interno ai bottoni della lingua */
-        div:has(#lang_anchor) ~ div button p {
-            color: transparent !important;
-        }
-        /* Stile base bottoni lingua */
-        div:has(#flag_it) + div button, div:has(#flag_en) + div button {
-            background-size: cover !important;
-            background-position: center !important;
-            background-repeat: no-repeat !important;
-            border-radius: 6px !important;
-            height: 60px !important; /* Aumentato da 40 a 60 per proporzioni migliori */
-            border: 1px solid rgba(0,0,0,0.2) !important;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        div:has(#flag_it) + div button:hover, div:has(#flag_en) + div button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            border-color: #94A3B8 !important;
-        }
-        /* Bandiera Italiana (Ancorata) */
-        div:has(#flag_it) + div button {
-            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzIDIiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjIiIGZpbGw9IiMwMDhDNDUiLz48cmVjdCB3aWR0aD0iMSIgaGVpZ2h0PSIyIiB4PSIxIiBmaWxsPSIjRjRGNUYwIi8+PHJlY3Qgd2lkdGg9IjEiIGhlaWdodD0iMiIgeD0iMiIgZmlsbD0iI0NEMjEyQSIvPjwvc3ZnPg==') !important;
-        }
-        /* Bandiera UK (Ancorata) */
-        div:has(#flag_en) + div button {
-            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MCAzMCI+PGNsaXBQYXRoIGlkPSJ0Ij48cGF0aCBkPSJNMzAsMTUgaDMwIHYxNSB6IHYxNSBoLTMwIHogaC0zMCB2LTE1IHogdi0xNSBoMzAgeiIvPjwvY2xpcFBhdGg+PHBhdGggZD0iTTAsMCB2MzAgaDYwIHYtMzAgeiIgZmlsbD0iIzAxMjE2OSIvPjxwYXRoIGQ9Ik0wLDAgTDYwLDMwIE02MCwwIEwwLDMwIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNiIvPjxwYXRoIGQ9Ik0wLDAgTDYwLDMwIE02MCwwIEwwLDMwIiBjbGlwLXBhdGg9InVybCgjdCkiIHN0cm9rZT0iI0M4MTAyRSIgc3Ryb2tlLXdpZHRoPSI0Ii8+PHBhdGggZD0iTTMwLDAgdjMwIE0wLDE1IGg2MCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjEwIi8+PHBhdGggZD0iTTMwLDAgdjMwIE0wLDE1IGg2MCIgc3Ryb2tlPSIjQzgxMDJFIiBzdHJva2Utd2lkdGg9IjYiLz48L3N2Zz4=') !important;
-        }
-        /* Opacità per la lingua NON attiva */
-        div:has(#flag_it) + div button[kind="secondary"], div:has(#flag_en) + div button[kind="secondary"] {
-            opacity: 0.3 !important;
-            filter: grayscale(80%) !important;
-        }
-        div:has(#flag_it) + div button[kind="primary"], div:has(#flag_en) + div button[kind="primary"] {
-            opacity: 1.0 !important;
-            border: 2px solid #0F172A !important;
-            box-shadow: 0 0 0 2px rgba(255,255,255,0.5);
-            filter: none !important;
-        }
+        /* Nascondi bottoni reali Streamlit ma mantienili nel DOM */
+        div[data-testid='stSidebar'] .miq-lang-btn-row button {{
+            position: absolute !important;
+            width: 1px !important;
+            height: 1px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: hidden !important;
+            clip: rect(0,0,0,0) !important;
+            white-space: nowrap !important;
+            border: 0 !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }}
+        .miq-flag-box {{
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            margin-top: 4px;
+        }}
+        .miq-flag {{
+            flex: 1;
+            cursor: pointer;
+            border-radius: 6px;
+            overflow: hidden;
+            transition: transform 0.15s, box-shadow 0.15s;
+            line-height: 0;
+        }}
+        .miq-flag:hover {{
+            transform: scale(1.04);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        }}
+        .miq-flag img {{
+            width: 100%;
+            height: 54px;
+            object-fit: cover;
+            display: block;
+            border-radius: 5px;
+        }}
+        .miq-lang-label {{
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-align: center;
+            margin-top: 3px;
+            color: #64748B;
+        }}
         </style>
+
+        <div style='font-size:0.7rem;font-weight:600;letter-spacing:1px;
+             text-transform:uppercase;color:#64748B;margin-bottom:6px;'>
+             🌐 Language / Lingua
+        </div>
+        <div class='miq-flag-box'>
+          <div class='miq-flag' style='{style_it}; border-radius:6px;'
+               onclick="document.querySelector('button[data-testid=\\'btn_lang_it\\']') && document.querySelector('button[data-testid=\\'btn_lang_it\\']').click(); window.parent.document.querySelectorAll('button').forEach(b=>{{ if(b.innerText.trim()==='IT') b.click(); }});">
+            <img src='data:image/svg+xml;base64,{flag_it_b64}' alt='Italiano'/>
+            <div class='miq-lang-label'>🇮🇹 IT</div>
+          </div>
+          <div class='miq-flag' style='{style_en}; border-radius:6px;'
+               onclick="window.parent.document.querySelectorAll('button').forEach(b=>{{ if(b.innerText.trim()==='EN') b.click(); }});">
+            <img src='data:image/svg+xml;base64,{flag_uk_b64}' alt='English'/>
+            <div class='miq-lang-label'>🇬🇧 EN</div>
+          </div>
+        </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.sidebar.markdown(
-        "<div id='lang_anchor' style='font-size:0.7rem;font-weight:600;letter-spacing:1px;"
-        "text-transform:uppercase;color:#64748B;margin-bottom:4px;"
-        "padding-left:2px;'>🌐 Language / Lingua</div>",
-        unsafe_allow_html=True,
-    )
+    # Bottoni reali Streamlit (nascosti via CSS ma cliccabili via JS)
     _lc1, _lc2 = st.sidebar.columns(2)
     with _lc1:
-        st.markdown("<div id='flag_it'></div>", unsafe_allow_html=True)
-        if st.button(
-            "IT",
-            use_container_width=True,
-            type="primary" if st.session_state["lang"] == "it" else "secondary",
-            key="btn_lang_it",
-            help="Italiano",
-        ):
+        if st.button("IT", use_container_width=True, key="btn_lang_it", help="Italiano"):
             st.session_state["lang"] = "it"
             st.rerun()
     with _lc2:
-        st.markdown("<div id='flag_en'></div>", unsafe_allow_html=True)
-        if st.button(
-            "EN",
-            use_container_width=True,
-            type="primary" if st.session_state["lang"] == "en" else "secondary",
-            key="btn_lang_en",
-            help="English",
-        ):
+        if st.button("EN", use_container_width=True, key="btn_lang_en", help="English"):
             st.session_state["lang"] = "en"
             st.rerun()
-    st.sidebar.markdown("<div style='margin-bottom:8px;'></div>", unsafe_allow_html=True)
-    return st.session_state.get("lang", "it")
+
+    return lang
+
