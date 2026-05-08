@@ -1378,19 +1378,19 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
     # Infeasibile: forza il negativo a 0 e ricalcola l'altro con sola produzione
     note = []
     if mx < 0:
-        note.append(f"{x} {_t('richiederebbe')} {fmt_it(mx, 1)} {_t('t (<0)')}")
+        note.append(f"**{_t(x)}** {_t('richiederebbe')} {fmt_it(mx, 1)} {_t('t (<0)')}")
         mx = 0.0
         my = rhs_prod / yy
         if my < 0:
             my = 0.0
-            note.append(f"{_t('anche')} {y_name} <0: {_t('entrambe azzerate')}")
+            note.append(f"{_t('anche')} **{_t(y_name)}** <0: {_t('entrambe azzerate')}")
     elif my < 0:
-        note.append(f"{y_name} {_t('richiederebbe')} {fmt_it(my, 1)} {_t('t (<0)')}")
+        note.append(f"**{_t(y_name)}** {_t('richiederebbe')} {fmt_it(my, 1)} {_t('t (<0)')}")
         my = 0.0
         mx = rhs_prod / yx
         if mx < 0:
             mx = 0.0
-            note.append(f"{_t('anche')} {x} <0: {_t('entrambe azzerate')}")
+            note.append(f"{_t('anche')} **{_t(x)}** <0: {_t('entrambe azzerate')}")
     msg = _t("Infeasibile:") + " " + "; ".join(note) + ". " + _t("Saving e/o produzione non saranno entrambi soddisfatti.")
     return {x: mx, y_name: my}, False, msg
 
@@ -2357,58 +2357,15 @@ with st.sidebar:
         """,
         unsafe_allow_html=True,
     )
-    st.header(_t("🌾 Biomasse del tuo impianto"))
-    st.caption(
-        f"Seleziona le biomasse che userai (**{len(FEED_NAMES)} disponibili** nel "
-        "database UNI-TS 11567:2024 / JEC v5 / RED III). Il solver considerera' "
-        "solo queste nelle combinazioni di ottimizzazione."
+    st.markdown("### " + _t("🌾 Biomasse attive"))
+    active_feeds_sel = st.multiselect(
+        _t("Scegli biomasse"),
+        options=FEED_NAMES,
+        default=[f for f in st.session_state.get('active_feeds', DEFAULT_ACTIVE_FEEDS) if f in FEED_NAMES],
+        format_func=lambda x: f"{_t(x)} (eec={fmt_it(FEEDSTOCK_DB[x]['eec'], 1, signed=True)})",
+        help=_t("Spunta quelle presenti nel tuo impianto.")
     )
-
-    # Selezione strutturata per categorie con expander
-    if "active_feeds" not in st.session_state:
-        st.session_state.active_feeds = list(DEFAULT_ACTIVE_FEEDS)
-
-    with st.expander(
-        f"📂 Scegli biomasse ({len(st.session_state.active_feeds)} attive)",
-        expanded=False,
-    ):
-        st.caption("Raggruppate per categoria normativa. Spunta quelle presenti nel tuo impianto.")
-        new_active = []
-        for cat, feeds in FEEDSTOCK_CATEGORIES.items():
-            st.markdown(f"**{cat}**")
-            for f in feeds:
-                checked = st.checkbox(
-                    f"{f}  · eec={fmt_it(FEEDSTOCK_DB[f]['eec'], 1, signed=True)}"
-                    f"  · resa={fmt_it(_yield_of(f), 0)} Nm³/t",
-                    value=(f in st.session_state.active_feeds),
-                    key=f"chk_feed_{f}",
-                    help=f"Fonte: {FEEDSTOCK_DB[f].get('src', 'n/d')}",
-                )
-                if checked:
-                    new_active.append(f)
-        # Bottoni utility
-        bc1, bc2, bc3 = st.columns(3)
-        if bc1.button("🔄 Default", use_container_width=True, key="btn_feed_default"):
-            st.session_state.active_feeds = list(DEFAULT_ACTIVE_FEEDS)
-            # Pulisce i widget checkbox (saranno ricreati col default)
-            for f in FEED_NAMES:
-                st.session_state.pop(f"chk_feed_{f}", None)
-            st.rerun()
-        if bc2.button("✅ Tutte", use_container_width=True, key="btn_feed_all"):
-            st.session_state.active_feeds = list(FEED_NAMES)
-            for f in FEED_NAMES:
-                st.session_state.pop(f"chk_feed_{f}", None)
-            st.rerun()
-        if bc3.button("❌ Nessuna", use_container_width=True, key="btn_feed_none"):
-            st.session_state.active_feeds = []
-            for f in FEED_NAMES:
-                st.session_state.pop(f"chk_feed_{f}", None)
-            st.rerun()
-
-        if new_active != st.session_state.active_feeds:
-            st.session_state.active_feeds = new_active
-            st.rerun()
-
+    st.session_state.active_feeds = active_feeds_sel
     active_feeds = st.session_state.active_feeds
 
     if len(active_feeds) < 2:
@@ -2418,17 +2375,17 @@ with st.sidebar:
         )
         st.stop()
 
-    # Riassunto compatto delle biomasse attive
-    st.markdown(
-        "<div style='font-size:0.78rem; color:#64748B; margin-top:-4px; margin-bottom:8px;'>"
-        "🌱 <b>Attive nel mix:</b> " +
-        " · ".join([f"<span style='color:{FEEDSTOCK_DB[f]['color']}; font-weight:600;'>{f}</span>"
-                    for f in active_feeds[:8]]) +
-        (f" <i>+ altre {len(active_feeds)-8}</i>" if len(active_feeds) > 8 else "") +
-        "</div>",
-        unsafe_allow_html=True,
-    )
+# ============================================================
+# TABS PRINCIPALI (Main Area)
+# ============================================================
+tab_solver, tab_tech, tab_bp, tab_export = st.tabs([
+    "🎯 " + _t("Solver & Produzione"),
+    "⚙️ " + _t("Config. Tecnica & GHG"),
+    "💶 " + _t("Incentivi & Business Plan"),
+    "📊 " + _t("Risultati & Export")
+])
 
+with tab_tech:
     # ============================================================
     # BMT OVERRIDE — Resa certificata laboratorio (per biomassa)
     # ============================================================
@@ -2448,7 +2405,7 @@ with st.sidebar:
         _t("🧪 Override resa BMT certificata (opzionale, per biomassa)"),
         expanded=False,
     ):
-        st.caption(
+        st.caption(_t(
             "Per ciascuna biomassa attiva puoi sostituire la resa standard "
             "(tabella interna UNI-TS / JEC v5) con una resa BMT certificata "
             "da laboratorio. Il certificato e' OBBLIGATORIO: senza file "
@@ -2457,7 +2414,7 @@ with st.sidebar:
             "le altre continuano a usare la tabella standard. Lo scostamento "
             f"oltre il +/-{int(BMT_DEVIATION_WARN_THRESHOLD*100)}% rispetto "
             "alla tabella standard genera un warning di verifica."
-        )
+        ))
 
         # Cleanup: rimuovi override per biomasse non piu' attive
         for _stale in list(st.session_state["bmt_overrides"].keys()):
@@ -2474,15 +2431,11 @@ with st.sidebar:
             _key_cert   = f"bmt_cert__{_bmt_name}"
 
             _bmt_active = st.checkbox(
-                f"🧪 {_bmt_name}  ·  attiva BMT certificato "
-                f"(standard {fmt_it(_std_y, 0)} Nm³/t)",
+                f"🧪 {_bmt_name}  ·  {_t('attiva BMT certificato')} "
+                f"({_t('standard')} {fmt_it(_std_y, 0)} Nm³/t)",
                 key=_key_active,
                 value=st.session_state.get(_key_active, False),
-                help=(
-                    f"Se attivata, la resa standard {fmt_it(_std_y, 0)} "
-                    f"Nm³/t verra' sostituita dal valore BMT certificato "
-                    f"per **{_bmt_name}**. Il certificato e' obbligatorio."
-                ),
+                help=_t("Se attivata, la resa standard") + f" {fmt_it(_std_y, 0)} Nm³/t " + _t("verra' sostituita dal valore BMT certificato per") + f" **{_bmt_name}**. " + _t("Il certificato e' obbligatorio."),
             )
 
             if not _bmt_active:
@@ -2494,39 +2447,36 @@ with st.sidebar:
                 _bmt_col1, _bmt_col2 = st.columns([1, 1])
                 with _bmt_col1:
                     _bmt_value = st.number_input(
-                        f"Resa BMT [{BMT_YIELD_UNIT}]",
+                        f"{_t('Resa BMT')} [{BMT_YIELD_UNIT}]",
                         min_value=0.0, max_value=2000.0,
                         value=float(st.session_state.get(
                             _key_value, _std_y)),
                         step=1.0, key=_key_value,
-                        help=(
-                            "Resa misurata da test BMT in laboratorio "
-                            f"(unita': {BMT_YIELD_UNIT}). Deve essere > 0."
-                        ),
+                        help=_t("Resa misurata da test BMT in laboratorio (unita': ") + f"{BMT_YIELD_UNIT}" + _t("). Deve essere > 0."),
                     )
                     _bmt_lab = st.text_input(
-                        "Laboratorio",
+                        _t("Laboratorio"),
                         value=st.session_state.get(_key_lab, ""),
                         key=_key_lab,
-                        help="Nome/ragione sociale del laboratorio emittente.",
+                        help=_t("Nome/ragione sociale del laboratorio emittente."),
                     )
                 with _bmt_col2:
                     _bmt_date = st.text_input(
-                        "Data certificato (YYYY-MM-DD)",
+                        _t("Data certificato (YYYY-MM-DD)"),
                         value=st.session_state.get(_key_date, ""),
                         key=_key_date,
-                        help="Data di emissione del rapporto di prova.",
+                        help=_t("Data di emissione del rapporto di prova."),
                     )
                     _bmt_sample = st.text_input(
-                        "Riferimento campione",
+                        _t("Riferimento campione"),
                         value=st.session_state.get(_key_sample, ""),
                         key=_key_sample,
-                        help="Numero rapporto di prova / ID campione.",
+                        help=_t("Numero rapporto di prova / ID campione."),
                     )
 
                 _bmt_cert_file = st.file_uploader(
-                    f"📎 Certificato BMT — {_bmt_name} "
-                    f"(formati: {', '.join(e.lstrip('.').upper() for e in ALLOWED_CERT_EXTS)})",
+                    f"📎 {_t('Certificato BMT — ')}{_bmt_name} "
+                    f"({_t('formati: ')}{', '.join(e.lstrip('.').upper() for e in ALLOWED_CERT_EXTS)})",
                     type=[e.lstrip(".") for e in ALLOWED_CERT_EXTS],
                     key=_key_cert,
                     accept_multiple_files=False,
@@ -2668,16 +2618,12 @@ with st.sidebar:
             _key_report  = f"ef_report__{_ef_name}"
 
             _ef_active = st.checkbox(
-                f"🧬 {_ef_name}  ·  usa fattori emissivi reali da relazione "
+                f"🧬 {_ef_name}  ·  {_t('usa fattori emissivi reali da relazione')} "
                 f"(std: eec={fmt_it(_eec_std, 1, signed=True)}, "
                 f"esca={fmt_it(_esca_std, 1)}, etd={fmt_it(_etd_std, 1)} {EMISSION_UNIT})",
                 key=_key_active,
                 value=st.session_state.get(_key_active, False),
-                help=(
-                    f"Se attivata, i fattori emissivi standard di **{_ef_name}** "
-                    f"saranno sostituiti dai valori dichiarati nella relazione "
-                    f"tecnica dell'impianto. La relazione tecnica e' obbligatoria."
-                ),
+                help=_t("Se attivata, i fattori emissivi standard di ") + f"**{_ef_name}**" + _t(" saranno sostituiti dai valori dichiarati nella relazione tecnica dell'impianto. La relazione tecnica e' obbligatoria."),
             )
 
             if not _ef_active:
@@ -2688,84 +2634,84 @@ with st.sidebar:
                 _ef_c1, _ef_c2 = st.columns([1, 1])
                 with _ef_c1:
                     _ef_eec = st.number_input(
-                        f"eec reale [{EMISSION_UNIT}]",
+                        f"{_t('eec reale')} [{EMISSION_UNIT}]",
                         min_value=-200.0, max_value=300.0,
                         value=float(st.session_state.get(_key_eec, _eec_std)),
                         step=0.1, format="%.2f", key=_key_eec,
-                        help="Emissioni eec dichiarate nella relazione tecnica. Puo' essere negativo (manure credit gia' incorporato).",
+                        help=_t("Emissioni eec dichiarate nella relazione tecnica. Puo' essere negativo (manure credit gia' incorporato)."),
                     )
                     _ef_esca = st.number_input(
-                        f"esca reale [{EMISSION_UNIT}] (credito, positivo)",
+                        f"{_t('esca reale')} [{EMISSION_UNIT}] {_t('(credito, positivo)')}",
                         min_value=0.0, max_value=200.0,
                         value=float(st.session_state.get(_key_esca, _esca_std)),
                         step=0.1, format="%.2f", key=_key_esca,
-                        help="Credito esca: dichiarato come valore positivo, sottratto da e_total.",
+                        help=_t("Credito esca: dichiarato come valore positivo, sottratto da e_total."),
                     )
                     _ef_etd = st.number_input(
-                        f"etd reale [{EMISSION_UNIT}]",
+                        f"{_t('etd reale')} [{EMISSION_UNIT}]",
                         min_value=0.0, max_value=50.0,
                         value=float(st.session_state.get(_key_etd, _etd_std)),
                         step=0.1, format="%.2f", key=_key_etd,
                     )
                 with _ef_c2:
                     _ef_ep = st.number_input(
-                        f"ep reale [{EMISSION_UNIT}] (per-biomassa)",
+                        f"{_t('ep reale')} [{EMISSION_UNIT}] {_t('(per-biomassa)')}",
                         min_value=0.0, max_value=200.0,
                         value=float(st.session_state.get(_key_ep, 0.0)),
                         step=0.1, format="%.2f", key=_key_ep,
-                        help="Emissioni di processo dichiarate nella relazione (sostituisce l'ep impianto-wide per questa biomassa).",
+                        help=_t("Emissioni di processo dichiarate nella relazione (sostituisce l'ep impianto-wide per questa biomassa)."),
                     )
                     _ef_extra = st.number_input(
-                        f"Crediti emissivi extra [{EMISSION_UNIT}]",
+                        f"{_t('Crediti emissivi extra')} [{EMISSION_UNIT}]",
                         min_value=0.0, max_value=200.0,
                         value=float(st.session_state.get(_key_extra, 0.0)),
                         step=0.1, format="%.2f", key=_key_extra,
-                        help="Crediti AGGIUNTIVI dichiarati nella relazione (NON gia' inclusi in esca). Default 0. NON sottrarre due volte la stessa voce.",
+                        help=_t("Crediti AGGIUNTIVI dichiarati nella relazione (NON gia' inclusi in esca). Default 0. NON sottrarre due volte la stessa voce."),
                     )
 
                 _ef_t1, _ef_t2 = st.columns([1, 1])
                 with _ef_t1:
                     _ef_title = st.text_input(
-                        "Titolo relazione",
+                        _t("Titolo relazione"),
                         value=st.session_state.get(_key_title, ""),
                         key=_key_title,
                     )
                     _ef_author = st.text_input(
-                        "Autore / tecnico redattore",
+                        _t("Autore / tecnico redattore"),
                         value=st.session_state.get(_key_author, ""),
                         key=_key_author,
                     )
                     _ef_company = st.text_input(
-                        "Societa' / studio tecnico",
+                        _t("Societa' / studio tecnico"),
                         value=st.session_state.get(_key_company, ""),
                         key=_key_company,
                     )
                     _ef_date = st.text_input(
-                        "Data relazione (YYYY-MM-DD)",
+                        _t("Data relazione (YYYY-MM-DD)"),
                         value=st.session_state.get(_key_date, ""),
                         key=_key_date,
                     )
                 with _ef_t2:
                     _ef_plant = st.text_input(
-                        "Impianto di riferimento",
+                        _t("Impianto di riferimento"),
                         value=st.session_state.get(_key_plant, ""),
                         key=_key_plant,
                     )
                     _ef_sample = st.text_input(
-                        "Riferimento campione / lotto",
+                        _t("Riferimento campione / lotto"),
                         value=st.session_state.get(_key_sample, ""),
                         key=_key_sample,
                     )
                     _ef_notes = st.text_area(
-                        "Note metodologiche (opzionale)",
+                        _t("Note metodologiche (opzionale)"),
                         value=st.session_state.get(_key_notes, ""),
                         key=_key_notes, height=68,
                         help="Metodo dichiarato nella relazione: es. RED III All. V Parte C, JEC v5, ISCC, REDcert, ecc.",
                     )
 
                 _ef_report_file = st.file_uploader(
-                    f"📎 Relazione tecnica — {_ef_name} "
-                    f"(formati: {', '.join(e.lstrip('.').upper() for e in ALLOWED_REPORT_EXTS)})",
+                    f"📎 {_t('Relazione tecnica — ')}{_ef_name} "
+                    f"({_t('formati: ')}{', '.join(e.lstrip('.').upper() for e in ALLOWED_REPORT_EXTS)})",
                     type=[e.lstrip(".") for e in ALLOWED_REPORT_EXTS],
                     key=_key_report,
                     accept_multiple_files=False,
@@ -2892,18 +2838,16 @@ with st.sidebar:
         # Parametri CHP: input utente in kW_el LORDI (potenza nominale motore),
         # convertito internamente in Sm3/h CH4 al motore (unit del solver).
         eta_el = st.slider(
-            "🔌 Efficienza elettrica CHP [η_el]",
+            _t("Efficienza elettrica CHP [η_el]"),
             min_value=0.30, max_value=0.45,
             value=ETA_EL_DEFAULT, step=0.01,
-            help="Rendimento elettrico motore cogeneratore. Tipico 38-42% "
-                 "per motori biogas 500-1000 kWe (Jenbacher, MWM, Guascor).",
+            help=_t("Rendimento elettrico motore cogeneratore. Tipico 38-42% per motori biogas 500-1000 kWe (Jenbacher, MWM, Guascor)."),
         )
         eta_th = st.slider(
-            "🔥 Efficienza termica CHP [η_th]",
+            _t("Efficienza termica CHP [η_th]"),
             min_value=0.30, max_value=0.50,
             value=ETA_TH_DEFAULT, step=0.01,
-            help="Rendimento termico recuperato (fumi + acqua motore). "
-                 "Tipico 40-45%. Per CAR richiesto PES > 10%.",
+            help=_t("Rendimento termico recuperato (fumi + acqua motore). Tipico 40-45%. Per CAR richiesto PES > 10%."),
         )
         # Cap dimensionale: FER 2 ha hard cap a 300 kWe (DM 19/06/2024).
         # DM 6/7/2012 fino a 1 MW agricolo (cap pratico 999 kWe per evitare
@@ -2913,24 +2857,15 @@ with st.sidebar:
             _kwe_min   = 50.0
             _kwe_max   = FER2_KWE_CAP
             _kwe_value = min(DEFAULT_PLANT_KWE_FER2, FER2_KWE_CAP)
-            _kwe_help  = (
-                f"FER 2 (DM 19/06/2024): hard cap **{fmt_it(FER2_KWE_CAP, 0)} kWe**. "
-                f"Targa motore = potenza ai morsetti alternatore. Esempi tipici "
-                f"<300 kWe: Jenbacher JMC 312 GS = 250 kWe, MAN E0834 = 250 kWe."
-            )
+            _kwe_help  = _t("FER 2 (DM 19/06/2024): hard cap **{fmt_it(FER2_KWE_CAP, 0)} kWe**. Targa motore = potenza ai morsetti alternatore. Esempi tipici <300 kWe: Jenbacher JMC 312 GS = 250 kWe, MAN E0834 = 250 kWe.").replace("{fmt_it(FER2_KWE_CAP, 0)}", fmt_it(FER2_KWE_CAP, 0))
         else:
             _kwe_min   = 50.0
             _kwe_max   = 10000.0
             _kwe_value = DEFAULT_PLANT_KWE
-            _kwe_help  = (
-                "Potenza elettrica nominale al morsetti alternatore "
-                "(dato di targa motore). Esempi: Jenbacher JMC 420 GS-BL = "
-                "999 kWe, MWM TCG 2020V20 = 2000 kWe. L'autoconsumo "
-                "ausiliari viene sottratto separatamente qui sotto."
-            )
+            _kwe_help  = _t("Potenza elettrica nominale al morsetti alternatore (dato di targa motore). Esempi: Jenbacher JMC 420 GS-BL = 999 kWe, MWM TCG 2020V20 = 2000 kWe. L'autoconsumo ausiliari viene sottratto separatamente qui sotto.")
         plant_kwe = st.number_input(
-            "🎯 Potenza elettrica LORDA (targa motore) [kW_el]"
-            + (f" — max {fmt_it(FER2_KWE_CAP, 0)} kWe (cap FER 2)"
+            "🎯 " + _t("Potenza elettrica LORDA (targa motore) [kW_el]")
+            + (f" — {_t('max ')}{fmt_it(FER2_KWE_CAP, 0)} {_t('kWe (cap FER 2)')}"
                if IS_FER2 else ""),
             min_value=_kwe_min, max_value=_kwe_max,
             value=_kwe_value, step=10.0,
@@ -2940,20 +2875,15 @@ with st.sidebar:
         # (es. riapertura pagina con valore precedente da altro mode)
         if IS_FER2 and plant_kwe > FER2_KWE_CAP:
             st.error(
-                f"❌ FER 2 prevede taglia max **{fmt_it(FER2_KWE_CAP, 0)} kWe**. "
-                f"Impostato {fmt_it(plant_kwe, 0)} kWe → fuori normativa."
+                f"❌ {_t('FER 2 prevede taglia max ')}**{fmt_it(FER2_KWE_CAP, 0)} kWe**. "
+                f"{_t('Impostato ')}{fmt_it(plant_kwe, 0)} kWe → {_t('fuori normativa.')}"
             )
             plant_kwe = FER2_KWE_CAP
         aux_el_pct = st.slider(
-            "⚙️ Autoconsumo elettrico ausiliari [% del lordo]",
+            "⚙️ " + _t("Autoconsumo elettrico ausiliari [% del lordo]"),
             min_value=0.0, max_value=20.0,
             value=AUX_EL_DEFAULT * 100, step=0.5,
-            help="Assorbimento elettrico dei servizi d'impianto (pompe "
-                 "alimentazione, agitatori digestori, desolforatore, "
-                 "soffiante, PLC, illuminazione, trattamento digestato). "
-                 "Tipico 8-10% del lordo. Impianti ben ottimizzati 5-7% "
-                 "(con FV a supporto). Impianti vecchi/biologie difficili "
-                 "10-13%.",
+            help=_t("Assorbimento elettrico dei servizi d'impianto (pompe alimentazione, agitatori digestori, desolforatore, soffiante, PLC, illuminazione, trattamento digestato). Tipico 8-10% del lordo. Impianti ben ottimizzati 5-7% (con FV a supporto). Impianti vecchi/biologie difficili 10-13%."),
         ) / 100.0
         # Potenza netta immessa in rete (quella che fattura)
         plant_kwe_net = plant_kwe * (1.0 - aux_el_pct)
@@ -2961,32 +2891,27 @@ with st.sidebar:
         # 1 Sm3/h CH4 eq → η_el × 9.97 kW_el lordo
         plant_net_smch = plant_kwe / (eta_el * 9.97)  # Sm3/h CH4 eq al motore
         st.caption(
-            f"📐 **Bilancio elettrico**: "
-            f"{fmt_it(plant_kwe, 0)} kW_el lordi − "
-            f"{fmt_it(plant_kwe * aux_el_pct, 0)} kW aux "
+            f"📐 **{_t('Bilancio elettrico')}**: "
+            f"{fmt_it(plant_kwe, 0)} {_t('kW_el lordi −')} "
+            f"{fmt_it(plant_kwe * aux_el_pct, 0)} {_t('kW aux')} "
             f"({fmt_it(aux_el_pct*100, 1, '%')}) = "
-            f"**{fmt_it(plant_kwe_net, 0)} kW_el netti** (rete). "
-            f"CH₄ al motore: {fmt_it(plant_net_smch, 1)} Sm³/h."
+            f"**{fmt_it(plant_kwe_net, 0)} {_t('kW_el netti')}** {_t('(rete). CH₄ al motore:')} "
+            f"{fmt_it(plant_net_smch, 1)} {_t('Sm³/h.')}"
         )
         colA, colB, colC = st.columns(3)
-        colA.metric("🔌 Lordo motore", fmt_it(plant_kwe, 0, " kWₑ"))
-        colB.metric("⚡ Netto in rete", fmt_it(plant_kwe_net, 0, " kWₑ"),
-                    delta=f"-{fmt_it(aux_el_pct*100, 1, '%')} aux")
-        colC.metric("🔥 Termico", fmt_it(plant_kwe * eta_th / eta_el, 0, " kW_th"))
+        colA.metric("🔌 " + _t("Lordo motore"), fmt_it(plant_kwe, 0, " kWₑ"))
+        colB.metric("⚡ " + _t("Netto in rete"), fmt_it(plant_kwe_net, 0, " kWₑ"),
+                    delta=f"-{fmt_it(aux_el_pct*100, 1, '%')} {_t('aux')}")
+        colC.metric("🔥 " + _t("Termico"), fmt_it(plant_kwe * eta_th / eta_el, 0, " kW_th"))
     else:
         plant_net_smch = st.number_input(
-            "🎯 Netto autorizzato [Sm³/h netti]",
+            "🎯 " + _t("Netto autorizzato [Sm³/h netti]"),
             min_value=10.0, max_value=2000.0,
             value=DEFAULT_PLANT_NET_SMCH, step=5.0,
-            help="Taglia netta dell'impianto. Cambia il setpoint di produzione: "
-                 "tutte le biomasse vengono ricalcolate per centrare questo valore.",
+            help=_t("Taglia netta dell'impianto. Cambia il setpoint di produzione: tutte le biomasse vengono ricalcolate per centrare questo valore."),
         )
-        st.caption(
-            "ℹ️ Il **fattore netto→lordo** viene calcolato automaticamente dalla "
-            "configurazione impianto qui sotto (upgrading, fonte calore, fonte "
-            "elettricita'). Puoi comunque sovrascriverlo manualmente."
-        )
-        st.metric("Taglia netta", fmt_it(plant_net_smch, 0, " Sm³/h"))
+        st.caption(_t("ℹ️ Il **fattore netto→lordo** viene calcolato automaticamente dalla configurazione impianto qui sotto (upgrading, fonte calore, fonte elettricita'). Puoi comunque sovrascriverlo manualmente."))
+        st.metric(_t("Taglia netta"), fmt_it(plant_net_smch, 0, " Sm³/h"))
         # Per coerenza in mode biometano: eta_el/eta_th/aux_el_pct inutilizzati
         # ma definiti per evitare NameError in blocchi condivisi.
         eta_el = ETA_EL_DEFAULT
@@ -2997,10 +2922,7 @@ with st.sidebar:
 
     st.divider()
     st.header(_t("🏭 Configurazione impianto (ep)"))
-    st.caption(
-        "I parametri impiantistici concorrono a `ep` (processing), "
-        "che incide direttamente sul saving GHG ex RED III."
-    )
+    st.caption(_t("I parametri impiantistici concorrono a `ep` (processing), che incide direttamente sul saving GHG ex RED III."))
 
     # Destinazione d'uso -> soglia GHG saving (mode-aware)
     if IS_CHP:
@@ -3026,13 +2948,10 @@ with st.sidebar:
     elif IS_DM2018:
         # DM 2 marzo 2018: 4 destinazioni d'uso con soglie/comparator distinti.
         end_use = st.selectbox(
-            "🎯 Destinazione biometano (→ soglia saving + comparator)",
+            "🎯 " + _t("Destinazione biometano (→ soglia saving + comparator)"),
             list(DM2018_END_USES.keys()),
             index=0,
-            help="DM 2018: trasporti -> CIC con double counting per "
-                 "matrici Annex IX (avanzato). Altri usi/CAR -> tariffa "
-                 "diretta €/MWh (no CIC). Soglia saving e comparator "
-                 "fossile cambiano per uso finale.",
+            help=_t("DM 2018: trasporti -> CIC con double counting per matrici Annex IX (avanzato). Altri usi/CAR -> tariffa diretta €/MWh (no CIC). Soglia saving e comparator fossile cambiano per uso finale."),
         )
         _du = DM2018_END_USES[end_use]
         ghg_threshold = _du["sav"]
@@ -3048,13 +2967,10 @@ with st.sidebar:
     else:
         # DM 15 settembre 2022 (default biometano)
         end_use = st.selectbox(
-            "🎯 Destinazione biometano (→ soglia saving + comparator)",
+            "🎯 " + _t("Destinazione biometano (→ soglia saving + comparator)"),
             list(END_USE_THRESHOLDS.keys()),
             index=0,
-            help="RED III + D.Lgs. 5/2026: 80% per elettricita'/calore (impianto "
-                 "nuovo ≥20/11/2023), 70% per esistenti <10 MW primi 15 anni, "
-                 "65% per trasporti. Il comparator fossile (80 per rete/calore, "
-                 "94 per trasporti) viene aggiornato di conseguenza.",
+            help=_t("RED III + D.Lgs. 5/2026: 80% per elettricita'/calore (impianto nuovo ≥20/11/2023), 70% per esistenti <10 MW primi 15 anni, 65% per trasporti. Il comparator fossile (80 per rete/calore, 94 per trasporti) viene aggiornato di conseguenza."),
         )
         ghg_threshold = END_USE_THRESHOLDS[end_use]
         # Comparator mode-aware: 80 per rete/elec/calore, 94 per trasporti
@@ -3068,10 +2984,11 @@ with st.sidebar:
     target_saving = ghg_threshold + 0.01  # +1 pp margine sicurezza
     target_e_max = FOSSIL_COMPARATOR * (1 - target_saving)
     max_allowed_e = FOSSIL_COMPARATOR * (1 - ghg_threshold)
-    st.metric("Soglia saving obbligatoria",
+    st.metric(_t("Soglia saving obbligatoria"),
               fmt_it(ghg_threshold * 100, 0, "%"),
-              delta=f"target solver {fmt_it(target_saving * 100, 0, '%')}")
+              delta=f"{_t('target solver')} {fmt_it(target_saving * 100, 0, '%')}")
 
+with tab_bp:
     # ============================================================
     # DM 2018 — Configurazione CIC e classificazione avanzato
     # ============================================================
@@ -3098,35 +3015,27 @@ with st.sidebar:
 
         # Soglia configurabile per "avanzato"
         annex_threshold = st.slider(
-            "Soglia massa Annex IX per status «avanzato» [%]",
+            _t("Soglia massa Annex IX per status «avanzato» [%]"),
             min_value=50.0, max_value=100.0,
             value=ANNEX_IX_THRESHOLD * 100, step=5.0,
-            help="Quota minima in MASSA di feedstock Annex IX richiesta "
-                 "per qualificare l'impianto come «biometano avanzato» "
-                 "(double counting CIC). Default 70% (interpretazione GSE). "
-                 "Alcune autorita' richiedono 100% per evitare contestazioni.",
+            help=_t("Quota minima in MASSA di feedstock Annex IX richiesta per qualificare l'impianto come «biometano avanzato» (double counting CIC). Default 70% (interpretazione GSE). Alcune autorita' richiedono 100% per evitare contestazioni."),
         ) / 100.0
 
         advanced_mode = st.radio(
-            "Classificazione impianto",
-            ["Auto (calcolata da matrice annuale)",
-             "Forza AVANZATO (override manuale)",
-             "Forza NON avanzato (override manuale)"],
+            _t("Classificazione impianto"),
+            [_t("Auto (calcolata da matrice annuale)"),
+             _t("Forza AVANZATO (override manuale)"),
+             _t("Forza NON avanzato (override manuale)")],
             index=0,
-            help="«Auto» determina lo status dalla quota in massa Annex IX "
-                 "vs soglia. Override solo se hai certificazione GSE "
-                 "specifica o vincoli contrattuali.",
+            help=_t("«Auto» determina lo status dalla quota in massa Annex IX vs soglia. Override solo se hai certificazione GSE specifica o vincoli contrattuali."),
         )
 
         # Valore CIC
         cic_price = st.number_input(
-            "💰 Valore CIC [€/CIC]",
+            "💰 " + _t("Valore CIC [€/CIC]"),
             min_value=0.0, max_value=600.0,
             value=CIC_PRICE_DEFAULT, step=5.0,
-            help=f"Prezzo medio unitario del CIC. Riferimento GSE base "
-                 f"~{fmt_it(CIC_PRICE_DEFAULT, 0)} €/CIC; sul mercato "
-                 f"secondario (operatori obbligati) tipicamente "
-                 f"300-450 €/CIC. Valore solo per simulazione ricavi.",
+            help=f"{_t('Prezzo medio unitario del CIC. Riferimento GSE base ~')}{fmt_it(CIC_PRICE_DEFAULT, 0)} {_t('€/CIC; sul mercato secondario (operatori obbligati) tipicamente 300-450 €/CIC. Valore solo per simulazione ricavi.')}",
         )
 
         # Caption attiva CIC double counting solo se uso ammette CIC
@@ -3178,58 +3087,45 @@ with st.sidebar:
         )
 
         fer2_matrice_threshold = st.slider(
-            "Soglia massa sottoprodotti per accesso FER 2 [%]",
+            _t("Soglia massa sottoprodotti per accesso FER 2 [%]"),
             min_value=70.0, max_value=100.0,
             value=FER2_FEEDSTOCK_REQ_THRESHOLD * 100, step=5.0,
-            help=f"Quota minima sottoprodotti/effluenti zootecnici/residui "
-                 f"per qualificare l'impianto a FER 2. Default "
-                 f"{fmt_it(FER2_FEEDSTOCK_REQ_THRESHOLD*100, 0, '%')} (DM "
-                 f"18/9/2024). Cap residuo per colture dedicate: 20%.",
+            help=_t("Quota minima sottoprodotti/effluenti zootecnici/residui per qualificare l'impianto a FER 2. Default ") + f"{fmt_it(FER2_FEEDSTOCK_REQ_THRESHOLD*100, 0, '%')} " + _t("(DM 18/9/2024). Cap residuo per colture dedicate: 20%."),
         ) / 100.0
 
         st.subheader(_t("💰 Tariffa FER 2 [€/MWh_el]"))
         fer2_tariffa_base = st.number_input(
-            "Tariffa di Riferimento (TR) base",
+            _t("Tariffa di Riferimento (TR) base"),
             min_value=0.0, max_value=500.0,
             value=FER2_TARIFFA_BASE_DEFAULT, step=1.0,
-            help=f"Tariffa di Riferimento FER 2 base, applicata ai MWh_el "
-                 f"NETTI immessi in rete. Default "
-                 f"{fmt_it(FER2_TARIFFA_BASE_DEFAULT, 0)} €/MWh_el "
-                 f"(piccoli impianti agricoli ≤300 kWe). Variabile "
-                 f"per fascia/asta/registro: aggiorna se hai aggiudicato "
-                 f"con tariffa specifica.",
+            help=f"{_t('Tariffa di Riferimento FER 2 base, applicata ai MWh_el NETTI immessi in rete. Default ')}{fmt_it(FER2_TARIFFA_BASE_DEFAULT, 0)} {_t('€/MWh_el (piccoli impianti agricoli ≤300 kWe). Variabile per fascia/asta/registro: aggiorna se hai aggiudicato con tariffa specifica.')}",
         )
 
         col_pa, col_pb = st.columns(2)
         with col_pa:
             fer2_premio_matrice_attivo = st.checkbox(
-                f"Premio matrice (+{fmt_it(FER2_PREMIO_MATRICE_DEFAULT, 0)} €/MWh)",
+                f"{_t('Premio matrice')} (+{fmt_it(FER2_PREMIO_MATRICE_DEFAULT, 0)} €/MWh)",
                 value=True,
-                help=f"Premio per matrice ≥{fmt_it(FER2_FEEDSTOCK_REQ_THRESHOLD*100, 0, '%')} "
-                     f"sottoprodotti/effluenti. Si attiva automaticamente "
-                     f"in tab «Ricavi» se la quota in massa supera la soglia.",
+                help=f"{_t('Premio per matrice ≥')}{fmt_it(FER2_FEEDSTOCK_REQ_THRESHOLD*100, 0, '%')} {_t('sottoprodotti/effluenti. Si attiva automaticamente in tab «Ricavi» se la quota in massa supera la soglia.')}",
             )
         with col_pb:
             fer2_premio_car_attivo = st.checkbox(
-                f"Premio CAR (+{fmt_it(FER2_PREMIO_CAR_DEFAULT, 0)} €/MWh)",
+                f"{_t('Premio CAR')} (+{fmt_it(FER2_PREMIO_CAR_DEFAULT, 0)} €/MWh)",
                 value=True,
-                help="Premio Cogenerazione ad Alto Rendimento. Richiede "
-                     "PES > 10% (η_el + η_th_recuperato ≥ 75-80%). "
-                     "Verifica certificato CAR del GSE.",
+                help=_t("Premio Cogenerazione ad Alto Rendimento. Richiede PES > 10% (η_el + η_th_recuperato ≥ 75-80%). Verifica certificato CAR del GSE."),
             )
 
         fer2_premio_matrice_eur = st.number_input(
-            "Valore premio matrice [€/MWh]",
+            _t("Valore premio matrice [€/MWh]"),
             min_value=0.0, max_value=100.0,
             value=FER2_PREMIO_MATRICE_DEFAULT, step=1.0,
-            help="Valore del premio matrice (sommato alla TR base se la "
-                 "soglia matrice e' raggiunta).",
+            help=_t("Valore del premio matrice (sommato alla TR base se la soglia matrice e' raggiunta)."),
         )
         fer2_premio_car_eur = st.number_input(
-            "Valore premio CAR [€/MWh]",
+            _t("Valore premio CAR [€/MWh]"),
             min_value=0.0, max_value=50.0,
             value=FER2_PREMIO_CAR_DEFAULT, step=1.0,
-            help="Valore del premio CAR (sommato alla TR base se attivo).",
+            help=_t("Valore del premio CAR (sommato alla TR base se attivo)."),
         )
 
         st.success(
@@ -3258,8 +3154,7 @@ with st.sidebar:
     # ============================================================
     if IS_DM2022:
         with st.expander(
-            "💼 Pro Forma · CAPEX / OPEX / Finanziamento "
-            "(default benchmark impianto medio 2026)",
+            "💼 " + _t("Pro Forma · CAPEX / OPEX / Finanziamento (default benchmark impianto medio 2026)"),
             expanded=False,
         ):
             st.caption(
@@ -3449,13 +3344,9 @@ with st.sidebar:
 
     # Configuratore ep
     digestate_opt = st.selectbox(
-        "Stoccaggio digestato",
+        _t("Stoccaggio digestato"),
         list(EP_DIGESTATE.keys()), index=1,
-        help="RED III All.V Parte C + GSE LG 2024: riconosce solo APERTO "
-             "(fattori IPCC 2019) o CHIUSO con recupero gas al processo "
-             "(= 0). Nessuna soglia temporale nella normativa. Il gas "
-             "residuo recuperato non da' bonus negativo: confluisce nel "
-             "biogas lordo e aumenta la resa Nm³/t.",
+        help=_t("RED III All.V Parte C + GSE LG 2024: riconosce solo APERTO (fattori IPCC 2019) o CHIUSO con recupero gas al processo (= 0). Nessuna soglia temporale nella normativa. Il gas residuo recuperato non da' bonus negativo: confluisce nel biogas lordo e aumenta la resa Nm³/t."),
     )
 
     # Upgrading / Off-gas / Iniezione rete: SOLO in modalita' biometano
@@ -3471,25 +3362,23 @@ with st.sidebar:
         ep_upgrading = 0.0
         ep_offgas = 0.0
     else:
-        upgrading_opt = st.selectbox("Tecnologia upgrading",
+        upgrading_opt = st.selectbox(_t("Tecnologia upgrading"),
                                       list(EP_UPGRADING.keys()), index=1)
-        offgas_opt = st.selectbox("Combustione off-gas",
+        offgas_opt = st.selectbox(_t("Combustione off-gas"),
                                    list(EP_OFFGAS.keys()), index=0)
         ep_upgrading = EP_UPGRADING[upgrading_opt]
         ep_offgas = EP_OFFGAS[offgas_opt]
 
-    heat_opt = st.selectbox("Fonte calore processo",
+    heat_opt = st.selectbox(_t("Fonte calore processo"),
                              list(EP_HEAT.keys()), index=0)
-    elec_opt = st.selectbox("Elettricità ausiliari",
+    elec_opt = st.selectbox(_t("Elettricità ausiliari"),
                              list(EP_ELEC.keys()), index=1)
 
     if not IS_CHP:
         injection_opt = st.selectbox(
-            "Iniezione biometano in rete",
+            _t("Iniezione biometano in rete"),
             list(INJECTION_PRESSURE.keys()), index=1,
-            help="Pressione di consegna del biometano. Determina il consumo "
-                 "elettrico del booster compressore a valle dell'upgrading "
-                 "(0,05-0,25 kWh_e/Sm³).",
+            help=_t("Pressione di consegna del biometano. Determina il consumo elettrico del booster compressore a valle dell'upgrading (0,05-0,25 kWh_e/Sm³)."),
         )
 
     ep_digestate = EP_DIGESTATE[digestate_opt]
@@ -3535,10 +3424,9 @@ with st.sidebar:
         )
 
     margin_pct = st.slider(
-        "Margine perdite reali + downtime [%]",
+        _t("Margine perdite reali + downtime [%]"),
         min_value=0.0, max_value=10.0, value=3.0, step=0.5,
-        help="Perdite diffuse (coperchi digestore, tubazioni, soffiatori) "
-             "+ downtime manutenzione. Default 3% (impianti ben gestiti).",
+        help=_t("Perdite diffuse (coperchi digestore, tubazioni, soffiatori) + downtime manutenzione. Default 3% (impianti ben gestiti)."),
     )
 
     if IS_CHP:
@@ -3556,18 +3444,14 @@ with st.sidebar:
         recover_chp_heat = True
         if elec_opt == ELEC_IS_INTERNAL:
             cogen_frac = st.slider(
-                "Quota cogen biogas nell'autoproduzione elettrica [%]",
+                _t("Quota cogen biogas nell'autoproduzione elettrica [%]"),
                 min_value=0.0, max_value=100.0, value=60.0, step=10.0,
-                help="Se autoproduci elettricita' da CHP biogas + FV, indica "
-                     "la quota coperta dal CHP (resto dalla FV). Il CHP biogas "
-                     "consuma biogas interno, la FV no.",
+                help=_t("Se autoproduci elettricita' da CHP biogas + FV, indica la quota coperta dal CHP (resto dalla FV). Il CHP biogas consuma biogas interno, la FV no."),
             ) / 100.0
             recover_chp_heat = st.checkbox(
-                "Recupero calore cogenerato dal CHP → digestori",
+                _t("Recupero calore cogenerato dal CHP → digestori"),
                 value=True,
-                help="Se il CHP cogenerativo recupera calore (η_t≈45%) e lo usa "
-                     "per riscaldare i digestori, la caldaia dedicata consuma "
-                     "meno biogas. Default ON (impianti ben progettati).",
+                help=_t("Se il CHP cogenerativo recupera calore (η_t≈45%) e lo usa per riscaldare i digestori, la caldaia dedicata consuma meno biogas. Default ON (impianti ben progettati)."),
             )
 
         aux_auto_data = compute_aux_factor(
@@ -3582,14 +3466,13 @@ with st.sidebar:
         aux_auto = aux_auto_data["aux_factor"]
 
     manual_override = st.checkbox(
-        "Sovrascrivi manualmente",
+        _t("Sovrascrivi manualmente"),
         value=False,
-        help="Se hai dati misurati del tuo impianto, inserisci il valore "
-             "reale. Altrimenti usa il calcolo automatico.",
+        help=_t("Se hai dati misurati del tuo impianto, inserisci il valore reale. Altrimenti usa il calcolo automatico."),
     )
     if manual_override:
         aux_factor = st.slider(
-            "aux_factor manuale",
+            _t("aux_factor manuale"),
             min_value=1.00 if IS_CHP else 1.05, max_value=1.60,
             value=round(aux_auto, 2), step=0.01,
         )
@@ -3660,6 +3543,7 @@ with st.sidebar:
         fmt_it(plant_net_smch * aux_factor, 1, f" {_unit_lordo}"),
     )
 
+with tab_solver:
     st.divider()
     st.header(f"📋 Database feedstock attivi ({len(active_feeds)}/{len(FEED_NAMES)})")
     # Refresh _EMISSION_OVERRIDES con ep_total impianto-wide per fattori
@@ -5725,19 +5609,19 @@ if _DAILY_OPS_AVAILABLE:
     _col_a, _col_b, _col_c = st.columns([1, 1, 2])
     with _col_a:
         _do_year = st.number_input(
-            "Anno", min_value=2020, max_value=2100,
+            _t("Anno"), min_value=2020, max_value=2100,
             value=int(_today.year), step=1, key="do_year",
         )
     with _col_b:
         _do_month = st.selectbox(
-            "Mese", list(range(1, 13)),
+            _t("Mese"), list(range(1, 13)),
             index=_today.month - 1,
             format_func=lambda m: _mlabel(int(_do_year), int(m), _LANG),
             key="do_month",
         )
     with _col_c:
         _do_plant = st.text_input(
-            "ID impianto",
+            _t("ID impianto"),
             value=st.session_state.get("do_plant_id", "default"),
             key="do_plant_id",
         )
