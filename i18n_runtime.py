@@ -66,38 +66,38 @@ def render_lang_selector() -> str:
         """
         <style>
         /* Nascondiamo il testo interno ai bottoni della lingua */
-        section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:nth-of-type(1) button p {
+        div[data-testid="stSidebarUserContent"] > div > div:nth-child(3) button p {
             color: transparent !important;
         }
         /* Stile base bottoni lingua */
-        section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:nth-of-type(1) button {
+        div[data-testid="stSidebarUserContent"] > div > div:nth-child(3) button {
             background-size: cover;
             background-position: center;
-            border-radius: 6px;
+            border-radius: 6px !important;
             height: 38px;
             border: 1px solid rgba(0,0,0,0.15);
             transition: transform 0.2s, box-shadow 0.2s;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:nth-of-type(1) button:hover {
+        div[data-testid="stSidebarUserContent"] > div > div:nth-child(3) button:hover {
             transform: scale(1.05);
             box-shadow: 0 4px 6px rgba(0,0,0,0.15);
             border-color: #CBD5E1;
         }
         /* Bandiera Italiana (Colonna 1) */
-        section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:nth-of-type(1) div[data-testid="column"]:nth-child(1) button {
+        div[data-testid="stSidebarUserContent"] > div > div:nth-child(3) div[data-testid="column"]:nth-child(1) button {
             background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzIDIiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjIiIGZpbGw9IiMwMDhDNDUiLz48cmVjdCB3aWR0aD0iMSIgaGVpZ2h0PSIyIiB4PSIxIiBmaWxsPSIjRjRGNUYwIi8+PHJlY3Qgd2lkdGg9IjEiIGhlaWdodD0iMiIgeD0iMiIgZmlsbD0iI0NEMjEyQSIvPjwvc3ZnPg==');
         }
         /* Bandiera UK (Colonna 2) */
-        section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:nth-of-type(1) div[data-testid="column"]:nth-child(2) button {
+        div[data-testid="stSidebarUserContent"] > div > div:nth-child(3) div[data-testid="column"]:nth-child(2) button {
             background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MCAzMCI+PGNsaXBQYXRoIGlkPSJ0Ij48cGF0aCBkPSJNMzAsMTUgaDMwIHYxNSB6IHYxNSBoLTMwIHogaC0zMCB2LTE1IHogdi0xNSBoMzAgeiIvPjwvY2xpcFBhdGg+PHBhdGggZD0iTTAsMCB2MzAgaDYwIHYtMzAgeiIgZmlsbD0iIzAxMjE2OSIvPjxwYXRoIGQ9Ik0wLDAgTDYwLDMwIE02MCwwIEwwLDMwIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNiIvPjxwYXRoIGQ9Ik0wLDAgTDYwLDMwIE02MCwwIEwwLDMwIiBjbGlwLXBhdGg9InVybCgjdCkiIHN0cm9rZT0iI0M4MTAyRSIgc3Ryb2tlLXdpZHRoPSI0Ii8+PHBhdGggZD0iTTMwLDAgdjMwIE0wLDE1IGg2MCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjEwIi8+PHBhdGggZD0iTTMwLDAgdjMwIE0wLDE1IGg2MCIgc3Ryb2tlPSIjQzgxMDJFIiBzdHJva2Utd2lkdGg9IjYiLz48L3N2Zz4=');
         }
         /* Opacità per la lingua NON attiva */
-        section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:nth-of-type(1) button[kind="secondary"] {
+        div[data-testid="stSidebarUserContent"] > div > div:nth-child(3) button[kind="secondary"] {
             opacity: 0.4;
             filter: grayscale(60%);
         }
-        section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:nth-of-type(1) button[kind="primary"] {
+        div[data-testid="stSidebarUserContent"] > div > div:nth-child(3) button[kind="primary"] {
             opacity: 1.0;
             border: 2px solid #0F172A;
             box-shadow: 0 0 0 2px rgba(255,255,255,0.5);
