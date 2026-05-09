@@ -1939,6 +1939,17 @@ st.markdown(
         margin: 4px 8px !important;
     }}
 
+    /* Hiding utility language buttons */
+    div[data-testid="stColumn"] button[id*="it-hidden"], 
+    div[data-testid="stColumn"] button[id*="uk-hidden"] {{
+        display: none !important;
+    }}
+    /* Target via specific labels if IDs aren't enough */
+    button:has(div:contains("it-hidden")), 
+    button:has(div:contains("uk-hidden")) {{
+        display: none !important;
+    }}
+
     /* ---------- Hero Header (Material You Style) ---------- */
     .methaniq-header {{
         background: linear-gradient(135deg, {PRIMARY} 0%, {SECONDARY} 100%);
@@ -2333,13 +2344,14 @@ with st.sidebar:
                 f"⚡ CHP {fmt_it(_f_elec*100, 1, '%')} · "
                 f"💨 Slip {fmt_it(_f_slip*100, 1, '%')} · "
                 f"🔧 Margine {fmt_it(_f_marg*100, 1, '%')} "
-                f"→ Totale {fmt_it((_f_heat+_f_elec+_f_slip+_f_marg)*100, 1, '%')} ≡ aux {fmt_it(_aux, 3)}"
+                f"→ Totale {fmt_it((_f_heat+_f_elec+_f_slip+_f_marg)*100, 1, '%')} ≡ aux {fmt_it(_aux_base, 3)}"
             )
         else:
+            _up_eff_base = 1.0 / _aux_base if _aux_base > 0 else 0.8
             st.caption(
                 _t("ℹ️ Vai in **Config. Tecnica** per calcolare il fattore lordi/netti reale "
                    "(include upgrading, caldaia e CHP interno). Ora uso default: "
-                   f"aux = {fmt_it(_aux, 3)} ({fmt_it((1-_up_eff)*100, 0, '%')} autoconsumo totale).")
+                   f"aux = {fmt_it(_aux_base, 3)} ({fmt_it((1-_up_eff_base)*100, 0, '%')} autoconsumo totale).")
             )
 
         # Per coerenza in mode biometano: eta_el/eta_th/aux_el_pct non usati
