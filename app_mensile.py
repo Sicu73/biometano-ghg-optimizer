@@ -3723,1859 +3723,1859 @@ with tab_solver:
             f"Soglia warning scostamento: ±{int(EMISSION_DEVIATION_WARN_THRESHOLD*100)}%."
         )
 
-# ------------------------- MODE SELECTOR -------------------------
-st.subheader(_t("🎯 Modalità di calcolo"))
+    # ------------------------- MODE SELECTOR -------------------------
+    st.subheader(_t("🎯 Modalità di calcolo"))
 
-N_active = len(active_feeds)
-MODE_DUAL = f"{N_active-2} {_t('biomasse fisse + 2 calcolate  (saving target + produzione)')}"
-MODE_SINGLE = f"{N_active-1} {_t('biomasse fisse + 1 calcolata  (solo produzione)')}"
+    N_active = len(active_feeds)
+    MODE_DUAL = f"{N_active-2} {_t('biomasse fisse + 2 calcolate  (saving target + produzione)')}"
+    MODE_SINGLE = f"{N_active-1} {_t('biomasse fisse + 1 calcolata  (solo produzione)')}"
 
-# --- Applica eventuali risultati ottimizzazione PRIMA di creare i widget ---
-# (Streamlit non consente di modificare session_state di una chiave-widget
-# dopo che qualunque widget e' stato renderizzato nello stesso run.)
-#
-# BUG-FIX: la state_key del renderer (line ~3170) include _active_hash
-# (per evitare contaminazioni cross-config). Qui dobbiamo usare lo
-# STESSO formato di chiave, altrimenti la "fixed-at-zero" iniettata
-# dall'optimizer viene salvata sotto una chiave che il renderer non
-# legge (e quindi sovrascritta dai default _default_mass).
-_pending_opt = st.session_state.pop("_pending_optimization", None)
-if _pending_opt is not None:
-    _opt_active_hash = str(hash(tuple(sorted(active_feeds))))[:8]
-    if _pending_opt.get("is_mono"):
-        mono = _pending_opt["mono"]
-        others = [n for n in active_feeds if n != mono]
-        st.session_state["fixed_multiselect"] = others
-        new_state_key = f"mens_in_1unk_{_opt_active_hash}_{'-'.join(others)}"
-        rows_init = []
-        for mm, hh in zip(MONTHS, MONTH_HOURS):
-            r = {"Mese": mm, "Ore": hh}
-            for f in others:
-                r[f] = 0.0
-            rows_init.append(r)
-        st.session_state[new_state_key] = pd.DataFrame(rows_init)
-    else:
-        st.session_state["fixed_multiselect"] = list(_pending_opt["unused"])
-        new_state_key = f"mens_in_2unk_{_opt_active_hash}_{'-'.join(_pending_opt['unused'])}"
-        rows_init = []
-        for mm, hh in zip(MONTHS, MONTH_HOURS):
-            r = {"Mese": mm, "Ore": hh}
-            for f in _pending_opt["unused"]:
-                r[f] = 0.0
-            rows_init.append(r)
-        st.session_state[new_state_key] = pd.DataFrame(rows_init)
-    
-    st.session_state["_optimize_info"] = {
-        "pair": _pending_opt["pair"],
-        "unused": _pending_opt["unused"],
-        "total_year": _pending_opt["total_year"],
-        "is_mono": _pending_opt.get("is_mono", False),
-        "mono": _pending_opt.get("mono"),
-    }
-# -------- PULSANTE OTTIMIZZA (tutta larghezza, sempre visibile) ------------
-from math import comb as _comb
-_n_combinations = _comb(N_active, 2) if N_active >= 2 else 0
-_prod_label = (
-    f"{fmt_it(plant_kwe, 0)} kW_el lordi "
-    f"(= {fmt_it(plant_kwe_net, 0)} kW_el netti in rete)"
-    if IS_CHP
-    else f"{fmt_it(plant_net_smch, 0)} Sm³/h netti"
-)
-st.markdown(
-    f"##### ⚡ {_t('Auto-calcolo ottimale')} – {_t('enumera le')} **{_n_combinations} {_t('combinazioni')}** "
-    f"{_t('possibili tra le')} {N_active} {_t('biomasse attive e minimizza la massa totale')} "
-    f"({_t('saving')} ≥ {fmt_it(ghg_threshold*100, 0, '%')}, {_t('produzione')} = {_prod_label})"
-)
-optimize_clicked = st.button(
-    "🚀 OTTIMIZZA  (minimizza massa totale biomasse)",
-    help=f"Enumera le C({N_active},2) = {_n_combinations} coppie di biomasse attive + "
-         f"{N_active} soluzioni mono, sceglie quella con massa totale minima che "
-         "soddisfa entrambi i vincoli (produzione + saving GHG). "
-         "Le biomasse non selezionate vengono azzerate.",
-    use_container_width=True,
-    type="primary",
-    key="btn_optimize",
-)
-st.divider()
-
-# --- Gestione click OTTIMIZZA ----------------------------------------------
-# Salva solo un flag "_pending_optimization" (chiave NON-widget) e fa rerun:
-# al giro successivo il blocco sopra imposta i widget PRIMA che vengano creati.
-if optimize_clicked:
-    best = find_optimal_pair(
-        aux=aux_factor, plant_net=plant_net_smch,
-        ep=ep_total, target_e_max=target_e_max,
-        feed_list=active_feeds,
-    )
-    if best is None:
-        _tip_impianto = (
-            "stoccaggio digestato coperto con recupero gas, recupero calore "
-            "CHP per digestori, ottimizzare autoconsumi elettrici"
-        ) if IS_CHP else (
-            "stoccaggio digestato coperto, upgrading a membrane/amminico, "
-            "off-gas RTO"
-        )
-        _unit_prod = (
-            f"{fmt_it(plant_kwe, 0)} kW_el lordi "
-            f"({fmt_it(plant_kwe_net, 0)} kW_el netti rete)"
-            if IS_CHP
-            else f"{fmt_it(plant_net_smch, 0)} Sm³/h"
-        )
-        st.error(
-            "❌ Nessuna combinazione delle biomasse attive riesce a soddisfare "
-            f"simultaneamente saving ≥ {fmt_it(ghg_threshold*100, 0, '%')} e "
-            f"produzione {_unit_prod} con la configurazione "
-            f"ep attuale ({fmt_it(ep_total, 1, signed=True)} gCO₂/MJ). "
-            "Prova ad: aggiungere biomasse a manure credit (liquami/letami), "
-            f"migliorare la configurazione impianto ({_tip_impianto}), "
-            "oppure abbassare il setpoint produttivo."
-        )
-    else:
-        pair, total_h, masses_h = best
-        # Se solo una biomassa ha massa > 0 -> ottimo MONO
-        active_masses = [n for n, v in masses_h.items() if v > 1e-9]
-        is_mono = len(active_masses) == 1
-        unused = [n for n in active_feeds if n not in pair]
-        annual_hours = sum(MONTH_HOURS)
-        st.session_state["_pending_optimization"] = {
-            "pair": list(pair),
-            "unused": unused,
-            "total_year": total_h * annual_hours,
-            "is_mono": is_mono,
-            "mono": active_masses[0] if is_mono else None,
+    # --- Applica eventuali risultati ottimizzazione PRIMA di creare i widget ---
+    # (Streamlit non consente di modificare session_state di una chiave-widget
+    # dopo che qualunque widget e' stato renderizzato nello stesso run.)
+    #
+    # BUG-FIX: la state_key del renderer (line ~3170) include _active_hash
+    # (per evitare contaminazioni cross-config). Qui dobbiamo usare lo
+    # STESSO formato di chiave, altrimenti la "fixed-at-zero" iniettata
+    # dall'optimizer viene salvata sotto una chiave che il renderer non
+    # legge (e quindi sovrascritta dai default _default_mass).
+    _pending_opt = st.session_state.pop("_pending_optimization", None)
+    if _pending_opt is not None:
+        _opt_active_hash = str(hash(tuple(sorted(active_feeds))))[:8]
+        if _pending_opt.get("is_mono"):
+            mono = _pending_opt["mono"]
+            others = [n for n in active_feeds if n != mono]
+            st.session_state["fixed_multiselect"] = others
+            new_state_key = f"mens_in_1unk_{_opt_active_hash}_{'-'.join(others)}"
+            rows_init = []
+            for mm, hh in zip(MONTHS, MONTH_HOURS):
+                r = {"Mese": mm, "Ore": hh}
+                for f in others:
+                    r[f] = 0.0
+                rows_init.append(r)
+            st.session_state[new_state_key] = pd.DataFrame(rows_init)
+        else:
+            st.session_state["fixed_multiselect"] = list(_pending_opt["unused"])
+            new_state_key = f"mens_in_2unk_{_opt_active_hash}_{'-'.join(_pending_opt['unused'])}"
+            rows_init = []
+            for mm, hh in zip(MONTHS, MONTH_HOURS):
+                r = {"Mese": mm, "Ore": hh}
+                for f in _pending_opt["unused"]:
+                    r[f] = 0.0
+                rows_init.append(r)
+            st.session_state[new_state_key] = pd.DataFrame(rows_init)
+        
+        st.session_state["_optimize_info"] = {
+            "pair": _pending_opt["pair"],
+            "unused": _pending_opt["unused"],
+            "total_year": _pending_opt["total_year"],
+            "is_mono": _pending_opt.get("is_mono", False),
+            "mono": _pending_opt.get("mono"),
         }
-        st.rerun()
-
-# -------- SMART SOLVER MENU --------------------------------------------------
-
-st.caption(_t("Le biomasse NON selezionate verranno calcolate automaticamente dal sistema. Lasciane 1 fuori per centrare la produzione, lasciane 2 fuori per centrare produzione e saving. Selezionale tutte per una pura simulazione."))
-
-default_fixed = active_feeds[:min(2, N_active)]
-prev_default = st.session_state.get("fixed_multiselect", [])
-if not all(p in active_feeds for p in prev_default):
-    st.session_state["fixed_multiselect"] = default_fixed
-
-fixed_feeds = st.multiselect(
-    _t("Biomasse manuali"),
-    options=active_feeds,
-    default=default_fixed if "fixed_multiselect" not in st.session_state else None,
-    help=_t("Scegli le biomasse fisse."),
-    key="fixed_multiselect"
-)
-
-unknown_feeds = [n for n in active_feeds if n not in fixed_feeds]
-
-if len(unknown_feeds) > 2:
-    st.warning(_t("Il sistema può risolvere al massimo 2 incognite (produzione + saving). Seleziona più biomasse manuali."))
-    st.stop()
-
-# Info Banner depending on unknowns
-if len(unknown_feeds) == 2:
-    st.info(f"**{_t('Modalità dual-constraint')}**: {_t('il solver calcola')} **{unknown_feeds[0]}** e **{unknown_feeds[1]}** {_t('per ottenere saving')} **{fmt_it(target_saving*100, 0, '%')}** e {_t('produzione')} **{_prod_label}**.")
-elif len(unknown_feeds) == 1:
-    st.info(f"**{_t('Modalità produzione-only')}**: {_t('il sistema calcola')} **{unknown_feeds[0]}** {_t('per chiudere la produzione')}. {_t('Il saving sarà una conseguenza.')}")
-else:
-    st.info(f"**{_t('Modalità simulazione')}**: {_t('nessuna incognita. Inserisci tutte le quantità manualmente in tabella per vedere i risultati.')}")
-
-is_dual_mode = (len(unknown_feeds) == 2)
-
-# ------------------------- TABELLA UNIFICATA (input + risultati) -------------------------
-
-
-# Valori di default plausibili per biomasse comuni; fallback generico per il resto
-# (il cliente li riaggiusta a mano in tabella mensile)
-defaults_all = {
-    "Trinciato di mais": 1800.0,
-    "Trinciato di sorgo": 400.0,
-    "Pollina ovaiole (aerobico)": 300.0,
-    "Pollina broiler (lettiera)": 250.0,
-    "Pollina tacchini": 200.0,
-    "Liquame suino": 1500.0,
-    "Liquame bovino": 1200.0,
-    "Liquame bufalino": 1100.0,
-    "Letame bovino palabile": 500.0,
-    "Letame equino": 150.0,
-    "Deiezioni conigli": 100.0,
-    "Triticale insilato": 400.0,
-    "Segale insilata": 300.0,
-    "Orzo insilato": 300.0,
-    "Loietto insilato (ryegrass)": 300.0,
-    "Erba medica insilata": 250.0,
-    "Doppia coltura (2° raccolto)": 500.0,
-    "Barbabietola da zucchero": 300.0,
-    "Sansa di olive umida": 300.0,
-    "Sansa vergine": 200.0,
-    "Pastazzo di agrumi": 250.0,
-    "Vinaccia (con raspi)": 200.0,
-    "Raspi d'uva": 100.0,
-    "Feccia vinicola": 150.0,
-    "Siero di latte": 500.0,
-    "Scotta (siero residuo)": 400.0,
-    "Trebbie di birra": 250.0,
-    "Lolla/pula di riso": 100.0,
-    "Melasso": 150.0,
-    "Scarti panificazione/pasticceria": 100.0,
-    "Grassi esausti / UCO": 50.0,
-    "Scarti macellazione (cat. 3)": 100.0,
-    "Sottoprodotti ortofrutticoli": 300.0,
-    "Scarti caseari vari": 200.0,
-    "Fanghi agro-industriali": 200.0,
-    "Polpe di barbabietola fresche": 400.0,
-    "Polpe di barbabietola insilate": 350.0,
-    "Melasso di barbabietola": 120.0,
-    "FORSU selezionata": 400.0,
-    "Fanghi depurazione": 150.0,
-}
-# Fallback: se una biomassa attiva non e' in defaults_all, usa 200 t/mese
-def _default_mass(feed):
-    return defaults_all.get(feed, 200.0)
-
-# --- Stato persistente: memorizzo SOLO le colonne editabili (Mese, Ore, fisse).
-# Chiave state univoca per combinazione mode+fisse+active_feeds, cosi' cambio
-# biomasse attive -> nuovo state (evita contaminazioni tra configurazioni diverse).
-_active_hash = str(hash(tuple(sorted(active_feeds))))[:8]
-state_key = f"mens_in_{len(unknown_feeds)}unk_{_active_hash}_{'-'.join(fixed_feeds)}"
-
-col_tab_title, col_tab_btn = st.columns([4, 1], vertical_alignment="bottom")
-with col_tab_title:
-    st.subheader(_t("📆 Tabella mensile – modifica le celle ✏️, il resto si ricalcola"))
-with col_tab_btn:
-    if st.button("🔄 Resetta", use_container_width=True, help=_t("Ripristina i valori iniziali di default per questa configurazione.")):
-        st.session_state.pop(state_key, None)
-        st.rerun()
-if state_key not in st.session_state:
-    init_rows = []
-    for m, h in zip(MONTHS, MONTH_HOURS):
-        row = {"Mese": m, "Ore": h}
-        for f in fixed_feeds:
-            row[f] = _default_mass(f)
-        init_rows.append(row)
-    st.session_state[state_key] = pd.DataFrame(init_rows)
-
-# Retrocompatibilita': se lo state esiste con vecchia colonna target per mese, rimuovo
-if "Target Sm³/h netti" in st.session_state[state_key].columns:
-    st.session_state[state_key] = st.session_state[state_key].drop(
-        columns=["Target Sm³/h netti"]
+    # -------- PULSANTE OTTIMIZZA (tutta larghezza, sempre visibile) ------------
+    from math import comb as _comb
+    _n_combinations = _comb(N_active, 2) if N_active >= 2 else 0
+    _prod_label = (
+        f"{fmt_it(plant_kwe, 0)} kW_el lordi "
+        f"(= {fmt_it(plant_kwe_net, 0)} kW_el netti in rete)"
+        if IS_CHP
+        else f"{fmt_it(plant_net_smch, 0)} Sm³/h netti"
     )
-
-input_df = st.session_state[state_key]
-
-# ------------------------- CALCOLI PER MESE -------------------------
-results = []
-warnings_list = []
-for _, row in input_df.iterrows():
-    fixed_map = {n: float(row[n]) for n in fixed_feeds}
-    hours = float(row["Ore"])
-
-    if len(unknown_feeds) >= 2:
-        sol, feasible, msg = solve_2_unknowns_dual(
-            fixed_map, unknown_feeds, hours, aux_factor, plant_net_smch,
-            ep_total, target_e_max,
-        )
-        all_masses = {**fixed_map, **sol}
-        if not feasible:
-            warnings_list.append(f"**{row['Mese']}**: {msg}")
-    elif len(unknown_feeds) == 1:
-        computed = solve_1_unknown_production(
-            fixed_map, unknown_feeds[0], hours, aux_factor, plant_net_smch
-        )
-        all_masses = dict(fixed_map)
-        all_masses[unknown_feeds[0]] = max(computed, 0.0)
-        feasible = (computed >= 0)
-        if not feasible:
-            warnings_list.append(
-                f"**{row['Mese']}**: {unknown_feeds[0]} = {fmt_it(computed, 1)} t (<0). "
-                f"Le biomasse fisse gia' superano il fabbisogno lordo."
-            )
-    else:
-        # Simulazione pura: nessuna incognita
-        all_masses = dict(fixed_map)
-        feasible = True
-
-    summary = ghg_summary(all_masses, aux_factor, ep_total, FOSSIL_COMPARATOR)
-
-    # Validita' - DUE CONDIZIONI OBBLIGATORIE:
-    #   (1) saving GHG >= soglia RED III (80/70/65% a seconda uso finale),
-    #       calcolato su biometano LORDO (anche la quota autoconsumata dagli
-    #       ausiliari CHP+caldaia deve essere rinnovabile per >=80%).
-    #   (2) produzione netta <= plant_net_smch (taglia autorizzata).
-    net_smch = summary["nm3_net"] / hours if hours > 0 else 0.0
-    # tolleranza 1e-6 per evitare falsi negativi da arrotondamenti float
-    saving_ok = summary["saving"] >= ghg_threshold * 100 - 1e-6
-    prod_ok = net_smch <= plant_net_smch + 0.5   # tolleranza +0.5 Sm3/h
-    target_hit = abs(net_smch - plant_net_smch) < 0.5
-
-    if saving_ok and prod_ok:
-        validita = "✅ Valido"
-    else:
-        motivi = []
-        if not saving_ok:
-            motivi.append(
-                f"saving {fmt_it(summary['saving'], 1, '%')} < "
-                f"{fmt_it(ghg_threshold*100, 0, '%')}"
-            )
-        if not prod_ok:
-            motivi.append(
-                f"netti {fmt_it(net_smch, 1)} > "
-                f"{fmt_it(plant_net_smch, 0)} Sm³/h (over-autorizz.)"
-            )
-        validita = "❌ Non valido: " + "; ".join(motivi)
-
-    if saving_ok and prod_ok and not target_hit:
-        stato = (
-            f"⚠️ netti {fmt_it(net_smch, 1)} < "
-            f"{fmt_it(plant_net_smch, 0)} (sub-ottimale)"
-        )
-    elif not feasible:
-        stato = "clampato"
-    else:
-        stato = (
-            f"saving {fmt_it(summary['saving'], 1, '%')} · "
-            f"netti {fmt_it(net_smch, 1)}"
-        )
-
-    res = {"Mese": row["Mese"], "Ore": int(hours)}
-    for n in active_feeds:
-        res[n] = all_masses.get(n, 0.0)
-    res["Totale biomasse (t)"] = sum(all_masses.values())
-    res["Sm³ lordi"] = summary["nm3_gross"]
-    res["Sm³ netti"] = summary["nm3_net"]
-    res["MWh netti"] = summary["mwh_net"]
-    if IS_CHP:
-        # In modalita' CHP: MWh_netti rappresenta l'energia CH4 equivalente
-        # entrante nel cogeneratore → split in elettrico + termico.
-        # MWh_el_lordo = CH4 × η_el (ai morsetti alternatore)
-        # MWh_el_netto = lordo × (1 − aux%) (immessi in rete, fatturabili)
-        _mwh_el_lordo = summary["mwh_net"] * eta_el
-        res["MWh elettrici lordi"] = _mwh_el_lordo
-        res["MWh elettrici netti"] = _mwh_el_lordo * (1.0 - aux_el_pct)
-        res["MWh termici"] = summary["mwh_net"] * eta_th
-        # kW lordi medi sull'ora = MWh_el_lordi × 1000 / Ore
-        # E' la metrica chiave per il vincolo CHP: deve restare <= plant_kwe
-        # (potenza LORDA targa motore). Quando l'utente lavora in modalita'
-        # CHP, vede "kW lordi" invece di "Sm3/h netti" perche' e' la grandezza
-        # rilevante autorizzativa.
-        res["kW lordi medi"] = (
-            (_mwh_el_lordo * 1000.0 / hours) if hours > 0 else 0.0
-        )
-    res["GHG (gCO₂/MJ)"] = summary["e_w"]
-    res["Saving %"] = summary["saving"]
-    res["Sm³/h netti"] = net_smch
-    res["Validità"] = validita
-    res["Note"] = stato
-    results.append(res)
-
-df_res = pd.DataFrame(results)
-
-# ------------------------- TABELLA UNICA EDITABILE -------------------------
-# TUTTE le colonne sono TextColumn con numeri in formato italiano (1.234,56).
-# Le celle editabili (Ore + biomasse fisse) vengono riparseate con parse_it()
-# che accetta '1.234,56', '1234,56' o '1234.56'.
-df_disp = df_res.copy()
-
-# Editabili -> pre-formattate in italiano
-df_disp["Ore"] = df_disp["Ore"].apply(lambda v: fmt_it(v, 0))
-for f in fixed_feeds:
-    df_disp[f] = df_disp[f].apply(lambda v: fmt_it(v, 1))
-
-# Read-only -> pre-formattate in italiano
-for u in unknown_feeds:
-    df_disp[u] = df_disp[u].apply(lambda v: fmt_it(v, 1))
-df_disp["Totale biomasse (t)"] = df_disp["Totale biomasse (t)"].apply(lambda v: fmt_it(v, 0))
-df_disp["Sm³ lordi"]   = df_disp["Sm³ lordi"].apply(lambda v: fmt_it(v, 0))
-df_disp["Sm³ netti"]   = df_disp["Sm³ netti"].apply(lambda v: fmt_it(v, 0))
-df_disp["MWh netti"]   = df_disp["MWh netti"].apply(lambda v: fmt_it(v, 1))
-if IS_CHP:
-    df_disp["MWh elettrici lordi"] = df_disp["MWh elettrici lordi"].apply(
-        lambda v: fmt_it(v, 1)
-    )
-    df_disp["MWh elettrici netti"] = df_disp["MWh elettrici netti"].apply(
-        lambda v: fmt_it(v, 1)
-    )
-    df_disp["MWh termici"] = df_disp["MWh termici"].apply(
-        lambda v: fmt_it(v, 1)
-    )
-    # kW lordi medi: vincolo CHP (<= plant_kwe targa motore)
-    df_disp["kW lordi medi"] = df_disp["kW lordi medi"].apply(
-        lambda v: fmt_it(v, 0)
-    )
-df_disp["GHG (gCO₂/MJ)"] = df_disp["GHG (gCO₂/MJ)"].apply(lambda v: fmt_it(v, 2))
-df_disp["Saving %"]    = df_disp["Saving %"].apply(lambda v: fmt_it(v, 1, "%"))
-df_disp["Sm³/h netti"] = df_disp["Sm³/h netti"].apply(lambda v: fmt_it(v, 1))
-
-col_cfg = {
-    "Mese": st.column_config.TextColumn("Mese", disabled=True),
-    "Ore": st.column_config.TextColumn(
-        "Ore ✏️",
-        help="Ore operative del mese (modificabile, max 744)",
-    ),
-}
-for f in fixed_feeds:
-    col_cfg[f] = st.column_config.TextColumn(
-        f"{f} ✏️ (t)",
-        help=f"INPUT – formato italiano (es. 1.800,0) – "
-             f"Resa {fmt_it(_yield_of(f), 0)} Nm³/t FM",
-    )
-for u in unknown_feeds:
-    col_cfg[u] = st.column_config.TextColumn(
-        f"{u} 🧮 (t)",
-        disabled=True,
-        help=f"CALCOLATA dal solver – Resa {fmt_it(_yield_of(u), 0)} Nm³/t FM",
-    )
-col_cfg["Totale biomasse (t)"] = st.column_config.TextColumn("Tot. t", disabled=True)
-_lbl_lordo_col = "Sm³ CH₄ lordi" if IS_CHP else "Sm³ lordi"
-_lbl_netto_col = "Sm³ CH₄ motore" if IS_CHP else "Sm³ netti"
-col_cfg["Sm³ lordi"]   = st.column_config.TextColumn(
-    _lbl_lordo_col, disabled=True,
-    help=("CH₄ equivalente prodotto dalle biomasse (pre-perdite)"
-          if IS_CHP else "Sm³ biometano lordi (pre-perdite upgrading/processo)"),
-)
-col_cfg["Sm³ netti"]   = st.column_config.TextColumn(
-    _lbl_netto_col, disabled=True,
-    help=("CH₄ effettivamente bruciato dal cogeneratore (post-perdite)"
-          if IS_CHP else "Sm³ biometano immessi in rete (post-aux_factor)"),
-)
-col_cfg["MWh netti"]   = st.column_config.TextColumn(
-    "MWh_CH₄ netti" if IS_CHP else "MWh netti",
-    disabled=True,
-    help=("Energia CH₄ in ingresso al cogeneratore (pre-conversione elettrica)"
-          if IS_CHP else "Energia biometano netta immessa in rete"),
-)
-if IS_CHP:
-    col_cfg["MWh elettrici lordi"] = st.column_config.TextColumn(
-        "MWh_el lordi", disabled=True,
-        help="MWh elettrici ai morsetti alternatore = MWh_CH₄ × η_el. "
-             "Non fatturabili: occorre sottrarre gli autoconsumi ausiliari.",
-    )
-    col_cfg["MWh elettrici netti"] = st.column_config.TextColumn(
-        "MWh_el netti rete", disabled=True,
-        help="MWh elettrici NETTI immessi in rete = lordi × (1 − aux%). "
-             "Base di calcolo della tariffa T.O. GSE.",
-    )
-    col_cfg["MWh termici"] = st.column_config.TextColumn(
-        "MWh_th", disabled=True,
-        help="MWh termici recuperati dal CHP = MWh_CH₄ × η_th. "
-             "Utilizzabili per digestori, teleriscaldamento, processo.",
-    )
-    # kW lordi medi: il VINCOLO autorizzativo CHP (vs plant_kwe targa).
-    col_cfg["kW lordi medi"] = st.column_config.TextColumn(
-        "kW lordi (medi)", disabled=True,
-        help=f"Potenza media oraria ai morsetti alternatore "
-             f"(MWh_el lordi × 1000 / Ore). "
-             f"VINCOLO normativo: ≤ {fmt_it(plant_kwe, 0)} kWe LORDI "
-             f"(targa motore — dato di autorizzazione).",
-    )
-col_cfg["GHG (gCO₂/MJ)"] = st.column_config.TextColumn(
-    "e_w", disabled=True, help="Emissioni pesate gCO₂eq/MJ",
-)
-col_cfg["Saving %"] = st.column_config.TextColumn(
-    "Saving %", disabled=True,
-    help=f"Obbligatorio ≥ {fmt_it(ghg_threshold*100, 0, '%')} (RED III – {end_use})",
-)
-# Sm³/h netti: visibile in biometano (vincolo autorizzativo).
-# In CHP il vincolo e' kW lordi (mostrato sopra), Sm³/h CH4 e' solo
-# informativo (CH4 al motore) - lo lasciamo nascosto al display tabella
-# per ridurre rumore. La taglia CH4 motore e' gia' visibile in sidebar.
-if IS_CHP:
-    # Nascondiamo Sm³/h netti dalla vista (esiste in df_res ma non
-    # appare in df_disp grazie a column_order).
-    col_cfg["Sm³/h netti"] = st.column_config.TextColumn(
-        "Sm³/h CH₄ motore", disabled=True,
-        help=f"Flusso CH₄ al motore = MWh_CH₄ × 1000 / (Ore × {fmt_it(NM3_TO_MWH*1000, 2)}). "
-             f"Info-only (il vincolo CHP e' kW lordi a sinistra). "
-             f"Equivale a {fmt_it(plant_net_smch, 0)} Sm³/h come dato "
-             f"di dimensionamento.",
-    )
-else:
-    col_cfg["Sm³/h netti"] = st.column_config.TextColumn(
-        "Sm³/h netti", disabled=True,
-        help=f"Obbligatorio ≤ {fmt_it(plant_net_smch, 0)} (tetto autorizzativo)",
-    )
-col_cfg["Validità"] = st.column_config.TextColumn("Validità", disabled=True, width="medium")
-col_cfg["Note"] = st.column_config.TextColumn("Note", disabled=True, width="medium")
-
-edited = st.data_editor(
-    df_disp,
-    column_config=col_cfg,
-    hide_index=True,
-    use_container_width=True,
-    num_rows="fixed",
-    height=470,
-    key=f"editor_unified_{state_key}",
-)
-
-# --- Se l'utente ha modificato una cella editabile, aggiorna state e rerun
-# Le celle editabili sono TextColumn: parse_it() gestisce formato italiano.
-edit_cols = ["Mese", "Ore"] + fixed_feeds
-new_input = edited[edit_cols].reset_index(drop=True).copy()
-# Clamp: ore e masse devono essere >= 0 (niente valori negativi inseriti
-# per errore). Ore max 744 (mese piu' lungo) non applicata come hard-cap
-# per consentire future simulazioni di turni doppi/extra manutenzione.
-new_input["Ore"] = new_input["Ore"].apply(parse_it).clip(lower=0).astype(int)
-for f in fixed_feeds:
-    new_input[f] = new_input[f].apply(parse_it).clip(lower=0).astype(float)
-
-old_input = input_df[edit_cols].reset_index(drop=True).copy()
-old_input["Ore"] = old_input["Ore"].astype(int)
-for f in fixed_feeds:
-    old_input[f] = old_input[f].astype(float)
-
-if not new_input.equals(old_input):
-    st.session_state[state_key] = new_input
-    st.rerun()
-
-if warnings_list:
-    st.warning(_t("⚠️ Mesi con problemi di fattibilità:") + "\n\n" + "\n\n".join(f"- {w}" for w in warnings_list))
-
-# ------------------------- SINTESI -------------------------
-st.subheader(_t("📈 Sintesi annuale"))
-c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Tot. biomasse (t/anno)",
-          fmt_it(df_res["Totale biomasse (t)"].sum(), 0))
-if IS_CHP:
-    c2.metric("Sm³ CH₄ motore (anno)",
-              fmt_it(df_res["Sm³ netti"].sum(), 0),
-              help="CH₄ equivalente effettivamente bruciato dal cogeneratore")
-    c3.metric("MWh_el netti rete (anno)",
-              fmt_it(df_res["MWh elettrici netti"].sum(), 0),
-              help="Energia elettrica NETTA immessa in rete (post-aux)")
-else:
-    c2.metric("Sm³ netti (anno)",
-              fmt_it(df_res["Sm³ netti"].sum(), 0))
-    c3.metric("MWh netti (anno)",
-              fmt_it(df_res["MWh netti"].sum(), 0))
-c4.metric("Saving medio (%)",
-          fmt_it(df_res["Saving %"].mean(), 1))
-valid_months = df_res["Validità"].str.startswith("✅").sum()
-c5.metric(_t("Mesi validi"), f"{valid_months}/12",
-          delta="OK" if valid_months == 12 else f"{12-valid_months}{_t(' NON validi')}",
-          delta_color="normal" if valid_months == 12 else "inverse")
-
-# ------------------------- GRAFICI -------------------------
-# Tab "Business Plan" visibile solo in DM 2022 (BP applicabile)
-if IS_DM2022:
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        _t("🌾 Biomasse per mese"),
-        _t("🌍 Sostenibilità"),
-        _t("⚡ Produzione"),
-        _t("🥧 Mix annuale"),
-        _t("💼 Business Plan"),
-    ])
-else:
-    tab1, tab2, tab3, tab4 = st.tabs([
-        _t("🌾 Biomasse per mese"),
-        _t("🌍 Sostenibilità"),
-        _t("⚡ Produzione"),
-        _t("🥧 Mix annuale"),
-    ])
-    tab5 = None
-
-with tab1:
-    df_melt = df_res.melt(
-        id_vars="Mese", value_vars=active_feeds,
-        var_name="Biomassa", value_name="t/mese",
-    )
-    fig = px.bar(
-        df_melt, x="Mese", y="t/mese", color="Biomassa",
-        color_discrete_map={n: FEEDSTOCK_DB[n]["color"] for n in active_feeds},
-        title="Ripartizione mensile biomasse",
-    )
-    fig.update_layout(barmode="stack", height=450)
-    apply_metaniq_theme(fig, dark=IS_DARK)
-    st.plotly_chart(fig, use_container_width=True)
-
-with tab2:
-    fig2 = go.Figure()
-    fig2.add_trace(go.Bar(
-        x=df_res["Mese"], y=df_res["Saving %"],
-        marker=dict(
-            color=df_res["Saving %"],
-            colorscale=[[0, "#E53935"], [0.5, "#FDD835"], [1, "#43A047"]],
-            cmin=70, cmax=100,
-            colorbar=dict(title="Saving %"),
-        ),
-        text=[fmt_it(v, 1, "%") for v in df_res["Saving %"]],
-        textposition="outside",
-    ))
-    fig2.add_hline(y=ghg_threshold*100, line_dash="dash", line_color="red",
-                   annotation_text=f"Soglia RED III {fmt_it(ghg_threshold*100, 0, '%')}",
-                   annotation_position="top right")
-    fig2.add_hline(y=target_saving*100, line_dash="dot", line_color="green",
-                   annotation_text=f"Target solver {fmt_it(target_saving*100, 0, '%')}",
-                   annotation_position="bottom right")
-    fig2.update_layout(title="Saving GHG mensile (%)",
-                       yaxis_title="Saving (%)", height=450,
-                       yaxis=dict(range=[60, 160]))
-    apply_metaniq_theme(fig2, dark=IS_DARK)
-    st.plotly_chart(fig2, use_container_width=True)
-
-with tab3:
-    # Etichette numeriche leggibili coerenti con la tabella (formato IT: 287.928)
-    lordi_vals = df_res["Sm³ lordi"].astype(float)
-    netti_vals = df_res["Sm³ netti"].astype(float)
-    lordi_labels = [fmt_it(v, 0) for v in lordi_vals]
-    netti_labels = [fmt_it(v, 0) for v in netti_vals]
-
-    _lbl_lordo = (
-        "Sm³ CH₄ lordi (biomasse)" if IS_CHP else "Sm³ lordi (biomasse)"
-    )
-    _lbl_netto = (
-        "Sm³ CH₄ al motore" if IS_CHP else "Sm³ netti (immessi in rete)"
-    )
-    _lbl_title = (
-        "Produzione mensile CH₄ equivalente (biogas CHP)" if IS_CHP
-        else "Produzione mensile Sm³"
-    )
-    fig3 = go.Figure()
-    fig3.add_trace(go.Bar(
-        x=df_res["Mese"], y=lordi_vals,
-        name=_lbl_lordo, marker_color="#94A3B8",
-        text=lordi_labels, textposition="outside",
-        hovertemplate=f"<b>%{{x}}</b><br>{_lbl_lordo}: %{{text}}<extra></extra>",
-    ))
-    fig3.add_trace(go.Bar(
-        x=df_res["Mese"], y=netti_vals,
-        name=_lbl_netto, marker_color=NAVY,
-        text=netti_labels, textposition="outside",
-        hovertemplate=f"<b>%{{x}}</b><br>{_lbl_netto}: %{{text}}<extra></extra>",
-    ))
-    fig3.update_layout(
-        title=f"{_lbl_title}  (aux_factor = {fmt_it(aux_factor, 2)})",
-        barmode="group", height=500,
-        yaxis_title="Sm³ / mese",
-        yaxis=dict(tickformat=",.0f", separatethousands=True),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    )
-    apply_metaniq_theme(fig3, dark=IS_DARK)
-    st.plotly_chart(fig3, use_container_width=True)
-
-    st.caption(
-        f"📐 **Dimensionamento**: Sm³ lordi = {fmt_it(plant_net_smch, 0)} × "
-        f"{fmt_it(aux_factor, 2)} × ore_mese · "
-        f"Sm³ netti = Sm³ lordi ÷ {fmt_it(aux_factor, 2)} = "
-        f"{fmt_it(plant_net_smch, 0)} × ore_mese. "
-        "Stessi numeri riportati in tabella (colonne «Sm³ lordi» e «Sm³ netti»)."
-    )
-
-with tab4:
-    # Mix in tonnellate (FM)
-    annual_t = {n: max(df_res[n].sum(), 0) for n in active_feeds}
-    # Mix in MWh netti: ogni biomassa contribuisce in proporzione a (massa x yield)
-    # MWh_netti_n = massa_n x yield_n / aux_factor x NM3_TO_MWH
-    annual_mwh = {
-        n: max(df_res[n].sum(), 0) * _yield_of(n)
-           / aux_factor * NM3_TO_MWH
-        for n in active_feeds
-    }
-    color_map = {n: FEEDSTOCK_DB[n]["color"] for n in active_feeds}
-
-    colA, colB = st.columns(2)
-    with colA:
-        fig4a = px.pie(
-            names=list(annual_t.keys()),
-            values=list(annual_t.values()),
-            color=list(annual_t.keys()),
-            color_discrete_map=color_map,
-            title=f"Mix t/anno (totale {fmt_it(sum(annual_t.values()), 0)} t)",
-            hole=0.4,
-        )
-        fig4a.update_traces(textposition="inside", textinfo="percent+label")
-        apply_metaniq_theme(fig4a, dark=IS_DARK)
-        st.plotly_chart(fig4a, use_container_width=True)
-
-    with colB:
-        _pie_mwh_label = (
-            "MWh_el netti rete" if IS_CHP else "MWh netti"
-        )
-        _pie_total = (
-            sum(annual_mwh.values()) * eta_el * (1.0 - aux_el_pct)
-            if IS_CHP else sum(annual_mwh.values())
-        )
-        _pie_values = (
-            [v * eta_el * (1.0 - aux_el_pct) for v in annual_mwh.values()]
-            if IS_CHP else list(annual_mwh.values())
-        )
-        fig4b = px.pie(
-            names=list(annual_mwh.keys()),
-            values=_pie_values,
-            color=list(annual_mwh.keys()),
-            color_discrete_map=color_map,
-            title=f"Mix {_pie_mwh_label}/anno "
-                  f"(totale {fmt_it(_pie_total, 0)} MWh)",
-            hole=0.4,
-        )
-        fig4b.update_traces(textposition="inside", textinfo="percent+label")
-        apply_metaniq_theme(fig4b, dark=IS_DARK)
-        st.plotly_chart(fig4b, use_container_width=True)
-
-    # ============================================================
-    # CALCOLO STATUS AVANZATO IMPIANTO (solo DM 2018)
-    # ============================================================
-    # Quota in MASSA Annex IX vs totale -> classificazione plant-level
-    _tot_t = sum(annual_t.values())
-    if _tot_t > 0:
-        _t_annex = sum(
-            t for n, t in annual_t.items()
-            if FEEDSTOCK_DB[n].get("annex_ix") in ("A", "B")
-        )
-        annex_mass_share = _t_annex / _tot_t
-    else:
-        annex_mass_share = 0.0
-
-    if IS_DM2018:
-        if advanced_mode == "Forza AVANZATO (override manuale)":
-            is_advanced = True
-        elif advanced_mode == "Forza NON avanzato (override manuale)":
-            is_advanced = False
-        else:  # auto da quota Annex IX in massa
-            is_advanced = annex_mass_share >= annex_threshold
-        # CIC double counting attivo SOLO se end_use ammette CIC
-        # (trasporti) E impianto avanzato.
-        _cic_premium_use = DM2018_END_USES[end_use]["cic_premium"]
-        cic_double = is_advanced and _cic_premium_use
-        cic_active  = _cic_premium_use  # CIC system in use (single or double)
-    else:
-        is_advanced  = False
-        cic_double   = False
-        cic_active   = False
-
-    # ============================================================
-    # CALCOLO STATUS FER 2 (matrice >=80% sottoprodotti)
-    # ============================================================
-    if IS_FER2:
-        # Stessa logica della quota Annex IX in massa: i sottoprodotti
-        # FER 2 = tutti i feedstock con annex_ix in ("A","B").
-        # Le colture dedicate (annex_ix=None) NON contano come sottoprodotti.
-        fer2_subprod_share = annex_mass_share  # alias semantico
-        fer2_qualified = fer2_subprod_share >= fer2_matrice_threshold
-        # Premi effettivi (toggle utente AND condizione fisica)
-        fer2_apply_matrice = fer2_premio_matrice_attivo and fer2_qualified
-        fer2_apply_car = fer2_premio_car_attivo
-        fer2_tariffa_eff = (
-            fer2_tariffa_base
-            + (fer2_premio_matrice_eur if fer2_apply_matrice else 0.0)
-            + (fer2_premio_car_eur if fer2_apply_car else 0.0)
-        )
-    else:
-        fer2_subprod_share   = 0.0
-        fer2_qualified       = False
-        fer2_apply_matrice   = False
-        fer2_apply_car       = False
-        fer2_tariffa_eff     = 0.0
-
-    # ============================================================
-    # TARIFFA PER BIOMASSA — applicabile solo se NON in regime CIC
-    # ============================================================
-    # In regime CIC (DM 2018 trasporti) il prezzo e' unico per tutto il
-    # biometano (cic_price € per CIC), non personalizzato per biomassa.
-    # In regime FER 2 la tariffa e' calcolata da TR + premi (uniforme),
-    # ma resta editabile per biomassa per scenari custom.
-    if IS_FER2:
-        _tar_unit = "€/MWh_el"
-        _tar_default = fer2_tariffa_eff
-    elif IS_CHP:
-        _tar_unit = "€/MWh_el"
-        _tar_default = 280.0
-    elif IS_DM2018 and not cic_active:
-        _tar_unit = "€/MWh"
-        _tar_default = 110.0   # DM 2018 altri usi/CAR: tariffa base
-    else:
-        _tar_unit = "€/MWh"
-        _tar_default = 120.0
     st.markdown(
-        f"##### 💶 Dettaglio per tipologia di biomassa"
-        + (
-            f" (regime CIC unico — tariffa €/MWh non applicabile per biomassa)"
-            if cic_active else f" (tariffa {_tar_unit} editabile ✏️)"
-        )
+        f"##### ⚡ {_t('Auto-calcolo ottimale')} – {_t('enumera le')} **{_n_combinations} {_t('combinazioni')}** "
+        f"{_t('possibili tra le')} {N_active} {_t('biomasse attive e minimizza la massa totale')} "
+        f"({_t('saving')} ≥ {fmt_it(ghg_threshold*100, 0, '%')}, {_t('produzione')} = {_prod_label})"
     )
-    if IS_FER2:
-        # Box riepilogo FER 2
-        if fer2_qualified:
-            st.success(
-                f"🔋 **FER 2 · QUOTA MATRICE OK** "
-                f"({fmt_it(fer2_subprod_share*100, 1, '%')} sottoprodotti, "
-                f"soglia {fmt_it(fer2_matrice_threshold*100, 0, '%')}). "
-                f"Tariffa effettiva: "
-                f"**{fmt_it(fer2_tariffa_base, 0)} TR**"
-                + (f" **+ {fmt_it(fer2_premio_matrice_eur, 0)} matrice**"
-                   if fer2_apply_matrice else
-                   f" + ~~{fmt_it(fer2_premio_matrice_eur, 0)} matrice~~")
-                + (f" **+ {fmt_it(fer2_premio_car_eur, 0)} CAR**"
-                   if fer2_apply_car else
-                   f" + ~~{fmt_it(fer2_premio_car_eur, 0)} CAR~~")
-                + f" = **{fmt_it(fer2_tariffa_eff, 0)} €/MWh_el**. "
-                f"Periodo incentivo: {FER2_PERIODO_ANNI} anni."
+    optimize_clicked = st.button(
+        "🚀 OTTIMIZZA  (minimizza massa totale biomasse)",
+        help=f"Enumera le C({N_active},2) = {_n_combinations} coppie di biomasse attive + "
+             f"{N_active} soluzioni mono, sceglie quella con massa totale minima che "
+             "soddisfa entrambi i vincoli (produzione + saving GHG). "
+             "Le biomasse non selezionate vengono azzerate.",
+        use_container_width=True,
+        type="primary",
+        key="btn_optimize",
+    )
+    st.divider()
+
+    # --- Gestione click OTTIMIZZA ----------------------------------------------
+    # Salva solo un flag "_pending_optimization" (chiave NON-widget) e fa rerun:
+    # al giro successivo il blocco sopra imposta i widget PRIMA che vengano creati.
+    if optimize_clicked:
+        best = find_optimal_pair(
+            aux=aux_factor, plant_net=plant_net_smch,
+            ep=ep_total, target_e_max=target_e_max,
+            feed_list=active_feeds,
+        )
+        if best is None:
+            _tip_impianto = (
+                "stoccaggio digestato coperto con recupero gas, recupero calore "
+                "CHP per digestori, ottimizzare autoconsumi elettrici"
+            ) if IS_CHP else (
+                "stoccaggio digestato coperto, upgrading a membrane/amminico, "
+                "off-gas RTO"
             )
-        else:
+            _unit_prod = (
+                f"{fmt_it(plant_kwe, 0)} kW_el lordi "
+                f"({fmt_it(plant_kwe_net, 0)} kW_el netti rete)"
+                if IS_CHP
+                else f"{fmt_it(plant_net_smch, 0)} Sm³/h"
+            )
             st.error(
-                f"❌ **FER 2 · QUOTA MATRICE INSUFFICIENTE** "
-                f"({fmt_it(fer2_subprod_share*100, 1, '%')} sottoprodotti vs "
-                f"soglia richiesta {fmt_it(fer2_matrice_threshold*100, 0, '%')}). "
-                f"Premio matrice DISATTIVATO. Riduci la quota di colture "
-                f"dedicate (cap normativo 20%) o aumenta sottoprodotti/effluenti. "
-                f"Tariffa effettiva: **{fmt_it(fer2_tariffa_eff, 0)} €/MWh_el**."
-            )
-    elif IS_CHP:
-        st.caption(
-            "⚡ **Modalità Biogas CHP DM 6/7/2012**: tariffa €/MWh_el "
-            "applicata ai **MWh elettrici NETTI immessi in rete** "
-            f"(= MWh_el lordi × (1 − aux%), con aux = {fmt_it(aux_el_pct*100, 1, '%')}). "
-            "Default **280 €/MWh** (TO base DM 6/7/2012 per biogas agricolo "
-            "<1 MW + premio CAR + premio matrice sottoprodotti). "
-            "Modificabile per scenari FER-X, PPA, vendita spot."
-        )
-    elif IS_DM2018 and cic_active:
-        if is_advanced:
-            st.success(
-                f"🌿 **DM 2018 · BIOMETANO AVANZATO** "
-                f"(quota Annex IX in massa: "
-                f"{fmt_it(annex_mass_share*100, 1, '%')}, soglia "
-                f"{fmt_it(annex_threshold*100, 0, '%')}). "
-                f"Sistema CIC con **double counting**: 1 CIC ogni "
-                f"{fmt_it(MWH_PER_CIC/2, 2)} MWh "
-                f"({fmt_it(GCAL_PER_CIC/2, 0)} Gcal). "
-                f"Valore CIC: **{fmt_it(cic_price, 0)} €/CIC**."
+                "❌ Nessuna combinazione delle biomasse attive riesce a soddisfare "
+                f"simultaneamente saving ≥ {fmt_it(ghg_threshold*100, 0, '%')} e "
+                f"produzione {_unit_prod} con la configurazione "
+                f"ep attuale ({fmt_it(ep_total, 1, signed=True)} gCO₂/MJ). "
+                "Prova ad: aggiungere biomasse a manure credit (liquami/letami), "
+                f"migliorare la configurazione impianto ({_tip_impianto}), "
+                "oppure abbassare il setpoint produttivo."
             )
         else:
-            st.warning(
-                f"⚠️ **DM 2018 · BIOMETANO NON AVANZATO** "
-                f"(quota Annex IX in massa: "
-                f"{fmt_it(annex_mass_share*100, 1, '%')}, sotto soglia "
-                f"{fmt_it(annex_threshold*100, 0, '%')}). "
-                f"Sistema CIC **senza** double counting: 1 CIC ogni "
-                f"{fmt_it(MWH_PER_CIC, 2)} MWh "
-                f"({fmt_it(GCAL_PER_CIC, 0)} Gcal). "
-                f"Valore CIC: **{fmt_it(cic_price, 0)} €/CIC**."
-            )
-    elif IS_DM2018 and not cic_active:
-        st.info(
-            f"ℹ️ **DM 2018 · {end_use}**: regime tariffa diretta €/MWh "
-            f"(non CIC). Modifica le tariffe per biomassa qui sotto "
-            f"per simulare scenari diversi."
-        )
+            pair, total_h, masses_h = best
+            # Se solo una biomassa ha massa > 0 -> ottimo MONO
+            active_masses = [n for n, v in masses_h.items() if v > 1e-9]
+            is_mono = len(active_masses) == 1
+            unused = [n for n in active_feeds if n not in pair]
+            annual_hours = sum(MONTH_HOURS)
+            st.session_state["_pending_optimization"] = {
+                "pair": list(pair),
+                "unused": unused,
+                "total_year": total_h * annual_hours,
+                "is_mono": is_mono,
+                "mono": active_masses[0] if is_mono else None,
+            }
+            st.rerun()
 
-    # Stato persistente: tariffe per biomassa (separate per mode).
-    # In FER 2 la tariffa e' uniforme (TR+premi) e calcolata dinamicamente:
-    # forziamo ogni run a fer2_tariffa_eff per riflettere subito le modifiche
-    # sidebar (TR, premi). Niente cache per biomassa.
-    _tar_key = f"tariffs_eur_mwh_{APP_MODE}"
-    if IS_FER2:
-        st.session_state[_tar_key] = {n: fer2_tariffa_eff for n in active_feeds}
+    # -------- SMART SOLVER MENU --------------------------------------------------
+
+    st.caption(_t("Le biomasse NON selezionate verranno calcolate automaticamente dal sistema. Lasciane 1 fuori per centrare la produzione, lasciane 2 fuori per centrare produzione e saving. Selezionale tutte per una pura simulazione."))
+
+    default_fixed = active_feeds[:min(2, N_active)]
+    prev_default = st.session_state.get("fixed_multiselect", [])
+    if not all(p in active_feeds for p in prev_default):
+        st.session_state["fixed_multiselect"] = default_fixed
+
+    fixed_feeds = st.multiselect(
+        _t("Biomasse manuali"),
+        options=active_feeds,
+        default=default_fixed if "fixed_multiselect" not in st.session_state else None,
+        help=_t("Scegli le biomasse fisse."),
+        key="fixed_multiselect"
+    )
+
+    unknown_feeds = [n for n in active_feeds if n not in fixed_feeds]
+
+    if len(unknown_feeds) > 2:
+        st.warning(_t("Il sistema può risolvere al massimo 2 incognite (produzione + saving). Seleziona più biomasse manuali."))
+        st.stop()
+
+    # Info Banner depending on unknowns
+    if len(unknown_feeds) == 2:
+        st.info(f"**{_t('Modalità dual-constraint')}**: {_t('il solver calcola')} **{unknown_feeds[0]}** e **{unknown_feeds[1]}** {_t('per ottenere saving')} **{fmt_it(target_saving*100, 0, '%')}** e {_t('produzione')} **{_prod_label}**.")
+    elif len(unknown_feeds) == 1:
+        st.info(f"**{_t('Modalità produzione-only')}**: {_t('il sistema calcola')} **{unknown_feeds[0]}** {_t('per chiudere la produzione')}. {_t('Il saving sarà una conseguenza.')}")
     else:
-        if _tar_key not in st.session_state:
-            st.session_state[_tar_key] = {n: _tar_default for n in active_feeds}
-        # Retrocompat: se mancano chiavi per nuove biomasse
-        for n in active_feeds:
-            if n not in st.session_state[_tar_key]:
-                st.session_state[_tar_key][n] = _tar_default
+        st.info(f"**{_t('Modalità simulazione')}**: {_t('nessuna incognita. Inserisci tutte le quantità manualmente in tabella per vedere i risultati.')}")
 
-    # MWh totale (base CIC nel caso DM 2018)
-    _tot_mwh_basis_raw = sum(annual_mwh.values())  # MWh CH4 netto per biometano
+    is_dual_mode = (len(unknown_feeds) == 2)
 
-    detail_rows = []
-    pdf_revenue_rows = []  # raw numerics per il report PDF
-    tot_n_cic = 0.0
-    for n in active_feeds:
-        t = annual_t[n]
-        nm3_lordi = t * _yield_of(n)  # resa effettiva (BMT override se attivo)
-        nm3_netti = nm3_lordi / aux_factor
-        mwh_netti = nm3_netti * NM3_TO_MWH
+    # ------------------------- TABELLA UNIFICATA (input + risultati) -------------------------
 
-        # --- Calcolo ricavi mode-aware ---
-        if IS_CHP:
-            mwh_el_lordo = mwh_netti * eta_el
-            mwh_el_netto_rete = mwh_el_lordo * (1.0 - aux_el_pct)
-            mwh_revenue = mwh_el_netto_rete  # tariffa T.O. applicata al netto rete
-            tariffa = st.session_state[_tar_key][n]
-            ricavi = mwh_revenue * tariffa
-            n_cic = 0.0
-        elif IS_DM2018 and cic_active:
-            # CIC SYSTEM: prezzo unico, ricavi = n_CIC * cic_price.
-            # double counting plant-level (vedi cic_double).
-            mwh_el_lordo = 0.0
-            mwh_el_netto_rete = 0.0
-            mwh_revenue = mwh_netti
-            cic_factor = 2.0 if cic_double else 1.0
-            n_cic = (mwh_netti / MWH_PER_CIC) * cic_factor
-            tariffa = cic_price  # informativo, non per biomassa
-            ricavi = n_cic * cic_price
-        else:
-            # DM 2022 o DM 2018 altri usi: tariffa diretta €/MWh
-            mwh_el_lordo = 0.0
-            mwh_el_netto_rete = 0.0
-            mwh_revenue = mwh_netti
-            tariffa = st.session_state[_tar_key][n]
-            ricavi = mwh_revenue * tariffa
-            n_cic = 0.0
-        tot_n_cic += n_cic
-        quota = ((mwh_netti / _tot_mwh_basis_raw * 100)
-                 if _tot_mwh_basis_raw > 0 else 0)
-        pdf_revenue_rows.append((n, {
-            "t_anno": t,
-            "yield": _yield_of(n),  # resa effettiva (BMT override se attivo)
-            "mwh_netti": mwh_netti,
-            "mwh_basis": mwh_revenue,  # base ricavi
-            "tariffa": tariffa,
-            "ricavi": ricavi,
-            "quota": quota,
-            "annex_ix": FEEDSTOCK_DB[n].get("annex_ix"),
-            "n_cic": n_cic,
-        }))
-        row_detail = {
-            "Biomassa": n,
-            "t/anno (FM)":     fmt_it(t, 0),
-            "Resa (Nm³/t)":    fmt_it(_yield_of(n), 0),  # resa effettiva
-            "Sm³ netti/anno":  fmt_it(nm3_netti, 0),
-            "MWh netti/anno":  fmt_it(mwh_netti, 1),
-        }
-        if IS_CHP:
-            row_detail["MWh_el lordi/anno"] = fmt_it(mwh_el_lordo, 1)
-            row_detail["MWh_el netti rete/anno"] = fmt_it(mwh_el_netto_rete, 1)
-            row_detail["MWh termici/anno"] = fmt_it(mwh_netti * eta_th, 1)
-        if IS_DM2018:
-            _aix = FEEDSTOCK_DB[n].get("annex_ix")
-            row_detail["Annex IX"] = (
-                "✅ A" if _aix == "A" else
-                "✅ B" if _aix == "B" else
-                "—"
+
+    # Valori di default plausibili per biomasse comuni; fallback generico per il resto
+    # (il cliente li riaggiusta a mano in tabella mensile)
+    defaults_all = {
+        "Trinciato di mais": 1800.0,
+        "Trinciato di sorgo": 400.0,
+        "Pollina ovaiole (aerobico)": 300.0,
+        "Pollina broiler (lettiera)": 250.0,
+        "Pollina tacchini": 200.0,
+        "Liquame suino": 1500.0,
+        "Liquame bovino": 1200.0,
+        "Liquame bufalino": 1100.0,
+        "Letame bovino palabile": 500.0,
+        "Letame equino": 150.0,
+        "Deiezioni conigli": 100.0,
+        "Triticale insilato": 400.0,
+        "Segale insilata": 300.0,
+        "Orzo insilato": 300.0,
+        "Loietto insilato (ryegrass)": 300.0,
+        "Erba medica insilata": 250.0,
+        "Doppia coltura (2° raccolto)": 500.0,
+        "Barbabietola da zucchero": 300.0,
+        "Sansa di olive umida": 300.0,
+        "Sansa vergine": 200.0,
+        "Pastazzo di agrumi": 250.0,
+        "Vinaccia (con raspi)": 200.0,
+        "Raspi d'uva": 100.0,
+        "Feccia vinicola": 150.0,
+        "Siero di latte": 500.0,
+        "Scotta (siero residuo)": 400.0,
+        "Trebbie di birra": 250.0,
+        "Lolla/pula di riso": 100.0,
+        "Melasso": 150.0,
+        "Scarti panificazione/pasticceria": 100.0,
+        "Grassi esausti / UCO": 50.0,
+        "Scarti macellazione (cat. 3)": 100.0,
+        "Sottoprodotti ortofrutticoli": 300.0,
+        "Scarti caseari vari": 200.0,
+        "Fanghi agro-industriali": 200.0,
+        "Polpe di barbabietola fresche": 400.0,
+        "Polpe di barbabietola insilate": 350.0,
+        "Melasso di barbabietola": 120.0,
+        "FORSU selezionata": 400.0,
+        "Fanghi depurazione": 150.0,
+    }
+    # Fallback: se una biomassa attiva non e' in defaults_all, usa 200 t/mese
+    def _default_mass(feed):
+        return defaults_all.get(feed, 200.0)
+
+    # --- Stato persistente: memorizzo SOLO le colonne editabili (Mese, Ore, fisse).
+    # Chiave state univoca per combinazione mode+fisse+active_feeds, cosi' cambio
+    # biomasse attive -> nuovo state (evita contaminazioni tra configurazioni diverse).
+    _active_hash = str(hash(tuple(sorted(active_feeds))))[:8]
+    state_key = f"mens_in_{len(unknown_feeds)}unk_{_active_hash}_{'-'.join(fixed_feeds)}"
+
+    col_tab_title, col_tab_btn = st.columns([4, 1], vertical_alignment="bottom")
+    with col_tab_title:
+        st.subheader(_t("📆 Tabella mensile – modifica le celle ✏️, il resto si ricalcola"))
+    with col_tab_btn:
+        if st.button("🔄 Resetta", use_container_width=True, help=_t("Ripristina i valori iniziali di default per questa configurazione.")):
+            st.session_state.pop(state_key, None)
+            st.rerun()
+    if state_key not in st.session_state:
+        init_rows = []
+        for m, h in zip(MONTHS, MONTH_HOURS):
+            row = {"Mese": m, "Ore": h}
+            for f in fixed_feeds:
+                row[f] = _default_mass(f)
+            init_rows.append(row)
+        st.session_state[state_key] = pd.DataFrame(init_rows)
+
+    # Retrocompatibilita': se lo state esiste con vecchia colonna target per mese, rimuovo
+    if "Target Sm³/h netti" in st.session_state[state_key].columns:
+        st.session_state[state_key] = st.session_state[state_key].drop(
+            columns=["Target Sm³/h netti"]
+        )
+
+    input_df = st.session_state[state_key]
+
+    # ------------------------- CALCOLI PER MESE -------------------------
+    results = []
+    warnings_list = []
+    for _, row in input_df.iterrows():
+        fixed_map = {n: float(row[n]) for n in fixed_feeds}
+        hours = float(row["Ore"])
+
+        if len(unknown_feeds) >= 2:
+            sol, feasible, msg = solve_2_unknowns_dual(
+                fixed_map, unknown_feeds, hours, aux_factor, plant_net_smch,
+                ep_total, target_e_max,
             )
-            if cic_active:
-                row_detail["CIC/anno"] = fmt_it(n_cic, 2)
-        row_detail["Quota % MWh"] = fmt_it(quota, 1, "%")
-        if cic_active:
-            # In regime CIC mostriamo "Tariffa €/CIC" uniforme (non editabile per riga)
-            row_detail[f"Tariffa €/CIC"] = fmt_it(cic_price, 2)
+            all_masses = {**fixed_map, **sol}
+            if not feasible:
+                warnings_list.append(f"**{row['Mese']}**: {msg}")
+        elif len(unknown_feeds) == 1:
+            computed = solve_1_unknown_production(
+                fixed_map, unknown_feeds[0], hours, aux_factor, plant_net_smch
+            )
+            all_masses = dict(fixed_map)
+            all_masses[unknown_feeds[0]] = max(computed, 0.0)
+            feasible = (computed >= 0)
+            if not feasible:
+                warnings_list.append(
+                    f"**{row['Mese']}**: {unknown_feeds[0]} = {fmt_it(computed, 1)} t (<0). "
+                    f"Le biomasse fisse gia' superano il fabbisogno lordo."
+                )
         else:
-            row_detail[f"Tariffa {_tar_unit}"] = fmt_it(tariffa, 2)
-        row_detail["Ricavi €/anno"] = fmt_it(ricavi, 0, " €")
-        detail_rows.append(row_detail)
-    df_detail = pd.DataFrame(detail_rows)
+            # Simulazione pura: nessuna incognita
+            all_masses = dict(fixed_map)
+            feasible = True
 
-    detail_col_cfg = {
-        "Biomassa":       st.column_config.TextColumn("Biomassa", disabled=True),
-        "t/anno (FM)":    st.column_config.TextColumn("t/anno (FM)", disabled=True),
-        "Resa (Nm³/t)":   st.column_config.TextColumn("Resa Nm³/t", disabled=True),
-        "Sm³ netti/anno": st.column_config.TextColumn("Sm³ netti/anno", disabled=True),
-        "MWh netti/anno": st.column_config.TextColumn("MWh netti/anno", disabled=True),
-        "Quota % MWh":    st.column_config.TextColumn("Quota % MWh", disabled=True),
-        "Ricavi €/anno": st.column_config.TextColumn(
-            "Ricavi €/anno 🧮", disabled=True,
-            help=("CIC × valore CIC" if cic_active
-                  else f"MWh {'elettrici netti rete' if IS_CHP else 'netti'}"
-                       f" × tariffa {_tar_unit}")
-                 + " (si ricalcola al variare dei parametri)",
+        summary = ghg_summary(all_masses, aux_factor, ep_total, FOSSIL_COMPARATOR)
+
+        # Validita' - DUE CONDIZIONI OBBLIGATORIE:
+        #   (1) saving GHG >= soglia RED III (80/70/65% a seconda uso finale),
+        #       calcolato su biometano LORDO (anche la quota autoconsumata dagli
+        #       ausiliari CHP+caldaia deve essere rinnovabile per >=80%).
+        #   (2) produzione netta <= plant_net_smch (taglia autorizzata).
+        net_smch = summary["nm3_net"] / hours if hours > 0 else 0.0
+        # tolleranza 1e-6 per evitare falsi negativi da arrotondamenti float
+        saving_ok = summary["saving"] >= ghg_threshold * 100 - 1e-6
+        prod_ok = net_smch <= plant_net_smch + 0.5   # tolleranza +0.5 Sm3/h
+        target_hit = abs(net_smch - plant_net_smch) < 0.5
+
+        if saving_ok and prod_ok:
+            validita = "✅ Valido"
+        else:
+            motivi = []
+            if not saving_ok:
+                motivi.append(
+                    f"saving {fmt_it(summary['saving'], 1, '%')} < "
+                    f"{fmt_it(ghg_threshold*100, 0, '%')}"
+                )
+            if not prod_ok:
+                motivi.append(
+                    f"netti {fmt_it(net_smch, 1)} > "
+                    f"{fmt_it(plant_net_smch, 0)} Sm³/h (over-autorizz.)"
+                )
+            validita = "❌ Non valido: " + "; ".join(motivi)
+
+        if saving_ok and prod_ok and not target_hit:
+            stato = (
+                f"⚠️ netti {fmt_it(net_smch, 1)} < "
+                f"{fmt_it(plant_net_smch, 0)} (sub-ottimale)"
+            )
+        elif not feasible:
+            stato = "clampato"
+        else:
+            stato = (
+                f"saving {fmt_it(summary['saving'], 1, '%')} · "
+                f"netti {fmt_it(net_smch, 1)}"
+            )
+
+        res = {"Mese": row["Mese"], "Ore": int(hours)}
+        for n in active_feeds:
+            res[n] = all_masses.get(n, 0.0)
+        res["Totale biomasse (t)"] = sum(all_masses.values())
+        res["Sm³ lordi"] = summary["nm3_gross"]
+        res["Sm³ netti"] = summary["nm3_net"]
+        res["MWh netti"] = summary["mwh_net"]
+        if IS_CHP:
+            # In modalita' CHP: MWh_netti rappresenta l'energia CH4 equivalente
+            # entrante nel cogeneratore → split in elettrico + termico.
+            # MWh_el_lordo = CH4 × η_el (ai morsetti alternatore)
+            # MWh_el_netto = lordo × (1 − aux%) (immessi in rete, fatturabili)
+            _mwh_el_lordo = summary["mwh_net"] * eta_el
+            res["MWh elettrici lordi"] = _mwh_el_lordo
+            res["MWh elettrici netti"] = _mwh_el_lordo * (1.0 - aux_el_pct)
+            res["MWh termici"] = summary["mwh_net"] * eta_th
+            # kW lordi medi sull'ora = MWh_el_lordi × 1000 / Ore
+            # E' la metrica chiave per il vincolo CHP: deve restare <= plant_kwe
+            # (potenza LORDA targa motore). Quando l'utente lavora in modalita'
+            # CHP, vede "kW lordi" invece di "Sm3/h netti" perche' e' la grandezza
+            # rilevante autorizzativa.
+            res["kW lordi medi"] = (
+                (_mwh_el_lordo * 1000.0 / hours) if hours > 0 else 0.0
+            )
+        res["GHG (gCO₂/MJ)"] = summary["e_w"]
+        res["Saving %"] = summary["saving"]
+        res["Sm³/h netti"] = net_smch
+        res["Validità"] = validita
+        res["Note"] = stato
+        results.append(res)
+
+    df_res = pd.DataFrame(results)
+
+    # ------------------------- TABELLA UNICA EDITABILE -------------------------
+    # TUTTE le colonne sono TextColumn con numeri in formato italiano (1.234,56).
+    # Le celle editabili (Ore + biomasse fisse) vengono riparseate con parse_it()
+    # che accetta '1.234,56', '1234,56' o '1234.56'.
+    df_disp = df_res.copy()
+
+    # Editabili -> pre-formattate in italiano
+    df_disp["Ore"] = df_disp["Ore"].apply(lambda v: fmt_it(v, 0))
+    for f in fixed_feeds:
+        df_disp[f] = df_disp[f].apply(lambda v: fmt_it(v, 1))
+
+    # Read-only -> pre-formattate in italiano
+    for u in unknown_feeds:
+        df_disp[u] = df_disp[u].apply(lambda v: fmt_it(v, 1))
+    df_disp["Totale biomasse (t)"] = df_disp["Totale biomasse (t)"].apply(lambda v: fmt_it(v, 0))
+    df_disp["Sm³ lordi"]   = df_disp["Sm³ lordi"].apply(lambda v: fmt_it(v, 0))
+    df_disp["Sm³ netti"]   = df_disp["Sm³ netti"].apply(lambda v: fmt_it(v, 0))
+    df_disp["MWh netti"]   = df_disp["MWh netti"].apply(lambda v: fmt_it(v, 1))
+    if IS_CHP:
+        df_disp["MWh elettrici lordi"] = df_disp["MWh elettrici lordi"].apply(
+            lambda v: fmt_it(v, 1)
+        )
+        df_disp["MWh elettrici netti"] = df_disp["MWh elettrici netti"].apply(
+            lambda v: fmt_it(v, 1)
+        )
+        df_disp["MWh termici"] = df_disp["MWh termici"].apply(
+            lambda v: fmt_it(v, 1)
+        )
+        # kW lordi medi: vincolo CHP (<= plant_kwe targa motore)
+        df_disp["kW lordi medi"] = df_disp["kW lordi medi"].apply(
+            lambda v: fmt_it(v, 0)
+        )
+    df_disp["GHG (gCO₂/MJ)"] = df_disp["GHG (gCO₂/MJ)"].apply(lambda v: fmt_it(v, 2))
+    df_disp["Saving %"]    = df_disp["Saving %"].apply(lambda v: fmt_it(v, 1, "%"))
+    df_disp["Sm³/h netti"] = df_disp["Sm³/h netti"].apply(lambda v: fmt_it(v, 1))
+
+    col_cfg = {
+        "Mese": st.column_config.TextColumn("Mese", disabled=True),
+        "Ore": st.column_config.TextColumn(
+            "Ore ✏️",
+            help="Ore operative del mese (modificabile, max 744)",
         ),
     }
-    if cic_active:
-        detail_col_cfg["Tariffa €/CIC"] = st.column_config.TextColumn(
-            "Valore CIC €", disabled=True,
-            help="Prezzo unitario CIC fissato in sidebar. Uniforme per "
-                 "tutto il biometano (no editing per biomassa in regime CIC).",
+    for f in fixed_feeds:
+        col_cfg[f] = st.column_config.TextColumn(
+            f"{f} ✏️ (t)",
+            help=f"INPUT – formato italiano (es. 1.800,0) – "
+                 f"Resa {fmt_it(_yield_of(f), 0)} Nm³/t FM",
         )
-    elif IS_FER2:
-        detail_col_cfg[f"Tariffa {_tar_unit}"] = st.column_config.TextColumn(
-            "Tariffa eff. €/MWh_el", disabled=True,
-            help="Tariffa effettiva FER 2 = TR base + premio matrice "
-                 "(se attivo) + premio CAR (se attivo). Uniforme: "
-                 "modifica TR/premi in sidebar per aggiornare.",
+    for u in unknown_feeds:
+        col_cfg[u] = st.column_config.TextColumn(
+            f"{u} 🧮 (t)",
+            disabled=True,
+            help=f"CALCOLATA dal solver – Resa {fmt_it(_yield_of(u), 0)} Nm³/t FM",
+        )
+    col_cfg["Totale biomasse (t)"] = st.column_config.TextColumn("Tot. t", disabled=True)
+    _lbl_lordo_col = "Sm³ CH₄ lordi" if IS_CHP else "Sm³ lordi"
+    _lbl_netto_col = "Sm³ CH₄ motore" if IS_CHP else "Sm³ netti"
+    col_cfg["Sm³ lordi"]   = st.column_config.TextColumn(
+        _lbl_lordo_col, disabled=True,
+        help=("CH₄ equivalente prodotto dalle biomasse (pre-perdite)"
+              if IS_CHP else "Sm³ biometano lordi (pre-perdite upgrading/processo)"),
+    )
+    col_cfg["Sm³ netti"]   = st.column_config.TextColumn(
+        _lbl_netto_col, disabled=True,
+        help=("CH₄ effettivamente bruciato dal cogeneratore (post-perdite)"
+              if IS_CHP else "Sm³ biometano immessi in rete (post-aux_factor)"),
+    )
+    col_cfg["MWh netti"]   = st.column_config.TextColumn(
+        "MWh_CH₄ netti" if IS_CHP else "MWh netti",
+        disabled=True,
+        help=("Energia CH₄ in ingresso al cogeneratore (pre-conversione elettrica)"
+              if IS_CHP else "Energia biometano netta immessa in rete"),
+    )
+    if IS_CHP:
+        col_cfg["MWh elettrici lordi"] = st.column_config.TextColumn(
+            "MWh_el lordi", disabled=True,
+            help="MWh elettrici ai morsetti alternatore = MWh_CH₄ × η_el. "
+                 "Non fatturabili: occorre sottrarre gli autoconsumi ausiliari.",
+        )
+        col_cfg["MWh elettrici netti"] = st.column_config.TextColumn(
+            "MWh_el netti rete", disabled=True,
+            help="MWh elettrici NETTI immessi in rete = lordi × (1 − aux%). "
+                 "Base di calcolo della tariffa T.O. GSE.",
+        )
+        col_cfg["MWh termici"] = st.column_config.TextColumn(
+            "MWh_th", disabled=True,
+            help="MWh termici recuperati dal CHP = MWh_CH₄ × η_th. "
+                 "Utilizzabili per digestori, teleriscaldamento, processo.",
+        )
+        # kW lordi medi: il VINCOLO autorizzativo CHP (vs plant_kwe targa).
+        col_cfg["kW lordi medi"] = st.column_config.TextColumn(
+            "kW lordi (medi)", disabled=True,
+            help=f"Potenza media oraria ai morsetti alternatore "
+                 f"(MWh_el lordi × 1000 / Ore). "
+                 f"VINCOLO normativo: ≤ {fmt_it(plant_kwe, 0)} kWe LORDI "
+                 f"(targa motore — dato di autorizzazione).",
+        )
+    col_cfg["GHG (gCO₂/MJ)"] = st.column_config.TextColumn(
+        "e_w", disabled=True, help="Emissioni pesate gCO₂eq/MJ",
+    )
+    col_cfg["Saving %"] = st.column_config.TextColumn(
+        "Saving %", disabled=True,
+        help=f"Obbligatorio ≥ {fmt_it(ghg_threshold*100, 0, '%')} (RED III – {end_use})",
+    )
+    # Sm³/h netti: visibile in biometano (vincolo autorizzativo).
+    # In CHP il vincolo e' kW lordi (mostrato sopra), Sm³/h CH4 e' solo
+    # informativo (CH4 al motore) - lo lasciamo nascosto al display tabella
+    # per ridurre rumore. La taglia CH4 motore e' gia' visibile in sidebar.
+    if IS_CHP:
+        # Nascondiamo Sm³/h netti dalla vista (esiste in df_res ma non
+        # appare in df_disp grazie a column_order).
+        col_cfg["Sm³/h netti"] = st.column_config.TextColumn(
+            "Sm³/h CH₄ motore", disabled=True,
+            help=f"Flusso CH₄ al motore = MWh_CH₄ × 1000 / (Ore × {fmt_it(NM3_TO_MWH*1000, 2)}). "
+                 f"Info-only (il vincolo CHP e' kW lordi a sinistra). "
+                 f"Equivale a {fmt_it(plant_net_smch, 0)} Sm³/h come dato "
+                 f"di dimensionamento.",
         )
     else:
-        detail_col_cfg[f"Tariffa {_tar_unit}"] = st.column_config.TextColumn(
-            f"Tariffa {_tar_unit} ✏️",
-            help=f"Tariffa incentivante/PPA [{_tar_unit}] in formato "
-                 f"italiano (es. 1.234,56). Modificabile per simulazioni.",
+        col_cfg["Sm³/h netti"] = st.column_config.TextColumn(
+            "Sm³/h netti", disabled=True,
+            help=f"Obbligatorio ≤ {fmt_it(plant_net_smch, 0)} (tetto autorizzativo)",
         )
-    if IS_CHP:
-        detail_col_cfg["MWh_el lordi/anno"] = st.column_config.TextColumn(
-            "MWh_el lordi/anno", disabled=True,
-            help="MWh elettrici lordi ai morsetti alternatore "
-                 "(= MWh netti × η_el). Non fatturabili direttamente: "
-                 "occorre sottrarre gli autoconsumi ausiliari.",
-        )
-        detail_col_cfg["MWh_el netti rete/anno"] = st.column_config.TextColumn(
-            "MWh_el netti rete/anno", disabled=True,
-            help="MWh elettrici NETTI immessi in rete e fatturati a tariffa T.O. "
-                 "(= MWh_el lordi × (1 − aux%)). Questa è la base ricavi.",
-        )
-        detail_col_cfg["MWh termici/anno"] = st.column_config.TextColumn(
-            "MWh_th/anno", disabled=True,
-            help="MWh termici recuperati dal cogeneratore "
-                 "(= MWh netti × η_th). Usabili per teleriscaldamento / processo.",
-        )
-    if IS_DM2018:
-        detail_col_cfg["Annex IX"] = st.column_config.TextColumn(
-            "All. IX", disabled=True,
-            help="Classificazione Annex IX RED II/III. Parte A = "
-                 "letame, FORSU, sottoprodotti agroindustriali, paglia. "
-                 "Parte B = oli/grassi (UCO, scarti macellazione cat. 3). "
-                 "Solo le matrici Annex IX qualificano per double counting "
-                 "CIC quando l'impianto e' classificato «avanzato».",
-        )
-        if cic_active:
-            detail_col_cfg["CIC/anno"] = st.column_config.TextColumn(
-                "CIC/anno 🧮", disabled=True,
-                help=(f"Numero CIC generati = MWh / "
-                      f"{fmt_it(MWH_PER_CIC if not cic_double else MWH_PER_CIC/2, 2)}"
-                      f" MWh per CIC"
-                      + (" (×2 double counting avanzato)" if cic_double else "")),
-            )
+    col_cfg["Validità"] = st.column_config.TextColumn("Validità", disabled=True, width="medium")
+    col_cfg["Note"] = st.column_config.TextColumn("Note", disabled=True, width="medium")
 
-    edited_detail = st.data_editor(
-        df_detail,
-        column_config=detail_col_cfg,
+    edited = st.data_editor(
+        df_disp,
+        column_config=col_cfg,
         hide_index=True,
         use_container_width=True,
         num_rows="fixed",
-        key=f"editor_revenue_detail_{APP_MODE}",
+        height=470,
+        key=f"editor_unified_{state_key}",
     )
 
-    # Se l'utente ha modificato una tariffa -> salva e rerun.
-    # Clamp: tariffe negative non hanno senso fisico -> >=0.
-    # NB1: in regime CIC le tariffe non sono editabili (cic_price unico in sidebar).
-    # NB2: in regime FER 2 la tariffa e' uniforme TR+premi (forzata in sidebar).
-    if not cic_active and not IS_FER2:
-        _tar_col = f"Tariffa {_tar_unit}"
-        new_tariffs = {
-            row["Biomassa"]: max(parse_it(row[_tar_col]), 0.0)
-            for _, row in edited_detail.iterrows()
-        }
-        if new_tariffs != st.session_state[_tar_key]:
-            st.session_state[_tar_key] = new_tariffs
-            st.rerun()
+    # --- Se l'utente ha modificato una cella editabile, aggiorna state e rerun
+    # Le celle editabili sono TextColumn: parse_it() gestisce formato italiano.
+    edit_cols = ["Mese", "Ore"] + fixed_feeds
+    new_input = edited[edit_cols].reset_index(drop=True).copy()
+    # Clamp: ore e masse devono essere >= 0 (niente valori negativi inseriti
+    # per errore). Ore max 744 (mese piu' lungo) non applicata come hard-cap
+    # per consentire future simulazioni di turni doppi/extra manutenzione.
+    new_input["Ore"] = new_input["Ore"].apply(parse_it).clip(lower=0).astype(int)
+    for f in fixed_feeds:
+        new_input[f] = new_input[f].apply(parse_it).clip(lower=0).astype(float)
 
-    # ============================================================
-    # TOTALI RICAVI (mode-aware)
-    # ============================================================
-    tot_mwh = sum(annual_mwh.values())
-    # Base MWh su cui si calcola la tariffa:
-    #  - biometano DM 2022 / DM 2018 altri usi -> MWh netti
-    #  - CHP -> MWh elettrici netti rete (lordo × (1 − aux%))
-    #  - DM 2018 CIC -> n_CIC × cic_price (gia' aggregato in tot_n_cic)
+    old_input = input_df[edit_cols].reset_index(drop=True).copy()
+    old_input["Ore"] = old_input["Ore"].astype(int)
+    for f in fixed_feeds:
+        old_input[f] = old_input[f].astype(float)
+
+    if not new_input.equals(old_input):
+        st.session_state[state_key] = new_input
+        st.rerun()
+
+    if warnings_list:
+        st.warning(_t("⚠️ Mesi con problemi di fattibilità:") + "\n\n" + "\n\n".join(f"- {w}" for w in warnings_list))
+
+    # ------------------------- SINTESI -------------------------
+    st.subheader(_t("📈 Sintesi annuale"))
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("Tot. biomasse (t/anno)",
+              fmt_it(df_res["Totale biomasse (t)"].sum(), 0))
     if IS_CHP:
-        _chp_factor = eta_el * (1.0 - aux_el_pct)
+        c2.metric("Sm³ CH₄ motore (anno)",
+                  fmt_it(df_res["Sm³ netti"].sum(), 0),
+                  help="CH₄ equivalente effettivamente bruciato dal cogeneratore")
+        c3.metric("MWh_el netti rete (anno)",
+                  fmt_it(df_res["MWh elettrici netti"].sum(), 0),
+                  help="Energia elettrica NETTA immessa in rete (post-aux)")
     else:
-        _chp_factor = 1.0
-    tot_revenue_base_mwh = tot_mwh * _chp_factor
-    if cic_active:
-        tot_revenue = tot_n_cic * cic_price
-        tariffa_media_ponderata = (
-            (tot_revenue / tot_mwh) if tot_mwh > 0 else 0.0
-        )  # equivalente €/MWh per confronto cross-mode
+        c2.metric("Sm³ netti (anno)",
+                  fmt_it(df_res["Sm³ netti"].sum(), 0))
+        c3.metric("MWh netti (anno)",
+                  fmt_it(df_res["MWh netti"].sum(), 0))
+    c4.metric("Saving medio (%)",
+              fmt_it(df_res["Saving %"].mean(), 1))
+    valid_months = df_res["Validità"].str.startswith("✅").sum()
+    c5.metric(_t("Mesi validi"), f"{valid_months}/12",
+              delta="OK" if valid_months == 12 else f"{12-valid_months}{_t(' NON validi')}",
+              delta_color="normal" if valid_months == 12 else "inverse")
+
+    # ------------------------- GRAFICI -------------------------
+    # Tab "Business Plan" visibile solo in DM 2022 (BP applicabile)
+    if IS_DM2022:
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            _t("🌾 Biomasse per mese"),
+            _t("🌍 Sostenibilità"),
+            _t("⚡ Produzione"),
+            _t("🥧 Mix annuale"),
+            _t("💼 Business Plan"),
+        ])
     else:
-        tot_revenue = sum(
-            annual_mwh[n] * _chp_factor * st.session_state[_tar_key][n]
+        tab1, tab2, tab3, tab4 = st.tabs([
+            _t("🌾 Biomasse per mese"),
+            _t("🌍 Sostenibilità"),
+            _t("⚡ Produzione"),
+            _t("🥧 Mix annuale"),
+        ])
+        tab5 = None
+
+    with tab1:
+        df_melt = df_res.melt(
+            id_vars="Mese", value_vars=active_feeds,
+            var_name="Biomassa", value_name="t/mese",
+        )
+        fig = px.bar(
+            df_melt, x="Mese", y="t/mese", color="Biomassa",
+            color_discrete_map={n: FEEDSTOCK_DB[n]["color"] for n in active_feeds},
+            title="Ripartizione mensile biomasse",
+        )
+        fig.update_layout(barmode="stack", height=450)
+        apply_metaniq_theme(fig, dark=IS_DARK)
+        st.plotly_chart(fig, use_container_width=True)
+
+    with tab2:
+        fig2 = go.Figure()
+        fig2.add_trace(go.Bar(
+            x=df_res["Mese"], y=df_res["Saving %"],
+            marker=dict(
+                color=df_res["Saving %"],
+                colorscale=[[0, "#E53935"], [0.5, "#FDD835"], [1, "#43A047"]],
+                cmin=70, cmax=100,
+                colorbar=dict(title="Saving %"),
+            ),
+            text=[fmt_it(v, 1, "%") for v in df_res["Saving %"]],
+            textposition="outside",
+        ))
+        fig2.add_hline(y=ghg_threshold*100, line_dash="dash", line_color="red",
+                       annotation_text=f"Soglia RED III {fmt_it(ghg_threshold*100, 0, '%')}",
+                       annotation_position="top right")
+        fig2.add_hline(y=target_saving*100, line_dash="dot", line_color="green",
+                       annotation_text=f"Target solver {fmt_it(target_saving*100, 0, '%')}",
+                       annotation_position="bottom right")
+        fig2.update_layout(title="Saving GHG mensile (%)",
+                           yaxis_title="Saving (%)", height=450,
+                           yaxis=dict(range=[60, 160]))
+        apply_metaniq_theme(fig2, dark=IS_DARK)
+        st.plotly_chart(fig2, use_container_width=True)
+
+    with tab3:
+        # Etichette numeriche leggibili coerenti con la tabella (formato IT: 287.928)
+        lordi_vals = df_res["Sm³ lordi"].astype(float)
+        netti_vals = df_res["Sm³ netti"].astype(float)
+        lordi_labels = [fmt_it(v, 0) for v in lordi_vals]
+        netti_labels = [fmt_it(v, 0) for v in netti_vals]
+
+        _lbl_lordo = (
+            "Sm³ CH₄ lordi (biomasse)" if IS_CHP else "Sm³ lordi (biomasse)"
+        )
+        _lbl_netto = (
+            "Sm³ CH₄ al motore" if IS_CHP else "Sm³ netti (immessi in rete)"
+        )
+        _lbl_title = (
+            "Produzione mensile CH₄ equivalente (biogas CHP)" if IS_CHP
+            else "Produzione mensile Sm³"
+        )
+        fig3 = go.Figure()
+        fig3.add_trace(go.Bar(
+            x=df_res["Mese"], y=lordi_vals,
+            name=_lbl_lordo, marker_color="#94A3B8",
+            text=lordi_labels, textposition="outside",
+            hovertemplate=f"<b>%{{x}}</b><br>{_lbl_lordo}: %{{text}}<extra></extra>",
+        ))
+        fig3.add_trace(go.Bar(
+            x=df_res["Mese"], y=netti_vals,
+            name=_lbl_netto, marker_color=NAVY,
+            text=netti_labels, textposition="outside",
+            hovertemplate=f"<b>%{{x}}</b><br>{_lbl_netto}: %{{text}}<extra></extra>",
+        ))
+        fig3.update_layout(
+            title=f"{_lbl_title}  (aux_factor = {fmt_it(aux_factor, 2)})",
+            barmode="group", height=500,
+            yaxis_title="Sm³ / mese",
+            yaxis=dict(tickformat=",.0f", separatethousands=True),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        )
+        apply_metaniq_theme(fig3, dark=IS_DARK)
+        st.plotly_chart(fig3, use_container_width=True)
+
+        st.caption(
+            f"📐 **Dimensionamento**: Sm³ lordi = {fmt_it(plant_net_smch, 0)} × "
+            f"{fmt_it(aux_factor, 2)} × ore_mese · "
+            f"Sm³ netti = Sm³ lordi ÷ {fmt_it(aux_factor, 2)} = "
+            f"{fmt_it(plant_net_smch, 0)} × ore_mese. "
+            "Stessi numeri riportati in tabella (colonne «Sm³ lordi» e «Sm³ netti»)."
+        )
+
+    with tab4:
+        # Mix in tonnellate (FM)
+        annual_t = {n: max(df_res[n].sum(), 0) for n in active_feeds}
+        # Mix in MWh netti: ogni biomassa contribuisce in proporzione a (massa x yield)
+        # MWh_netti_n = massa_n x yield_n / aux_factor x NM3_TO_MWH
+        annual_mwh = {
+            n: max(df_res[n].sum(), 0) * _yield_of(n)
+               / aux_factor * NM3_TO_MWH
             for n in active_feeds
-        )
-        tariffa_media_ponderata = (
-            (tot_revenue / tot_revenue_base_mwh) if tot_revenue_base_mwh > 0 else 0.0
-        )
-    if IS_CHP:
-        tot_mwh_el_lordo = tot_mwh * eta_el
-        tot_mwh_el_netto = tot_mwh_el_lordo * (1.0 - aux_el_pct)
-        tot_mwh_el_aux = tot_mwh_el_lordo - tot_mwh_el_netto
-        tot_mwh_th = tot_mwh * eta_th
-        cA, cB, cC, cD = st.columns(4)
-        cA.metric("MWh_el lordi/anno", fmt_it(tot_mwh_el_lordo, 0),
-                  delta=f"−{fmt_it(tot_mwh_el_aux, 0)} aux",
-                  delta_color="inverse")
-        cB.metric("⚡ MWh_el netti rete/anno", fmt_it(tot_mwh_el_netto, 0))
-        cC.metric("🔥 MWh termici/anno", fmt_it(tot_mwh_th, 0))
-        cD.metric("💰 Ricavi elettrici/anno", fmt_it(tot_revenue, 0, " €"))
+        }
+        color_map = {n: FEEDSTOCK_DB[n]["color"] for n in active_feeds}
+
+        colA, colB = st.columns(2)
+        with colA:
+            fig4a = px.pie(
+                names=list(annual_t.keys()),
+                values=list(annual_t.values()),
+                color=list(annual_t.keys()),
+                color_discrete_map=color_map,
+                title=f"Mix t/anno (totale {fmt_it(sum(annual_t.values()), 0)} t)",
+                hole=0.4,
+            )
+            fig4a.update_traces(textposition="inside", textinfo="percent+label")
+            apply_metaniq_theme(fig4a, dark=IS_DARK)
+            st.plotly_chart(fig4a, use_container_width=True)
+
+        with colB:
+            _pie_mwh_label = (
+                "MWh_el netti rete" if IS_CHP else "MWh netti"
+            )
+            _pie_total = (
+                sum(annual_mwh.values()) * eta_el * (1.0 - aux_el_pct)
+                if IS_CHP else sum(annual_mwh.values())
+            )
+            _pie_values = (
+                [v * eta_el * (1.0 - aux_el_pct) for v in annual_mwh.values()]
+                if IS_CHP else list(annual_mwh.values())
+            )
+            fig4b = px.pie(
+                names=list(annual_mwh.keys()),
+                values=_pie_values,
+                color=list(annual_mwh.keys()),
+                color_discrete_map=color_map,
+                title=f"Mix {_pie_mwh_label}/anno "
+                      f"(totale {fmt_it(_pie_total, 0)} MWh)",
+                hole=0.4,
+            )
+            fig4b.update_traces(textposition="inside", textinfo="percent+label")
+            apply_metaniq_theme(fig4b, dark=IS_DARK)
+            st.plotly_chart(fig4b, use_container_width=True)
+
+        # ============================================================
+        # CALCOLO STATUS AVANZATO IMPIANTO (solo DM 2018)
+        # ============================================================
+        # Quota in MASSA Annex IX vs totale -> classificazione plant-level
+        _tot_t = sum(annual_t.values())
+        if _tot_t > 0:
+            _t_annex = sum(
+                t for n, t in annual_t.items()
+                if FEEDSTOCK_DB[n].get("annex_ix") in ("A", "B")
+            )
+            annex_mass_share = _t_annex / _tot_t
+        else:
+            annex_mass_share = 0.0
+
+        if IS_DM2018:
+            if advanced_mode == "Forza AVANZATO (override manuale)":
+                is_advanced = True
+            elif advanced_mode == "Forza NON avanzato (override manuale)":
+                is_advanced = False
+            else:  # auto da quota Annex IX in massa
+                is_advanced = annex_mass_share >= annex_threshold
+            # CIC double counting attivo SOLO se end_use ammette CIC
+            # (trasporti) E impianto avanzato.
+            _cic_premium_use = DM2018_END_USES[end_use]["cic_premium"]
+            cic_double = is_advanced and _cic_premium_use
+            cic_active  = _cic_premium_use  # CIC system in use (single or double)
+        else:
+            is_advanced  = False
+            cic_double   = False
+            cic_active   = False
+
+        # ============================================================
+        # CALCOLO STATUS FER 2 (matrice >=80% sottoprodotti)
+        # ============================================================
         if IS_FER2:
-            st.caption(
-                f"📐 **Calcolo FER 2 (≤{fmt_it(FER2_KWE_CAP, 0)} kWe)**: "
-                f"MWh_el lordi = MWh_CH₄ × η_el "
-                f"({fmt_it(eta_el*100, 0, '%')}) · "
-                f"MWh_el netti rete = lordi × (1 − aux%) "
-                f"(aux = {fmt_it(aux_el_pct*100, 1, '%')}) · "
-                f"**Tariffa effettiva = TR ({fmt_it(fer2_tariffa_base, 0)})"
-                + (f" + matrice ({fmt_it(fer2_premio_matrice_eur, 0)})"
-                   if fer2_apply_matrice else "")
-                + (f" + CAR ({fmt_it(fer2_premio_car_eur, 0)})"
-                   if fer2_apply_car else "")
-                + f" = {fmt_it(fer2_tariffa_eff, 0)} €/MWh_el** · "
-                f"Ricavi = MWh_el netti × tariffa effettiva. "
-                f"Cumulo nel periodo {FER2_PERIODO_ANNI} anni: "
-                f"~{fmt_it(tot_revenue * FER2_PERIODO_ANNI / 1_000_000, 1)} M€."
+            # Stessa logica della quota Annex IX in massa: i sottoprodotti
+            # FER 2 = tutti i feedstock con annex_ix in ("A","B").
+            # Le colture dedicate (annex_ix=None) NON contano come sottoprodotti.
+            fer2_subprod_share = annex_mass_share  # alias semantico
+            fer2_qualified = fer2_subprod_share >= fer2_matrice_threshold
+            # Premi effettivi (toggle utente AND condizione fisica)
+            fer2_apply_matrice = fer2_premio_matrice_attivo and fer2_qualified
+            fer2_apply_car = fer2_premio_car_attivo
+            fer2_tariffa_eff = (
+                fer2_tariffa_base
+                + (fer2_premio_matrice_eur if fer2_apply_matrice else 0.0)
+                + (fer2_premio_car_eur if fer2_apply_car else 0.0)
             )
         else:
-            st.caption(
-                f"📐 **Calcolo CHP DM 6/7/2012**: MWh_el lordi = MWh netti × η_el "
-                f"({fmt_it(eta_el*100, 0, '%')}) · "
-                f"MWh_el netti rete = lordi × (1 − aux%) "
-                f"(aux = {fmt_it(aux_el_pct*100, 1, '%')}) · "
-                f"MWh termici = MWh netti × η_th "
-                f"({fmt_it(eta_th*100, 0, '%')}) · "
-                f"**Ricavi = MWh_el netti rete × tariffa €/MWh_el** "
-                f"(è l'energia realmente immessa in rete e fatturata al GSE). "
-                f"Il calore può generare ricavi aggiuntivi (teleriscaldamento, "
-                f"processo, essiccazione digestato) non inclusi qui."
-            )
-    elif cic_active:
-        cA, cB, cC, cD = st.columns(4)
-        cA.metric("MWh netti totali/anno", fmt_it(tot_mwh, 0))
-        cB.metric("CIC/anno",
-                  fmt_it(tot_n_cic, 1),
-                  delta=("AVANZATO ×2" if cic_double else "non avanzato"),
-                  delta_color="normal" if cic_double else "off")
-        cC.metric("Quota Annex IX (massa)",
-                  fmt_it(annex_mass_share*100, 1, "%"),
-                  delta=f"soglia {fmt_it(annex_threshold*100, 0, '%')}",
-                  delta_color="normal" if is_advanced else "inverse")
-        cD.metric("💰 Ricavi CIC/anno", fmt_it(tot_revenue, 0, " €"),
-                  delta=f"≈ {fmt_it(tariffa_media_ponderata, 1)} €/MWh equiv.")
-        st.caption(
-            f"📐 **Calcolo DM 2018 CIC**: 1 CIC = "
-            f"{fmt_it(MWH_PER_CIC, 2)} MWh "
-            f"({fmt_it(GCAL_PER_CIC, 0)} Gcal). "
-            + (f"**Double counting AVANZATO** → 1 CIC ogni "
-               f"{fmt_it(MWH_PER_CIC/2, 2)} MWh "
-               f"({fmt_it(GCAL_PER_CIC/2, 0)} Gcal). "
-               if cic_double else
-               "Non avanzato → single counting. ")
-            + f"**Ricavi = N_CIC × {fmt_it(cic_price, 0)} €/CIC**. "
-            f"NB: per certificazione GSE serve dichiarazione di sostenibilità "
-            f"con tracciabilità feedstock per ogni periodo di rendicontazione."
-        )
-    else:
-        cA, cB, cC = st.columns(3)
-        cA.metric("MWh netti totali/anno", fmt_it(tot_mwh, 0))
-        cB.metric("Tariffa media ponderata",
-                  fmt_it(tariffa_media_ponderata, 2, " €/MWh"))
-        cC.metric("💰 Ricavi totali/anno", fmt_it(tot_revenue, 0, " €"))
-        st.caption(
-            f"📐 **Calcolo**: MWh netti/biomassa = t × resa_Nm³/t ÷ "
-            f"{fmt_it(aux_factor, 2)} × 0,00997. "
-            f"Ricavi/biomassa = MWh netti × tariffa €/MWh. "
-            f"Modifica la colonna «Tariffa €/MWh» per simulare scenari diversi."
-        )
+            fer2_subprod_share   = 0.0
+            fer2_qualified       = False
+            fer2_apply_matrice   = False
+            fer2_apply_car       = False
+            fer2_tariffa_eff     = 0.0
 
-# ============================================================
-# TAB 5 — BUSINESS PLAN (solo DM 2022)
-# ============================================================
-if IS_DM2022 and tab5 is not None and bp_result is not None:
-    with tab5:
-        st.markdown(
-            "<div style='font-family:\"JetBrains Mono\", monospace; "
-            "font-size:0.7rem; font-weight:600; letter-spacing:1.5px; "
-            f"text-transform:uppercase; color:{TEXT_MUTED}; "
-            "margin-bottom:8px;'>// PRO FORMA · DM 2022</div>",
-            unsafe_allow_html=True,
-        )
-        st.subheader(_t("💼 Business Plan — pro forma 15 anni"))
-        st.caption(
-            "Modello derivato dal **benchmark di un impianto medio biometano agricolo (250 Smc/h)** "
-            "(maggio 2024), aggiornato 2026 con inflazione ISTAT cumulata e "
-            "tassi finanziamento BCE. Personalizza i parametri nella sidebar "
-            "(expander «💼 Pro Forma»). Tariffa GSE applicata in nominale "
-            f"per {BP_DURATA_TARIFFA_ANNI} anni · OPEX rivalutati ISTAT."
-        )
-
-        # ===== KPI tiles in 4 columns =====
-        bp_cA, bp_cB, bp_cC, bp_cD = st.columns(4)
-        bp_cA.metric(
-            "CAPEX totale",
-            fmt_it(bp_result["capex_totale"]/1000, 0, " k€"),
-            delta=f"netto {fmt_it(bp_result['capex_netto']/1000, 0)} k€ "
-                  f"(post PNRR {fmt_it(bp_pnrr_pct, 0, '%')})",
-        )
-        bp_cB.metric(
-            "Ricavi anno regime",
-            fmt_it(bp_result["ricavi"][0]/1000, 0, " k€/a"),
-            delta=f"{fmt_it(bp_result['biometano_smc_anno']/1000, 0)} kSmc · "
-                  f"tariffa {fmt_it(bp_tariffa_eff, 1)} €/MWh",
-        )
-        bp_cC.metric(
-            "EBITDA medio (pre-biomasse)",
-            fmt_it(bp_result["ebitda_medio"]/1000, 0, " k€/a"),
-            delta=f"target margin {fmt_it(bp_ebitda_target_pct, 1, '%')}",
-        )
-        bp_cD.metric(
-            "💰 Costo biogas implicito",
-            fmt_it(bp_result["costo_biogas_eur_per_nm3"], 4, " €/Nm³"),
-            delta=f"q.biomasse {fmt_it(bp_result['quota_biomasse_anno']/1000, 0)} k€/a",
-        )
-
-        st.divider()
-
-        # ===== CAPEX breakdown table =====
-        st.markdown("##### 🏗️ CAPEX — composizione")
-        capex_rows = []
-        for k, v in bp_capex_breakdown.items():
-            tot_v = v * plant_net_smch
-            capex_rows.append({
-                "Voce": k,
-                "Tipo": "Scalabile (€/(Smc/h))",
-                "Importo unitario": fmt_it(v, 0, " €/(Smc/h)"),
-                "Totale": fmt_it(tot_v, 0, " €"),
-                "Quota %": fmt_it(tot_v / bp_result["capex_totale"] * 100, 1, "%"),
-            })
-        for k, v in bp_capex_forfait.items():
-            capex_rows.append({
-                "Voce": k,
-                "Tipo": "Forfait",
-                "Importo unitario": "—",
-                "Totale": fmt_it(v, 0, " €"),
-                "Quota %": fmt_it(v / bp_result["capex_totale"] * 100, 1, "%"),
-            })
-        capex_rows.append({
-            "Voce": "**TOTALE CAPEX**",
-            "Tipo": "—",
-            "Importo unitario": "—",
-            "Totale": fmt_it(bp_result["capex_totale"], 0, " €"),
-            "Quota %": "100,0%",
-        })
-        capex_rows.append({
-            "Voce": "Contributo PNRR (M2C2)",
-            "Tipo": "—",
-            "Importo unitario": fmt_it(bp_pnrr_pct, 0, "%"),
-            "Totale": fmt_it(-bp_result["contributo"], 0, " €"),
-            "Quota %": fmt_it(-bp_result["contributo"] /
-                              bp_result["capex_totale"] * 100, 1, "%"),
-        })
-        capex_rows.append({
-            "Voce": "**CAPEX NETTO** (post-PNRR)",
-            "Tipo": "—",
-            "Importo unitario": "—",
-            "Totale": fmt_it(bp_result["capex_netto"], 0, " €"),
-            "Quota %": fmt_it(bp_result["capex_netto"] /
-                              bp_result["capex_totale"] * 100, 1, "%"),
-        })
-        st.dataframe(
-            pd.DataFrame(capex_rows),
-            hide_index=True, use_container_width=True,
-        )
-
-        # ===== CE multi-anno chart =====
-        st.divider()
-        st.markdown("##### 📊 Conto Economico 15 anni")
-        anni = list(range(1, len(bp_result["ricavi"]) + 1))
-        df_ce = pd.DataFrame({
-            "Anno": anni,
-            "Ricavi (k€)": [r/1000 for r in bp_result["ricavi"]],
-            "OPEX (k€)": [-o/1000 for o in bp_result["opex"]],
-            "EBITDA pre-biomasse (k€)": [e/1000 for e in bp_result["ebitda"]],
-            "Interessi (k€)": [-i/1000 for i in bp_result["interessi"]],
-            "Ammortamenti (k€)": [-a/1000 for a in bp_result["ammortamenti"]],
-            "Utile netto (k€)": [u/1000 for u in bp_result["utile_netto"]],
-            "FCF (k€)": [f/1000 for f in bp_result["fcf"]],
-        })
-
-        fig_bp = go.Figure()
-        fig_bp.add_trace(go.Bar(
-            x=anni, y=df_ce["Ricavi (k€)"],
-            name="Ricavi", marker_color=AMBER,
-        ))
-        fig_bp.add_trace(go.Bar(
-            x=anni, y=df_ce["OPEX (k€)"],
-            name="OPEX (inflaz.)", marker_color="#94A3B8",
-        ))
-        fig_bp.add_trace(go.Scatter(
-            x=anni, y=df_ce["EBITDA pre-biomasse (k€)"],
-            name="EBITDA pre-biomasse",
-            mode="lines+markers",
-            line=dict(color=NAVY, width=3),
-            marker=dict(size=8, color=NAVY),
-        ))
-        fig_bp.add_trace(go.Scatter(
-            x=anni, y=df_ce["Utile netto (k€)"],
-            name="Utile netto", mode="lines+markers",
-            line=dict(color="#10B981", width=2, dash="dot"),
-            marker=dict(size=6),
-        ))
-        fig_bp.update_layout(
-            barmode="relative", height=480,
-            yaxis_title="k€ / anno",
-            xaxis_title="Anno",
-            xaxis=dict(tickmode="linear", dtick=1),
-            legend=dict(orientation="h", yanchor="bottom",
-                        y=1.02, xanchor="right", x=1),
-        )
-        apply_metaniq_theme(fig_bp, dark=IS_DARK)
-        st.plotly_chart(fig_bp, use_container_width=True)
-
-        # ===== CE table =====
-        df_ce_disp = df_ce.copy()
-        for col in df_ce_disp.columns:
-            if col != "Anno":
-                df_ce_disp[col] = df_ce_disp[col].apply(
-                    lambda v: fmt_it(v, 0)
-                )
-        df_ce_disp["Anno"] = df_ce_disp["Anno"].apply(lambda v: f"Anno {v}")
-        st.dataframe(df_ce_disp, hide_index=True, use_container_width=True)
-
-        # ===== Cash Flow & Debito =====
-        st.divider()
-        st.markdown("##### 💵 Cash Flow & Schema finanziamento")
-        fin_cA, fin_cB, fin_cC = st.columns(3)
-        fin_cA.metric(
-            "Debito LT iniziale",
-            fmt_it(bp_result["debito_lt"]/1000, 0, " k€"),
-            delta=f"leva {fmt_it(bp_lt_leva, 0, '%')}",
-        )
-        fin_cB.metric(
-            "Equity (soci)",
-            fmt_it(bp_result["equity"]/1000, 0, " k€"),
-            delta=f"leva {fmt_it(100-bp_lt_leva, 0, '%')}",
-        )
-        fin_cC.metric(
-            "Rata LT/anno",
-            fmt_it(bp_result["rata_lt"]/1000, 0, " k€/a"),
-            delta=f"{fmt_it(bp_lt_durata, 0)} anni @ "
-                  f"{fmt_it(bp_lt_tasso, 2, '%')}",
-        )
-
-        # ===== KPI finanziari =====
-        st.markdown("##### 🎯 Indicatori finanziari")
-        kpi_cA, kpi_cB, kpi_cC, kpi_cD = st.columns(4)
-        irr_value = bp_result["irr_equity"]
-        kpi_cA.metric(
-            "IRR equity",
-            (fmt_it(irr_value*100, 1, "%")
-             if irr_value is not None else "n/d"),
-            delta=("eccellente" if irr_value and irr_value > 0.15 else
-                   "buono" if irr_value and irr_value > 0.10 else
-                   "marginale" if irr_value and irr_value > 0.05 else
-                   "basso"),
-            delta_color="normal" if irr_value and irr_value > 0.10 else "inverse",
-        )
-        kpi_cB.metric(
-            "Payback equity",
-            (f"{fmt_it(bp_result['payback_anno'], 1)} anni"
-             if bp_result["payback_anno"] is not None else "> 15 anni"),
-        )
-        kpi_cC.metric(
-            "FCF cumulato 15a",
-            fmt_it(bp_result["fcf_tot"]/1000, 0, " k€"),
-        )
-        kpi_cD.metric(
-            "Utile netto cum.",
-            fmt_it(bp_result["utile_netto_tot"]/1000, 0, " k€"),
-        )
-
-        # ===== Liquidazione biomasse calcolata =====
-        st.divider()
-        st.markdown(
-            "##### 🌾 Liquidazione biomasse (derivata dal BP)"
-        )
-        st.caption(
-            f"Calcolata come **resa CH₄/ton × costo biogas implicito** "
-            f"({fmt_it(bp_result['costo_biogas_eur_per_nm3'], 4)} €/Nm³ "
-            f"al CH₄ {fmt_it(bp_ch4_in_biogas_pct, 1, '%')} nel biogas). "
-            f"Confronto con benchmark settore (mais 230 → 71,71 €/t)."
-        )
-        # Per ogni biomassa attiva, calcola la liquidazione €/ton
-        # = resa Nm3 CH4/t / ch4_frac × costo_biogas €/Nm3 (biogas)
-        liq_rows = []
-        for f in active_feeds[:15]:  # limita a 15 per leggibilità
-            yld = _yield_of(f)  # Nm3 CH4/t — resa effettiva (BMT override se attivo)
-            biogas_per_t = yld / bp_result["ch4_frac"]
-            liq_eur_t = biogas_per_t * bp_result["costo_biogas_eur_per_nm3"]
-            liq_rows.append({
-                "Biomassa": f,
-                "Resa CH₄ Nm³/t": fmt_it(yld, 0),
-                "Resa biogas Nm³/t": fmt_it(biogas_per_t, 0),
-                "Liquidazione €/t (FM)": fmt_it(liq_eur_t, 2, " €"),
-            })
-        st.dataframe(
-            pd.DataFrame(liq_rows),
-            hide_index=True, use_container_width=True,
-        )
-elif IS_DM2022 and tab5 is not None:
-    with tab5:
-        st.warning(
-            "Il calcolo BP non è disponibile. Verifica i parametri Pro Forma "
-            "nella sidebar (expander «💼 Pro Forma»)."
-        )
-
-# ============================================================
-# OUTPUT MODEL UNIFICATO (Fase 2 refactor)
-# ------------------------------------------------------------
-# Costruisce un'unica struttura `output_model` da cui leggono i nuovi
-# export modulari (CSV, e in futuro Excel/PDF). I percorsi legacy
-# restano attivi come fallback (try/except sotto).
-# ============================================================
-output_model = None
-if _HAS_OUTPUT_MODEL:
-    try:
-        _annual_t   = {n: float(max(df_res[n].sum(), 0.0)) for n in active_feeds}
-        _annual_mwh = {
-            n: float(max(df_res[n].sum(), 0.0)) * _yield_of(n) * NM3_TO_MWH / aux_factor
-            for n in active_feeds
-        }
-        _om_ctx = {
-            # Identita' / scenario
-            "APP_MODE":          APP_MODE,
-            "APP_MODE_LABEL":    _MODE["label"],
-            "lang":              _LANG,
-            # Flag normativi
-            "IS_CHP":            IS_CHP,
-            "IS_CHP_DM2012":     IS_CHP_DM2012,
-            "IS_FER2":           IS_FER2,
-            "IS_DM2018":         IS_DM2018,
-            "IS_DM2022":         IS_DM2022,
-            # Impianto
-            "plant_net_smch":    plant_net_smch,
-            "plant_kwe":         plant_kwe,
-            "aux_factor":        aux_factor,
-            "ep_total":          ep_total,
-            "end_use":           end_use,
-            "ghg_threshold":     ghg_threshold,
-            "fossil_comparator": FOSSIL_COMPARATOR,
-            "upgrading_opt":     upgrading_opt,
-            "offgas_opt":        offgas_opt,
-            "injection_opt":     injection_opt,
-            # Dati / DB
-            "active_feeds":      active_feeds,
-            "FEEDSTOCK_DB":      FEEDSTOCK_DB,
-            # Tabella mensile e annuali
-            "df_res":            df_res,
-            "annual_t":          _annual_t,
-            "annual_mwh":        _annual_mwh,
-            "revenue_rows":      pdf_revenue_rows,
-            # KPI aggregati
-            "tot_biomasse_t":    float(df_res["Totale biomasse (t)"].sum()),
-            "tot_sm3_netti":     float(df_res["Sm³ netti"].sum()),
-            "tot_mwh_netti":     float(df_res["MWh netti"].sum()),
-            "tot_mwh":           float(tot_mwh),
-            "saving_avg":        float(df_res["Saving %"].mean()),
-            "valid_months":      int(df_res["Validità"].str.startswith("✅").sum()),
-            "tot_revenue":       float(tot_revenue),
-            "tot_n_cic":         float(tot_n_cic) if IS_DM2018 else 0.0,
-            "cic_active":        bool(cic_active) if IS_DM2018 else False,
-            "is_advanced":       bool(is_advanced) if IS_DM2018 else False,
-            "tariffa_media_ponderata": float(tariffa_media_ponderata)
-                                       if 'tariffa_media_ponderata' in dir() else 0.0,
-            "tot_mwh_el_lordo":  float(df_res["MWh elettrici lordi"].sum())
-                                 if IS_CHP and "MWh elettrici lordi" in df_res
-                                 else 0.0,
-            "tot_mwh_el_netto":  float(df_res["MWh elettrici netti"].sum())
-                                 if IS_CHP and "MWh elettrici netti" in df_res
-                                 else 0.0,
-            # Business plan (DM 2022)
-            "bp_result":         bp_result if IS_DM2022 else None,
-            # Audit
-            "yield_audit_rows":     list(_yield_audit_rows),
-            "emission_audit_rows":  list(_emission_audit_rows),
-            "emission_overrides":   dict(_EMISSION_OVERRIDES),
-        }
-        output_model = _build_output_model(_om_ctx)
-    except Exception as _om_exc:  # noqa: BLE001
-        output_model = None
-        st.warning(
-            "Output model non disponibile in questa run "
-            f"(fallback al percorso legacy): {_om_exc}"
-        )
-
-# ------------------------- EXPORT -------------------------
-st.divider()
-st.markdown(
-    f"<div style='font-family:\"JetBrains Mono\", monospace; font-size:0.7rem; "
-    f"font-weight:600; letter-spacing:1.5px; text-transform:uppercase; "
-    f"color:{TEXT_MUTED}; margin-bottom:10px;'>// EXPORT</div>",
-    unsafe_allow_html=True,
-)
-st.caption(_t(
-    "**Excel autocalcolante** ✏️: scarica il file `.xlsx`, modifica le "
-    "celle gialle (Ore + Biomasse) direttamente in Excel/Numbers/LibreOffice "
-    "e tutti i calcoli (produzione, saving GHG, validità) si aggiornano "
-    "**istantaneamente** grazie alle formule live integrate. "
-    "Niente upload, niente roundtrip — il file fa tutto da solo."
-))
-
-# ===== Riga unica: 3 download (XLSX primario, PDF, CSV legacy) =====
-_dl_col1, _dl_col2, _dl_col_pptx, _dl_col3, _dl_col4 = st.columns([1.2, 1.0, 1.0, 0.8, 0.8])
-
-with _dl_col1:
-    # XLSX autocalcolante: download primario
-    try:
-        # Pre-fill con lo stato corrente (input_df ha Mese, Ore, fixed_feeds;
-        # le unknown sono in df_res — passiamo il merge completo).
-        _initial_data = {}
-        for _, row in df_res.iterrows():
-            _initial_data[row["Mese"]] = {"Ore": int(row["Ore"])}
-            for f in active_feeds:
-                if f in row:
-                    _initial_data[row["Mese"]][f] = float(row[f])
-        _xlsx_ctx = {
-            "active_feeds": active_feeds,
-            "FEEDSTOCK_DB": FEEDSTOCK_DB,
-            "aux_factor":   aux_factor,
-            "ep_total":     ep_total,
-            "fossil_comparator": FOSSIL_COMPARATOR,
-            "ghg_threshold":     ghg_threshold,
-            "plant_net_smch":    plant_net_smch,
-            "NM3_TO_MWH":        NM3_TO_MWH,
-            "MONTHS":            MONTHS,
-            "MONTH_HOURS":       MONTH_HOURS,
-            "initial_data":      _initial_data,
-            "APP_MODE_LABEL":    _MODE["label"],
-            "end_use":           end_use,
-            # === CHP-specific (per validazione kW lordi) ===
-            "IS_CHP":            IS_CHP,
-            "plant_kwe":         plant_kwe,        # potenza LORDA targa motore
-            "plant_kwe_net":     plant_kwe_net,    # info-only
-            "eta_el":            eta_el,
-            "eta_th":            eta_th,
-            "aux_el_pct":        aux_el_pct,
-        }
-        # === Aggiunge contesto Business Plan (mode-aware) ===
-        # Tariffa effettiva e parametri BP per la sheet "Business Plan".
-        # Per ogni mode calcoliamo:
-        #   - bp_tariffa_eff_mwh: €/MWh equivalenti (per BP unico mode-agnostic)
-        #   - bp_ore_anno: ore funzionamento (default 8500)
+        # ============================================================
+        # TARIFFA PER BIOMASSA — applicabile solo se NON in regime CIC
+        # ============================================================
+        # In regime CIC (DM 2018 trasporti) il prezzo e' unico per tutto il
+        # biometano (cic_price € per CIC), non personalizzato per biomassa.
+        # In regime FER 2 la tariffa e' calcolata da TR + premi (uniforme),
+        # ma resta editabile per biomassa per scenari custom.
         if IS_FER2:
-            _bp_tariffa_mwh = float(fer2_tariffa_eff)
-        elif IS_CHP_DM2012:
-            # CHP DM 6/7/2012: TO 280 €/MWh_el (tipico)
-            # se l'utente ha gia' impostato tariffa per biomassa la
-            # prendiamo come weighted average.
-            try:
-                _tk = f"tariffs_eur_mwh_{APP_MODE}"
-                _tar_dict = st.session_state.get(_tk, {})
-                _vals = list(_tar_dict.values())
-                _bp_tariffa_mwh = sum(_vals) / len(_vals) if _vals else 280.0
-            except Exception:
-                _bp_tariffa_mwh = 280.0
-        elif IS_DM2018:
-            if cic_active:
-                # CIC system: tariffa €/MWh equivalente = ricavi / mwh_netti
-                _mwh_for_calc = float(df_res["MWh netti"].sum()) or 1.0
-                _bp_tariffa_mwh = float(tot_revenue) / _mwh_for_calc
+            _tar_unit = "€/MWh_el"
+            _tar_default = fer2_tariffa_eff
+        elif IS_CHP:
+            _tar_unit = "€/MWh_el"
+            _tar_default = 280.0
+        elif IS_DM2018 and not cic_active:
+            _tar_unit = "€/MWh"
+            _tar_default = 110.0   # DM 2018 altri usi/CAR: tariffa base
+        else:
+            _tar_unit = "€/MWh"
+            _tar_default = 120.0
+        st.markdown(
+            f"##### 💶 Dettaglio per tipologia di biomassa"
+            + (
+                f" (regime CIC unico — tariffa €/MWh non applicabile per biomassa)"
+                if cic_active else f" (tariffa {_tar_unit} editabile ✏️)"
+            )
+        )
+        if IS_FER2:
+            # Box riepilogo FER 2
+            if fer2_qualified:
+                st.success(
+                    f"🔋 **FER 2 · QUOTA MATRICE OK** "
+                    f"({fmt_it(fer2_subprod_share*100, 1, '%')} sottoprodotti, "
+                    f"soglia {fmt_it(fer2_matrice_threshold*100, 0, '%')}). "
+                    f"Tariffa effettiva: "
+                    f"**{fmt_it(fer2_tariffa_base, 0)} TR**"
+                    + (f" **+ {fmt_it(fer2_premio_matrice_eur, 0)} matrice**"
+                       if fer2_apply_matrice else
+                       f" + ~~{fmt_it(fer2_premio_matrice_eur, 0)} matrice~~")
+                    + (f" **+ {fmt_it(fer2_premio_car_eur, 0)} CAR**"
+                       if fer2_apply_car else
+                       f" + ~~{fmt_it(fer2_premio_car_eur, 0)} CAR~~")
+                    + f" = **{fmt_it(fer2_tariffa_eff, 0)} €/MWh_el**. "
+                    f"Periodo incentivo: {FER2_PERIODO_ANNI} anni."
+                )
             else:
-                # DM 2018 altri usi: tariffa diretta media
+                st.error(
+                    f"❌ **FER 2 · QUOTA MATRICE INSUFFICIENTE** "
+                    f"({fmt_it(fer2_subprod_share*100, 1, '%')} sottoprodotti vs "
+                    f"soglia richiesta {fmt_it(fer2_matrice_threshold*100, 0, '%')}). "
+                    f"Premio matrice DISATTIVATO. Riduci la quota di colture "
+                    f"dedicate (cap normativo 20%) o aumenta sottoprodotti/effluenti. "
+                    f"Tariffa effettiva: **{fmt_it(fer2_tariffa_eff, 0)} €/MWh_el**."
+                )
+        elif IS_CHP:
+            st.caption(
+                "⚡ **Modalità Biogas CHP DM 6/7/2012**: tariffa €/MWh_el "
+                "applicata ai **MWh elettrici NETTI immessi in rete** "
+                f"(= MWh_el lordi × (1 − aux%), con aux = {fmt_it(aux_el_pct*100, 1, '%')}). "
+                "Default **280 €/MWh** (TO base DM 6/7/2012 per biogas agricolo "
+                "<1 MW + premio CAR + premio matrice sottoprodotti). "
+                "Modificabile per scenari FER-X, PPA, vendita spot."
+            )
+        elif IS_DM2018 and cic_active:
+            if is_advanced:
+                st.success(
+                    f"🌿 **DM 2018 · BIOMETANO AVANZATO** "
+                    f"(quota Annex IX in massa: "
+                    f"{fmt_it(annex_mass_share*100, 1, '%')}, soglia "
+                    f"{fmt_it(annex_threshold*100, 0, '%')}). "
+                    f"Sistema CIC con **double counting**: 1 CIC ogni "
+                    f"{fmt_it(MWH_PER_CIC/2, 2)} MWh "
+                    f"({fmt_it(GCAL_PER_CIC/2, 0)} Gcal). "
+                    f"Valore CIC: **{fmt_it(cic_price, 0)} €/CIC**."
+                )
+            else:
+                st.warning(
+                    f"⚠️ **DM 2018 · BIOMETANO NON AVANZATO** "
+                    f"(quota Annex IX in massa: "
+                    f"{fmt_it(annex_mass_share*100, 1, '%')}, sotto soglia "
+                    f"{fmt_it(annex_threshold*100, 0, '%')}). "
+                    f"Sistema CIC **senza** double counting: 1 CIC ogni "
+                    f"{fmt_it(MWH_PER_CIC, 2)} MWh "
+                    f"({fmt_it(GCAL_PER_CIC, 0)} Gcal). "
+                    f"Valore CIC: **{fmt_it(cic_price, 0)} €/CIC**."
+                )
+        elif IS_DM2018 and not cic_active:
+            st.info(
+                f"ℹ️ **DM 2018 · {end_use}**: regime tariffa diretta €/MWh "
+                f"(non CIC). Modifica le tariffe per biomassa qui sotto "
+                f"per simulare scenari diversi."
+            )
+
+        # Stato persistente: tariffe per biomassa (separate per mode).
+        # In FER 2 la tariffa e' uniforme (TR+premi) e calcolata dinamicamente:
+        # forziamo ogni run a fer2_tariffa_eff per riflettere subito le modifiche
+        # sidebar (TR, premi). Niente cache per biomassa.
+        _tar_key = f"tariffs_eur_mwh_{APP_MODE}"
+        if IS_FER2:
+            st.session_state[_tar_key] = {n: fer2_tariffa_eff for n in active_feeds}
+        else:
+            if _tar_key not in st.session_state:
+                st.session_state[_tar_key] = {n: _tar_default for n in active_feeds}
+            # Retrocompat: se mancano chiavi per nuove biomasse
+            for n in active_feeds:
+                if n not in st.session_state[_tar_key]:
+                    st.session_state[_tar_key][n] = _tar_default
+
+        # MWh totale (base CIC nel caso DM 2018)
+        _tot_mwh_basis_raw = sum(annual_mwh.values())  # MWh CH4 netto per biometano
+
+        detail_rows = []
+        pdf_revenue_rows = []  # raw numerics per il report PDF
+        tot_n_cic = 0.0
+        for n in active_feeds:
+            t = annual_t[n]
+            nm3_lordi = t * _yield_of(n)  # resa effettiva (BMT override se attivo)
+            nm3_netti = nm3_lordi / aux_factor
+            mwh_netti = nm3_netti * NM3_TO_MWH
+
+            # --- Calcolo ricavi mode-aware ---
+            if IS_CHP:
+                mwh_el_lordo = mwh_netti * eta_el
+                mwh_el_netto_rete = mwh_el_lordo * (1.0 - aux_el_pct)
+                mwh_revenue = mwh_el_netto_rete  # tariffa T.O. applicata al netto rete
+                tariffa = st.session_state[_tar_key][n]
+                ricavi = mwh_revenue * tariffa
+                n_cic = 0.0
+            elif IS_DM2018 and cic_active:
+                # CIC SYSTEM: prezzo unico, ricavi = n_CIC * cic_price.
+                # double counting plant-level (vedi cic_double).
+                mwh_el_lordo = 0.0
+                mwh_el_netto_rete = 0.0
+                mwh_revenue = mwh_netti
+                cic_factor = 2.0 if cic_double else 1.0
+                n_cic = (mwh_netti / MWH_PER_CIC) * cic_factor
+                tariffa = cic_price  # informativo, non per biomassa
+                ricavi = n_cic * cic_price
+            else:
+                # DM 2022 o DM 2018 altri usi: tariffa diretta €/MWh
+                mwh_el_lordo = 0.0
+                mwh_el_netto_rete = 0.0
+                mwh_revenue = mwh_netti
+                tariffa = st.session_state[_tar_key][n]
+                ricavi = mwh_revenue * tariffa
+                n_cic = 0.0
+            tot_n_cic += n_cic
+            quota = ((mwh_netti / _tot_mwh_basis_raw * 100)
+                     if _tot_mwh_basis_raw > 0 else 0)
+            pdf_revenue_rows.append((n, {
+                "t_anno": t,
+                "yield": _yield_of(n),  # resa effettiva (BMT override se attivo)
+                "mwh_netti": mwh_netti,
+                "mwh_basis": mwh_revenue,  # base ricavi
+                "tariffa": tariffa,
+                "ricavi": ricavi,
+                "quota": quota,
+                "annex_ix": FEEDSTOCK_DB[n].get("annex_ix"),
+                "n_cic": n_cic,
+            }))
+            row_detail = {
+                "Biomassa": n,
+                "t/anno (FM)":     fmt_it(t, 0),
+                "Resa (Nm³/t)":    fmt_it(_yield_of(n), 0),  # resa effettiva
+                "Sm³ netti/anno":  fmt_it(nm3_netti, 0),
+                "MWh netti/anno":  fmt_it(mwh_netti, 1),
+            }
+            if IS_CHP:
+                row_detail["MWh_el lordi/anno"] = fmt_it(mwh_el_lordo, 1)
+                row_detail["MWh_el netti rete/anno"] = fmt_it(mwh_el_netto_rete, 1)
+                row_detail["MWh termici/anno"] = fmt_it(mwh_netti * eta_th, 1)
+            if IS_DM2018:
+                _aix = FEEDSTOCK_DB[n].get("annex_ix")
+                row_detail["Annex IX"] = (
+                    "✅ A" if _aix == "A" else
+                    "✅ B" if _aix == "B" else
+                    "—"
+                )
+                if cic_active:
+                    row_detail["CIC/anno"] = fmt_it(n_cic, 2)
+            row_detail["Quota % MWh"] = fmt_it(quota, 1, "%")
+            if cic_active:
+                # In regime CIC mostriamo "Tariffa €/CIC" uniforme (non editabile per riga)
+                row_detail[f"Tariffa €/CIC"] = fmt_it(cic_price, 2)
+            else:
+                row_detail[f"Tariffa {_tar_unit}"] = fmt_it(tariffa, 2)
+            row_detail["Ricavi €/anno"] = fmt_it(ricavi, 0, " €")
+            detail_rows.append(row_detail)
+        df_detail = pd.DataFrame(detail_rows)
+
+        detail_col_cfg = {
+            "Biomassa":       st.column_config.TextColumn("Biomassa", disabled=True),
+            "t/anno (FM)":    st.column_config.TextColumn("t/anno (FM)", disabled=True),
+            "Resa (Nm³/t)":   st.column_config.TextColumn("Resa Nm³/t", disabled=True),
+            "Sm³ netti/anno": st.column_config.TextColumn("Sm³ netti/anno", disabled=True),
+            "MWh netti/anno": st.column_config.TextColumn("MWh netti/anno", disabled=True),
+            "Quota % MWh":    st.column_config.TextColumn("Quota % MWh", disabled=True),
+            "Ricavi €/anno": st.column_config.TextColumn(
+                "Ricavi €/anno 🧮", disabled=True,
+                help=("CIC × valore CIC" if cic_active
+                      else f"MWh {'elettrici netti rete' if IS_CHP else 'netti'}"
+                           f" × tariffa {_tar_unit}")
+                     + " (si ricalcola al variare dei parametri)",
+            ),
+        }
+        if cic_active:
+            detail_col_cfg["Tariffa €/CIC"] = st.column_config.TextColumn(
+                "Valore CIC €", disabled=True,
+                help="Prezzo unitario CIC fissato in sidebar. Uniforme per "
+                     "tutto il biometano (no editing per biomassa in regime CIC).",
+            )
+        elif IS_FER2:
+            detail_col_cfg[f"Tariffa {_tar_unit}"] = st.column_config.TextColumn(
+                "Tariffa eff. €/MWh_el", disabled=True,
+                help="Tariffa effettiva FER 2 = TR base + premio matrice "
+                     "(se attivo) + premio CAR (se attivo). Uniforme: "
+                     "modifica TR/premi in sidebar per aggiornare.",
+            )
+        else:
+            detail_col_cfg[f"Tariffa {_tar_unit}"] = st.column_config.TextColumn(
+                f"Tariffa {_tar_unit} ✏️",
+                help=f"Tariffa incentivante/PPA [{_tar_unit}] in formato "
+                     f"italiano (es. 1.234,56). Modificabile per simulazioni.",
+            )
+        if IS_CHP:
+            detail_col_cfg["MWh_el lordi/anno"] = st.column_config.TextColumn(
+                "MWh_el lordi/anno", disabled=True,
+                help="MWh elettrici lordi ai morsetti alternatore "
+                     "(= MWh netti × η_el). Non fatturabili direttamente: "
+                     "occorre sottrarre gli autoconsumi ausiliari.",
+            )
+            detail_col_cfg["MWh_el netti rete/anno"] = st.column_config.TextColumn(
+                "MWh_el netti rete/anno", disabled=True,
+                help="MWh elettrici NETTI immessi in rete e fatturati a tariffa T.O. "
+                     "(= MWh_el lordi × (1 − aux%)). Questa è la base ricavi.",
+            )
+            detail_col_cfg["MWh termici/anno"] = st.column_config.TextColumn(
+                "MWh_th/anno", disabled=True,
+                help="MWh termici recuperati dal cogeneratore "
+                     "(= MWh netti × η_th). Usabili per teleriscaldamento / processo.",
+            )
+        if IS_DM2018:
+            detail_col_cfg["Annex IX"] = st.column_config.TextColumn(
+                "All. IX", disabled=True,
+                help="Classificazione Annex IX RED II/III. Parte A = "
+                     "letame, FORSU, sottoprodotti agroindustriali, paglia. "
+                     "Parte B = oli/grassi (UCO, scarti macellazione cat. 3). "
+                     "Solo le matrici Annex IX qualificano per double counting "
+                     "CIC quando l'impianto e' classificato «avanzato».",
+            )
+            if cic_active:
+                detail_col_cfg["CIC/anno"] = st.column_config.TextColumn(
+                    "CIC/anno 🧮", disabled=True,
+                    help=(f"Numero CIC generati = MWh / "
+                          f"{fmt_it(MWH_PER_CIC if not cic_double else MWH_PER_CIC/2, 2)}"
+                          f" MWh per CIC"
+                          + (" (×2 double counting avanzato)" if cic_double else "")),
+                )
+
+        edited_detail = st.data_editor(
+            df_detail,
+            column_config=detail_col_cfg,
+            hide_index=True,
+            use_container_width=True,
+            num_rows="fixed",
+            key=f"editor_revenue_detail_{APP_MODE}",
+        )
+
+        # Se l'utente ha modificato una tariffa -> salva e rerun.
+        # Clamp: tariffe negative non hanno senso fisico -> >=0.
+        # NB1: in regime CIC le tariffe non sono editabili (cic_price unico in sidebar).
+        # NB2: in regime FER 2 la tariffa e' uniforme TR+premi (forzata in sidebar).
+        if not cic_active and not IS_FER2:
+            _tar_col = f"Tariffa {_tar_unit}"
+            new_tariffs = {
+                row["Biomassa"]: max(parse_it(row[_tar_col]), 0.0)
+                for _, row in edited_detail.iterrows()
+            }
+            if new_tariffs != st.session_state[_tar_key]:
+                st.session_state[_tar_key] = new_tariffs
+                st.rerun()
+
+        # ============================================================
+        # TOTALI RICAVI (mode-aware)
+        # ============================================================
+        tot_mwh = sum(annual_mwh.values())
+        # Base MWh su cui si calcola la tariffa:
+        #  - biometano DM 2022 / DM 2018 altri usi -> MWh netti
+        #  - CHP -> MWh elettrici netti rete (lordo × (1 − aux%))
+        #  - DM 2018 CIC -> n_CIC × cic_price (gia' aggregato in tot_n_cic)
+        if IS_CHP:
+            _chp_factor = eta_el * (1.0 - aux_el_pct)
+        else:
+            _chp_factor = 1.0
+        tot_revenue_base_mwh = tot_mwh * _chp_factor
+        if cic_active:
+            tot_revenue = tot_n_cic * cic_price
+            tariffa_media_ponderata = (
+                (tot_revenue / tot_mwh) if tot_mwh > 0 else 0.0
+            )  # equivalente €/MWh per confronto cross-mode
+        else:
+            tot_revenue = sum(
+                annual_mwh[n] * _chp_factor * st.session_state[_tar_key][n]
+                for n in active_feeds
+            )
+            tariffa_media_ponderata = (
+                (tot_revenue / tot_revenue_base_mwh) if tot_revenue_base_mwh > 0 else 0.0
+            )
+        if IS_CHP:
+            tot_mwh_el_lordo = tot_mwh * eta_el
+            tot_mwh_el_netto = tot_mwh_el_lordo * (1.0 - aux_el_pct)
+            tot_mwh_el_aux = tot_mwh_el_lordo - tot_mwh_el_netto
+            tot_mwh_th = tot_mwh * eta_th
+            cA, cB, cC, cD = st.columns(4)
+            cA.metric("MWh_el lordi/anno", fmt_it(tot_mwh_el_lordo, 0),
+                      delta=f"−{fmt_it(tot_mwh_el_aux, 0)} aux",
+                      delta_color="inverse")
+            cB.metric("⚡ MWh_el netti rete/anno", fmt_it(tot_mwh_el_netto, 0))
+            cC.metric("🔥 MWh termici/anno", fmt_it(tot_mwh_th, 0))
+            cD.metric("💰 Ricavi elettrici/anno", fmt_it(tot_revenue, 0, " €"))
+            if IS_FER2:
+                st.caption(
+                    f"📐 **Calcolo FER 2 (≤{fmt_it(FER2_KWE_CAP, 0)} kWe)**: "
+                    f"MWh_el lordi = MWh_CH₄ × η_el "
+                    f"({fmt_it(eta_el*100, 0, '%')}) · "
+                    f"MWh_el netti rete = lordi × (1 − aux%) "
+                    f"(aux = {fmt_it(aux_el_pct*100, 1, '%')}) · "
+                    f"**Tariffa effettiva = TR ({fmt_it(fer2_tariffa_base, 0)})"
+                    + (f" + matrice ({fmt_it(fer2_premio_matrice_eur, 0)})"
+                       if fer2_apply_matrice else "")
+                    + (f" + CAR ({fmt_it(fer2_premio_car_eur, 0)})"
+                       if fer2_apply_car else "")
+                    + f" = {fmt_it(fer2_tariffa_eff, 0)} €/MWh_el** · "
+                    f"Ricavi = MWh_el netti × tariffa effettiva. "
+                    f"Cumulo nel periodo {FER2_PERIODO_ANNI} anni: "
+                    f"~{fmt_it(tot_revenue * FER2_PERIODO_ANNI / 1_000_000, 1)} M€."
+                )
+            else:
+                st.caption(
+                    f"📐 **Calcolo CHP DM 6/7/2012**: MWh_el lordi = MWh netti × η_el "
+                    f"({fmt_it(eta_el*100, 0, '%')}) · "
+                    f"MWh_el netti rete = lordi × (1 − aux%) "
+                    f"(aux = {fmt_it(aux_el_pct*100, 1, '%')}) · "
+                    f"MWh termici = MWh netti × η_th "
+                    f"({fmt_it(eta_th*100, 0, '%')}) · "
+                    f"**Ricavi = MWh_el netti rete × tariffa €/MWh_el** "
+                    f"(è l'energia realmente immessa in rete e fatturata al GSE). "
+                    f"Il calore può generare ricavi aggiuntivi (teleriscaldamento, "
+                    f"processo, essiccazione digestato) non inclusi qui."
+                )
+        elif cic_active:
+            cA, cB, cC, cD = st.columns(4)
+            cA.metric("MWh netti totali/anno", fmt_it(tot_mwh, 0))
+            cB.metric("CIC/anno",
+                      fmt_it(tot_n_cic, 1),
+                      delta=("AVANZATO ×2" if cic_double else "non avanzato"),
+                      delta_color="normal" if cic_double else "off")
+            cC.metric("Quota Annex IX (massa)",
+                      fmt_it(annex_mass_share*100, 1, "%"),
+                      delta=f"soglia {fmt_it(annex_threshold*100, 0, '%')}",
+                      delta_color="normal" if is_advanced else "inverse")
+            cD.metric("💰 Ricavi CIC/anno", fmt_it(tot_revenue, 0, " €"),
+                      delta=f"≈ {fmt_it(tariffa_media_ponderata, 1)} €/MWh equiv.")
+            st.caption(
+                f"📐 **Calcolo DM 2018 CIC**: 1 CIC = "
+                f"{fmt_it(MWH_PER_CIC, 2)} MWh "
+                f"({fmt_it(GCAL_PER_CIC, 0)} Gcal). "
+                + (f"**Double counting AVANZATO** → 1 CIC ogni "
+                   f"{fmt_it(MWH_PER_CIC/2, 2)} MWh "
+                   f"({fmt_it(GCAL_PER_CIC/2, 0)} Gcal). "
+                   if cic_double else
+                   "Non avanzato → single counting. ")
+                + f"**Ricavi = N_CIC × {fmt_it(cic_price, 0)} €/CIC**. "
+                f"NB: per certificazione GSE serve dichiarazione di sostenibilità "
+                f"con tracciabilità feedstock per ogni periodo di rendicontazione."
+            )
+        else:
+            cA, cB, cC = st.columns(3)
+            cA.metric("MWh netti totali/anno", fmt_it(tot_mwh, 0))
+            cB.metric("Tariffa media ponderata",
+                      fmt_it(tariffa_media_ponderata, 2, " €/MWh"))
+            cC.metric("💰 Ricavi totali/anno", fmt_it(tot_revenue, 0, " €"))
+            st.caption(
+                f"📐 **Calcolo**: MWh netti/biomassa = t × resa_Nm³/t ÷ "
+                f"{fmt_it(aux_factor, 2)} × 0,00997. "
+                f"Ricavi/biomassa = MWh netti × tariffa €/MWh. "
+                f"Modifica la colonna «Tariffa €/MWh» per simulare scenari diversi."
+            )
+
+    # ============================================================
+    # TAB 5 — BUSINESS PLAN (solo DM 2022)
+    # ============================================================
+    if IS_DM2022 and tab5 is not None and bp_result is not None:
+        with tab5:
+            st.markdown(
+                "<div style='font-family:\"JetBrains Mono\", monospace; "
+                "font-size:0.7rem; font-weight:600; letter-spacing:1.5px; "
+                f"text-transform:uppercase; color:{TEXT_MUTED}; "
+                "margin-bottom:8px;'>// PRO FORMA · DM 2022</div>",
+                unsafe_allow_html=True,
+            )
+            st.subheader(_t("💼 Business Plan — pro forma 15 anni"))
+            st.caption(
+                "Modello derivato dal **benchmark di un impianto medio biometano agricolo (250 Smc/h)** "
+                "(maggio 2024), aggiornato 2026 con inflazione ISTAT cumulata e "
+                "tassi finanziamento BCE. Personalizza i parametri nella sidebar "
+                "(expander «💼 Pro Forma»). Tariffa GSE applicata in nominale "
+                f"per {BP_DURATA_TARIFFA_ANNI} anni · OPEX rivalutati ISTAT."
+            )
+
+            # ===== KPI tiles in 4 columns =====
+            bp_cA, bp_cB, bp_cC, bp_cD = st.columns(4)
+            bp_cA.metric(
+                "CAPEX totale",
+                fmt_it(bp_result["capex_totale"]/1000, 0, " k€"),
+                delta=f"netto {fmt_it(bp_result['capex_netto']/1000, 0)} k€ "
+                      f"(post PNRR {fmt_it(bp_pnrr_pct, 0, '%')})",
+            )
+            bp_cB.metric(
+                "Ricavi anno regime",
+                fmt_it(bp_result["ricavi"][0]/1000, 0, " k€/a"),
+                delta=f"{fmt_it(bp_result['biometano_smc_anno']/1000, 0)} kSmc · "
+                      f"tariffa {fmt_it(bp_tariffa_eff, 1)} €/MWh",
+            )
+            bp_cC.metric(
+                "EBITDA medio (pre-biomasse)",
+                fmt_it(bp_result["ebitda_medio"]/1000, 0, " k€/a"),
+                delta=f"target margin {fmt_it(bp_ebitda_target_pct, 1, '%')}",
+            )
+            bp_cD.metric(
+                "💰 Costo biogas implicito",
+                fmt_it(bp_result["costo_biogas_eur_per_nm3"], 4, " €/Nm³"),
+                delta=f"q.biomasse {fmt_it(bp_result['quota_biomasse_anno']/1000, 0)} k€/a",
+            )
+
+            st.divider()
+
+            # ===== CAPEX breakdown table =====
+            st.markdown("##### 🏗️ CAPEX — composizione")
+            capex_rows = []
+            for k, v in bp_capex_breakdown.items():
+                tot_v = v * plant_net_smch
+                capex_rows.append({
+                    "Voce": k,
+                    "Tipo": "Scalabile (€/(Smc/h))",
+                    "Importo unitario": fmt_it(v, 0, " €/(Smc/h)"),
+                    "Totale": fmt_it(tot_v, 0, " €"),
+                    "Quota %": fmt_it(tot_v / bp_result["capex_totale"] * 100, 1, "%"),
+                })
+            for k, v in bp_capex_forfait.items():
+                capex_rows.append({
+                    "Voce": k,
+                    "Tipo": "Forfait",
+                    "Importo unitario": "—",
+                    "Totale": fmt_it(v, 0, " €"),
+                    "Quota %": fmt_it(v / bp_result["capex_totale"] * 100, 1, "%"),
+                })
+            capex_rows.append({
+                "Voce": "**TOTALE CAPEX**",
+                "Tipo": "—",
+                "Importo unitario": "—",
+                "Totale": fmt_it(bp_result["capex_totale"], 0, " €"),
+                "Quota %": "100,0%",
+            })
+            capex_rows.append({
+                "Voce": "Contributo PNRR (M2C2)",
+                "Tipo": "—",
+                "Importo unitario": fmt_it(bp_pnrr_pct, 0, "%"),
+                "Totale": fmt_it(-bp_result["contributo"], 0, " €"),
+                "Quota %": fmt_it(-bp_result["contributo"] /
+                                  bp_result["capex_totale"] * 100, 1, "%"),
+            })
+            capex_rows.append({
+                "Voce": "**CAPEX NETTO** (post-PNRR)",
+                "Tipo": "—",
+                "Importo unitario": "—",
+                "Totale": fmt_it(bp_result["capex_netto"], 0, " €"),
+                "Quota %": fmt_it(bp_result["capex_netto"] /
+                                  bp_result["capex_totale"] * 100, 1, "%"),
+            })
+            st.dataframe(
+                pd.DataFrame(capex_rows),
+                hide_index=True, use_container_width=True,
+            )
+
+            # ===== CE multi-anno chart =====
+            st.divider()
+            st.markdown("##### 📊 Conto Economico 15 anni")
+            anni = list(range(1, len(bp_result["ricavi"]) + 1))
+            df_ce = pd.DataFrame({
+                "Anno": anni,
+                "Ricavi (k€)": [r/1000 for r in bp_result["ricavi"]],
+                "OPEX (k€)": [-o/1000 for o in bp_result["opex"]],
+                "EBITDA pre-biomasse (k€)": [e/1000 for e in bp_result["ebitda"]],
+                "Interessi (k€)": [-i/1000 for i in bp_result["interessi"]],
+                "Ammortamenti (k€)": [-a/1000 for a in bp_result["ammortamenti"]],
+                "Utile netto (k€)": [u/1000 for u in bp_result["utile_netto"]],
+                "FCF (k€)": [f/1000 for f in bp_result["fcf"]],
+            })
+
+            fig_bp = go.Figure()
+            fig_bp.add_trace(go.Bar(
+                x=anni, y=df_ce["Ricavi (k€)"],
+                name="Ricavi", marker_color=AMBER,
+            ))
+            fig_bp.add_trace(go.Bar(
+                x=anni, y=df_ce["OPEX (k€)"],
+                name="OPEX (inflaz.)", marker_color="#94A3B8",
+            ))
+            fig_bp.add_trace(go.Scatter(
+                x=anni, y=df_ce["EBITDA pre-biomasse (k€)"],
+                name="EBITDA pre-biomasse",
+                mode="lines+markers",
+                line=dict(color=NAVY, width=3),
+                marker=dict(size=8, color=NAVY),
+            ))
+            fig_bp.add_trace(go.Scatter(
+                x=anni, y=df_ce["Utile netto (k€)"],
+                name="Utile netto", mode="lines+markers",
+                line=dict(color="#10B981", width=2, dash="dot"),
+                marker=dict(size=6),
+            ))
+            fig_bp.update_layout(
+                barmode="relative", height=480,
+                yaxis_title="k€ / anno",
+                xaxis_title="Anno",
+                xaxis=dict(tickmode="linear", dtick=1),
+                legend=dict(orientation="h", yanchor="bottom",
+                            y=1.02, xanchor="right", x=1),
+            )
+            apply_metaniq_theme(fig_bp, dark=IS_DARK)
+            st.plotly_chart(fig_bp, use_container_width=True)
+
+            # ===== CE table =====
+            df_ce_disp = df_ce.copy()
+            for col in df_ce_disp.columns:
+                if col != "Anno":
+                    df_ce_disp[col] = df_ce_disp[col].apply(
+                        lambda v: fmt_it(v, 0)
+                    )
+            df_ce_disp["Anno"] = df_ce_disp["Anno"].apply(lambda v: f"Anno {v}")
+            st.dataframe(df_ce_disp, hide_index=True, use_container_width=True)
+
+            # ===== Cash Flow & Debito =====
+            st.divider()
+            st.markdown("##### 💵 Cash Flow & Schema finanziamento")
+            fin_cA, fin_cB, fin_cC = st.columns(3)
+            fin_cA.metric(
+                "Debito LT iniziale",
+                fmt_it(bp_result["debito_lt"]/1000, 0, " k€"),
+                delta=f"leva {fmt_it(bp_lt_leva, 0, '%')}",
+            )
+            fin_cB.metric(
+                "Equity (soci)",
+                fmt_it(bp_result["equity"]/1000, 0, " k€"),
+                delta=f"leva {fmt_it(100-bp_lt_leva, 0, '%')}",
+            )
+            fin_cC.metric(
+                "Rata LT/anno",
+                fmt_it(bp_result["rata_lt"]/1000, 0, " k€/a"),
+                delta=f"{fmt_it(bp_lt_durata, 0)} anni @ "
+                      f"{fmt_it(bp_lt_tasso, 2, '%')}",
+            )
+
+            # ===== KPI finanziari =====
+            st.markdown("##### 🎯 Indicatori finanziari")
+            kpi_cA, kpi_cB, kpi_cC, kpi_cD = st.columns(4)
+            irr_value = bp_result["irr_equity"]
+            kpi_cA.metric(
+                "IRR equity",
+                (fmt_it(irr_value*100, 1, "%")
+                 if irr_value is not None else "n/d"),
+                delta=("eccellente" if irr_value and irr_value > 0.15 else
+                       "buono" if irr_value and irr_value > 0.10 else
+                       "marginale" if irr_value and irr_value > 0.05 else
+                       "basso"),
+                delta_color="normal" if irr_value and irr_value > 0.10 else "inverse",
+            )
+            kpi_cB.metric(
+                "Payback equity",
+                (f"{fmt_it(bp_result['payback_anno'], 1)} anni"
+                 if bp_result["payback_anno"] is not None else "> 15 anni"),
+            )
+            kpi_cC.metric(
+                "FCF cumulato 15a",
+                fmt_it(bp_result["fcf_tot"]/1000, 0, " k€"),
+            )
+            kpi_cD.metric(
+                "Utile netto cum.",
+                fmt_it(bp_result["utile_netto_tot"]/1000, 0, " k€"),
+            )
+
+            # ===== Liquidazione biomasse calcolata =====
+            st.divider()
+            st.markdown(
+                "##### 🌾 Liquidazione biomasse (derivata dal BP)"
+            )
+            st.caption(
+                f"Calcolata come **resa CH₄/ton × costo biogas implicito** "
+                f"({fmt_it(bp_result['costo_biogas_eur_per_nm3'], 4)} €/Nm³ "
+                f"al CH₄ {fmt_it(bp_ch4_in_biogas_pct, 1, '%')} nel biogas). "
+                f"Confronto con benchmark settore (mais 230 → 71,71 €/t)."
+            )
+            # Per ogni biomassa attiva, calcola la liquidazione €/ton
+            # = resa Nm3 CH4/t / ch4_frac × costo_biogas €/Nm3 (biogas)
+            liq_rows = []
+            for f in active_feeds[:15]:  # limita a 15 per leggibilità
+                yld = _yield_of(f)  # Nm3 CH4/t — resa effettiva (BMT override se attivo)
+                biogas_per_t = yld / bp_result["ch4_frac"]
+                liq_eur_t = biogas_per_t * bp_result["costo_biogas_eur_per_nm3"]
+                liq_rows.append({
+                    "Biomassa": f,
+                    "Resa CH₄ Nm³/t": fmt_it(yld, 0),
+                    "Resa biogas Nm³/t": fmt_it(biogas_per_t, 0),
+                    "Liquidazione €/t (FM)": fmt_it(liq_eur_t, 2, " €"),
+                })
+            st.dataframe(
+                pd.DataFrame(liq_rows),
+                hide_index=True, use_container_width=True,
+            )
+    elif IS_DM2022 and tab5 is not None:
+        with tab5:
+            st.warning(
+                "Il calcolo BP non è disponibile. Verifica i parametri Pro Forma "
+                "nella sidebar (expander «💼 Pro Forma»)."
+            )
+
+    # ============================================================
+    # OUTPUT MODEL UNIFICATO (Fase 2 refactor)
+    # ------------------------------------------------------------
+    # Costruisce un'unica struttura `output_model` da cui leggono i nuovi
+    # export modulari (CSV, e in futuro Excel/PDF). I percorsi legacy
+    # restano attivi come fallback (try/except sotto).
+    # ============================================================
+    output_model = None
+    if _HAS_OUTPUT_MODEL:
+        try:
+            _annual_t   = {n: float(max(df_res[n].sum(), 0.0)) for n in active_feeds}
+            _annual_mwh = {
+                n: float(max(df_res[n].sum(), 0.0)) * _yield_of(n) * NM3_TO_MWH / aux_factor
+                for n in active_feeds
+            }
+            _om_ctx = {
+                # Identita' / scenario
+                "APP_MODE":          APP_MODE,
+                "APP_MODE_LABEL":    _MODE["label"],
+                "lang":              _LANG,
+                # Flag normativi
+                "IS_CHP":            IS_CHP,
+                "IS_CHP_DM2012":     IS_CHP_DM2012,
+                "IS_FER2":           IS_FER2,
+                "IS_DM2018":         IS_DM2018,
+                "IS_DM2022":         IS_DM2022,
+                # Impianto
+                "plant_net_smch":    plant_net_smch,
+                "plant_kwe":         plant_kwe,
+                "aux_factor":        aux_factor,
+                "ep_total":          ep_total,
+                "end_use":           end_use,
+                "ghg_threshold":     ghg_threshold,
+                "fossil_comparator": FOSSIL_COMPARATOR,
+                "upgrading_opt":     upgrading_opt,
+                "offgas_opt":        offgas_opt,
+                "injection_opt":     injection_opt,
+                # Dati / DB
+                "active_feeds":      active_feeds,
+                "FEEDSTOCK_DB":      FEEDSTOCK_DB,
+                # Tabella mensile e annuali
+                "df_res":            df_res,
+                "annual_t":          _annual_t,
+                "annual_mwh":        _annual_mwh,
+                "revenue_rows":      pdf_revenue_rows,
+                # KPI aggregati
+                "tot_biomasse_t":    float(df_res["Totale biomasse (t)"].sum()),
+                "tot_sm3_netti":     float(df_res["Sm³ netti"].sum()),
+                "tot_mwh_netti":     float(df_res["MWh netti"].sum()),
+                "tot_mwh":           float(tot_mwh),
+                "saving_avg":        float(df_res["Saving %"].mean()),
+                "valid_months":      int(df_res["Validità"].str.startswith("✅").sum()),
+                "tot_revenue":       float(tot_revenue),
+                "tot_n_cic":         float(tot_n_cic) if IS_DM2018 else 0.0,
+                "cic_active":        bool(cic_active) if IS_DM2018 else False,
+                "is_advanced":       bool(is_advanced) if IS_DM2018 else False,
+                "tariffa_media_ponderata": float(tariffa_media_ponderata)
+                                           if 'tariffa_media_ponderata' in dir() else 0.0,
+                "tot_mwh_el_lordo":  float(df_res["MWh elettrici lordi"].sum())
+                                     if IS_CHP and "MWh elettrici lordi" in df_res
+                                     else 0.0,
+                "tot_mwh_el_netto":  float(df_res["MWh elettrici netti"].sum())
+                                     if IS_CHP and "MWh elettrici netti" in df_res
+                                     else 0.0,
+                # Business plan (DM 2022)
+                "bp_result":         bp_result if IS_DM2022 else None,
+                # Audit
+                "yield_audit_rows":     list(_yield_audit_rows),
+                "emission_audit_rows":  list(_emission_audit_rows),
+                "emission_overrides":   dict(_EMISSION_OVERRIDES),
+            }
+            output_model = _build_output_model(_om_ctx)
+        except Exception as _om_exc:  # noqa: BLE001
+            output_model = None
+            st.warning(
+                "Output model non disponibile in questa run "
+                f"(fallback al percorso legacy): {_om_exc}"
+            )
+
+    # ------------------------- EXPORT -------------------------
+    st.divider()
+    st.markdown(
+        f"<div style='font-family:\"JetBrains Mono\", monospace; font-size:0.7rem; "
+        f"font-weight:600; letter-spacing:1.5px; text-transform:uppercase; "
+        f"color:{TEXT_MUTED}; margin-bottom:10px;'>// EXPORT</div>",
+        unsafe_allow_html=True,
+    )
+    st.caption(_t(
+        "**Excel autocalcolante** ✏️: scarica il file `.xlsx`, modifica le "
+        "celle gialle (Ore + Biomasse) direttamente in Excel/Numbers/LibreOffice "
+        "e tutti i calcoli (produzione, saving GHG, validità) si aggiornano "
+        "**istantaneamente** grazie alle formule live integrate. "
+        "Niente upload, niente roundtrip — il file fa tutto da solo."
+    ))
+
+    # ===== Riga unica: 3 download (XLSX primario, PDF, CSV legacy) =====
+    _dl_col1, _dl_col2, _dl_col_pptx, _dl_col3, _dl_col4 = st.columns([1.2, 1.0, 1.0, 0.8, 0.8])
+
+    with _dl_col1:
+        # XLSX autocalcolante: download primario
+        try:
+            # Pre-fill con lo stato corrente (input_df ha Mese, Ore, fixed_feeds;
+            # le unknown sono in df_res — passiamo il merge completo).
+            _initial_data = {}
+            for _, row in df_res.iterrows():
+                _initial_data[row["Mese"]] = {"Ore": int(row["Ore"])}
+                for f in active_feeds:
+                    if f in row:
+                        _initial_data[row["Mese"]][f] = float(row[f])
+            _xlsx_ctx = {
+                "active_feeds": active_feeds,
+                "FEEDSTOCK_DB": FEEDSTOCK_DB,
+                "aux_factor":   aux_factor,
+                "ep_total":     ep_total,
+                "fossil_comparator": FOSSIL_COMPARATOR,
+                "ghg_threshold":     ghg_threshold,
+                "plant_net_smch":    plant_net_smch,
+                "NM3_TO_MWH":        NM3_TO_MWH,
+                "MONTHS":            MONTHS,
+                "MONTH_HOURS":       MONTH_HOURS,
+                "initial_data":      _initial_data,
+                "APP_MODE_LABEL":    _MODE["label"],
+                "end_use":           end_use,
+                # === CHP-specific (per validazione kW lordi) ===
+                "IS_CHP":            IS_CHP,
+                "plant_kwe":         plant_kwe,        # potenza LORDA targa motore
+                "plant_kwe_net":     plant_kwe_net,    # info-only
+                "eta_el":            eta_el,
+                "eta_th":            eta_th,
+                "aux_el_pct":        aux_el_pct,
+            }
+            # === Aggiunge contesto Business Plan (mode-aware) ===
+            # Tariffa effettiva e parametri BP per la sheet "Business Plan".
+            # Per ogni mode calcoliamo:
+            #   - bp_tariffa_eff_mwh: €/MWh equivalenti (per BP unico mode-agnostic)
+            #   - bp_ore_anno: ore funzionamento (default 8500)
+            if IS_FER2:
+                _bp_tariffa_mwh = float(fer2_tariffa_eff)
+            elif IS_CHP_DM2012:
+                # CHP DM 6/7/2012: TO 280 €/MWh_el (tipico)
+                # se l'utente ha gia' impostato tariffa per biomassa la
+                # prendiamo come weighted average.
                 try:
                     _tk = f"tariffs_eur_mwh_{APP_MODE}"
                     _tar_dict = st.session_state.get(_tk, {})
                     _vals = list(_tar_dict.values())
-                    _bp_tariffa_mwh = sum(_vals) / len(_vals) if _vals else 110.0
+                    _bp_tariffa_mwh = sum(_vals) / len(_vals) if _vals else 280.0
                 except Exception:
-                    _bp_tariffa_mwh = 110.0
-        else:
-            # Biometano DM 2022 (default app)
-            _bp_tariffa_mwh = (
-                float(bp_tariffa_eff) if IS_DM2022 and bp_result is not None
-                else 131.0
+                    _bp_tariffa_mwh = 280.0
+            elif IS_DM2018:
+                if cic_active:
+                    # CIC system: tariffa €/MWh equivalente = ricavi / mwh_netti
+                    _mwh_for_calc = float(df_res["MWh netti"].sum()) or 1.0
+                    _bp_tariffa_mwh = float(tot_revenue) / _mwh_for_calc
+                else:
+                    # DM 2018 altri usi: tariffa diretta media
+                    try:
+                        _tk = f"tariffs_eur_mwh_{APP_MODE}"
+                        _tar_dict = st.session_state.get(_tk, {})
+                        _vals = list(_tar_dict.values())
+                        _bp_tariffa_mwh = sum(_vals) / len(_vals) if _vals else 110.0
+                    except Exception:
+                        _bp_tariffa_mwh = 110.0
+            else:
+                # Biometano DM 2022 (default app)
+                _bp_tariffa_mwh = (
+                    float(bp_tariffa_eff) if IS_DM2022 and bp_result is not None
+                    else 131.0
+                )
+
+            # Ore anno default 8500 (puo' essere editato in Excel)
+            _bp_ore_anno = 8500.0
+
+            # CAPEX/OPEX defaults per BP: leggi dalle costanti
+            _xlsx_ctx.update({
+                "bp_tariffa_eff_mwh":        _bp_tariffa_mwh,
+                "bp_ore_anno":               _bp_ore_anno,
+                "bp_lt_tasso":               BP_FINANCE_DEFAULTS["lt_tasso"]
+                                              if not IS_DM2022 else bp_lt_tasso,
+                "bp_lt_durata":              (BP_FINANCE_DEFAULTS["lt_durata"]
+                                               if not IS_DM2022 else bp_lt_durata),
+                "bp_lt_leva":                (BP_FINANCE_DEFAULTS["lt_leva"]
+                                               if not IS_DM2022 else bp_lt_leva),
+                "bp_inflazione_pct":         (BP_INFLAZIONE_DEFAULT_PCT
+                                               if not IS_DM2022 else bp_inflazione_pct),
+                "bp_durata_tariffa":         BP_DURATA_TARIFFA_ANNI,
+                "bp_pnrr_pct":               (BP_PNRR_QUOTA_PCT_DEFAULT
+                                               if not IS_DM2022 else bp_pnrr_pct),
+                "bp_ebitda_target_pct":      (24.5 if not IS_DM2022
+                                               else bp_ebitda_target_pct),
+                "bp_tax_rate_pct":           BP_TAX_RATE_PCT,
+                "bp_ammort_anni":            BP_AMMORTAMENTO_ANNI,
+                "bp_npv_disc_rate_pct":      6.0,
+                "bp_massimale_eur_per_smch": BP_MASSIMALE_SPESA_EUR_PER_SMCH,
+                # CAPEX/OPEX breakdown: passa quelli del BP se disponibili
+                "bp_capex_breakdown":        (bp_capex_breakdown
+                                               if IS_DM2022 else None),
+                "bp_capex_forfait":          (bp_capex_forfait
+                                               if IS_DM2022 else None),
+                "bp_opex_breakdown":         (bp_opex_breakdown
+                                               if IS_DM2022 else None),
+                "bp_opex_forfait":           (bp_opex_forfait
+                                               if IS_DM2022 else None),
+                "NM3_TO_MWH":                NM3_TO_MWH,
+                "lang":                      _LANG,
+                # === BMT override audit (resa effettiva vs standard) ===
+                "yield_audit_rows":          list(_yield_audit_rows),
+                "effective_yields":          dict(_EFFECTIVE_YIELDS),
+                # === Audit fattori emissivi reali (relazione tecnica) ===
+                "emission_audit_rows":       list(_emission_audit_rows),
+                "emission_overrides":        dict(_EMISSION_OVERRIDES),
+            })
+            _xlsx_buf = build_metaniq_xlsx(_xlsx_ctx)
+            _xlsx_data = _xlsx_buf.getvalue()
+            _xlsx_ok = True
+        except Exception as _xlsx_exc:  # noqa: BLE001
+            _xlsx_data = None
+            _xlsx_ok = False
+            _xlsx_err = str(_xlsx_exc)
+
+        if _xlsx_ok:
+            st.download_button(
+                _t("📊 Scarica Excel modificabile"),
+                data=_xlsx_data,
+                file_name=f"metaniq_{APP_MODE}_editabile.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                type="primary",
+                help="Excel autocalcolante (.xlsx). Apri il file e modifica "
+                     "DIRETTAMENTE in Excel le celle gialle (Ore + Biomasse). "
+                     "Tutti gli altri valori (Sm³, MWh, e_w, saving %, "
+                     "validità) si ricalcolano automaticamente in tempo "
+                     "reale grazie alle formule live. 3 fogli: «Piano "
+                     "mensile» (editabile), «Database feedstock» (yield/eec/"
+                     "etd/esca/e_total), «Sintesi annuale» (KPI aggregati).",
             )
+        else:
+            st.error(f"Errore generazione XLSX: {_xlsx_err}")
 
-        # Ore anno default 8500 (puo' essere editato in Excel)
-        _bp_ore_anno = 8500.0
-
-        # CAPEX/OPEX defaults per BP: leggi dalle costanti
-        _xlsx_ctx.update({
-            "bp_tariffa_eff_mwh":        _bp_tariffa_mwh,
-            "bp_ore_anno":               _bp_ore_anno,
-            "bp_lt_tasso":               BP_FINANCE_DEFAULTS["lt_tasso"]
-                                          if not IS_DM2022 else bp_lt_tasso,
-            "bp_lt_durata":              (BP_FINANCE_DEFAULTS["lt_durata"]
-                                           if not IS_DM2022 else bp_lt_durata),
-            "bp_lt_leva":                (BP_FINANCE_DEFAULTS["lt_leva"]
-                                           if not IS_DM2022 else bp_lt_leva),
-            "bp_inflazione_pct":         (BP_INFLAZIONE_DEFAULT_PCT
-                                           if not IS_DM2022 else bp_inflazione_pct),
-            "bp_durata_tariffa":         BP_DURATA_TARIFFA_ANNI,
-            "bp_pnrr_pct":               (BP_PNRR_QUOTA_PCT_DEFAULT
-                                           if not IS_DM2022 else bp_pnrr_pct),
-            "bp_ebitda_target_pct":      (24.5 if not IS_DM2022
-                                           else bp_ebitda_target_pct),
-            "bp_tax_rate_pct":           BP_TAX_RATE_PCT,
-            "bp_ammort_anni":            BP_AMMORTAMENTO_ANNI,
-            "bp_npv_disc_rate_pct":      6.0,
-            "bp_massimale_eur_per_smch": BP_MASSIMALE_SPESA_EUR_PER_SMCH,
-            # CAPEX/OPEX breakdown: passa quelli del BP se disponibili
-            "bp_capex_breakdown":        (bp_capex_breakdown
-                                           if IS_DM2022 else None),
-            "bp_capex_forfait":          (bp_capex_forfait
-                                           if IS_DM2022 else None),
-            "bp_opex_breakdown":         (bp_opex_breakdown
-                                           if IS_DM2022 else None),
-            "bp_opex_forfait":           (bp_opex_forfait
-                                           if IS_DM2022 else None),
-            "NM3_TO_MWH":                NM3_TO_MWH,
-            "lang":                      _LANG,
+    with _dl_col2:
+        # Costruisce contesto e genera PDF on-demand (solo al click).
+        # ReportLab pure Python -> nessuna dipendenza di sistema.
+        _pdf_ctx = {
+            "df_res": df_res,
+            "IS_CHP": IS_CHP,
+            "IS_CHP_DM2012": IS_CHP_DM2012,
+            "IS_FER2": IS_FER2,
+            "IS_DM2018": IS_DM2018,
+            "IS_DM2022": IS_DM2022,
+            "APP_MODE": APP_MODE,
+            "plant_kwe": plant_kwe,
+            "plant_kwe_net": plant_kwe_net,
+            "plant_net_smch": plant_net_smch,
+            "eta_el": eta_el,
+            "eta_th": eta_th,
+            "aux_el_pct": aux_el_pct,
+            "aux_factor": aux_factor,
+            "ep_total": ep_total,
+            "end_use": end_use,
+            "ghg_threshold": ghg_threshold,
+            "fossil_comparator": FOSSIL_COMPARATOR,
+            "upgrading_opt": upgrading_opt,
+            "offgas_opt": offgas_opt,
+            "injection_opt": injection_opt,
+            # DM 2018 specifics
+            "is_advanced": is_advanced,
+            "cic_active": cic_active,
+            "cic_double": cic_double,
+            "cic_price": cic_price,
+            "annex_mass_share": annex_mass_share,
+            "annex_threshold": annex_threshold,
+            "tot_n_cic": tot_n_cic,
+            "MWH_PER_CIC": MWH_PER_CIC,
+            "GCAL_PER_CIC": GCAL_PER_CIC,
+            # FER 2 specifics
+            "fer2_kwe_cap": FER2_KWE_CAP,
+            "fer2_periodo_anni": FER2_PERIODO_ANNI,
+            "fer2_subprod_share": fer2_subprod_share,
+            "fer2_matrice_threshold": fer2_matrice_threshold,
+            "fer2_qualified": fer2_qualified,
+            "fer2_tariffa_base": fer2_tariffa_base,
+            "fer2_premio_matrice_eur": fer2_premio_matrice_eur,
+            "fer2_premio_car_eur": fer2_premio_car_eur,
+            "fer2_apply_matrice": fer2_apply_matrice,
+            "fer2_apply_car": fer2_apply_car,
+            "fer2_tariffa_eff": fer2_tariffa_eff,
+            # BP DM 2022 specifics (None se non DM 2022)
+            "bp_result": bp_result if IS_DM2022 else None,
+            "bp_tariffa_eur_mwh": bp_tariffa_eur_mwh if IS_DM2022 else None,
+            "bp_ribasso_pct": bp_ribasso_pct if IS_DM2022 else None,
+            "bp_tariffa_eff": bp_tariffa_eff if IS_DM2022 else None,
+            "bp_pnrr_pct": bp_pnrr_pct if IS_DM2022 else None,
+            "bp_capex_breakdown": bp_capex_breakdown if IS_DM2022 else None,
+            "bp_capex_forfait": bp_capex_forfait if IS_DM2022 else None,
+            "bp_lt_tasso": bp_lt_tasso if IS_DM2022 else None,
+            "bp_lt_durata": bp_lt_durata if IS_DM2022 else None,
+            "bp_lt_leva": bp_lt_leva if IS_DM2022 else None,
+            "bp_ebitda_target_pct": bp_ebitda_target_pct if IS_DM2022 else None,
+            "bp_inflazione_pct": bp_inflazione_pct if IS_DM2022 else None,
+            "bp_ch4_in_biogas_pct": bp_ch4_in_biogas_pct if IS_DM2022 else None,
+            "bp_durata_tariffa": BP_DURATA_TARIFFA_ANNI,
+            # Aggregati comuni
+            "tot_biomasse_t": float(df_res["Totale biomasse (t)"].sum()),
+            "tot_sm3_netti": float(df_res["Sm³ netti"].sum()),
+            "tot_mwh_netti": float(df_res["MWh netti"].sum()),
+            "tot_mwh_el_lordo": float(df_res["MWh elettrici lordi"].sum())
+                                 if IS_CHP and "MWh elettrici lordi" in df_res
+                                 else 0.0,
+            "tot_mwh_el_netto": float(df_res["MWh elettrici netti"].sum())
+                                 if IS_CHP and "MWh elettrici netti" in df_res
+                                 else 0.0,
+            "saving_avg": float(df_res["Saving %"].mean()),
+            "valid_months": int(df_res["Validità"].str.startswith("✅").sum()),
+            "tot_revenue": float(tot_revenue),
+            "tot_mwh_basis": float(tot_revenue_base_mwh),
+            "tariffa_media_ponderata": float(tariffa_media_ponderata),
+            "revenue_rows": pdf_revenue_rows,
+            "lang":         _LANG,
             # === BMT override audit (resa effettiva vs standard) ===
-            "yield_audit_rows":          list(_yield_audit_rows),
-            "effective_yields":          dict(_EFFECTIVE_YIELDS),
+            "yield_audit_rows": list(_yield_audit_rows),
+            "effective_yields": dict(_EFFECTIVE_YIELDS),
             # === Audit fattori emissivi reali (relazione tecnica) ===
-            "emission_audit_rows":       list(_emission_audit_rows),
-            "emission_overrides":        dict(_EMISSION_OVERRIDES),
-        })
-        _xlsx_buf = build_metaniq_xlsx(_xlsx_ctx)
-        _xlsx_data = _xlsx_buf.getvalue()
-        _xlsx_ok = True
-    except Exception as _xlsx_exc:  # noqa: BLE001
-        _xlsx_data = None
-        _xlsx_ok = False
-        _xlsx_err = str(_xlsx_exc)
-
-    if _xlsx_ok:
-        st.download_button(
-            _t("📊 Scarica Excel modificabile"),
-            data=_xlsx_data,
-            file_name=f"metaniq_{APP_MODE}_editabile.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
-            type="primary",
-            help="Excel autocalcolante (.xlsx). Apri il file e modifica "
-                 "DIRETTAMENTE in Excel le celle gialle (Ore + Biomasse). "
-                 "Tutti gli altri valori (Sm³, MWh, e_w, saving %, "
-                 "validità) si ricalcolano automaticamente in tempo "
-                 "reale grazie alle formule live. 3 fogli: «Piano "
-                 "mensile» (editabile), «Database feedstock» (yield/eec/"
-                 "etd/esca/e_total), «Sintesi annuale» (KPI aggregati).",
-        )
-    else:
-        st.error(f"Errore generazione XLSX: {_xlsx_err}")
-
-with _dl_col2:
-    # Costruisce contesto e genera PDF on-demand (solo al click).
-    # ReportLab pure Python -> nessuna dipendenza di sistema.
-    _pdf_ctx = {
-        "df_res": df_res,
-        "IS_CHP": IS_CHP,
-        "IS_CHP_DM2012": IS_CHP_DM2012,
-        "IS_FER2": IS_FER2,
-        "IS_DM2018": IS_DM2018,
-        "IS_DM2022": IS_DM2022,
-        "APP_MODE": APP_MODE,
-        "plant_kwe": plant_kwe,
-        "plant_kwe_net": plant_kwe_net,
-        "plant_net_smch": plant_net_smch,
-        "eta_el": eta_el,
-        "eta_th": eta_th,
-        "aux_el_pct": aux_el_pct,
-        "aux_factor": aux_factor,
-        "ep_total": ep_total,
-        "end_use": end_use,
-        "ghg_threshold": ghg_threshold,
-        "fossil_comparator": FOSSIL_COMPARATOR,
-        "upgrading_opt": upgrading_opt,
-        "offgas_opt": offgas_opt,
-        "injection_opt": injection_opt,
-        # DM 2018 specifics
-        "is_advanced": is_advanced,
-        "cic_active": cic_active,
-        "cic_double": cic_double,
-        "cic_price": cic_price,
-        "annex_mass_share": annex_mass_share,
-        "annex_threshold": annex_threshold,
-        "tot_n_cic": tot_n_cic,
-        "MWH_PER_CIC": MWH_PER_CIC,
-        "GCAL_PER_CIC": GCAL_PER_CIC,
-        # FER 2 specifics
-        "fer2_kwe_cap": FER2_KWE_CAP,
-        "fer2_periodo_anni": FER2_PERIODO_ANNI,
-        "fer2_subprod_share": fer2_subprod_share,
-        "fer2_matrice_threshold": fer2_matrice_threshold,
-        "fer2_qualified": fer2_qualified,
-        "fer2_tariffa_base": fer2_tariffa_base,
-        "fer2_premio_matrice_eur": fer2_premio_matrice_eur,
-        "fer2_premio_car_eur": fer2_premio_car_eur,
-        "fer2_apply_matrice": fer2_apply_matrice,
-        "fer2_apply_car": fer2_apply_car,
-        "fer2_tariffa_eff": fer2_tariffa_eff,
-        # BP DM 2022 specifics (None se non DM 2022)
-        "bp_result": bp_result if IS_DM2022 else None,
-        "bp_tariffa_eur_mwh": bp_tariffa_eur_mwh if IS_DM2022 else None,
-        "bp_ribasso_pct": bp_ribasso_pct if IS_DM2022 else None,
-        "bp_tariffa_eff": bp_tariffa_eff if IS_DM2022 else None,
-        "bp_pnrr_pct": bp_pnrr_pct if IS_DM2022 else None,
-        "bp_capex_breakdown": bp_capex_breakdown if IS_DM2022 else None,
-        "bp_capex_forfait": bp_capex_forfait if IS_DM2022 else None,
-        "bp_lt_tasso": bp_lt_tasso if IS_DM2022 else None,
-        "bp_lt_durata": bp_lt_durata if IS_DM2022 else None,
-        "bp_lt_leva": bp_lt_leva if IS_DM2022 else None,
-        "bp_ebitda_target_pct": bp_ebitda_target_pct if IS_DM2022 else None,
-        "bp_inflazione_pct": bp_inflazione_pct if IS_DM2022 else None,
-        "bp_ch4_in_biogas_pct": bp_ch4_in_biogas_pct if IS_DM2022 else None,
-        "bp_durata_tariffa": BP_DURATA_TARIFFA_ANNI,
-        # Aggregati comuni
-        "tot_biomasse_t": float(df_res["Totale biomasse (t)"].sum()),
-        "tot_sm3_netti": float(df_res["Sm³ netti"].sum()),
-        "tot_mwh_netti": float(df_res["MWh netti"].sum()),
-        "tot_mwh_el_lordo": float(df_res["MWh elettrici lordi"].sum())
-                             if IS_CHP and "MWh elettrici lordi" in df_res
-                             else 0.0,
-        "tot_mwh_el_netto": float(df_res["MWh elettrici netti"].sum())
-                             if IS_CHP and "MWh elettrici netti" in df_res
-                             else 0.0,
-        "saving_avg": float(df_res["Saving %"].mean()),
-        "valid_months": int(df_res["Validità"].str.startswith("✅").sum()),
-        "tot_revenue": float(tot_revenue),
-        "tot_mwh_basis": float(tot_revenue_base_mwh),
-        "tariffa_media_ponderata": float(tariffa_media_ponderata),
-        "revenue_rows": pdf_revenue_rows,
-        "lang":         _LANG,
-        # === BMT override audit (resa effettiva vs standard) ===
-        "yield_audit_rows": list(_yield_audit_rows),
-        "effective_yields": dict(_EFFECTIVE_YIELDS),
-        # === Audit fattori emissivi reali (relazione tecnica) ===
-        "emission_audit_rows": list(_emission_audit_rows),
-        "emission_overrides":  dict(_EMISSION_OVERRIDES),
-    }
-    try:
-        _pdf_buf = build_metaniq_pdf(_pdf_ctx)
-        _pdf_data = _pdf_buf.getvalue()
-        _pdf_ok = True
-    except Exception as _exc:  # noqa: BLE001
-        _pdf_data = None
-        _pdf_ok = False
-        _pdf_err = str(_exc)
-    if _pdf_ok:
-        st.download_button(
-            _t("📄 Scarica Report PDF"),
-            data=_pdf_data,
-            file_name=f"metaniq_{APP_MODE}_report.pdf",
-            mime="application/pdf",
-            use_container_width=True,
-            type="primary",
-            help="Report PDF consulting-grade: cover, executive summary, "
-                 "configurazione impianto, pianificazione mensile, "
-                 "analisi ricavi, riferimenti normativi.",
-        )
-    else:
-        st.error(f"Errore generazione PDF: {_pdf_err}")
-
-# ===== Colonna PPTX: Esportazione in PowerPoint =====
-with _dl_col_pptx:
-    try:
-        from export.pptx_export import build_metaniq_pptx
-        _pptx_buf = build_metaniq_pptx(_pdf_ctx)
-        _pptx_data = _pptx_buf.getvalue()
-        _pptx_ok = True
-    except Exception as _exc:  # noqa: BLE001
-        _pptx_data = None
-        _pptx_ok = False
-        _pptx_err = str(_exc)
-    
-    if _pptx_ok:
-        st.download_button(
-            _t("📊 Presentazione PPTX"),
-            data=_pptx_data,
-            file_name=f"metaniq_{APP_MODE}_presentazione.pptx",
-            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            use_container_width=True,
-            type="primary",
-            help="Scarica una presentazione di 8 slide ad alto impatto con i risultati del progetto (stile moderno).",
-        )
-    else:
-        st.error(f"Errore generazione PPTX: {_pptx_err}")
-
-# ===== Colonna 3: XLSX SNAPSHOT (read-only, valori statici) =====
-with _dl_col3:
-    try:
-        # Riusa lo stesso ctx dell'editabile, aggiungiamo df_res per i valori
-        _xlsx_snap_ctx = dict(_xlsx_ctx)
-        _xlsx_snap_ctx["df_res"] = df_res
-        _xlsx_snap_buf = build_metaniq_xlsx(_xlsx_snap_ctx, snapshot=True)
-        _xlsx_snap_data = _xlsx_snap_buf.getvalue()
-        _xlsx_snap_ok = True
-    except Exception as _xs_exc:  # noqa: BLE001
-        _xlsx_snap_data = None
-        _xlsx_snap_ok = False
-        _xlsx_snap_err = str(_xs_exc)
-    if _xlsx_snap_ok:
-        st.download_button(
-            _t("📋 Excel snapshot"),
-            data=_xlsx_snap_data,
-            file_name=f"metaniq_{APP_MODE}_snapshot.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
-            type="primary",
-            help="Excel di sola lettura (snapshot dei numeri attuali, "
-                 "no formule). Stessa estetica del file modificabile ma "
-                 "con valori cristallizzati - ideale per archivio, "
-                 "condivisione e print. Per modificare ore/biomasse usa "
-                 "l'Excel modificabile a sinistra.",
-        )
-    else:
-        st.error(f"Errore snapshot: {_xlsx_snap_err}")
-
-# ===== Colonna 4: CSV (piano mensile con intestazioni tradotte) =====
-with _dl_col4:
-    _csv_data = None
-    _csv_ok = False
-    _csv_err = ""
-    # Percorso nuovo (output_model) — se disponibile e abilitato.
-    if _HAS_OUTPUT_MODEL and output_model is not None:
-        try:
-            _csv_data = _build_csv_from_output(output_model, sheet="monthly")
-            _csv_ok = True
-        except Exception as _csv_om_exc:  # noqa: BLE001
-            _csv_ok = False
-            _csv_err = f"output_model CSV: {_csv_om_exc}"
-    # Fallback legacy
-    if not _csv_ok:
-        try:
-            _csv_df = translate_df(df_res.copy(), _LANG)
-            _csv_data = _csv_df.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig")
-            _csv_ok = True
-            _csv_err = ""
-        except Exception as _csv_exc:
-            _csv_data = None
-            _csv_ok = False
-            _csv_err = str(_csv_exc)
-    if _csv_ok:
-        _csv_fn = f"metaniq_{APP_MODE}_{'monthly_plan' if _LANG=='en' else 'piano_mensile'}.csv"
-        st.download_button(
-            _t("📥 Scarica CSV"),
-            data=_csv_data,
-            file_name=_csv_fn,
-            mime="text/csv",
-            use_container_width=True,
-            type="secondary",
-            help="CSV del piano mensile con intestazioni tradotte." if _LANG != "en"
-                 else "CSV of the monthly plan with translated headers.",
-        )
-    else:
-        st.error(f"CSV error: {_csv_err}")
-
-st.caption(
-    "ℹ️ Database feedstock: letteratura tecnica / UNI/TS 11567:2024 / parametri "
-    "Consorzio Monviso. Manure credit -45 gCO₂/MJ incorporato in `eec` "
-    "(pollina ovaiole, liquame suino). Per certificazione GSE sostituire con "
-    "valori reali d'impianto."
-)
-
-# ============================================================
-# ORIGINE DEI DATI E METODO DI CALCOLO  (Fase 2 refactor)
-# ------------------------------------------------------------
-# Sezione esplicativa unica che documenta provenienza rese, fattori
-# emissivi, metodo GHG e base normativa. Letta dall'output_model
-# explanations (con fallback a chiamate dirette per robustezza).
-# ============================================================
-if _HAS_OUTPUT_MODEL:
-    try:
-        _expl_ctx = {
-            "lang":                 _LANG,
-            "APP_MODE":             APP_MODE,
-            "yield_audit_rows":     list(_yield_audit_rows),
-            "emission_audit_rows":  list(_emission_audit_rows),
+            "emission_audit_rows": list(_emission_audit_rows),
+            "emission_overrides":  dict(_EMISSION_OVERRIDES),
         }
-        _expl = (output_model or {}).get("explanations") or {
-            "yield_origin":           _explain_yield_origin(_expl_ctx),
-            "emission_factor_origin": _explain_emission_factor_origin(_expl_ctx),
-            "ghg_method":             _explain_ghg_method(_expl_ctx),
-            "regulatory_basis":       _explain_regulatory_basis(_expl_ctx),
-        }
-        with st.expander(_t(
-            "📚 Origine dei dati e metodo di calcolo "
-            "(rese, fattori emissivi, GHG, base normativa)"),
-            expanded=False,
-        ):
-            st.markdown(f"**{_t('Origine delle rese biomassa')}**")
-            st.text(_expl.get("yield_origin", ""))
-            st.markdown(f"**{_t('Origine dei fattori emissivi')}**")
-            st.text(_expl.get("emission_factor_origin", ""))
-            st.markdown(f"**{_t('Metodo di calcolo GHG (RED III)')}**")
-            st.text(_expl.get("ghg_method", ""))
-            st.markdown("**Base normativa applicata**")
-            st.text(_expl.get("regulatory_basis", ""))
-    except Exception as _expl_exc:  # noqa: BLE001
-        st.caption(f"(Sezione spiegazioni non disponibile: {_expl_exc})")
+        try:
+            _pdf_buf = build_metaniq_pdf(_pdf_ctx)
+            _pdf_data = _pdf_buf.getvalue()
+            _pdf_ok = True
+        except Exception as _exc:  # noqa: BLE001
+            _pdf_data = None
+            _pdf_ok = False
+            _pdf_err = str(_exc)
+        if _pdf_ok:
+            st.download_button(
+                _t("📄 Scarica Report PDF"),
+                data=_pdf_data,
+                file_name=f"metaniq_{APP_MODE}_report.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                type="primary",
+                help="Report PDF consulting-grade: cover, executive summary, "
+                     "configurazione impianto, pianificazione mensile, "
+                     "analisi ricavi, riferimenti normativi.",
+            )
+        else:
+            st.error(f"Errore generazione PDF: {_pdf_err}")
 
-# ============================================================
+    # ===== Colonna PPTX: Esportazione in PowerPoint =====
+    with _dl_col_pptx:
+        try:
+            from export.pptx_export import build_metaniq_pptx
+            _pptx_buf = build_metaniq_pptx(_pdf_ctx)
+            _pptx_data = _pptx_buf.getvalue()
+            _pptx_ok = True
+        except Exception as _exc:  # noqa: BLE001
+            _pptx_data = None
+            _pptx_ok = False
+            _pptx_err = str(_exc)
+        
+        if _pptx_ok:
+            st.download_button(
+                _t("📊 Presentazione PPTX"),
+                data=_pptx_data,
+                file_name=f"metaniq_{APP_MODE}_presentazione.pptx",
+                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                use_container_width=True,
+                type="primary",
+                help="Scarica una presentazione di 8 slide ad alto impatto con i risultati del progetto (stile moderno).",
+            )
+        else:
+            st.error(f"Errore generazione PPTX: {_pptx_err}")
+
+    # ===== Colonna 3: XLSX SNAPSHOT (read-only, valori statici) =====
+    with _dl_col3:
+        try:
+            # Riusa lo stesso ctx dell'editabile, aggiungiamo df_res per i valori
+            _xlsx_snap_ctx = dict(_xlsx_ctx)
+            _xlsx_snap_ctx["df_res"] = df_res
+            _xlsx_snap_buf = build_metaniq_xlsx(_xlsx_snap_ctx, snapshot=True)
+            _xlsx_snap_data = _xlsx_snap_buf.getvalue()
+            _xlsx_snap_ok = True
+        except Exception as _xs_exc:  # noqa: BLE001
+            _xlsx_snap_data = None
+            _xlsx_snap_ok = False
+            _xlsx_snap_err = str(_xs_exc)
+        if _xlsx_snap_ok:
+            st.download_button(
+                _t("📋 Excel snapshot"),
+                data=_xlsx_snap_data,
+                file_name=f"metaniq_{APP_MODE}_snapshot.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                type="primary",
+                help="Excel di sola lettura (snapshot dei numeri attuali, "
+                     "no formule). Stessa estetica del file modificabile ma "
+                     "con valori cristallizzati - ideale per archivio, "
+                     "condivisione e print. Per modificare ore/biomasse usa "
+                     "l'Excel modificabile a sinistra.",
+            )
+        else:
+            st.error(f"Errore snapshot: {_xlsx_snap_err}")
+
+    # ===== Colonna 4: CSV (piano mensile con intestazioni tradotte) =====
+    with _dl_col4:
+        _csv_data = None
+        _csv_ok = False
+        _csv_err = ""
+        # Percorso nuovo (output_model) — se disponibile e abilitato.
+        if _HAS_OUTPUT_MODEL and output_model is not None:
+            try:
+                _csv_data = _build_csv_from_output(output_model, sheet="monthly")
+                _csv_ok = True
+            except Exception as _csv_om_exc:  # noqa: BLE001
+                _csv_ok = False
+                _csv_err = f"output_model CSV: {_csv_om_exc}"
+        # Fallback legacy
+        if not _csv_ok:
+            try:
+                _csv_df = translate_df(df_res.copy(), _LANG)
+                _csv_data = _csv_df.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig")
+                _csv_ok = True
+                _csv_err = ""
+            except Exception as _csv_exc:
+                _csv_data = None
+                _csv_ok = False
+                _csv_err = str(_csv_exc)
+        if _csv_ok:
+            _csv_fn = f"metaniq_{APP_MODE}_{'monthly_plan' if _LANG=='en' else 'piano_mensile'}.csv"
+            st.download_button(
+                _t("📥 Scarica CSV"),
+                data=_csv_data,
+                file_name=_csv_fn,
+                mime="text/csv",
+                use_container_width=True,
+                type="secondary",
+                help="CSV del piano mensile con intestazioni tradotte." if _LANG != "en"
+                     else "CSV of the monthly plan with translated headers.",
+            )
+        else:
+            st.error(f"CSV error: {_csv_err}")
+
+    st.caption(
+        "ℹ️ Database feedstock: letteratura tecnica / UNI/TS 11567:2024 / parametri "
+        "Consorzio Monviso. Manure credit -45 gCO₂/MJ incorporato in `eec` "
+        "(pollina ovaiole, liquame suino). Per certificazione GSE sostituire con "
+        "valori reali d'impianto."
+    )
+
+    # ============================================================
+    # ORIGINE DEI DATI E METODO DI CALCOLO  (Fase 2 refactor)
+    # ------------------------------------------------------------
+    # Sezione esplicativa unica che documenta provenienza rese, fattori
+    # emissivi, metodo GHG e base normativa. Letta dall'output_model
+    # explanations (con fallback a chiamate dirette per robustezza).
+    # ============================================================
+    if _HAS_OUTPUT_MODEL:
+        try:
+            _expl_ctx = {
+                "lang":                 _LANG,
+                "APP_MODE":             APP_MODE,
+                "yield_audit_rows":     list(_yield_audit_rows),
+                "emission_audit_rows":  list(_emission_audit_rows),
+            }
+            _expl = (output_model or {}).get("explanations") or {
+                "yield_origin":           _explain_yield_origin(_expl_ctx),
+                "emission_factor_origin": _explain_emission_factor_origin(_expl_ctx),
+                "ghg_method":             _explain_ghg_method(_expl_ctx),
+                "regulatory_basis":       _explain_regulatory_basis(_expl_ctx),
+            }
+            with st.expander(_t(
+                "📚 Origine dei dati e metodo di calcolo "
+                "(rese, fattori emissivi, GHG, base normativa)"),
+                expanded=False,
+            ):
+                st.markdown(f"**{_t('Origine delle rese biomassa')}**")
+                st.text(_expl.get("yield_origin", ""))
+                st.markdown(f"**{_t('Origine dei fattori emissivi')}**")
+                st.text(_expl.get("emission_factor_origin", ""))
+                st.markdown(f"**{_t('Metodo di calcolo GHG (RED III)')}**")
+                st.text(_expl.get("ghg_method", ""))
+                st.markdown("**Base normativa applicata**")
+                st.text(_expl.get("regulatory_basis", ""))
+        except Exception as _expl_exc:  # noqa: BLE001
+            st.caption(f"(Sezione spiegazioni non disponibile: {_expl_exc})")
+
+    # ============================================================
 # GESTIONE GIORNALIERA + VERIFICA SOSTENIBILITA' MENSILE
 # ------------------------------------------------------------
 # Sezione operativa "giorno per giorno" con verifica di sostenibilita'
