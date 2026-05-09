@@ -115,10 +115,92 @@ def build_daily_dataframe(
 
 
 # ---------------------------------------------------------------------------
+# Append riga "TOTALE MESE" alla vista giornaliera
+# ---------------------------------------------------------------------------
+
+def append_monthly_total_row(
+    df: pd.DataFrame,
+    feed_columns: list[str] | None = None,
+) -> pd.DataFrame:
+    """Aggiunge in fondo al DataFrame giornaliero una riga di totali mensili.
+
+    Aggregazioni:
+      - colonne biomasse (feed_columns)        -> SUM
+      - "Tot biomasse t", "Sm3 netti", "MWh"   -> SUM
+      - "Sm³/h netti"                          -> MAX (picco orario nel mese)
+      - "Saving giornaliero (stima %)"         -> media pesata sui giorni con
+                                                  biomassa > 0 (NaN se nessuno)
+      - "Data"                                 -> stringa "TOTALE MESE"
+
+    Le altre colonne (eec, esca, etd, ep, e_total, Cumulato*, Cap OK)
+    restano vuote nella riga totale (sono concetti per-giorno).
+    """
+    if df is None or len(df) == 0:
+        return df
+
+    feed_cols = feed_columns or []
+
+    # Per evitare ArrowTypeError nel rendering Streamlit (colonna Data mista
+    # date + str), convertiamo l'intera colonna Data in stringa.
+    out = df.copy()
+    if "Data" in out.columns:
+        out["Data"] = out["Data"].apply(
+            lambda d: d.strftime("%d/%m/%Y") if hasattr(d, "strftime") else str(d)
+        )
+
+    total: dict = {"Data": "TOTALE MESE"}
+
+    # Somme biomasse per tipologia
+    for c in feed_cols:
+        if c in out.columns:
+            total[c] = float(out[c].sum())
+
+    # Aggregati standard
+    for c in ("Tot biomasse t", "Sm3 netti", "MWh"):
+        if c in out.columns:
+            total[c] = float(out[c].sum())
+
+    # Picco Sm³/h nel mese
+    if "Sm³/h netti" in out.columns:
+        try:
+            total["Sm³/h netti"] = float(out["Sm³/h netti"].max())
+        except (TypeError, ValueError):
+            total["Sm³/h netti"] = 0.0
+
+    # Saving giornaliero medio pesato (su giorni con biomassa effettiva)
+    if "Saving giornaliero (stima %)" in out.columns and "Tot biomasse t" in out.columns:
+        try:
+            mask = out["Tot biomasse t"].astype(float) > 0
+            if mask.any():
+                w = out.loc[mask, "Tot biomasse t"].astype(float)
+                v = out.loc[mask, "Saving giornaliero (stima %)"].astype(float)
+                total["Saving giornaliero (stima %)"] = float((v * w).sum() / w.sum())
+            else:
+                total["Saving giornaliero (stima %)"] = 0.0
+        except Exception:  # noqa: BLE001
+            pass
+
+    # Riga totale: per le colonne non aggregate uso np.nan (verrà formattato
+    # come "-" dallo styler con na_rep="-"), evitando ValueError sui formatter.
+    import numpy as _np
+    total_row = pd.DataFrame([total])
+    for c in out.columns:
+        if c not in total_row.columns:
+            total_row[c] = _np.nan
+    total_row = total_row[out.columns]
+
+    return pd.concat([out, total_row], ignore_index=True)
+
+
+# ---------------------------------------------------------------------------
 # Styler: highlight rosso per cap autorizzativo Sm³/h e soglia GHG
 # ---------------------------------------------------------------------------
 
 _RED_BG = "background-color: #ffd6d6; color: #b00020; font-weight: 600;"
+_TOTAL_ROW_STYLE = (
+    "background-color: #fef3c7; color: #0F172A; font-weight: 700; "
+    "border-top: 2px solid #F59E0B;"
+)
 
 
 def _style_smch_col(series: pd.Series, cap_smch: float) -> list[str]:
@@ -212,17 +294,49 @@ def style_daily_dataframe(
         except Exception:
             pass
 
-    # Highlight saving < soglia
+    # Highlight saving < soglia (escludendo riga totale, che usa media pesata)
     if ghg_threshold_pct and "Saving giornaliero (stima %)" in df.columns:
         try:
-            styler = styler.apply(
-                lambda s: _style_saving_col(s, float(ghg_threshold_pct)),
-                subset=["Saving giornaliero (stima %)"],
+            # NB: per la riga TOTALE non vogliamo highlight rosso anche se la
+            # media pesata è sotto soglia: l'esito di compliance si vede nel
+            # banner mensile, non nella tabella.
+            _is_total = (
+                df["Data"].astype(str).eq("TOTALE MESE")
+                if "Data" in df.columns else None
             )
+            if _is_total is not None and _is_total.any():
+                _saving_subset = df.index[~_is_total]
+                styler = styler.apply(
+                    lambda s: _style_saving_col(s, float(ghg_threshold_pct)),
+                    subset=(_saving_subset, ["Saving giornaliero (stima %)"]),
+                )
+            else:
+                styler = styler.apply(
+                    lambda s: _style_saving_col(s, float(ghg_threshold_pct)),
+                    subset=["Saving giornaliero (stima %)"],
+                )
+        except Exception:
+            pass
+
+    # Riga "TOTALE MESE": evidenziazione amber, font bold, separatore in alto
+    if "Data" in df.columns:
+        try:
+            _total_mask = df["Data"].astype(str).eq("TOTALE MESE")
+            if _total_mask.any():
+                _total_idx = df.index[_total_mask]
+                styler = styler.apply(
+                    lambda row: [_TOTAL_ROW_STYLE] * len(row),
+                    axis=1,
+                    subset=(_total_idx, df.columns),
+                )
         except Exception:
             pass
 
     return styler
 
 
-__all__ = ["build_daily_dataframe", "style_daily_dataframe"]
+__all__ = [
+    "build_daily_dataframe",
+    "append_monthly_total_row",
+    "style_daily_dataframe",
+]

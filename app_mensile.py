@@ -5603,6 +5603,7 @@ try:
     from core.validators import validate_daily_entry as _validate_daily
     from output.daily_table_view import (
         build_daily_dataframe as _build_daily_df,
+        append_monthly_total_row as _append_total_row,
         style_daily_dataframe as _style_daily_df,
     )
     from output.monthly_kpis import build_monthly_kpis as _build_kpis
@@ -5617,32 +5618,36 @@ except Exception as _daily_imp_exc:  # noqa: BLE001
 
 with tab_daily:
     if _DAILY_OPS_AVAILABLE:
-        st.markdown("---")
-        st.subheader(_t("📅 Gestione Giornaliera — Verifica sostenibilità mensile"))
-        st.info(
-            "ℹ️ **" + _t("Il controllo ufficiale è MENSILE.") + "** " +
-            _t("Gli indicatori giornalieri (saving) sono solo informativi: anche se alcuni giorni risultano isolatamente \"non sostenibili\", il mese può chiudere sostenibile aggregando il totale biomasse.")
+        st.subheader(_t("📅 Operatività Giornaliera"))
+        st.caption(
+            _t("Sostenibilità calcolata su base **mensile** (mass balance RED III · "
+               "Regole Applicative GSE 2025). I valori giornalieri sono solo monitoraggio "
+               "operativo: anche se alcuni giorni risultano isolatamente non sostenibili, "
+               "ciò che conta per la conformità è il **totale a fine mese**.")
         )
 
         _today = _dt.date.today()
-        _col_a, _col_b, _col_c = st.columns([1, 1, 2])
+        _col_a, _col_b = st.columns([1, 2])
         with _col_a:
             _do_year = st.number_input(
                 _t("Anno"), min_value=2020, max_value=2100,
                 value=int(_today.year), step=1, key="do_year",
+                label_visibility="collapsed",
             )
         with _col_b:
             _do_month = st.selectbox(
-                _t("Mese"), list(range(1, 13)),
+                _t("Periodo di rendicontazione"), list(range(1, 13)),
                 index=_today.month - 1,
                 format_func=lambda m: _mlabel(int(_do_year), int(m), _LANG),
                 key="do_month",
             )
-        with _col_c:
+        with st.expander("⚙️ " + _t("Impianto (ID di riferimento)"), expanded=False):
             _do_plant = st.text_input(
                 _t("ID impianto"),
                 value=st.session_state.get("do_plant_id", "default"),
                 key="do_plant_id",
+                help=_t("Identificativo usato per separare i dati nel database "
+                        "locale. Lascia 'default' se gestisci un solo impianto."),
             )
 
         _do_key = f"do_data_{_do_plant}_{int(_do_year)}_{int(_do_month)}"
@@ -5693,10 +5698,13 @@ with tab_daily:
             _edit_rows.append(_row)
         _edit_df = _pd_daily.DataFrame(_edit_rows)
 
+        st.markdown(
+            f"#### 🌾 {_t('Biomasse caricate (t/giorno)')} · "
+            f"{_t('Tipologie:')} {len(_do_active_feeds)}"
+        )
         st.caption(
-            f"{_t('Inserisci le biomasse t/giorno. Mese:')} **{_mlabel(int(_do_year), int(_do_month), _LANG)}** "
-            f"({len(_all_days)} {_t('giorni')}). {_t('Tipologie modificabili:')} "
-            f"{len(_do_active_feeds)} {_t('(basate sulle biomasse attive nella sidebar).')}"
+            _t("Le tipologie sono quelle attive nella sidebar. I totali "
+               "mensili (somme + saving medio pesato) appaiono in fondo alla tabella.")
         )
 
         _edited = st.data_editor(
@@ -5760,68 +5768,88 @@ with tab_daily:
                             regime_constraints=_regime_constraints)
         _kpis = _build_kpis(_agg, _sust)
 
-        st.markdown("### 📊 KPI Mensili (esito ufficiale)")
-        _k1, _k2, _k3, _k4 = st.columns(4)
-        _k1.metric("Saving GHG mese",
-                   f"{_kpis['saving_pct']:.2f}%",
-                   delta=f"{_kpis['margin']:+.2f} pt vs soglia")
-        _k2.metric("Soglia normativa", f"{_kpis['threshold']:.2f}%")
-        _k3.metric("Biomassa totale", f"{_kpis['biomass_total_t']:,.1f} t".replace(",", "."))
-        _k4.metric("MWh netti mese", f"{_kpis['mwh']:,.1f}".replace(",", "."))
+        # --------------------------------------------------------------
+        # TABELLA GIORNALIERA (vista snella) + RIGA TOTALE MESE in fondo
+        # --------------------------------------------------------------
+        _daily_df = _build_daily_df(_entries_list, _computed_list,
+                                     feed_columns=_do_active_feeds)
+        _compact_cols = (
+            ["Data"]
+            + [c for c in _do_active_feeds if c in _daily_df.columns]
+            + [c for c in ("Sm³/h netti", "Saving giornaliero (stima %)")
+               if c in _daily_df.columns]
+        )
+        _daily_df_view = _daily_df[_compact_cols] if not _daily_df.empty else _daily_df
+        # Aggiunge riga "TOTALE MESE" con somme/picco/saving medio pesato
+        _daily_df_view = _append_total_row(_daily_df_view, feed_columns=_do_active_feeds)
 
+        try:
+            _cap_smch = float(plant_net_smch) if plant_net_smch else 0.0
+            _thr_pct = float(_kpis.get("threshold") or 0.0)
+            _styler = _style_daily_df(
+                _daily_df_view,
+                cap_smch=_cap_smch,
+                ghg_threshold_pct=_thr_pct,
+            )
+            st.dataframe(_styler, use_container_width=True, hide_index=True)
+            st.caption(
+                f"🔴 {_t('giorni')} Sm³/h > {_cap_smch:,.2f} ({_t('cap autorizzato')}) · "
+                f"🔴 {_t('giorni')} saving < {_thr_pct:,.2f}% ({_t('soglia normativa')}) · "
+                f"🟡 {_t('riga gialla in fondo: totale mese (mass balance, valore ufficiale)')}."
+            )
+        except Exception as _style_exc:  # noqa: BLE001
+            st.dataframe(_daily_df_view, use_container_width=True, hide_index=True)
+            st.caption(f"(Highlight non applicabile: {_style_exc})")
+
+        # --------------------------------------------------------------
+        # CARD RIEPILOGO MENSILE — esito di compliance + 4 KPI prominenti
+        # È IL VALORE UFFICIALE per la rendicontazione GSE (mass balance
+        # mensile RED III). Posizionato qui sotto la tabella giornaliera
+        # perché l'operatore lo legge DOPO aver verificato i dati inseriti.
+        # --------------------------------------------------------------
+        st.markdown("---")
         if _kpis["compliant"]:
             st.success(
-                f"✅ **MESE COMPLIANT** ({_regime_lbl}) — "
-                f"saving {_kpis['saving_pct']:.2f}% ≥ soglia {_kpis['threshold']:.2f}%."
+                f"### ✅ {_t('MESE SOSTENIBILE')} — {_regime_lbl}\n\n"
+                f"**Saving GHG mese: {_kpis['saving_pct']:.2f}%** ≥ "
+                f"{_t('soglia normativa')} {_kpis['threshold']:.2f}% "
+                f"({_kpis['margin']:+.2f} pt {_t('di margine')})"
             )
         else:
             st.error(
-                f"❌ **MESE NON COMPLIANT** ({_regime_lbl}) — "
-                f"saving {_kpis['saving_pct']:.2f}% < soglia {_kpis['threshold']:.2f}%."
+                f"### ❌ {_t('MESE NON SOSTENIBILE')} — {_regime_lbl}\n\n"
+                f"**Saving GHG mese: {_kpis['saving_pct']:.2f}%** < "
+                f"{_t('soglia normativa')} {_kpis['threshold']:.2f}% "
+                f"({_kpis['margin']:+.2f} pt {_t('sotto soglia')})"
             )
 
+        _k1, _k2, _k3, _k4 = st.columns(4)
+        _k1.metric(
+            _t("Saving GHG mese"),
+            f"{_kpis['saving_pct']:.2f}%",
+            delta=f"{_kpis['margin']:+.2f} pt vs soglia",
+        )
+        _k2.metric(
+            _t("Biomassa totale mese"),
+            f"{_kpis['biomass_total_t']:,.1f} t".replace(",", "."),
+        )
+        _k3.metric(
+            _t("MWh netti mese"),
+            f"{_kpis['mwh']:,.1f}".replace(",", "."),
+        )
+        _k4.metric(
+            _t("Giorni con dati"),
+            f"{_kpis['n_days_with_data']}/{len(_all_days)}",
+        )
+
         if _kpis.get("constraints_status"):
-            with st.expander("📋 Stato vincoli regime", expanded=False):
+            with st.expander("📋 " + _t("Stato vincoli regime"), expanded=False):
                 for _c in _kpis["constraints_status"]:
                     _icon = "✅" if _c.get("ok") else "❌"
                     st.write(f"{_icon} **{_c.get('name','?')}** — {_c.get('msg','')}")
 
-        with st.expander(
-            "📋 Tabella giornaliera — biomasse, Sm³/h netti, Saving GHG "
-            "(celle rosse = oltre cap autorizzato / sotto soglia normativa)",
-            expanded=True,
-        ):
-            _daily_df = _build_daily_df(_entries_list, _computed_list,
-                                         feed_columns=_do_active_feeds)
-            # Vista snella: solo Data + biomasse t/giorno + Sm³/h netti + Saving GHG
-            _compact_cols = (
-                ["Data"]
-                + [c for c in _do_active_feeds if c in _daily_df.columns]
-                + [c for c in ("Sm³/h netti", "Saving giornaliero (stima %)")
-                   if c in _daily_df.columns]
-            )
-            _daily_df_view = _daily_df[_compact_cols] if not _daily_df.empty else _daily_df
-            try:
-                _cap_smch = float(plant_net_smch) if plant_net_smch else 0.0
-                _thr_pct = float(_kpis.get("threshold") or 0.0)
-                _styler = _style_daily_df(
-                    _daily_df_view,
-                    cap_smch=_cap_smch,
-                    ghg_threshold_pct=_thr_pct,
-                )
-                st.dataframe(_styler, use_container_width=True, hide_index=True)
-                st.caption(
-                    f"🔴 Sm³/h netti > {_cap_smch:,.2f} (cap autorizzato) · "
-                    f"🔴 Saving giornaliero < {_thr_pct:,.2f}% (soglia normativa). "
-                    "I valori giornalieri sono solo informativi: la conformità ufficiale è mensile. "
-                    "I calcoli completi (MWh, eec/esca/etd/ep, cumulati) sono inclusi negli export CSV/Excel/PDF."
-                )
-            except Exception as _style_exc:  # noqa: BLE001
-                st.dataframe(_daily_df_view, use_container_width=True, hide_index=True)
-                st.caption(f"(Highlight non applicabile: {_style_exc})")
-
         _guidance = _build_guidance(_agg, _sust, regime=_regime_lbl)
-        with st.expander("🎯 Indicazioni operative fine mese", expanded=True):
+        with st.expander("🎯 " + _t("Indicazioni operative fine mese"), expanded=False):
             for _g in _guidance:
                 st.write(f"- {_g}")
 
