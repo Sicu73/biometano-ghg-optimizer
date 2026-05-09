@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 BioMethane Monthly Planner - Dual-Constraint Solver
 ---------------------------------------------------
@@ -2186,7 +2186,7 @@ with st.sidebar:
             _aux_base = st.session_state.get("aux_factor", DEFAULT_AUX_FACTOR)
             
             if _unit_sel == _unit_opts[0]: # NETTI
-                plant_net_smch = st.sidebar.number_input("🎯 " + _t("Netto [Sm³/h]"), 10.0, 2000.0, float(st.sidebar.session_state.get("plant_net_smch_saved", DEFAULT_PLANT_NET_SMCH)), 5.0, key="sb_net_smch")
+                plant_net_smch = st.sidebar.number_input("🎯 " + _t("Netto [Sm³/h]"), 10.0, 2000.0, float(st.session_state.get("plant_net_smch_saved", DEFAULT_PLANT_NET_SMCH)), 5.0, key="sb_net_smch")
                 _sync = st.sidebar.toggle(_t("Sincronizza Lordo"), value=True, key="sb_sync_gross")
                 if _sync:
                     plant_gross_smch = plant_net_smch * _aux_base
@@ -2194,7 +2194,7 @@ with st.sidebar:
                 else:
                     plant_gross_smch = st.sidebar.number_input("📥 " + _t("Lordo [Sm³/h]"), plant_net_smch, 10000.0, plant_net_smch * _aux_base, 5.0, key="sb_gross_smch")
             else: # LORDI
-                plant_gross_smch = st.sidebar.number_input("🎯 " + _t("Lordo [Sm³/h]"), 10.0, 10000.0, float(st.sidebar.session_state.get("plant_gross_smch_saved", DEFAULT_PLANT_NET_SMCH * _aux_base)), 5.0, key="sb_gross_smch_in")
+                plant_gross_smch = st.sidebar.number_input("🎯 " + _t("Lordo [Sm³/h]"), 10.0, 10000.0, float(st.session_state.get("plant_gross_smch_saved", DEFAULT_PLANT_NET_SMCH * _aux_base)), 5.0, key="sb_gross_smch_in")
                 _sync = st.sidebar.toggle(_t("Sincronizza Netto"), value=True, key="sb_sync_net")
                 if _sync:
                     plant_net_smch = plant_gross_smch / _aux_base
