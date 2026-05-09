@@ -5896,7 +5896,7 @@ with tab_daily:
             try:
                 _csv_bytes = _build_daily_csv(_daily_df_full)
                 st.download_button(
-                    "⬇️ CSV giornaliero",
+                    "â¬‡ï¸ CSV giornaliero",
                     _csv_bytes,
                     file_name=f"giornaliero_{int(_do_year)}_{int(_do_month):02d}.csv",
                     mime="text/csv", key="do_btn_csv",
@@ -5907,7 +5907,7 @@ with tab_daily:
             try:
                 _xlsx_bytes = _build_daily_xlsx(_daily_df_full, _kpis, _audit)
                 st.download_button(
-                    "⬇️ Excel giornaliero+mensile",
+                    "â¬‡ï¸ Excel giornaliero+mensile",
                     _xlsx_bytes,
                     file_name=f"giornaliero_{int(_do_year)}_{int(_do_month):02d}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -5919,7 +5919,7 @@ with tab_daily:
             try:
                 _pdf_bytes = _build_daily_pdf(_daily_df_full, _kpis, _audit, _guidance)
                 st.download_button(
-                    "⬇️ PDF report",
+                    "â¬‡ï¸ PDF report",
                     _pdf_bytes,
                     file_name=f"giornaliero_{int(_do_year)}_{int(_do_month):02d}.pdf",
                     mime="application/pdf", key="do_btn_pdf",
@@ -5929,92 +5929,79 @@ with tab_daily:
     else:
         st.markdown("---")
         st.warning(
-            _t("📅 Gestione Giornaliera non disponibile in questa build ") +
+            _t("ðŸ“… Gestione Giornaliera non disponibile in questa build ") +
             f"({_DAILY_IMP_ERR if '_DAILY_IMP_ERR' in dir() else _t('moduli mancanti')})."
         )
 
-st.markdown("<div style='margin-top:40px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-top:60px;'></div>", unsafe_allow_html=True)
 st.markdown(
-    """
+    f"""
     <div style='
-        
         text-align: center;
-        padding: 32px 28px;
-        
-        background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
-        border-radius: 12px;
-        color: #ffffff;
-        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
-        border: 1px solid rgba(245, 158, 11, 0.18);
-        overflow: hidden;
+        padding: 40px 24px;
+        background: {BG_SURFACE};
+        border-top: 1px solid {BORDER};
+        border-radius: 32px 32px 0 0;
+        color: {TEXT_PRIMARY};
     '>
         <div style='
-            position: absolute; top: 0; right: 0; bottom: 0;
-            width: 3px;
-            background: linear-gradient(180deg, transparent 0%, #F59E0B 50%, transparent 100%);
-            pointer-events: none;
-        '></div>
-        <div style='
-            font-family: "JetBrains Mono", monospace;
-            font-size: 0.68rem; font-weight: 500;
-            color: #F59E0B; letter-spacing: 2px;
+            font-family: "Outfit", sans-serif;
+            font-size: 0.75rem; font-weight: 600;
+            color: {ACCENT}; letter-spacing: 2px;
             text-transform: uppercase;
-            margin-bottom: 8px;
-             
+            margin-bottom: 12px;
         '>// Metan.iQ Platform</div>
+        
         <div style='
-            font-family: "Space Grotesk", "Inter", sans-serif;
-            font-size: 1.7rem; font-weight: 700; letter-spacing: -0.8px;
-            color: #FFFFFF;
-             
+            font-family: "Outfit", sans-serif;
+            font-size: 2rem; font-weight: 700; letter-spacing: -0.04em;
+            color: {PRIMARY};
             line-height: 1;
-        '>Metan<span style="color:#F59E0B; font-weight:700;">.</span>iQ</div>
+        '>Metan<span style="color:{ACCENT};">.</span>iQ</div>
+        
         <div style='
-            font-size: 0.9rem; color: #94A3B8;
-            margin-top: 8px;  
-            max-width: 640px; line-height: 1.5;
-        '>{_t("Decision intelligence platform per la pianificazione mensile e l\\'ottimizzazione GHG di impianti di biometano e biogas cogenerativo.")}</div>
-        <div style='
-            margin-top: 18px; padding-top: 16px;
-            border-top: 1px solid rgba(148, 163, 184, 0.12);
-            font-size: 0.78rem; color: #CBD5E1;
-             
-            display: flex; justify-content: space-between; align-items: center;
-            flex-wrap: wr gap: 12px;
+            font-size: 0.95rem; color: {TEXT_SECOND};
+            margin-top: 12px; margin-bottom: 24px;
+            max-width: 700px; margin-left: auto; margin-right: auto;
+            line-height: 1.6;
         '>
-            <div>
-                Metan.iQ <b style='color:#FFFFFF;'>v""" + _APP_VERSION + """</b>
-                &nbsp;·&nbsp; """ + _t("Ideato e sviluppato da") + """
-                <b style='color:#FFFFFF; font-weight:600;'>Carlo Sicurini</b>
-                &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp; """ + _t("Tutti i diritti riservati") + """
-                &nbsp;·&nbsp;
-                <span style='color:#94A3B8; font-style:italic;'>
-                    """ + _t("Software fornito «così com'è», senza garanzie né assistenza") + """
+            {_t("Decision intelligence platform per la pianificazione mensile e l'ottimizzazione GHG di impianti di biometano e biogas cogenerativo.")}
+        </div>
+        
+        <div style='
+            padding-top: 24px;
+            border-top: 1px solid {BORDER};
+            font-size: 0.8rem; color: {TEXT_MUTED};
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 20px;
+        '>
+            <div style='text-align: left;'>
+                Metan.iQ <b style='color:{TEXT_PRIMARY};'>v{_APP_VERSION}</b>
+                &nbsp;·&nbsp; {_t("Ideato e sviluppato da")} 
+                <b style='color:{TEXT_PRIMARY}; font-weight:600;'>Carlo Sicurini</b>
+                &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp; {_t("Tutti i diritti riservati")}
+                <br/>
+                <span style='font-size: 0.7rem; font-style: italic;'>
+                    {_t("Software fornito «così com'è», senza garanzie né assistenza")}
                 </span>
             </div>
-            <div style='display: flex; gap: 6px; flex-wrap: wr'>
-                <span style='background: rgba(245, 158, 11, 0.10);
-                    border: 1px solid rgba(245, 158, 11, 0.28);
-                    color: #F59E0B; padding: 3px 10px; border-radius: 4px;
-                    font-family: "JetBrains Mono", monospace;
-                    font-size: 0.66rem; font-weight: 500; letter-spacing: 0.4px;
-                '>RED III · Dir. 2023/2413</span>
-                <span style='background: rgba(255, 255, 255, 0.04);
-                    border: 1px solid rgba(255, 255, 255, 0.10);
-                    color: #CBD5E1; padding: 3px 10px; border-radius: 4px;
-                    font-family: "JetBrains Mono", monospace;
-                    font-size: 0.66rem; font-weight: 500; letter-spacing: 0.4px;
-                '>GSE LG 2024</span>
-                <span style='background: rgba(255, 255, 255, 0.04);
-                    border: 1px solid rgba(255, 255, 255, 0.10);
-                    color: #CBD5E1; padding: 3px 10px; border-radius: 4px;
-                    font-family: "JetBrains Mono", monospace;
-                    font-size: 0.66rem; font-weight: 500; letter-spacing: 0.4px;
-                '>UNI-TS 11567:2024</span>
+            
+            <div style='display: flex; gap: 8px; flex-wrap: wrap;'>
+                <span style='background: {SECTION_PILL_BG}; color: {SECTION_PILL_COLOR}; 
+                    padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 0.7rem;'>
+                    RED III · Dir. 2023/2413
+                </span>
+                <span style='background: {BG_SURFACE_2}; color: {TEXT_SECOND}; 
+                    padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 0.7rem;'>
+                    GSE LG 2024
+                </span>
+                <span style='background: {BG_SURFACE_2}; color: {TEXT_SECOND}; 
+                    padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 0.7rem;'>
+                    UNI-TS 11567:2024
+                </span>
             </div>
         </div>
     </div>
     """,
     unsafe_allow_html=True,
 )
-
