@@ -169,7 +169,8 @@ def build_output_model(ctx: dict) -> dict:
     tot_mwh = _safe_float(ctx.get("tot_mwh_netti") or ctx.get("tot_mwh"), None,
                            None, warnings)
     # MWh lordi: se non passato dall'app, derivato dai Sm3 lordi.
-    from core.constants import NM3_TO_MWH as _NM3_TO_MWH  # noqa: PLC0415
+    # NM3_TO_MWH = 0.00997 MWh/Sm3 (biometano puro CH4 al ~100%, LHV).
+    _NM3_TO_MWH = 0.00997
     tot_mwh_lordi_ctx = ctx.get("tot_mwh_lordi")
     if tot_mwh_lordi_ctx is not None:
         try:

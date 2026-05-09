@@ -8,7 +8,6 @@ import datetime as _dt
 import pandas as pd
 import pytest
 
-from core.constants import NM3_TO_MWH
 from core.daily_model import DailyComputed, DailyEntry
 from output.daily_table_view import (
     build_daily_dataframe,
@@ -27,7 +26,7 @@ def _make_entries_and_computed(rows):
             biomass_total_t=float(bm),
             sm3_gross=float(sm3_n) * 1.29,
             sm3_netti=float(sm3_n),
-            mwh=float(sm3_n) * NM3_TO_MWH,
+            mwh=float(sm3_n) * 0.00997,
             eec=10.0, esca=2.0, etd=1.0, ep=3.0,
             e_total=12.0,
             daily_saving_estimate=float(sav),

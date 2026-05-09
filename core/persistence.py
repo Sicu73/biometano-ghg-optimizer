@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import os
 import sqlite3
-from calendar import monthrange
 from datetime import date, datetime, timezone
 from typing import Iterable
 
@@ -85,7 +84,8 @@ def save_month(year: int, month: int, daily_entries: list[DailyEntry],
     with _connect(db_path) as conn:
         # Pulizia mese
         first = f"{year:04d}-{month:02d}-01"
-        last = f"{year:04d}-{month:02d}-{monthrange(year, month)[1]:02d}"
+        last_day = 31  # over-cover
+        last = f"{year:04d}-{month:02d}-{last_day:02d}"
         conn.execute(
             "DELETE FROM daily_entries WHERE plant_id = ? "
             "AND date >= ? AND date <= ?",
@@ -126,7 +126,7 @@ def load_month(year: int, month: int, plant_id: str = "default",
     """Carica tutti i giorni del mese (anche giorni mancanti tornano vuoti)."""
     db_path = init_db(path)
     first = f"{year:04d}-{month:02d}-01"
-    last = f"{year:04d}-{month:02d}-{monthrange(year, month)[1]:02d}"
+    last = f"{year:04d}-{month:02d}-31"
     rows: dict[str, dict[str, float]] = {}
     notes_by_day: dict[str, str] = {}
     with _connect(db_path) as conn:
@@ -177,7 +177,7 @@ def delete_month(year: int, month: int, plant_id: str = "default",
     """Elimina i dati del mese per il `plant_id`. Ritorna righe cancellate."""
     db_path = init_db(path)
     first = f"{year:04d}-{month:02d}-01"
-    last = f"{year:04d}-{month:02d}-{monthrange(year, month)[1]:02d}"
+    last = f"{year:04d}-{month:02d}-31"
     with _connect(db_path) as conn:
         cur = conn.execute(
             "DELETE FROM daily_entries WHERE plant_id = ? "

@@ -9,7 +9,6 @@ REGOLA DI COMPLIANCE:
 """
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Iterable
@@ -101,13 +100,7 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
         try:
             summary = ghg_summary(feed_totals, aux=aux, ep=ep,
                                   fossil_comparator=fossil_cmp)
-        except Exception as exc:
-            warnings.warn(
-                f"ghg_summary fallita per {year}-{month:02d}: {exc}. "
-                "Saving impostato a 0% — verificare che calculation_engine "
-                "sia agganciato a app_mensile.",
-                RuntimeWarning, stacklevel=3,
-            )
+        except Exception:
             summary = {"e_w": 0.0, "saving": 0.0, "nm3_gross": 0.0,
                        "nm3_net": 0.0, "mwh_net": 0.0}
         agg.sm3_gross = float(summary.get("nm3_gross") or 0.0)

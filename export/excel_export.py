@@ -1,24 +1,25 @@
 # -*- coding: utf-8 -*-
-"""export/excel_export.py — Esportazione Excel da output_model (nuova API).
+"""export/excel_export.py — Esportazione Excel da output_model.
 
-Architettura a due livelli:
-  - excel_export.py (root): implementazione XLSX completa con formule live
-    e styling consulting-grade. API legacy: build_metaniq_xlsx(ctx).
-    Usato direttamente da app_mensile.py (import storico, non modificare).
-  - export/excel_export.py (questo file): adapter output_model -> ctx.
-    API nuova: build_excel_from_output(output_model).
-    Usato da export/__init__.py e da nuovi moduli.
+Funzione pubblica:
+  build_excel_from_output(output_model, snapshot=False) -> BytesIO
 
-I due file NON sono duplicati: hanno API diverse (ctx vs output_model).
-Se excel_export.py (root) non e' disponibile, genera un XLSX minimale.
+Questa funzione e' un ADAPTER che:
+1. Ricostruisce il ctx compatibile con l'API di excel_export.py (root level)
+   a partire dall'output_model strutturato.
+2. Chiama `excel_export.build_metaniq_xlsx(ctx)` esistente.
+
+In questo modo il refactoring non richiede di toccare i 2072 righe di
+excel_export.py: la logica di generazione XLSX resta invariata, ma ora
+l'entry point ufficiale e' `build_excel_from_output(output_model)`.
+
+Se excel_export.py non e' disponibile (es. test isolati), viene generato
+un XLSX minimale con openpyxl direttamente.
 """
 from __future__ import annotations
 
-import warnings
 from io import BytesIO
 from typing import Any
-
-from core.constants import MONTHS, MONTH_HOURS, NM3_TO_MWH
 
 try:
     from excel_export import build_metaniq_xlsx as _build_xlsx_legacy  # type: ignore[import]
@@ -62,10 +63,7 @@ def build_excel_from_output(output_model: dict, snapshot: bool = False) -> Bytes
             ctx = _output_model_to_xlsx_ctx(output_model, snapshot=snapshot)
             return _build_xlsx_legacy(ctx, snapshot=snapshot)
         except Exception as exc:
-            warnings.warn(
-                f"Generazione XLSX avanzata fallita, uso fallback minimale: {exc}",
-                RuntimeWarning, stacklevel=2,
-            )
+            # Fallback a XLSX minimale se legacy fallisce
             return _build_fallback_xlsx(output_model, error=str(exc))
 
     # --- Fallback: XLSX minimale con openpyxl --------------------------------
@@ -133,9 +131,12 @@ def _output_model_to_xlsx_ctx(output_model: dict, snapshot: bool = False) -> dic
         "fossil_comparator": plant.get("fossil_comparator", 80.0),
         "ghg_threshold":     plant.get("ghg_threshold", 0.80),
         "plant_net_smch":    plant.get("plant_net_smch", 300.0),
-        "NM3_TO_MWH":        NM3_TO_MWH,
-        "MONTHS":            MONTHS,
-        "MONTH_HOURS":       MONTH_HOURS,
+        "NM3_TO_MWH":        0.00997,
+        "MONTHS": [
+            "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+            "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre",
+        ],
+        "MONTH_HOURS":       [744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744],
         "initial_data":      initial_data,
         "APP_MODE_LABEL":    meta.get("scenario_name", "Metan.iQ"),
         "end_use":           plant.get("end_use", ""),

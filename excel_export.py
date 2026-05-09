@@ -1,10 +1,4 @@
-# -*- coding: utf-8 -*-
-"""excel_export.py — Implementazione XLSX con formule live (API legacy, CANONICAL).
-
-Punto d'ingresso: build_metaniq_xlsx(ctx) -> BytesIO
-Questo e' il modulo CANONICAL per la generazione XLSX. Non spostare.
-L'adapter export/excel_export.py wrappa questa funzione con la nuova API
-build_excel_from_output(output_model) per i moduli refactored.
+"""Metan.iQ — Generatore XLSX editabile con formule live.
 
 Crea un workbook Excel autocalcolante: l'utente modifica solo le celle
 gialle (Ore + Biomasse) e tutti gli altri valori (produzione, saving GHG,
@@ -30,13 +24,24 @@ from openpyxl.worksheet.protection import SheetProtection
 
 
 # ============================================================
-# Design tokens
+# Design tokens (mirror dell'app)
 # ============================================================
-from core.design_tokens import (  # noqa: E402
-    NAVY, NAVY_2, AMBER, AMBER_DK, AMBER_BG,
-    SLATE_50, SLATE_100, SLATE_200, SLATE_400, SLATE_500, SLATE_700,
-    EMERALD_BG, EMERALD_FG, RED_BG, RED_FG, WHITE,
-)
+NAVY      = "0F172A"
+NAVY_2    = "1E293B"
+AMBER     = "F59E0B"
+AMBER_DK  = "B45309"
+AMBER_BG  = "FEF3C7"
+SLATE_50  = "F8FAFC"
+SLATE_100 = "F1F5F9"
+SLATE_200 = "E2E8F0"
+SLATE_400 = "94A3B8"
+SLATE_500 = "64748B"
+SLATE_700 = "334155"
+EMERALD_BG = "D1FAE5"
+EMERALD_FG = "065F46"
+RED_BG     = "FECACA"
+RED_FG     = "991B1B"
+WHITE     = "FFFFFF"
 
 
 def _border_thin():
