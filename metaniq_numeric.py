@@ -19,6 +19,8 @@ from __future__ import annotations
 def fmt_it(value: float, decimals: int = 0, suffix: str = "",
            signed: bool = False) -> str:
     """Formato italiano: separatore migliaia = '.', decimale = ','."""
+    if value is None:
+        return "-"
     try:
         v = float(value)
     except (TypeError, ValueError):
@@ -33,6 +35,8 @@ def fmt_it(value: float, decimals: int = 0, suffix: str = "",
 def fmt_en(value: float, decimals: int = 0, suffix: str = "",
            signed: bool = False) -> str:
     """Formato inglese: separatore migliaia = ',', decimale = '.'."""
+    if value is None:
+        return "-"
     try:
         v = float(value)
     except (TypeError, ValueError):

@@ -18,6 +18,7 @@ usando reportlab direttamente (senza lo styling consulting-grade).
 """
 from __future__ import annotations
 
+import warnings
 from io import BytesIO
 from typing import Any
 
@@ -67,7 +68,10 @@ def build_pdf_from_output(output_model: dict) -> BytesIO:
             ctx = _output_model_to_pdf_ctx(output_model)
             return _build_pdf_legacy(ctx)
         except Exception as exc:
-            # Fallback a PDF minimale
+            warnings.warn(
+                f"Generazione PDF avanzata fallita, uso fallback minimale: {exc}",
+                RuntimeWarning, stacklevel=2,
+            )
             return _build_fallback_pdf(output_model, error=str(exc))
 
     # --- Fallback: PDF minimale con reportlab --------------------------------
