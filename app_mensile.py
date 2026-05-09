@@ -5603,9 +5603,17 @@ try:
     from core.validators import validate_daily_entry as _validate_daily
     from output.daily_table_view import (
         build_daily_dataframe as _build_daily_df,
-        append_monthly_total_row as _append_total_row,
         style_daily_dataframe as _style_daily_df,
     )
+    # Import resiliente: append_monthly_total_row aggiunto in commit 7b00a71.
+    # Se Streamlit Cloud sta servendo una versione cached di daily_table_view,
+    # fallback a no-op così la UI non crasha (la riga TOTALE MESE non appare,
+    # ma i KPI mensili sotto la tabella restano comunque visibili).
+    try:
+        from output.daily_table_view import append_monthly_total_row as _append_total_row
+    except ImportError:
+        def _append_total_row(df, feed_columns=None):  # type: ignore[no-redef]
+            return df
     from output.monthly_kpis import build_monthly_kpis as _build_kpis
     from output.guidance import compute_end_of_month_guidance as _build_guidance
     from export.daily_csv import build_daily_csv as _build_daily_csv
