@@ -3591,12 +3591,14 @@ with tab_solver:
         rows.append({
             "Feedstock": n,
             "Categoria": d.get("cat", ""),
-            "Resa (Nm³/t)": _yield_of(n),  # resa effettiva (BMT override se attivo)
-            "eec": d["eec"],
-            "ep": ep_total,
-            "etd": d["etd"],
-            "esca": d["esca"],
-            "Resa (Nm³/t)": d["yield"],
+            # Resa: usa BMT override se attivo (altrimenti resa tabella standard)
+            "Resa (Nm³/t)": _yield_of(n),
+            # Fattori emissivi: usa override "Relazione tecnica" se attivo,
+            # altrimenti tabella standard. NB: prima c'era un bug — le 5 chiavi
+            # qui sotto venivano duplicate con d["eec"]/ep_total/d["etd"]/
+            # d["esca"]/d["yield"] e poi sovrascritte: il risultato era che
+            # BMT override veniva silenziosamente scartato e i fattori reali
+            # finivano comunque sovrascritti. Ora il dict ha chiavi uniche.
             "eec":     f_used["eec"],
             "ep":      f_used["ep"],
             "etd":     f_used["etd"],
