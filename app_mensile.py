@@ -2039,17 +2039,17 @@ st.markdown(
         <span class="eyebrow">// Decision Intelligence Platform</span>
         <h1>Metan<span style="color:""" + AMBER + """; font-weight:700;">.</span>iQ</h1>
         <div class="tagline">""" + (
-            _t("DM 19/06/2024 · CHP biogas piccoli impianti agricoli ≤300 kWe. Tariffa di Riferimento + premi matrice (≥80% sottoprodotti) e CAR. Periodo 20 anni, saving 80% RED III.")
+            _t("DM 19/06/2024 · CHP biogas piccoli impianti agricoli â‰¤300 kWe. Tariffa di Riferimento + premi matrice (â‰¥80% sottoprodotti) e CAR. Periodo 20 anni, saving 80% RED III.")
             if IS_FER2 else
-            _t("Pianificazione e business case per impianti biogas cogenerativi (DM 6/7/2012, ≤1 MW). Bilancio elettrico-termico, tariffa T.O. e saving RED III.")
+            _t("Pianificazione e business case per impianti biogas cogenerativi (DM 6/7/2012, â‰¤1 MW). Bilancio elettrico-termico, tariffa T.O. e saving RED III.")
             if IS_CHP else
             _t("DM 2/3/2018 · sistema CIC con double counting per matrici Annex IX (biometano avanzato). Pianificazione mensile, sostenibilità RED II/III e simulazione CIC.")
             if IS_DM2018 else
-            _t("DM 15/9/2022 · pianificazione mensile e ottimizzazione GHG per biometano: tariffa diretta €/MWh, saving RED III/D.Lgs. 5/2026 per uso finale.")
+            _t("DM 15/9/2022 · pianificazione mensile e ottimizzazione GHG per biometano: tariffa diretta â‚¬/MWh, saving RED III/D.Lgs. 5/2026 per uso finale.")
         ) + """</div>
         <div class="pills">
             <span class="pill accent">""" + (
-                "BIOGAS · CHP · FER 2 (≤300 kW)" if IS_FER2 else
+                "BIOGAS · CHP · FER 2 (â‰¤300 kW)" if IS_FER2 else
                 "BIOGAS · CHP · DM 6/7/2012" if IS_CHP else
                 "BIOMETANO · DM 2/3/2018 · CIC" if IS_DM2018 else
                 "BIOMETANO · DM 15/9/2022"
@@ -2073,58 +2073,58 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# Solver description banner
 st.markdown(
-    f"<div style='background:{BG_SURFACE}; padding:14px 18px; border-radius:10px; "
+    f"<div style='background:{BG_SURFACE}; padding:14px 18px; border-radius:16px; "
     f"border:1px solid {BORDER}; margin-bottom:18px; "
     f"box-shadow: {SHADOW_CARD};'>"
     f"<span style='font-size:0.72rem; font-weight:700; letter-spacing:1px; "
     f"text-transform:uppercase; color:{SECTION_PILL_COLOR}; background:{SECTION_PILL_BG}; "
     f"padding:3px 10px; border-radius:6px; margin-right:10px;'>SOLVER</span>"
     f"<span style='color:{TEXT_SECOND}; font-size:0.95rem;'>"
-    f"{_t('Pianificazione mensile biomasse — solver <b>dual-constraint</b> ')}"
+    f"{_t('Pianificazione mensile biomasse â€” solver <b>dual-constraint</b> ')}"
     f"{_t('(saving GHG + produzione target) con configurazione impianto')} <code style='background:{CODE_BG}; "
     f"padding:2px 6px; border-radius:4px; font-size:0.85em; color:{CODE_COLOR};'>ep</code> {_t('ex RED III.')}"
     f"</span></div>",
     unsafe_allow_html=True,
 )
 
-# ------------------------- SIDEBAR -------------------------
+# ------------------------- SIDEBAR BADGE -------------------------
+_mode_label = ("Biogas · CHP · FER 2 (â‰¤300 kW)" if IS_FER2
+               else "Biogas · CHP · DM 6/7/2012" if IS_CHP
+               else "Biometano · DM 2018 · CIC" if IS_DM2018
+               else "Biometano · DM 2022")
+
 with st.sidebar:
     st.markdown(
-        """
+        f"""
         <div style='
-            
             padding: 18px 16px;
-            background: linear-gradient(135deg, """ + NAVY + """ 0%, """ + NAVY_2 + """ 100%);
-            border-radius: 10px;
+            background: linear-gradient(135deg, {PRIMARY} 0%, {SECONDARY} 100%);
+            border-radius: 16px;
             margin-bottom: 18px;
-            box-shadow: 0 4px 12px rgba(15,23,42,0.20),
-                        inset 0 1px 0 rgba(245,158,11,0.10);
-            border: 1px solid rgba(245, 158, 11, 0.20);
+            box-shadow: 0 4px 12px rgba(0,100,148,0.20);
+            border: 1px solid rgba(255,255,255,0.08);
             overflow: hidden;
+            position: relative;
         '>
             <div style='
-                position: absolute; top: 0; right: 0; bottom: 0;
-                width: 3px;
-                background: linear-gradient(180deg, transparent 0%, """ + AMBER + """ 50%, transparent 100%);
-            '></div>
-            <div style='
-                font-family: "JetBrains Mono", monospace;
-                color: """ + AMBER + """;
+                font-family: "Outfit", sans-serif;
+                color: {ACCENT};
                 font-size: 0.62em;
-                font-weight: 500;
+                font-weight: 600;
                 letter-spacing: 2px;
                 text-transform: uppercase;
                 margin-bottom: 6px;
             '>// PLATFORM</div>
             <div style='
-                font-family: "Space Grotesk", "Inter", sans-serif;
+                font-family: "Outfit", sans-serif;
                 color: #FFFFFF;
                 font-size: 1.55em;
                 font-weight: 700;
                 letter-spacing: -0.8px;
                 line-height: 1;
-            '>Metan<span style="color:""" + AMBER + """;">.</span>iQ</div>
+            '>Metan<span style="color:{ACCENT};">.</span>iQ</div>
             <div style='
                 font-size: 0.72em;
                 color: #94A3B8;
@@ -2135,16 +2135,12 @@ with st.sidebar:
                 margin-top: 12px;
                 padding-top: 10px;
                 border-top: 1px solid rgba(255,255,255,0.08);
-                font-family: "JetBrains Mono", monospace;
                 font-size: 0.62em;
                 color: #CBD5E1;
                 font-weight: 400;
                 letter-spacing: 1px;
                 text-transform: uppercase;
-            '>""" + ("Biogas · CHP · FER 2 (≤300 kW)" if IS_FER2
-                    else "Biogas · CHP · DM 6/7/2012" if IS_CHP
-                    else "Biometano · DM 2018 · CIC" if IS_DM2018
-                    else "Biometano · DM 2022") + """</div>
+            '>{_mode_label}</div>
         </div>
         """,
         unsafe_allow_html=True,
