@@ -5698,22 +5698,51 @@ with tab_daily:
         _data_map = st.session_state[_do_key]
         _all_days = sorted(_data_map.keys())
 
-        _edit_rows = []
+        # Contesto di calcolo (riusato per pre-calcolo editor + aggregato mese)
+        _ctx = {
+            "aux_factor": float(aux_factor),
+            "ep": float(ep_total),
+            "fossil_comparator": float(FOSSIL_COMPARATOR),
+            "plant_net_smch": float(plant_net_smch),
+            "hours_per_day": 24.0,
+        }
+
+        # Pre-calcolo computed per la VISUALIZZAZIONE nell'editor:
+        # mostriamo Sm³/h netti e Saving GHG % calcolati sulla base dei dati
+        # già salvati. Quando l'utente edita una cella biomasse, al prossimo
+        # rerun (Streamlit auto-reruns) le colonne computed si aggiornano.
+        _pre_computed: list = []
         for _d in _all_days:
+            _e = _DEntry(date=_d, feedstocks=dict(_data_map.get(_d) or {}))
+            try:
+                _pre_computed.append(_compute_daily(_e, ctx=_ctx))
+            except Exception:  # noqa: BLE001
+                _pre_computed.append(None)
+
+        # Una sola tabella: input biomasse (editabili) + Sm³/h netti + Saving %
+        # (calcolati, disabled). Sostituisce il vecchio doppio-rendering
+        # (data_editor + dataframe-styler con highlights) che mostrava le
+        # stesse biomasse due volte ed era confusionario.
+        _SMH_COL = "Sm³/h netti"
+        _SAV_COL = "Saving GHG (%)"
+        _edit_rows = []
+        for _i, _d in enumerate(_all_days):
             _row = {"Data": _d}
             for _fname in _do_active_feeds:
                 _row[_fname] = float((_data_map.get(_d) or {}).get(_fname, 0.0))
+            _c = _pre_computed[_i]
+            _row[_SMH_COL] = float(_c.sm3_netti / 24.0) if _c is not None else 0.0
+            _row[_SAV_COL] = float(_c.daily_saving_estimate) if _c is not None else 0.0
             _edit_rows.append(_row)
         _edit_df = _pd_daily.DataFrame(_edit_rows)
 
         st.markdown(
-            f"#### 🌾 {_t('Biomasse caricate (t/giorno)')} · "
-            f"{_t('Tipologie:')} {len(_do_active_feeds)}"
+            f"#### 🌾 {_t('Tabella giornaliera')} · "
+            f"{_t('biomasse (modificabili) + indicatori operativi')}"
         )
-        st.caption(
-            _t("Le tipologie sono quelle attive nella sidebar. I totali "
-               "mensili (somme + saving medio pesato) appaiono in fondo alla tabella.")
-        )
+
+        _cap_smch = float(plant_net_smch) if plant_net_smch else 0.0
+        _thr_pct = float(ghg_threshold) * 100.0 if ghg_threshold else 80.0
 
         _edited = st.data_editor(
             _edit_df,
@@ -5721,15 +5750,31 @@ with tab_daily:
             num_rows="fixed",
             hide_index=True,
             column_config={
-                "Data": st.column_config.DateColumn("Data", disabled=True, format="DD/MM/YYYY"),
+                "Data": st.column_config.DateColumn(
+                    "Data", disabled=True, format="DD/MM/YYYY",
+                ),
                 **{
-                    _f: st.column_config.NumberColumn(_f, min_value=0.0, step=0.1, format="%.2f")
+                    _f: st.column_config.NumberColumn(
+                        _f, min_value=0.0, step=0.1, format="%.2f",
+                        help=_t("Biomassa giornaliera (t)"),
+                    )
                     for _f in _do_active_feeds
                 },
+                _SMH_COL: st.column_config.NumberColumn(
+                    _SMH_COL, disabled=True, format="%.1f",
+                    help=_t("Calcolato = Sm³ netti / 24h. Cap autorizzato:")
+                         + f" {_cap_smch:,.0f}.",
+                ),
+                _SAV_COL: st.column_config.NumberColumn(
+                    _SAV_COL, disabled=True, format="%.2f",
+                    help=_t("Saving GHG giornaliero (solo informativo). Soglia:")
+                         + f" {_thr_pct:.1f}%.",
+                ),
             },
             use_container_width=True,
         )
 
+        # Aggiorna _data_map dagli edits dell'utente (ignora colonne disabled)
         try:
             for _, _r in _edited.iterrows():
                 _d = _r["Data"]
@@ -5745,13 +5790,26 @@ with tab_daily:
         except Exception as _upd_exc:  # noqa: BLE001
             st.warning(f"Aggiornamento tabella fallito: {_upd_exc}")
 
-        _ctx = {
-            "aux_factor": float(aux_factor),
-            "ep": float(ep_total),
-            "fossil_comparator": float(FOSSIL_COMPARATOR),
-            "plant_net_smch": float(plant_net_smch),
-            "hours_per_day": 24.0,
-        }
+        # Conteggio giorni anomali (vince i banner rossi della tabella precedente)
+        _n_days_data = sum(
+            1 for _c in _pre_computed if _c is not None and _c.biomass_total_t > 0
+        )
+        _n_cap_viol = sum(
+            1 for _c in _pre_computed
+            if _c is not None and _cap_smch > 0 and (_c.sm3_netti / 24.0) > _cap_smch
+        )
+        _n_save_viol = sum(
+            1 for _c in _pre_computed
+            if _c is not None and 0 < _c.daily_saving_estimate < _thr_pct
+        )
+        st.caption(
+            f"🟢 {_n_days_data - _n_cap_viol - _n_save_viol} {_t('giorni operativi entro soglie')} · "
+            f"🔴 {_n_cap_viol} {_t('giorni')} Sm³/h > {_cap_smch:,.0f} ({_t('cap autorizzato')}) · "
+            f"🔴 {_n_save_viol} {_t('giorni saving sotto soglia')} {_thr_pct:.1f}% "
+            f"({_t('solo informativo: la conformità è mensile')})"
+        )
+
+        # Ricalcolo finale post-edit (i KPI mensili usano _data_map appena aggiornato)
         _entries_list: list = []
         _computed_list: list = []
         for _d in _all_days:
@@ -5775,39 +5833,6 @@ with tab_daily:
                             threshold=float(ghg_threshold),
                             regime_constraints=_regime_constraints)
         _kpis = _build_kpis(_agg, _sust)
-
-        # --------------------------------------------------------------
-        # TABELLA GIORNALIERA (vista snella) + RIGA TOTALE MESE in fondo
-        # --------------------------------------------------------------
-        _daily_df = _build_daily_df(_entries_list, _computed_list,
-                                     feed_columns=_do_active_feeds)
-        _compact_cols = (
-            ["Data"]
-            + [c for c in _do_active_feeds if c in _daily_df.columns]
-            + [c for c in ("Sm³/h netti", "Saving giornaliero (stima %)")
-               if c in _daily_df.columns]
-        )
-        _daily_df_view = _daily_df[_compact_cols] if not _daily_df.empty else _daily_df
-        # Aggiunge riga "TOTALE MESE" con somme/picco/saving medio pesato
-        _daily_df_view = _append_total_row(_daily_df_view, feed_columns=_do_active_feeds)
-
-        try:
-            _cap_smch = float(plant_net_smch) if plant_net_smch else 0.0
-            _thr_pct = float(_kpis.get("threshold") or 0.0)
-            _styler = _style_daily_df(
-                _daily_df_view,
-                cap_smch=_cap_smch,
-                ghg_threshold_pct=_thr_pct,
-            )
-            st.dataframe(_styler, use_container_width=True, hide_index=True)
-            st.caption(
-                f"🔴 {_t('giorni')} Sm³/h > {_cap_smch:,.2f} ({_t('cap autorizzato')}) · "
-                f"🔴 {_t('giorni')} saving < {_thr_pct:,.2f}% ({_t('soglia normativa')}) · "
-                f"🟡 {_t('riga gialla in fondo: totale mese (mass balance, valore ufficiale)')}."
-            )
-        except Exception as _style_exc:  # noqa: BLE001
-            st.dataframe(_daily_df_view, use_container_width=True, hide_index=True)
-            st.caption(f"(Highlight non applicabile: {_style_exc})")
 
         # --------------------------------------------------------------
         # CARD RIEPILOGO MENSILE — esito di compliance + 4 KPI prominenti
