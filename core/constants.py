@@ -51,6 +51,19 @@ JEC_WTT_V5 = "JEC Well-to-Tank v5 (JRC-CONCAWE-EUCAR)"
 
 
 # ---------------------------------------------------------------------------
+# Calendario — mesi italiani e ore standard per anno non bisestile
+# ---------------------------------------------------------------------------
+
+MONTHS = [
+    "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+    "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre",
+]
+# Ore/mese per anno non bisestile (Febbraio = 28 gg × 24 h = 672 h).
+# In anni bisestili Febbraio ha 696 h: l'app sovrascrive questa voce nella UI.
+MONTH_HOURS = [744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]
+
+
+# ---------------------------------------------------------------------------
 # Fattori energetici
 # ---------------------------------------------------------------------------
 
@@ -108,6 +121,9 @@ MANURE_CREDIT_POLLINA_OVAIOLE = 0.0
 
 
 __all__ = [
+    # calendario
+    "MONTHS",
+    "MONTH_HOURS",
     # riferimenti normativi
     "RED_III_DIRECTIVE",
     "DLGS_RED_III_RECEPIMENTO",

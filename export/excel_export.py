@@ -18,8 +18,11 @@ un XLSX minimale con openpyxl direttamente.
 """
 from __future__ import annotations
 
+import warnings
 from io import BytesIO
 from typing import Any
+
+from core.constants import MONTHS, MONTH_HOURS, NM3_TO_MWH
 
 try:
     from excel_export import build_metaniq_xlsx as _build_xlsx_legacy  # type: ignore[import]
@@ -63,7 +66,10 @@ def build_excel_from_output(output_model: dict, snapshot: bool = False) -> Bytes
             ctx = _output_model_to_xlsx_ctx(output_model, snapshot=snapshot)
             return _build_xlsx_legacy(ctx, snapshot=snapshot)
         except Exception as exc:
-            # Fallback a XLSX minimale se legacy fallisce
+            warnings.warn(
+                f"Generazione XLSX avanzata fallita, uso fallback minimale: {exc}",
+                RuntimeWarning, stacklevel=2,
+            )
             return _build_fallback_xlsx(output_model, error=str(exc))
 
     # --- Fallback: XLSX minimale con openpyxl --------------------------------
@@ -131,12 +137,9 @@ def _output_model_to_xlsx_ctx(output_model: dict, snapshot: bool = False) -> dic
         "fossil_comparator": plant.get("fossil_comparator", 80.0),
         "ghg_threshold":     plant.get("ghg_threshold", 0.80),
         "plant_net_smch":    plant.get("plant_net_smch", 300.0),
-        "NM3_TO_MWH":        0.00997,
-        "MONTHS": [
-            "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
-            "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre",
-        ],
-        "MONTH_HOURS":       [744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744],
+        "NM3_TO_MWH":        NM3_TO_MWH,
+        "MONTHS":            MONTHS,
+        "MONTH_HOURS":       MONTH_HOURS,
         "initial_data":      initial_data,
         "APP_MODE_LABEL":    meta.get("scenario_name", "Metan.iQ"),
         "end_use":           plant.get("end_use", ""),

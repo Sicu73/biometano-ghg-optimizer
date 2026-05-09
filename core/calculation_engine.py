@@ -32,16 +32,15 @@ import sys
 # ---------------------------------------------------------------------------
 import numpy as np  # noqa: F401  (alcune funzioni reali ne dipendono)
 
+from core.constants import (
+    MONTHS, MONTH_HOURS,
+    NM3_TO_MWH,
+    LHV_BIOMETHANE_MJ_NM3 as LHV_BIOMETHANE,
+)
+
 FEEDSTOCK_DB: dict = {}
 FEED_NAMES: list = []
 FEEDSTOCK_CATEGORIES: dict = {}
-MONTHS = [
-    "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
-    "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre",
-]
-MONTH_HOURS = [744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]
-LHV_BIOMETHANE = 35.9
-NM3_TO_MWH = 0.00997
 DEFAULT_AUX_FACTOR = 1.29
 DEFAULT_PLANT_NET_SMCH = 300.0
 FOSSIL_COMPARATOR = 80.0
