@@ -38,7 +38,9 @@ def translate_df(df, lang: str | None = None):
     if lang != "en":
         return df
     return df.rename(columns={c: t(str(c), lang) for c in df.columns})
-def render_lang_selector() -> str:
+
+
+def render_lang_selector() -> str:
     """Renderizza il selettore Italiano/English nella sidebar."""
     import streamlit as st
     import base64
@@ -67,7 +69,7 @@ def translate_df(df, lang: str | None = None):
 
     # Colore accento dinamico (Amber)
     accent = "#F59E0B"
-    
+
     style_it = f"border: 2px solid {accent if lang=='it' else 'transparent'}; opacity: {1 if lang=='it' else 0.4};"
     style_en = f"border: 2px solid {accent if lang=='en' else 'transparent'}; opacity: {1 if lang=='en' else 0.4};"
 
@@ -127,7 +129,7 @@ def translate_df(df, lang: str | None = None):
         </style>
 
         <div class="miq-lang-container">
-            <div style='font-size:0.7rem; font-weight:700; letter-spacing:1px; 
+            <div style='font-size:0.7rem; font-weight:700; letter-spacing:1px;
                  text-transform:uppercase; color:#64748B; margin-left:2px;'>
                  🌐 Language / Lingua
             </div>
@@ -163,8 +165,4 @@ def translate_df(df, lang: str | None = None):
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
-    return langang"] = "en"
-            st.rerun()
-
     return lang
-
