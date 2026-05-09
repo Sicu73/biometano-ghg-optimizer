@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 BioMethane Monthly Planner - Dual-Constraint Solver
 ---------------------------------------------------
@@ -2235,6 +2235,21 @@ with st.sidebar:
     FOSSIL_COMPARATOR = 80.0
     # ---------------------------------------------------------
 
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### " + _t("🌾 Biomasse attive"))
+    active_feeds_sel = st.sidebar.multiselect(
+        _t("Scegli biomasse"),
+        options=FEED_NAMES,
+        default=[f for f in st.session_state.get('active_feeds', DEFAULT_ACTIVE_FEEDS) if f in FEED_NAMES],
+        format_func=lambda x: f"{_t(x)} (eec={fmt_it(FEEDSTOCK_DB[x]['eec'], 1, signed=True)})",
+        key="sb_active_feeds"
+    )
+    st.session_state.active_feeds = active_feeds_sel
+    active_feeds = st.session_state.active_feeds
+    if not active_feeds:
+        st.sidebar.warning(_t("⚠️ Seleziona almeno 1 biomassa per procedere."))
+        st.stop()
+
     # ============================================================
     # CONFIG. SOLVER & OTTIMIZZAZIONE - Sidebar
     # ============================================================
@@ -2365,20 +2380,7 @@ with st.sidebar:
             _aux_items = {"Upgrading": _det.get("elec_upgrading", 0), "BOP": _det.get("elec_bop", 0), "Iniezione": _det.get("elec_injection", 0)}
             st.sidebar.bar_chart(pd.DataFrame.from_dict(_aux_items, orient='index'), height=150)
 
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### " + _t("🌾 Biomasse attive"))
-    active_feeds_sel = st.sidebar.multiselect(
-        _t("Scegli biomasse"),
-        options=FEED_NAMES,
-        default=[f for f in st.session_state.get('active_feeds', DEFAULT_ACTIVE_FEEDS) if f in FEED_NAMES],
-        format_func=lambda x: f"{_t(x)} (eec={fmt_it(FEEDSTOCK_DB[x]['eec'], 1, signed=True)})",
-        key="sb_active_feeds"
-    )
-    st.session_state.active_feeds = active_feeds_sel
-    active_feeds = st.session_state.active_feeds
-    if not active_feeds:
-        st.sidebar.warning(_t("⚠️ Seleziona almeno 1 biomassa per procedere."))
-        st.stop()
+
 
     # ============================================================
     # OVERRIDES (BMT & Emissioni) - Sidebar
