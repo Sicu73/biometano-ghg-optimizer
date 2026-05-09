@@ -1,4 +1,10 @@
-"""Metan.iQ — Generatore XLSX editabile con formule live.
+# -*- coding: utf-8 -*-
+"""excel_export.py — Implementazione XLSX con formule live (API legacy, CANONICAL).
+
+Punto d'ingresso: build_metaniq_xlsx(ctx) -> BytesIO
+Questo e' il modulo CANONICAL per la generazione XLSX. Non spostare.
+L'adapter export/excel_export.py wrappa questa funzione con la nuova API
+build_excel_from_output(output_model) per i moduli refactored.
 
 Crea un workbook Excel autocalcolante: l'utente modifica solo le celle
 gialle (Ore + Biomasse) e tutti gli altri valori (produzione, saving GHG,

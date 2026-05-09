@@ -1,20 +1,16 @@
 # -*- coding: utf-8 -*-
-"""export/excel_export.py — Esportazione Excel da output_model.
+"""export/excel_export.py — Esportazione Excel da output_model (nuova API).
 
-Funzione pubblica:
-  build_excel_from_output(output_model, snapshot=False) -> BytesIO
+Architettura a due livelli:
+  - excel_export.py (root): implementazione XLSX completa con formule live
+    e styling consulting-grade. API legacy: build_metaniq_xlsx(ctx).
+    Usato direttamente da app_mensile.py (import storico, non modificare).
+  - export/excel_export.py (questo file): adapter output_model -> ctx.
+    API nuova: build_excel_from_output(output_model).
+    Usato da export/__init__.py e da nuovi moduli.
 
-Questa funzione e' un ADAPTER che:
-1. Ricostruisce il ctx compatibile con l'API di excel_export.py (root level)
-   a partire dall'output_model strutturato.
-2. Chiama `excel_export.build_metaniq_xlsx(ctx)` esistente.
-
-In questo modo il refactoring non richiede di toccare i 2072 righe di
-excel_export.py: la logica di generazione XLSX resta invariata, ma ora
-l'entry point ufficiale e' `build_excel_from_output(output_model)`.
-
-Se excel_export.py non e' disponibile (es. test isolati), viene generato
-un XLSX minimale con openpyxl direttamente.
+I due file NON sono duplicati: hanno API diverse (ctx vs output_model).
+Se excel_export.py (root) non e' disponibile, genera un XLSX minimale.
 """
 from __future__ import annotations
 
