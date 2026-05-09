@@ -2230,6 +2230,7 @@ with st.sidebar:
     aux_factor = _aux_base
     cic_price = 0.0
     advanced_mode = "Auto"
+    end_use = "Standard"
     fer2_tariffa_base = 0.0
     fer2_premio_matrice_eur = 0.0
     fer2_premio_car_eur = 0.0
