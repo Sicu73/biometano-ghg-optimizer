@@ -1579,6 +1579,12 @@ if "methaniq_theme" not in st.session_state:
 _LANG = render_lang_selector()
 MONTHS = [_t(m) for m in MONTHS]
 
+# ── Colori provvisori per sidebar (definiti prima del Design System completo) ──
+AMBER       = "#F59E0B"
+ACCENT      = AMBER
+BORDER      = "#E2E8F0"
+TEXT_MUTED   = "#73777F"
+
 with st.sidebar:
     st.markdown(
         f"""
