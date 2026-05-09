@@ -2518,7 +2518,7 @@ with st.sidebar:
     for _bn in active_feeds:
         _res = resolve_biomass_yield(_bn, float(FEEDSTOCK_DB[_bn]["yield"]), st.session_state.get("bmt_overrides", {}))
         _EFFECTIVE_YIELDS[_bn] = float(_res["yield_used"])
-        _yield_audit_rows.append(build_yield_audit_row(_bn, float(FEEDSTOCK_DB[_bn]["yield"]), _res))
+        _yield_audit_rows.append(build_yield_audit_row(_res))
     
     _EMISSION_OVERRIDES.clear()
     _emission_audit_rows = []
@@ -2527,7 +2527,7 @@ with st.sidebar:
         _res_e = resolve_emission_factors(_ef_n, _std_f, 0.0, st.session_state.get("emission_factor_overrides", {}))
         if _res_e["override_active"]:
             _EMISSION_OVERRIDES[_ef_n] = {"eec": _res_e["eec_used"], "esca": _res_e["esca_used"], "etd": _res_e["etd_used"], "ep": _res_e["ep_used"], "extra": _res_e["extra_credits_used"], "source": _res_e["source"]}
-        _emission_audit_rows.append(build_emission_factor_audit_row(_ef_n, _std_f, _res_e))
+        _emission_audit_rows.append(build_emission_factor_audit_row(_res_e))
 
 # ============================================================
 # TABS RISULTATI (Main Area)
