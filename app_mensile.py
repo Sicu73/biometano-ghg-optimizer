@@ -1818,6 +1818,30 @@ IS_DM2022      = APP_MODE == "biometano"
 if IS_CHP:
     FOSSIL_COMPARATOR = COMPARATOR_CHP
 
+# ---------------------------------------------------------------------------
+# DEFAULT GLOBALI mode-specific
+# Il refactor "UI Modernization" ha lasciato variabili definite solo dentro
+# i branch IS_DM2018 / IS_FER2 ma referenziate in modo unconditional più
+# avanti (es. annex_threshold a riga 4077, fer2_*_attivo a riga 3127). Senza
+# questi default l'app crasha con NameError prima di renderizzare il titolo
+# "Metan.iQ" e il credito "Carlo Sicurini".
+# ---------------------------------------------------------------------------
+annex_threshold              = ANNEX_IX_THRESHOLD
+fer2_premio_matrice_attivo   = False
+fer2_premio_car_attivo       = False
+fer2_qualified               = False
+fer2_apply_matrice           = False
+fer2_apply_car               = False
+fer2_tariffa_base            = FER2_TARIFFA_BASE_DEFAULT
+fer2_premio_matrice_eur      = FER2_PREMIO_MATRICE_DEFAULT
+fer2_premio_car_eur          = FER2_PREMIO_CAR_DEFAULT
+fer2_tariffa_eff             = FER2_TARIFFA_BASE_DEFAULT
+fer2_matrice_threshold       = FER2_FEEDSTOCK_REQ_THRESHOLD
+fer2_subprod_share           = 0.0
+end_use                      = ""
+cic_price                    = CIC_PRICE_DEFAULT
+advanced_mode                = "Auto (calcolata da matrice annuale)"
+
 IS_DARK = st.session_state.methaniq_theme == "dark"
 
 # ============================================================
@@ -3525,7 +3549,36 @@ with tab_solver:
                 f"Ricavi/biomassa = MWh netti × tariffa €/MWh. "
                 f"Modifica la colonna «Tariffa €/MWh» per simulare scenari diversi."
             )
-    
+
+    # ============================================================
+    # FALLBACK — variabili Business Plan (DM 2022)
+    # ------------------------------------------------------------
+    # Il commit "UI Modernization" (dbe9a81) ha rimosso il blocco di
+    # configurazione BP nella sidebar mantenendone tutti gli usi a valle:
+    # ne risultava un NameError 'bp_result' non definito che faceva crashare
+    # l'intera app (e con essa nascondere titolo "Metan.iQ", credito "Carlo
+    # Sicurini" e ogni altra UI). Inizializziamo qui le 19 variabili bp_* con
+    # valori di default sicuri: il tab BP resta vuoto (regressione nota), ma
+    # l'app non crasha più e tutto il resto della UI è di nuovo visibile.
+    # ============================================================
+    if "bp_result" not in dir():
+        bp_result               = None
+        bp_tariffa_eur_mwh      = BP_TARIFFA_BASE_2026
+        bp_ribasso_pct          = BP_RIBASSO_DEFAULT_PCT
+        bp_tariffa_eff          = BP_TARIFFA_BASE_2026 * (1.0 - BP_RIBASSO_DEFAULT_PCT / 100.0)
+        bp_pnrr_pct             = BP_PNRR_QUOTA_PCT_DEFAULT
+        bp_capex_breakdown      = {}
+        bp_capex_forfait        = {}
+        bp_opex_breakdown       = {}
+        bp_opex_forfait         = {}
+        bp_lt_tasso             = BP_FINANCE_DEFAULTS["lt_tasso"]
+        bp_lt_durata            = BP_FINANCE_DEFAULTS["lt_durata"]
+        bp_lt_leva              = BP_FINANCE_DEFAULTS["lt_leva"]
+        bp_ebitda_target_pct    = 24.5
+        bp_inflazione_pct       = BP_INFLAZIONE_DEFAULT_PCT
+        bp_ch4_in_biogas_pct    = 54.25
+        bp_ore_anno             = 8500.0
+
     # ============================================================
     # TAB 5 — BUSINESS PLAN (solo DM 2022)
     # ============================================================
