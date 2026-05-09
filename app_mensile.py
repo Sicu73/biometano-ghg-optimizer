@@ -2241,41 +2241,74 @@ with st.sidebar:
         # Fattore globale lordi->netti: legge aux_factor da Config. Tecnica
         # (include upgrading slip + caldaia + CHP interno + margini)
         # Default = DEFAULT_AUX_FACTOR = 1.29 (calcolato JRC-CONCAWE)
-        _aux   = st.session_state.get("aux_factor", DEFAULT_AUX_FACTOR)
-        _up_eff = 1.0 / _aux if _aux > 0 else (1.0 / DEFAULT_AUX_FACTOR)
-        _detail = st.session_state.get("aux_factor_detail", {})
-        _up_label = f"1 / {fmt_it(_aux, 3)} = {fmt_it(_up_eff*100, 1)} %"
+        _aux_base = st.session_state.get("aux_factor", DEFAULT_AUX_FACTOR)
+        
+        # Toggle per sincronizzazione automatica o override manuale del lordo
+        if "override_gross_manual" not in st.session_state:
+            st.session_state.override_gross_manual = False
+            
+        _sync = st.toggle(
+            _t("Sincronizza Lordo con Config. Tecnica"), 
+            value=not st.session_state.override_gross_manual,
+            help=_t("Se attivo, il Lordo è calcolato automaticamente come Netto × aux_factor (da Config. Tecnica). Se disattivato, puoi inserire il Lordo manualmente.")
+        )
+        st.session_state.override_gross_manual = not _sync
 
         if st.session_state[_unit_key] == "netti":
-            _plant_input = st.number_input(
+            _plant_input_net = st.number_input(
                 "🎯 " + _t("Netto autorizzato [Sm³/h netti]"),
                 min_value=10.0, max_value=2000.0,
                 value=float(st.session_state.get("plant_net_smch_saved", DEFAULT_PLANT_NET_SMCH)),
                 step=5.0,
-                help=_t(
-                    "Portata di biometano **netto** a valle upgrading. "
-                    "È il valore del contatore di rete / decreto autorizzativo. "
-                    "Il corrispondente valore lordo viene calcolato automaticamente."
-                ),
+                help=_t("Portata di biometano **netto** a valle upgrading. Valore contatore rete / decreto."),
                 key="input_smch_netti",
             )
-            plant_net_smch  = _plant_input
-            plant_gross_smch = plant_net_smch / _up_eff if _up_eff > 0 else plant_net_smch
+            plant_net_smch = _plant_input_net
+            
+            # Calcolo lordo base
+            _gross_suggested = plant_net_smch * _aux_base
+            
+            if st.session_state.override_gross_manual:
+                # Inserimento manuale del lordo
+                plant_gross_smch = st.number_input(
+                    "📥 " + _t("Lordo manuale [Sm³/h lordi]"),
+                    min_value=plant_net_smch, max_value=10000.0,
+                    value=float(st.session_state.get("plant_gross_smch_saved", _gross_suggested)),
+                    step=5.0,
+                    help=_t("Inserisci manualmente la portata di biogas lordo. Questo sovrascrive il fattore aux calcolato."),
+                    key="input_smch_lordi_manual",
+                )
+                # Aggiorno aux_factor in session_state per coerenza globale
+                if plant_net_smch > 0:
+                    st.session_state["aux_factor"] = plant_gross_smch / plant_net_smch
+            else:
+                plant_gross_smch = _gross_suggested
+                st.caption(f"💡 {_t('Lordo calcolato')}: **{fmt_it(plant_gross_smch, 1)} Sm³/h** (aux {fmt_it(_aux_base, 3)})")
         else:
-            _plant_input = st.number_input(
+            # Modalità inserimento LORDI
+            _plant_input_gross = st.number_input(
                 "🎯 " + _t("Portata biogas grezzo [Sm³/h lordi]"),
                 min_value=10.0, max_value=10000.0,
-                value=float(st.session_state.get("plant_gross_smch_saved",
-                            DEFAULT_PLANT_NET_SMCH / 0.95)),
+                value=float(st.session_state.get("plant_gross_smch_saved", DEFAULT_PLANT_NET_SMCH * _aux_base)),
                 step=5.0,
-                help=_t(
-                    "Portata di biogas **lordo** in ingresso all'upgrading (prima della rimozione CO₂ e delle perdite). "
-                    "Il biometano netto viene calcolato automaticamente applicando il fattore di recupero CH₄ dell'upgrading."
-                ),
+                help=_t("Portata di biogas **lordo** in ingresso all'upgrading."),
                 key="input_smch_lordi",
             )
-            plant_gross_smch = _plant_input
-            plant_net_smch   = plant_gross_smch * _up_eff
+            plant_gross_smch = _plant_input_gross
+            
+            if st.session_state.override_gross_manual:
+                plant_net_smch = st.number_input(
+                    "📤 " + _t("Netto manuale [Sm³/h netti]"),
+                    min_value=10.0, max_value=plant_gross_smch,
+                    value=float(st.session_state.get("plant_net_smch_saved", plant_gross_smch / _aux_base)),
+                    step=5.0,
+                    key="input_smch_netti_manual",
+                )
+                if plant_net_smch > 0:
+                    st.session_state["aux_factor"] = plant_gross_smch / plant_net_smch
+            else:
+                plant_net_smch = plant_gross_smch / _aux_base
+                st.caption(f"💡 {_t('Netto calcolato')}: **{fmt_it(plant_net_smch, 1)} Sm³/h** (aux {fmt_it(_aux_base, 3)})")
 
         # Salvo i valori in session_state per ricordarli al prossimo switch
         st.session_state["plant_net_smch_saved"]   = plant_net_smch
@@ -2283,20 +2316,13 @@ with st.sidebar:
 
         # Riepilogo visivo lordi ↔ netti
         _c1, _c2, _c3 = st.columns(3)
-        _c1.metric(
-            "📥 " + _t("Lordi"), fmt_it(plant_gross_smch, 0, " Sm³/h"),
-            help=_t("Portata biogas totale prodotta (input upgrading + autoconsumo caldaia + CHP interno)"),
-        )
-        _c2.metric(
-            "📤 " + _t("Netti"), fmt_it(plant_net_smch, 0, " Sm³/h"),
-            help=_t("Portata biometano a valle upgrading (valore contatore rete / decreto)"),
-        )
-        _c3.metric(
-            "⚙️ " + _t("aux"), fmt_it(_aux, 3),
-            help=_t("Fattore lordi/netti dalla Config. Tecnica (upgrading + caldaia + CHP interno)"),
-        )
-        # Breakdown autoconsumi se disponibile
-        if _detail:
+        _c1.metric("📥 " + _t("Lordi"), fmt_it(plant_gross_smch, 0, " Sm³/h"))
+        _c2.metric("📤 " + _t("Netti"), fmt_it(plant_net_smch, 0, " Sm³/h"))
+        _c3.metric("⚙️ " + _t("aux"), fmt_it(st.session_state.get("aux_factor", _aux_base), 3))
+        
+        # Breakdown autoconsumi se disponibile (solo se non manuale o se vogliamo mostrare comunque i teorici)
+        _detail = st.session_state.get("aux_factor_detail", {})
+        if _detail and not st.session_state.override_gross_manual:
             _f_heat = _detail.get("f_heat", 0)
             _f_elec = _detail.get("f_elec", 0)
             _f_slip = _detail.get("f_slip", 0)
