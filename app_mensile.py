@@ -1635,6 +1635,60 @@ with st.sidebar:
             st.rerun()
     st.markdown("<div style='margin-bottom:15px;'></div>", unsafe_allow_html=True)
 
+    # =======================================================
+    # ANAGRAFICA SIMULAZIONE
+    # ----------------------------------------------------------
+    # Dati identificativi azienda + impianto. Usati per:
+    #   - intestazione report PDF/Excel/CSV
+    #   - auto-popolamento ID impianto in tab Operatività Giornaliera
+    # I dati restano nella sessione corrente (non persistiti su disco
+    # per evitare commit di dati cliente nel repo o problemi di privacy
+    # su Streamlit Cloud — ephemeral storage).
+    # =======================================================
+    st.markdown(
+        f"<div style='font-size:0.7rem; font-weight:700; letter-spacing:1px;"
+        f" text-transform:uppercase; color:#64748B; margin-bottom:6px;"
+        f" margin-left:2px;'>🏢 {_t('Anagrafica simulazione')}</div>",
+        unsafe_allow_html=True,
+    )
+    with st.expander(_t("Dati azienda e impianto"), expanded=False):
+        company_name = st.text_input(
+            _t("Nome azienda"),
+            value=st.session_state.get("company_name", ""),
+            key="company_name",
+            placeholder=_t("Es. Bioenergia Valpadana S.r.l."),
+        )
+        company_legal_address = st.text_input(
+            _t("Sede legale"),
+            value=st.session_state.get("company_legal_address", ""),
+            key="company_legal_address",
+            placeholder=_t("Via, civico, CAP, città (PR)"),
+        )
+        plant_name = st.text_input(
+            _t("Nome impianto"),
+            value=st.session_state.get("plant_name", ""),
+            key="plant_name",
+            placeholder=_t("Es. Impianto Cascina San Giorgio"),
+        )
+        plant_operational_address = st.text_input(
+            _t("Sede operativa"),
+            value=st.session_state.get("plant_operational_address", ""),
+            key="plant_operational_address",
+            placeholder=_t("Indirizzo dell'impianto"),
+        )
+        st.caption(
+            "ℹ️ " + _t("Questi dati appaiono nell'intestazione dei report "
+                       "esportati (PDF/Excel/CSV) e identificano l'impianto "
+                       "nel database della Gestione Giornaliera.")
+        )
+    st.markdown("<div style='margin-bottom:15px;'></div>", unsafe_allow_html=True)
+
+# Espone le 4 variabili a livello modulo (anche se non compilate sono "")
+COMPANY_NAME              = st.session_state.get("company_name", "")
+COMPANY_LEGAL_ADDRESS     = st.session_state.get("company_legal_address", "")
+PLANT_NAME                = st.session_state.get("plant_name", "")
+PLANT_OPERATIONAL_ADDRESS = st.session_state.get("plant_operational_address", "")
+
 # ===========================================================
 # Metan.iQ Mode Selector (4 modalita' in griglia 2x2)
 # ===========================================================
@@ -5629,10 +5683,27 @@ with tab_daily:
         # =================================================================
         # HEADER + selettore periodo
         # =================================================================
+        # Badge anagrafica (solo se compilata)
+        _anag_badge = ""
+        if COMPANY_NAME or PLANT_NAME:
+            _badge_parts = []
+            if COMPANY_NAME:
+                _badge_parts.append(f"🏢 <b>{COMPANY_NAME}</b>")
+            if PLANT_NAME:
+                _badge_parts.append(f"🏭 {PLANT_NAME}")
+            _anag_badge = (
+                f"<div style='display:inline-block;background:{AMBER}15;"
+                f"color:{NAVY};padding:4px 10px;border-radius:6px;"
+                f"font-size:0.78rem;margin-bottom:8px;border:1px solid {AMBER}30;'>"
+                + " &nbsp;·&nbsp; ".join(_badge_parts)
+                + "</div>"
+            )
+
         st.markdown(
             f"<h2 style='margin-bottom:4px;color:{NAVY};'>📅 "
             f"{_t('Operatività Giornaliera')}</h2>"
-            f"<div style='color:#64748B;font-size:0.85rem;margin-bottom:14px;'>"
+            + _anag_badge
+            + f"<div style='color:#64748B;font-size:0.85rem;margin-bottom:14px;'>"
             + _t("Sostenibilità calcolata su base mensile (mass balance RED III · "
                  "Regole Applicative GSE 2025). I valori giornalieri sono solo "
                  "monitoraggio: conta il totale a fine mese.")
@@ -5655,12 +5726,18 @@ with tab_daily:
                 key="do_month",
             )
         with _csel3:
+            # ID impianto: se l'utente ha compilato "Nome impianto" in sidebar
+            # (Anagrafica simulazione) lo usiamo come default. Altrimenti "default".
+            _plant_id_default = (
+                PLANT_NAME.strip() if PLANT_NAME and PLANT_NAME.strip()
+                else st.session_state.get("do_plant_id", "default")
+            )
             _do_plant = st.text_input(
                 _t("Impianto"),
-                value=st.session_state.get("do_plant_id", "default"),
+                value=_plant_id_default,
                 key="do_plant_id",
-                help=_t("ID per separare i dati nel database. "
-                        "Lascia 'default' se gestisci un solo impianto."),
+                help=_t("ID per separare i dati nel database. Auto-compilato "
+                        "dal Nome impianto in Anagrafica simulazione (sidebar)."),
             )
 
         # =================================================================
@@ -5908,7 +5985,13 @@ with tab_daily:
         # =================================================================
         _guidance = _build_guidance(_agg, _sust, regime=_regime_lbl)
         _audit = {
-            _t("Regime applicato"):                _regime_lbl,
+            # === Anagrafica simulazione (sidebar) ===
+            _t("Nome azienda"):                     COMPANY_NAME or "—",
+            _t("Sede legale"):                      COMPANY_LEGAL_ADDRESS or "—",
+            _t("Nome impianto"):                    PLANT_NAME or "—",
+            _t("Sede operativa"):                   PLANT_OPERATIONAL_ADDRESS or "—",
+            # === Parametri di calcolo ===
+            _t("Regime applicato"):                 _regime_lbl,
             _t("Soglia normativa (%)"):             f"{_thr_pct:.2f}",
             _t("Comparatore fossile (gCO2eq/MJ)"):  f"{FOSSIL_COMPARATOR:.2f}",
             _t("Aux factor (lordo/netto)"):         f"{aux_factor:.4f}",
