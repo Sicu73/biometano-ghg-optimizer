@@ -123,8 +123,12 @@ def render_lang_selector() -> str:
             letter-spacing: 0.5px;
         }}
         /* Nascondi bottoni Streamlit */
-        .st-emotion-cache-miq-lang-hidden button {{
+        .miq-lang-hidden-wrapper,
+        .miq-lang-hidden-wrapper button {{
             display: none !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }}
         </style>
 
@@ -156,13 +160,16 @@ def render_lang_selector() -> str:
     with st.sidebar:
         # Usiamo un container per nasconderli
         with st.container():
-            st.markdown('<div class="st-emotion-cache-miq-lang-hidden">', unsafe_allow_html=True)
-            if st.button("IT_HIDDEN", key="btn_lang_it"):
-                st.session_state["lang"] = "it"
-                st.rerun()
-            if st.button("EN_HIDDEN", key="btn_lang_en"):
-                st.session_state["lang"] = "en"
-                st.rerun()
+            st.markdown('<div class="miq-lang-hidden-wrapper">', unsafe_allow_html=True)
+            _hc1, _hc2 = st.columns(2)
+            with _hc1:
+                if st.button("IT_HIDDEN", key="btn_lang_it"):
+                    st.session_state["lang"] = "it"
+                    st.rerun()
+            with _hc2:
+                if st.button("EN_HIDDEN", key="btn_lang_en"):
+                    st.session_state["lang"] = "en"
+                    st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
     return lang
