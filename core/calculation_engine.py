@@ -32,6 +32,25 @@ import sys
 # ---------------------------------------------------------------------------
 import numpy as np  # noqa: F401  (alcune funzioni reali ne dipendono)
 
+# Costanti normative/energetiche: importate dalla fonte di verità
+# centralizzata core/constants.py (con alias per i nomi storici).
+from core.constants import (  # noqa: E402
+    LHV_BIOMETHANE_MJ_NM3                as LHV_BIOMETHANE,
+    NM3_TO_MWH,
+    GCAL_PER_CIC,
+    MWH_PER_CIC,
+    CIC_PRICE_DEFAULT_EUR                as CIC_PRICE_DEFAULT,
+    ANNEX_IX_THRESHOLD,
+    FER2_KWE_CAP,
+    FER2_TARIFFA_BASE_DEFAULT_EUR_MWH    as FER2_TARIFFA_BASE_DEFAULT,
+    FER2_PREMIO_MATRICE_DEFAULT_EUR_MWH  as FER2_PREMIO_MATRICE_DEFAULT,
+    FER2_PREMIO_CAR_DEFAULT_EUR_MWH      as FER2_PREMIO_CAR_DEFAULT,
+    FER2_FEEDSTOCK_REQ_THRESHOLD,
+    FER2_PERIODO_ANNI,
+    FER2_GHG_THRESHOLD,
+    COMPARATOR_GRID_HEAT_GCO2_MJ         as FOSSIL_COMPARATOR,
+)
+
 FEEDSTOCK_DB: dict = {}
 FEED_NAMES: list = []
 FEEDSTOCK_CATEGORIES: dict = {}
@@ -40,11 +59,8 @@ MONTHS = [
     "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre",
 ]
 MONTH_HOURS = [744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]
-LHV_BIOMETHANE = 35.9
-NM3_TO_MWH = 0.00997
 DEFAULT_AUX_FACTOR = 1.29
 DEFAULT_PLANT_NET_SMCH = 300.0
-FOSSIL_COMPARATOR = 80.0
 COMPARATOR_BY_END_USE = {
     "Elettricità/calore/immissione rete (nuovo >=20/11/2023)": 80.0,
     "Trasporti (BioGNL/BioCNG)": 94.0,
@@ -53,10 +69,6 @@ END_USE_THRESHOLDS = {
     "Elettricità/calore/immissione rete (nuovo >=20/11/2023)": 0.80,
     "Trasporti (BioGNL/BioCNG)": 0.65,
 }
-MWH_PER_CIC = 11.628
-GCAL_PER_CIC = 10.0
-CIC_PRICE_DEFAULT = 375.0
-ANNEX_IX_THRESHOLD = 0.70
 EP_DIGESTATE: dict = {}
 EP_UPGRADING: dict = {}
 EP_OFFGAS: dict = {}
@@ -65,13 +77,6 @@ EP_ELEC: dict = {}
 METHANE_SLIP: dict = {}
 HEAT_DEMAND_UPGRADING: dict = {}
 ELEC_DEMAND_UPGRADING: dict = {}
-FER2_KWE_CAP = 300.0
-FER2_TARIFFA_BASE_DEFAULT = 256.0
-FER2_PREMIO_MATRICE_DEFAULT = 30.0
-FER2_PREMIO_CAR_DEFAULT = 10.0
-FER2_FEEDSTOCK_REQ_THRESHOLD = 0.80
-FER2_PERIODO_ANNI = 20
-FER2_GHG_THRESHOLD = 0.80
 BP_CAPEX_DEFAULTS_PER_SMCH: dict = {}
 BP_CAPEX_FORFAIT_DEFAULTS: dict = {}
 BP_OPEX_DEFAULTS_PER_SMCH_YEAR: dict = {}

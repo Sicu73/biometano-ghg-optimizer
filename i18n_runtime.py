@@ -10,6 +10,7 @@ API pubblica:
 """
 from __future__ import annotations
 from metaniq_i18n import IT_EN
+from core.design_tokens import AMBER as _ACCENT, SLATE_500 as _MUTED
 
 
 def get_lang() -> str:
@@ -67,8 +68,8 @@ def render_lang_selector() -> str:
     flag_it_b64 = base64.b64encode(FLAG_IT.encode()).decode()
     flag_uk_b64 = base64.b64encode(FLAG_UK.encode()).decode()
 
-    # Colore accento dinamico (Amber)
-    accent = "#F59E0B"
+    # Colore accento dinamico (Amber) — single source: core/design_tokens.AMBER
+    accent = _ACCENT
 
     style_it = f"border: 2px solid {accent if lang=='it' else 'transparent'}; opacity: {1 if lang=='it' else 0.4};"
     style_en = f"border: 2px solid {accent if lang=='en' else 'transparent'}; opacity: {1 if lang=='en' else 0.4};"
@@ -119,7 +120,7 @@ def render_lang_selector() -> str:
             font-size: 0.65rem;
             font-weight: 700;
             margin-top: 5px;
-            color: #64748B;
+            color: {_MUTED};
             letter-spacing: 0.5px;
         }}
         /* Nascondi bottoni Streamlit */

@@ -25,22 +25,41 @@ from i18n_runtime import t as _t
 
 
 # ============================================================
-# Design tokens (mirror app_mensile.py palette)
+# Design tokens — hex strings importate da core/design_tokens.py
+# (single source of truth; qui le wrappiamo per reportlab)
 # ============================================================
-NAVY      = colors.HexColor("#0F172A")
-NAVY_2    = colors.HexColor("#1E293B")
-AMBER     = colors.HexColor("#F59E0B")
-AMBER_DK  = colors.HexColor("#B45309")
-AMBER_BG  = colors.HexColor("#FEF3C7")
-SLATE_50  = colors.HexColor("#F8FAFC")
-SLATE_100 = colors.HexColor("#F1F5F9")
-SLATE_200 = colors.HexColor("#E2E8F0")
-SLATE_400 = colors.HexColor("#94A3B8")
-SLATE_500 = colors.HexColor("#64748B")
-SLATE_600 = colors.HexColor("#475569")
-SLATE_700 = colors.HexColor("#334155")
-EMERALD   = colors.HexColor("#10B981")
-RED       = colors.HexColor("#DC2626")
+from core.design_tokens import (
+    AMBER       as _T_AMBER,
+    AMBER_DARK  as _T_AMBER_DK,
+    AMBER_BG    as _T_AMBER_BG,
+    SLATE_50    as _T_SLATE_50,
+    SLATE_100   as _T_SLATE_100,
+    SLATE_200   as _T_SLATE_200,
+    SLATE_400   as _T_SLATE_400,
+    SLATE_500   as _T_SLATE_500,
+    SLATE_600   as _T_SLATE_600,
+    SLATE_700   as _T_SLATE_700,
+    SLATE_800   as _T_SLATE_800,
+    SLATE_900   as _T_SLATE_900,
+    EMERALD     as _T_EMERALD,
+    RED         as _T_RED,
+)
+
+# Tema PDF (Navy scuro stampabile — diverge dal tema Web Material 3)
+NAVY      = colors.HexColor(_T_SLATE_900)
+NAVY_2    = colors.HexColor(_T_SLATE_800)
+AMBER     = colors.HexColor(_T_AMBER)
+AMBER_DK  = colors.HexColor(_T_AMBER_DK)
+AMBER_BG  = colors.HexColor(_T_AMBER_BG)
+SLATE_50  = colors.HexColor(_T_SLATE_50)
+SLATE_100 = colors.HexColor(_T_SLATE_100)
+SLATE_200 = colors.HexColor(_T_SLATE_200)
+SLATE_400 = colors.HexColor(_T_SLATE_400)
+SLATE_500 = colors.HexColor(_T_SLATE_500)
+SLATE_600 = colors.HexColor(_T_SLATE_600)
+SLATE_700 = colors.HexColor(_T_SLATE_700)
+EMERALD   = colors.HexColor(_T_EMERALD)
+RED       = colors.HexColor(_T_RED)
 WHITE     = colors.white
 
 PAGE_W, PAGE_H = A4

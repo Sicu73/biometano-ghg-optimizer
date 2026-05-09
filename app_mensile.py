@@ -267,11 +267,27 @@ COMPARATOR_BY_END_USE = {
     "Elettricità/calore (esistente <10 MW, primi 15 anni)":   80.0,
     "Trasporti (BioGNL/BioCNG)":                              94.0,
 }
-COMPARATOR_CHP = 183.0   # biogas -> CHP -> elettricita' (mix EU)
-FOSSIL_COMPARATOR = 80.0  # default biometano->rete; aggiornato dinamicamente
-# Le soglie RED III variano per uso finale: 80% elettricita'/calore, 65% trasporti
-LHV_BIOMETHANE = 35.9                          # MJ/Nm3 (97% CH4)
-NM3_TO_MWH = 0.00997                           # 1 Nm3 -> MWh (PCI biometano)
+# Costanti normative/energetiche: fonte di verità centralizzata in
+# core/constants.py (importate qui con i nomi storici dell'app).
+from core.constants import (
+    LHV_BIOMETHANE_MJ_NM3            as LHV_BIOMETHANE,
+    NM3_TO_MWH,
+    GCAL_PER_CIC,
+    MWH_PER_CIC,
+    CIC_PRICE_DEFAULT_EUR            as CIC_PRICE_DEFAULT,
+    ANNEX_IX_THRESHOLD,
+    FER2_KWE_CAP,
+    FER2_TARIFFA_BASE_DEFAULT_EUR_MWH    as FER2_TARIFFA_BASE_DEFAULT,
+    FER2_PREMIO_MATRICE_DEFAULT_EUR_MWH  as FER2_PREMIO_MATRICE_DEFAULT,
+    FER2_PREMIO_CAR_DEFAULT_EUR_MWH      as FER2_PREMIO_CAR_DEFAULT,
+    FER2_FEEDSTOCK_REQ_THRESHOLD,
+    FER2_PERIODO_ANNI,
+    FER2_GHG_THRESHOLD,
+    COMPARATOR_CHP_EU_MIX_GCO2_MJ    as COMPARATOR_CHP,
+    COMPARATOR_GRID_HEAT_GCO2_MJ     as _COMP_GRID_HEAT,
+)
+
+FOSSIL_COMPARATOR = _COMP_GRID_HEAT  # default biometano->rete; aggiornato dinamicamente
 DEFAULT_AUX_FACTOR = 1.29                      # netto -> lordo (CHP+caldaia)
 DEFAULT_PLANT_NET_SMCH = 300.0                 # Sm3/h netti autorizzati (default)
 
@@ -323,10 +339,8 @@ END_USE_THRESHOLDS = {
 # ============================================================
 GCAL_PER_MWH       = 1.0 / 1.1628                  # ~0,860 Gcal per MWh
 MWH_PER_GCAL       = 1.1628                        # 1 Gcal -> MWh
-GCAL_PER_CIC       = 10.0                          # 1 CIC = 10 Gcal (= 1 toe)
-MWH_PER_CIC        = GCAL_PER_CIC * MWH_PER_GCAL   # ~11,628 MWh per CIC
-CIC_PRICE_DEFAULT  = 375.0                         # EUR/CIC base GSE
-ANNEX_IX_THRESHOLD = 0.70                          # quota minima per "avanzato"
+# GCAL_PER_CIC, MWH_PER_CIC, CIC_PRICE_DEFAULT, ANNEX_IX_THRESHOLD
+# importati da core/constants.py (vedi blocco import in cima al file).
 
 # Soglie saving GHG e comparator per DM 2018 (RED II / III recepito).
 # Per trasporti: 50% impianti operativi pre-1/1/2021, 65% post.
@@ -365,14 +379,9 @@ DM2018_END_USES = {
 # NB: i numeri esatti di tariffa e premi possono cambiare per asta/anno.
 # I default qui sotto sono indicativi e configurabili dall'utente in app.
 # ============================================================
-FER2_KWE_CAP                  = 300.0    # kWe hard cap
+# FER2_KWE_CAP, FER2_TARIFFA_BASE_DEFAULT, FER2_PREMIO_*, FER2_FEEDSTOCK_REQ_*,
+# FER2_PERIODO_ANNI, FER2_GHG_THRESHOLD: importati da core/constants.py
 DEFAULT_PLANT_KWE_FER2        = 250.0    # default plant size (sotto cap)
-FER2_TARIFFA_BASE_DEFAULT     = 256.0    # EUR/MWh_el (TR base)
-FER2_PREMIO_MATRICE_DEFAULT   = 30.0     # EUR/MWh_el (>=80% sottoprodotti)
-FER2_PREMIO_CAR_DEFAULT       = 10.0     # EUR/MWh_el (CAR PES>10%)
-FER2_FEEDSTOCK_REQ_THRESHOLD  = 0.80     # quota minima sottoprodotti/effluenti
-FER2_PERIODO_ANNI             = 20       # durata incentivo (anni)
-FER2_GHG_THRESHOLD            = 0.80     # RED III electricity
 
 # ============================================================
 # BUSINESS PLAN — DEFAULTS BENCHMARK (DM 2022 biometano)
@@ -1808,16 +1817,59 @@ IS_DM2022      = APP_MODE == "biometano"
 if IS_CHP:
     FOSSIL_COMPARATOR = COMPARATOR_CHP
 
+# ---------------------------------------------------------------------------
+# MODE_META — Single source of truth per le stringhe mode-specific
+# Sostituisce ternari nidificati IS_FER2/IS_CHP/IS_DM2018/IS_DM2022 ripetuti
+# in 5+ punti (header tagline/pill, sidebar badge, label/colonne export).
+# Per aggiungere un mode: aggiungere una entry e aggiornare le 5 chiavi.
+# ---------------------------------------------------------------------------
+_MODE_META: dict = {
+    "biogas_chp_fer2": {
+        "tagline":   "DM 19/06/2024 · CHP biogas piccoli impianti agricoli ≤300 kWe. Tariffa di Riferimento + premi matrice (≥80% sottoprodotti) e CAR. Periodo 20 anni, saving 80% RED III.",
+        "pill_main": "BIOGAS · CHP · FER 2 (≤300 kW)",
+        "pill_norm": "DM 19/06/2024 · FER 2",
+        "badge":     "Biogas · CHP · FER 2 (≤300 kW)",
+        "label":     "Biogas CHP FER 2 (≤300 kW)",
+    },
+    "biogas_chp": {
+        "tagline":   "Pianificazione e business case per impianti biogas cogenerativi (DM 6/7/2012, ≤1 MW). Bilancio elettrico-termico, tariffa T.O. e saving RED III.",
+        "pill_main": "BIOGAS · CHP · DM 6/7/2012",
+        "pill_norm": "RED III · D.LGS 5/2026",
+        "badge":     "Biogas · CHP · DM 6/7/2012",
+        "label":     "Biogas CHP DM 6/7/2012",
+    },
+    "biometano_2018": {
+        "tagline":   "DM 2/3/2018 · sistema CIC con double counting per matrici Annex IX (biometano avanzato). Pianificazione mensile, sostenibilità RED II/III e simulazione CIC.",
+        "pill_main": "BIOMETANO · DM 2/3/2018 · CIC",
+        "pill_norm": "RED II · ALL. IX (avanzato)",
+        "badge":     "Biometano · DM 2018 · CIC",
+        "label":     "Biometano DM 2018 (CIC)",
+    },
+    "biometano": {  # DM 15/09/2022
+        "tagline":   "DM 15/9/2022 · pianificazione mensile e ottimizzazione GHG per biometano: tariffa diretta €/MWh, saving RED III/D.Lgs. 5/2026 per uso finale.",
+        "pill_main": "BIOMETANO · DM 15/9/2022",
+        "pill_norm": "RED III · D.LGS 5/2026",
+        "badge":     "Biometano · DM 2022",
+        "label":     "Biometano DM 2022",
+    },
+}
+_MODE = _MODE_META.get(APP_MODE, _MODE_META["biometano"])
+
 IS_DARK = st.session_state.methaniq_theme == "dark"
 
 # ============================================================
 # Metan.iQ Design System v3 — "Google Material 3 / Material You"
 # ============================================================
-PRIMARY     = "#006494"  # Material 3 Primary
-SECONDARY   = "#4A6267"  # Muted Teal
-TERTIARY    = "#625B71"  # Muted Purple
-ACCENT      = "#F59E0B"
-SUCCESS     = "#10B981"
+# Brand tokens condivisi (Web + PDF + i18n) importati da core/design_tokens.py
+from core.design_tokens import (
+    AMBER       as ACCENT,    # alias semantico Material 3
+    AMBER_DARK  as AMBER_DK,
+    EMERALD     as SUCCESS,
+)
+
+PRIMARY     = "#006494"  # Material 3 Primary (Web only)
+SECONDARY   = "#4A6267"  # Muted Teal (Web only)
+TERTIARY    = "#625B71"  # Muted Purple (Web only)
 
 # Aliases per compatibilita' legacy
 AMBER       = ACCENT
@@ -1825,7 +1877,6 @@ NAVY        = PRIMARY
 NAVY_2      = SECONDARY
 BRAND       = SUCCESS
 BRAND_2     = SUCCESS
-AMBER_DK    = "#B45309"
 
 if IS_DARK:
     BG_APP        = "#1A1C1E"
@@ -2049,27 +2100,10 @@ st.markdown(
     <div class="methaniq-header">
         <span class="eyebrow">// Decision Intelligence Platform</span>
         <h1>Metan<span style="color:""" + AMBER + """; font-weight:700;">.</span>iQ</h1>
-        <div class="tagline">""" + (
-            _t("DM 19/06/2024 · CHP biogas piccoli impianti agricoli ≤300 kWe. Tariffa di Riferimento + premi matrice (≥80% sottoprodotti) e CAR. Periodo 20 anni, saving 80% RED III.")
-            if IS_FER2 else
-            _t("Pianificazione e business case per impianti biogas cogenerativi (DM 6/7/2012, ≤1 MW). Bilancio elettrico-termico, tariffa T.O. e saving RED III.")
-            if IS_CHP else
-            _t("DM 2/3/2018 · sistema CIC con double counting per matrici Annex IX (biometano avanzato). Pianificazione mensile, sostenibilità RED II/III e simulazione CIC.")
-            if IS_DM2018 else
-            _t("DM 15/9/2022 · pianificazione mensile e ottimizzazione GHG per biometano: tariffa diretta €/MWh, saving RED III/D.Lgs. 5/2026 per uso finale.")
-        ) + """</div>
+        <div class="tagline">""" + _t(_MODE["tagline"]) + """</div>
         <div class="pills">
-            <span class="pill accent">""" + (
-                "BIOGAS · CHP · FER 2 (≤300 kW)" if IS_FER2 else
-                "BIOGAS · CHP · DM 6/7/2012" if IS_CHP else
-                "BIOMETANO · DM 2/3/2018 · CIC" if IS_DM2018 else
-                "BIOMETANO · DM 15/9/2022"
-            ) + """</span>
-            <span class="pill">""" + (
-                "DM 19/06/2024 · FER 2" if IS_FER2 else
-                "RED II · ALL. IX (avanzato)" if IS_DM2018 else
-                "RED III · D.LGS 5/2026"
-            ) + """</span>
+            <span class="pill accent">""" + _MODE["pill_main"] + """</span>
+            <span class="pill">""" + _MODE["pill_norm"] + """</span>
             <span class="pill">GSE LG 2024</span>
             <span class="pill">UNI-TS 11567:2024</span>
             <span class="pill">JEC WTT v5</span>
@@ -2101,10 +2135,7 @@ st.markdown(
 )
 
 # ------------------------- SIDEBAR BADGE -------------------------
-_mode_label = ("Biogas · CHP · FER 2 (≤300 kW)" if IS_FER2
-               else "Biogas · CHP · DM 6/7/2012" if IS_CHP
-               else "Biometano · DM 2018 · CIC" if IS_DM2018
-               else "Biometano · DM 2022")
+_mode_label = _MODE["badge"]
 
 with st.sidebar:
     st.markdown(
@@ -5076,12 +5107,7 @@ if _HAS_OUTPUT_MODEL:
         _om_ctx = {
             # Identita' / scenario
             "APP_MODE":          APP_MODE,
-            "APP_MODE_LABEL":    {
-                "biometano":        "Biometano DM 2022",
-                "biometano_2018":   "Biometano DM 2018 (CIC)",
-                "biogas_chp":       "Biogas CHP DM 6/7/2012",
-                "biogas_chp_fer2":  "Biogas CHP FER 2 (≤300 kW)",
-            }.get(APP_MODE, APP_MODE),
+            "APP_MODE_LABEL":    _MODE["label"],
             "lang":              _LANG,
             # Flag normativi
             "IS_CHP":            IS_CHP,
@@ -5184,12 +5210,7 @@ with _dl_col1:
             "MONTHS":            MONTHS,
             "MONTH_HOURS":       MONTH_HOURS,
             "initial_data":      _initial_data,
-            "APP_MODE_LABEL":    {
-                "biometano":        "Biometano DM 2022",
-                "biometano_2018":   "Biometano DM 2018 (CIC)",
-                "biogas_chp":       "Biogas CHP DM 6/7/2012",
-                "biogas_chp_fer2":  "Biogas CHP FER 2 (≤300 kW)",
-            }.get(APP_MODE, APP_MODE),
+            "APP_MODE_LABEL":    _MODE["label"],
             "end_use":           end_use,
             # === CHP-specific (per validazione kW lordi) ===
             "IS_CHP":            IS_CHP,
