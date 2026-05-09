@@ -2039,17 +2039,17 @@ st.markdown(
         <span class="eyebrow">// Decision Intelligence Platform</span>
         <h1>Metan<span style="color:""" + AMBER + """; font-weight:700;">.</span>iQ</h1>
         <div class="tagline">""" + (
-            _t("DM 19/06/2024 · CHP biogas piccoli impianti agricoli â‰¤300 kWe. Tariffa di Riferimento + premi matrice (â‰¥80% sottoprodotti) e CAR. Periodo 20 anni, saving 80% RED III.")
+            _t("DM 19/06/2024 · CHP biogas piccoli impianti agricoli ≤300 kWe. Tariffa di Riferimento + premi matrice (≥80% sottoprodotti) e CAR. Periodo 20 anni, saving 80% RED III.")
             if IS_FER2 else
-            _t("Pianificazione e business case per impianti biogas cogenerativi (DM 6/7/2012, â‰¤1 MW). Bilancio elettrico-termico, tariffa T.O. e saving RED III.")
+            _t("Pianificazione e business case per impianti biogas cogenerativi (DM 6/7/2012, ≤1 MW). Bilancio elettrico-termico, tariffa T.O. e saving RED III.")
             if IS_CHP else
             _t("DM 2/3/2018 · sistema CIC con double counting per matrici Annex IX (biometano avanzato). Pianificazione mensile, sostenibilità RED II/III e simulazione CIC.")
             if IS_DM2018 else
-            _t("DM 15/9/2022 · pianificazione mensile e ottimizzazione GHG per biometano: tariffa diretta â‚¬/MWh, saving RED III/D.Lgs. 5/2026 per uso finale.")
+            _t("DM 15/9/2022 · pianificazione mensile e ottimizzazione GHG per biometano: tariffa diretta €/MWh, saving RED III/D.Lgs. 5/2026 per uso finale.")
         ) + """</div>
         <div class="pills">
             <span class="pill accent">""" + (
-                "BIOGAS · CHP · FER 2 (â‰¤300 kW)" if IS_FER2 else
+                "BIOGAS · CHP · FER 2 (≤300 kW)" if IS_FER2 else
                 "BIOGAS · CHP · DM 6/7/2012" if IS_CHP else
                 "BIOMETANO · DM 2/3/2018 · CIC" if IS_DM2018 else
                 "BIOMETANO · DM 15/9/2022"
@@ -2082,7 +2082,7 @@ st.markdown(
     f"text-transform:uppercase; color:{SECTION_PILL_COLOR}; background:{SECTION_PILL_BG}; "
     f"padding:3px 10px; border-radius:6px; margin-right:10px;'>SOLVER</span>"
     f"<span style='color:{TEXT_SECOND}; font-size:0.95rem;'>"
-    f"{_t('Pianificazione mensile biomasse â€” solver <b>dual-constraint</b> ')}"
+    f"{_t('Pianificazione mensile biomasse — solver <b>dual-constraint</b> ')}"
     f"{_t('(saving GHG + produzione target) con configurazione impianto')} <code style='background:{CODE_BG}; "
     f"padding:2px 6px; border-radius:4px; font-size:0.85em; color:{CODE_COLOR};'>ep</code> {_t('ex RED III.')}"
     f"</span></div>",
@@ -2090,7 +2090,7 @@ st.markdown(
 )
 
 # ------------------------- SIDEBAR BADGE -------------------------
-_mode_label = ("Biogas · CHP · FER 2 (â‰¤300 kW)" if IS_FER2
+_mode_label = ("Biogas · CHP · FER 2 (≤300 kW)" if IS_FER2
                else "Biogas · CHP · DM 6/7/2012" if IS_CHP
                else "Biometano · DM 2018 · CIC" if IS_DM2018
                else "Biometano · DM 2022")
