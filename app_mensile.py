@@ -5915,18 +5915,40 @@ with tab_daily:
                          for _d in _all_days]
 
         # =================================================================
-        # TABELLA UNICA: input biomasse + Sm³/h netti + Saving (disabled)
+        # TABELLA UNICA: input biomasse + Sm³/h netti + Saving + Esito
         # =================================================================
         _SMH_COL = "Sm³/h netti"
         _SAV_COL = "Saving GHG (%)"
+        _OK_COL = "Esito"
+
+        # Soglia GHG in % per la verifica per-giorno (già normalizzata)
+        _thr_pct_pre = float(ghg_threshold) * 100.0 if ghg_threshold else 80.0
+
+        def _row_outcome(c, biomass_t):
+            """Restituisce icona di esito per la riga giornaliera.
+              ✅  giorno OK (Sm³/h ≤ cap E saving ≥ soglia, con biomassa > 0)
+              ❌  giorno con violazione (cap superato o saving sotto soglia)
+              —   nessun dato (biomassa = 0)
+            """
+            if c is None or biomass_t <= 0:
+                return "—"
+            sm3h = c.sm3_netti / 24.0
+            cap_ok = (_cap_smch <= 0) or (sm3h <= _cap_smch)
+            sav_ok = c.daily_saving_estimate >= _thr_pct_pre
+            return "✅" if (cap_ok and sav_ok) else "❌"
+
         _edit_rows = []
         for _i, _d in enumerate(_all_days):
             _row = {"Data": _d}
+            _bio_row = 0.0
             for _f in _do_active_feeds:
-                _row[_f] = float((_data_map.get(_d) or {}).get(_f, 0.0))
+                _v = float((_data_map.get(_d) or {}).get(_f, 0.0))
+                _row[_f] = _v
+                _bio_row += _v
             _c = _pre_computed[_i]
             _row[_SMH_COL] = float(_c.sm3_netti / 24.0) if _c is not None else 0.0
             _row[_SAV_COL] = float(_c.daily_saving_estimate) if _c is not None else 0.0
+            _row[_OK_COL] = _row_outcome(_c, _bio_row)
             _edit_rows.append(_row)
         _edit_df = _pd_daily.DataFrame(_edit_rows)
 
@@ -5956,6 +5978,12 @@ with tab_daily:
                 _SAV_COL: st.column_config.NumberColumn(
                     _SAV_COL, disabled=True, format="%.2f",
                     help=_t("Saving GHG giornaliero (informativo). La compliance è mensile."),
+                ),
+                _OK_COL: st.column_config.TextColumn(
+                    _OK_COL, disabled=True, width="small",
+                    help=_t("✅ giorno OK (entro cap e sopra soglia GHG) · "
+                            "❌ violazione cap o saving sotto soglia · "
+                            "— nessun dato. NB: la conformità ufficiale resta mensile."),
                 ),
             },
             use_container_width=True,
@@ -6024,10 +6052,12 @@ with tab_daily:
         )
         _n_ok = max(0, _n_days_data - _n_cap_viol - _n_save_viol)
         st.caption(
-            f"🟢 **{_n_ok}** {_t('giorni nei limiti')} · "
-            f"🔴 **{_n_cap_viol}** {_t('giorni Sm³/h sopra cap')} ({_cap_smch:,.0f}) · "
-            f"🟡 **{_n_save_viol}** {_t('giorni saving sotto soglia')} ({_thr_pct:.1f}%) "
-            f"— {_t('solo informativo, la conformità è mensile')}"
+            f"✅ **{_n_ok}** {_t('giorni OK')} · "
+            f"❌ **{_n_cap_viol + _n_save_viol}** {_t('giorni con violazioni')} "
+            f"({_n_cap_viol} {_t('cap')} / {_n_save_viol} {_t('saving')}) · "
+            f"— **{len(_all_days) - _n_days_data}** {_t('giorni senza dati')} · "
+            f"{_t('cap')} {_cap_smch:,.0f} Sm³/h · {_t('soglia')} {_thr_pct:.1f}% — "
+            f"{_t('la conformità ufficiale resta mensile')}"
         )
 
         # =================================================================
