@@ -115,17 +115,28 @@ def _load_normativa_local() -> dict:
         return {"_error": f"File locale non trovato: {exc}"}
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner=False)
 def _fetch_normativa_remote(url: str = NORMATIVA_REMOTE_URL) -> dict:
-    """Scarica il JSON normativa dal master GitHub. Cache 5 minuti."""
+    """Scarica il JSON normativa dal master GitHub. Cache 10 minuti.
+
+    Audit robustezza #6: gestione differenziata degli errori per evitare
+    confusione utente quando offline o GitHub down. Ritorna dict con chiave
+    `_error` (UI mostrerà messaggio) e `_error_kind` (per filtrare warning).
+    """
+    import socket
     try:
         req = urllib.request.Request(
             url, headers={"User-Agent": "Metan.iQ/1.0"}
         )
         with urllib.request.urlopen(req, timeout=10) as response:
             return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:  # 4xx/5xx GitHub
+        return {"_error": f"GitHub HTTP {exc.code}", "_error_kind": "http"}
+    except (urllib.error.URLError, socket.timeout, socket.gaierror) as exc:
+        # Rete assente / DNS / timeout → silenzio (l'utente è offline)
+        return {"_error": f"Network: {exc}", "_error_kind": "offline"}
     except Exception as exc:  # noqa: BLE001
-        return {"_error": f"GitHub fetch fallito: {exc}"}
+        return {"_error": f"Fetch fallito: {exc}", "_error_kind": "unknown"}
 
 
 # ============================================================
@@ -4288,9 +4299,23 @@ with tab_solver:
     # Clamp: ore e masse devono essere >= 0 (niente valori negativi inseriti
     # per errore). Ore max 744 (mese piu' lungo) non applicata come hard-cap
     # per consentire future simulazioni di turni doppi/extra manutenzione.
-    new_input["Ore"] = new_input["Ore"].apply(parse_it).clip(lower=0).astype(int)
+    # Audit robustezza #15: vectorize parse_it (era .apply() in loop ×N feeds).
+    # parse_it accetta sia "1.234,56" sia "1234.56" sia float; pd.to_numeric
+    # gestisce direttamente float/int; per stringhe italiane fallback con map.
+    def _vectorize_parse(series):
+        # Tenta cast diretto (caso più comune: pandas restituisce già float)
+        s_num = pd.to_numeric(series, errors="coerce")
+        # Fallback per le celle stringa che non si sono convertite (es. "1.234,56")
+        if s_num.isna().any():
+            s_num = s_num.where(
+                ~s_num.isna(),
+                series.astype(str).map(parse_it),
+            )
+        return pd.to_numeric(s_num, errors="coerce").fillna(0).clip(lower=0)
+
+    new_input["Ore"] = _vectorize_parse(new_input["Ore"]).astype(int)
     for f in fixed_feeds:
-        new_input[f] = new_input[f].apply(parse_it).clip(lower=0).astype(float)
+        new_input[f] = _vectorize_parse(new_input[f]).astype(float)
 
     old_input = input_df[edit_cols].reset_index(drop=True).copy()
     old_input["Ore"] = old_input["Ore"].astype(int)
@@ -5787,8 +5812,10 @@ with tab_daily:
         if _do_key not in st.session_state:
             try:
                 _init_db()
-                _loaded = _load_month(int(_do_year), int(_do_month), plant_id=_do_plant)
+                _loaded = _load_month(int(_do_year), int(_do_month), plant_id=_do_plant_safe)
             except Exception as _load_exc:  # noqa: BLE001
+                _LOG.exception("Daily DB load failed for %s/%s/%s",
+                               _do_plant_safe, _do_year, _do_month)
                 st.warning(_t("Impossibile caricare il mese salvato:") + f" {_load_exc}")
                 _loaded = []
             _all_days = _gen_days(int(_do_year), int(_do_month))
@@ -5798,6 +5825,26 @@ with tab_daily:
                     _data_map[_e.date] = dict(_e.feedstocks)
             st.session_state[_do_key] = _data_map
 
+        # Audit robustezza #11: safety net "altri plant_id con dati salvati".
+        # Quando l'utente rinomina l'impianto (es. "Cascina A" → "Cascina A srl")
+        # i mesi salvati col vecchio nome diventano invisibili. Mostriamo qui
+        # un caption con la lista degli altri plant_id per cui esistono dati,
+        # così l'utente può rinominare di nuovo o copiare i dati.
+        try:
+            _all_saved = _list_months()
+            _other_plants = sorted({
+                m.get("plant_id", "") for m in _all_saved
+                if m.get("plant_id") and m.get("plant_id") != _do_plant_safe
+            })
+            if _other_plants:
+                st.caption(
+                    "📂 " + _t("Mesi salvati anche con altri ID impianto:")
+                    + " " + ", ".join(f"`{p}`" for p in _other_plants[:8])
+                    + (f" (+{len(_other_plants)-8})" if len(_other_plants) > 8 else "")
+                )
+        except Exception:  # noqa: BLE001
+            pass  # safety net non critica
+
         with st.expander("⚙️ " + _t("Operazioni mese"), expanded=False):
             _bcol1, _bcol2 = st.columns(2)
             with _bcol1:
@@ -5805,7 +5852,8 @@ with tab_daily:
                              key="do_btn_reload", use_container_width=True):
                     try:
                         _init_db()
-                        _loaded = _load_month(int(_do_year), int(_do_month), plant_id=_do_plant)
+                        _loaded = _load_month(int(_do_year), int(_do_month),
+                                               plant_id=_do_plant_safe)
                         _all_days = _gen_days(int(_do_year), int(_do_month))
                         _data_map = {d: {} for d in _all_days}
                         for _e in _loaded:
@@ -5814,6 +5862,8 @@ with tab_daily:
                         st.session_state[_do_key] = _data_map
                         st.success(_t("Mese ricaricato dal database."))
                     except Exception as _exc:  # noqa: BLE001
+                        _LOG.exception("Daily reload failed for %s",
+                                       _do_plant_safe)
                         st.warning(_t("Errore ricarica:") + f" {_exc}")
             with _bcol2:
                 if st.button("🆕 " + _t("Azzera mese"),
@@ -5838,11 +5888,27 @@ with tab_daily:
 
         # =================================================================
         # PRE-CALCOLO per visualizzazione editor (frame N-1: stato salvato)
+        # ------------------------------------------------------------
+        # Audit robustezza #4: distinguiamo errori "biomassa sconosciuta in
+        # FEEDSTOCK_DB" (config error grave, da segnalare) da errori più
+        # benigni (dati incompleti per quel giorno → silenzio OK).
+        # I problemi di config vengono raccolti in un set e mostrati 1 volta.
         # =================================================================
+        _compute_config_errors: set = set()
+
         def _compute_safely(_date, _feedstocks):
             try:
-                return _compute_daily(_DEntry(date=_date, feedstocks=_feedstocks), ctx=_ctx)
-            except Exception:  # noqa: BLE001
+                return _compute_daily(
+                    _DEntry(date=_date, feedstocks=_feedstocks),
+                    ctx=_ctx,
+                )
+            except KeyError as _kexc:  # biomassa non in FEEDSTOCK_DB
+                _missing = str(_kexc).strip("'\"")
+                _compute_config_errors.add(_missing)
+                _LOG.warning("Daily compute: feedstock not in DB: %s", _missing)
+                return None
+            except Exception as _exc:  # noqa: BLE001
+                _LOG.exception("Daily compute failed for %s: %s", _date, _exc)
                 return None
 
         _pre_computed = [_compute_safely(_d, dict(_data_map.get(_d) or {}))
@@ -5921,6 +5987,14 @@ with tab_daily:
         _computed_raw = [_compute_safely(_e.date, _e.feedstocks) for _e in _entries_list]
         _computed_list = [_c for _c in _computed_raw if _c is not None]
 
+        # Mostra UNA volta la lista delle biomasse non riconosciute (config error)
+        if _compute_config_errors:
+            st.warning(
+                "⚠️ " + _t("Biomasse non riconosciute nel database tecnico:")
+                + " " + ", ".join(f"`{f}`" for f in sorted(_compute_config_errors))
+                + ". " + _t("Verifica le biomasse attive nella sidebar.")
+            )
+
         _regime_lbl = "DM 2022 (RED III)" if IS_DM2022 else (
             "DM 2018" if IS_DM2018 else APP_MODE
         )
@@ -5940,9 +6014,13 @@ with tab_daily:
             1 for _c in _computed_list
             if _cap_smch > 0 and (_c.sm3_netti / 24.0) > _cap_smch
         )
+        # Audit robustezza #19: il filtro `0 < saving` mascherava i giorni
+        # patologici con saving NEGATIVO (e_total > comparator → impianto
+        # peggio del fossile). Solo giorni SENZA dati biomasse vanno esclusi
+        # dal conteggio: usiamo `biomass_total_t > 0` come gate.
         _n_save_viol = sum(
             1 for _c in _computed_list
-            if 0 < _c.daily_saving_estimate < _thr_pct
+            if _c.biomass_total_t > 0 and _c.daily_saving_estimate < _thr_pct
         )
         _n_ok = max(0, _n_days_data - _n_cap_viol - _n_save_viol)
         st.caption(
@@ -6101,13 +6179,30 @@ with tab_daily:
                          disabled=(_n_days_data == 0)):
                 try:
                     _init_db()
-                    _has_err = False
+                    # Audit robustezza #16: aggrega tutti gli errori di
+                    # validazione e mostra UN solo warning con expander
+                    # dei dettagli (era 31 st.warning impilati nel caso
+                    # peggiore — UX inaccettabile).
+                    _validation_errors: list = []
                     for _e in _entries_list:
                         _ok, _errs, _ = _validate_daily(
                             _e.date, _e.feedstocks, allowed_feeds=list(FEED_NAMES))
                         if not _ok:
-                            st.warning(f"{_e.date}: {'; '.join(_errs)}")
-                            _has_err = True
+                            _validation_errors.append(
+                                (_e.date, '; '.join(_errs))
+                            )
+                    if _validation_errors:
+                        st.warning(
+                            "⚠️ " + _t("Trovati errori di validazione in")
+                            + f" {len(_validation_errors)} "
+                            + _t("giorni. Salvataggio annullato.")
+                        )
+                        with st.expander("📋 " + _t("Dettagli errori")):
+                            for _date, _msg in _validation_errors:
+                                st.write(f"- **{_date}**: {_msg}")
+                        _has_err = True
+                    else:
+                        _has_err = False
                     if not _has_err:
                         _n = _save_month(
                             int(_do_year), int(_do_month), _entries_list,
