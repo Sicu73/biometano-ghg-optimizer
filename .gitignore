@@ -13,3 +13,7 @@ test_*.pdf
 # DB locale gestione giornaliera (non versionato)
 data/*.db
 data/
+
+# Runtime logs (core/logging_setup.py — RotatingFileHandler)
+logs/
+*.log
