@@ -5931,6 +5931,59 @@ with tab_daily:
         for _d in _all_days:
             _hours_map.setdefault(_d, 24.0)
 
+        # =================================================================
+        # FIX BUG SM³/h NON CALCOLATI: applicazione PRE-RENDER degli edits
+        # ------------------------------------------------------------
+        # Il vero motivo per cui le colonne computed non si aggiornavano:
+        # `_pre_computed` veniva calcolato PRIMA che gli edits dell'utente
+        # fossero applicati a `_data_map`. Risultato: editor mostra "30 t"
+        # nella biomassa MA Sm³/h calcolato sul vecchio _data_map vuoto.
+        # ------------------------------------------------------------
+        # SOLUZIONE: Streamlit salva gli edits del data_editor in
+        # `session_state[editor_key]` come dict {edited_rows, added_rows,
+        # deleted_rows}. Lo leggiamo QUI, prima del calcolo, e applichiamo
+        # gli edits a _data_map e _hours_map. Quando poi calcoliamo
+        # _pre_computed, i dati sono già allineati alla UI.
+        # =================================================================
+        _HOURS_COL = "Ore funz."
+        if "do_editor_gen" not in st.session_state:
+            st.session_state["do_editor_gen"] = 0
+        _editor_key = f"do_editor_{_do_key}_g{st.session_state['do_editor_gen']}"
+
+        _editor_state = st.session_state.get(_editor_key, {})
+        _pending_edits = _editor_state.get("edited_rows", {}) if isinstance(_editor_state, dict) else {}
+
+        if _pending_edits:
+            for _row_idx_str, _changes in _pending_edits.items():
+                try:
+                    _row_idx = int(_row_idx_str)
+                    if not (0 <= _row_idx < len(_all_days)):
+                        continue
+                    _d_edit = _all_days[_row_idx]
+                    for _col, _val in (_changes or {}).items():
+                        if _col == _HOURS_COL:
+                            try:
+                                _hours_map[_d_edit] = max(0.0, min(24.0, float(_val or 24.0)))
+                            except (TypeError, ValueError):
+                                _hours_map[_d_edit] = 24.0
+                        elif _col in _do_active_feeds:
+                            try:
+                                _v = float(_val or 0.0)
+                            except (TypeError, ValueError):
+                                _v = 0.0
+                            if _v > 0:
+                                _data_map.setdefault(_d_edit, {})[_col] = _v
+                            else:
+                                if _d_edit in _data_map:
+                                    _data_map[_d_edit].pop(_col, None)
+                                    if not _data_map[_d_edit]:
+                                        _data_map.pop(_d_edit, None)
+                except (ValueError, KeyError, IndexError):
+                    continue
+            # Persisti subito gli edits in session_state
+            st.session_state[_do_key] = _data_map
+            st.session_state[_hours_key] = _hours_map
+
         _pre_computed = [
             _compute_safely(
                 _d,
@@ -5942,18 +5995,10 @@ with tab_daily:
 
         # =================================================================
         # TABELLA UNICA — input editabili + colonne calcolate (disabled)
-        # ------------------------------------------------------------
-        # Trick anti-bug Streamlit data_editor (cache delle colonne disabled):
-        # rigeneriamo la key del widget ad ogni edit reale, così Streamlit
-        # tratta il rerun successivo come "widget nuovo" e ricarica TUTTE le
-        # colonne (incluse le calcolate) dai dati freschi.
-        # Conseguenza: dopo aver editato biomasse o ore, vedi immediatamente
-        # i Sm³/h lordi/netti, Saving GHG e Esito aggiornati nella stessa riga.
+        # Gli edits sono GIÀ stati applicati a _data_map / _hours_map sopra
+        # (lettura di session_state[editor_key].edited_rows pre-render),
+        # quindi _pre_computed è già fresh e le colonne calcolate sono OK.
         # =================================================================
-        if "do_editor_gen" not in st.session_state:
-            st.session_state["do_editor_gen"] = 0
-
-        _HOURS_COL = "Ore funz."
         _SMH_GROSS_COL = "Sm³/h lordi"
         _SMH_COL = "Sm³/h netti"
         _SAV_COL = "Saving GHG (%)"
@@ -5994,9 +6039,8 @@ with tab_daily:
             _edit_rows.append(_row)
         _edit_df = _pd_daily.DataFrame(_edit_rows)
 
-        # Key versionata: cambia ad ogni edit reale → widget rigenerato ogni volta
-        _editor_key = f"do_editor_{_do_key}_g{st.session_state['do_editor_gen']}"
-
+        # _editor_key è stato definito sopra (g{counter}). Cambia solo se
+        # bumpiamo do_editor_gen (es. dopo cambio mese / nuovo / ricarica DB).
         _edited = st.data_editor(
             _edit_df,
             key=_editor_key,
@@ -6045,47 +6089,11 @@ with tab_daily:
             use_container_width=True,
         )
 
-        # =================================================================
-        # AGGIORNA _data_map E _hours_map dagli edits
-        # ------------------------------------------------------------
-        # Snapshot PRIMA per rilevare modifiche reali. Se cambiato →
-        # incrementa "do_editor_gen" + st.rerun() così la tabella si rigenera
-        # con TUTTE le colonne (incluse le calcolate) basate sui nuovi dati.
-        # =================================================================
-        _data_map_snapshot = {_d: dict(_v) for _d, _v in (_data_map or {}).items()}
-        _hours_map_snapshot = dict(_hours_map)
-        try:
-            _new_map: dict = {}
-            _new_hours: dict = {}
-            for _, _r in _edited.iterrows():
-                _d = _r["Data"]
-                if hasattr(_d, "to_pydatetime"):
-                    _d = _d.to_pydatetime().date()
-                elif isinstance(_d, _dt.datetime):
-                    _d = _d.date()
-                _new_map[_d] = {
-                    _f: float(_r[_f] or 0.0) for _f in _do_active_feeds
-                    if (_r[_f] or 0.0) > 0
-                }
-                _h = _r.get(_HOURS_COL, 24.0)
-                try:
-                    _new_hours[_d] = max(0.0, min(24.0, float(_h)))
-                except (TypeError, ValueError):
-                    _new_hours[_d] = 24.0
-            _data_map = _new_map
-            _hours_map = _new_hours
-            st.session_state[_do_key] = _data_map
-            st.session_state[_hours_key] = _hours_map
-        except Exception as _upd_exc:  # noqa: BLE001
-            _LOG.exception("Daily edit update failed")
-            st.warning(_t("Aggiornamento tabella fallito:") + f" {_upd_exc}")
-            _data_map = _data_map_snapshot
-            _hours_map = _hours_map_snapshot
-
-        if (_data_map != _data_map_snapshot
-                or _hours_map != _hours_map_snapshot):
-            st.session_state["do_editor_gen"] += 1
-            st.rerun()
+        # NB: _data_map e _hours_map sono GIÀ aggiornati dal blocco
+        # "applicazione PRE-RENDER degli edits" sopra. Non serve un secondo
+        # update post-render né st.rerun() forzato: lo state è già coerente.
+        # _edited è ignorato qui (lo usiamo solo come trigger del rerun
+        # automatico di Streamlit dopo l'edit utente).
 
         # =================================================================
         # CALCOLO POST-EDIT (sorgente unica per tabella OUTPUT + KPI + banner)
