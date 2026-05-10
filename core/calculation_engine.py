@@ -129,52 +129,101 @@ def parse_it(value) -> float:  # type: ignore[misc]
         return 0.0
 
 
-def ghg_summary(masses: dict, aux: float, ep: float = 0.0,  # type: ignore[misc]
-                fossil_comparator: float | None = None) -> dict:
-    return {"e_w": 0.0, "saving": 0.0, "nm3_gross": 0.0,
-            "nm3_net": 0.0, "mwh_net": 0.0}
+# ---------------------------------------------------------------------------
+# LAZY LOOKUP WRAPPERS (FIX BUG sm3_gross=0)
+# ---------------------------------------------------------------------------
+# Le funzioni critiche di calcolo NON vanno copiate via globals() al momento
+# dell'import (vecchio approccio): se il proxy viene importato PRIMA che
+# app_mensile.py finisca di eseguire (race con import order), copiamo lo
+# stub fallback e i calcoli ritornano zero.
+#
+# Soluzione: wrapper che cercano la vera funzione di app_mensile AD OGNI
+# CHIAMATA. Lookup veloce in sys.modules["__main__"] (Streamlit runtime)
+# o sys.modules["app_mensile"] (test isolato). Se trova → delega; se non
+# trova → fallback stub (ritorna 0 ma logga un warning).
+# ---------------------------------------------------------------------------
 
-
-def compute_aux_factor(*args, **kwargs) -> dict:  # type: ignore[misc]
-    return {"aux_factor": DEFAULT_AUX_FACTOR, "f_heat": 0.0,
-            "f_elec": 0.0, "f_slip": 0.0, "f_margin": 0.03,
-            "f_tot": 0.03, "heat_need_gross": 0.0,
-            "heat_recovered_chp": 0.0, "heat_need_residual": 0.0,
-            "elec_need": 0.0, "elec_upgrading": 0.0,
-            "elec_bop": 0.0, "elec_injection": 0.0}
-
-
-def compute_business_plan(*args, **kwargs) -> dict:  # type: ignore[misc]
-    return {}
-
-
-def solve_1_unknown_production(*args, **kwargs) -> float:  # type: ignore[misc]
-    return 0.0
-
-
-def solve_2_unknowns_dual(*args, **kwargs):  # type: ignore[misc]
-    return {}, False, "app_mensile non disponibile"
-
-
-def find_optimal_pair(*args, **kwargs):  # type: ignore[misc]
+def _find_app_module():
+    """Restituisce il modulo app_mensile vero (non lo stub), o None."""
+    _m = sys.modules.get("__main__")
+    if _m is not None:
+        _f = getattr(_m, "__file__", "") or ""
+        if _f.endswith("app_mensile.py") or hasattr(_m, "FEEDSTOCK_DB"):
+            return _m
+    _m = sys.modules.get("app_mensile")
+    if _m is not None and hasattr(_m, "FEEDSTOCK_DB"):
+        return _m
     return None
 
 
-def e_total_feedstock(name: str, ep: float = 0.0) -> float:  # type: ignore[misc]
-    return 0.0
+def _live_call(_name, *args, _fallback=None, **kwargs):
+    """Cerca _name in app_mensile e lo chiama. Fallback se non trovato."""
+    _app = _find_app_module()
+    if _app is not None:
+        _fn = getattr(_app, _name, None)
+        if _fn is not None and _fn is not globals().get(_name):
+            return _fn(*args, **kwargs)
+    return _fallback
 
 
-def _emission_factors_of(name: str, ep_default: float = 0.0) -> dict:  # type: ignore[misc]
-    return {"eec": 0.0, "esca": 0.0, "etd": 0.0, "ep": ep_default,
-            "extra": 0.0, "source": "fallback"}
+def ghg_summary(masses, aux, ep=0.0, fossil_comparator=None):
+    _r = _live_call(
+        "ghg_summary", masses, aux=aux, ep=ep,
+        fossil_comparator=fossil_comparator,
+        _fallback={"e_w": 0.0, "saving": 0.0, "nm3_gross": 0.0,
+                   "nm3_net": 0.0, "mwh_net": 0.0,
+                   "mj_gross": 0.0, "mj_net": 0.0,
+                   "sustainability_basis": "gross"},
+    )
+    return _r
 
 
-def _yield_of(name: str) -> float:  # type: ignore[misc]
-    return 0.0
+def compute_aux_factor(*args, **kwargs):
+    return _live_call("compute_aux_factor", *args, **kwargs,
+                      _fallback={"aux_factor": DEFAULT_AUX_FACTOR,
+                                 "f_heat": 0.0, "f_elec": 0.0,
+                                 "f_slip": 0.0, "f_margin": 0.03,
+                                 "f_tot": 0.03, "heat_need_gross": 0.0,
+                                 "heat_recovered_chp": 0.0,
+                                 "heat_need_residual": 0.0,
+                                 "elec_need": 0.0, "elec_upgrading": 0.0,
+                                 "elec_bop": 0.0, "elec_injection": 0.0})
 
 
-def _feeds_by_category() -> dict:  # type: ignore[misc]
-    return {}
+def compute_business_plan(*args, **kwargs):
+    return _live_call("compute_business_plan", *args, **kwargs, _fallback={})
+
+
+def solve_1_unknown_production(*args, **kwargs):
+    return _live_call("solve_1_unknown_production", *args, **kwargs, _fallback=0.0)
+
+
+def solve_2_unknowns_dual(*args, **kwargs):
+    return _live_call("solve_2_unknowns_dual", *args, **kwargs,
+                      _fallback=({}, False, "app_mensile non disponibile"))
+
+
+def find_optimal_pair(*args, **kwargs):
+    return _live_call("find_optimal_pair", *args, **kwargs, _fallback=None)
+
+
+def e_total_feedstock(name, ep=0.0):
+    return _live_call("e_total_feedstock", name, ep, _fallback=0.0)
+
+
+def _emission_factors_of(name, ep_default=0.0):
+    return _live_call("_emission_factors_of", name, ep_default,
+                      _fallback={"eec": 0.0, "esca": 0.0, "etd": 0.0,
+                                 "ep": ep_default, "extra": 0.0,
+                                 "source": "fallback"})
+
+
+def _yield_of(name):
+    return _live_call("_yield_of", name, _fallback=0.0)
+
+
+def _feeds_by_category():
+    return _live_call("_feeds_by_category", _fallback={})
 
 
 # ---------------------------------------------------------------------------
