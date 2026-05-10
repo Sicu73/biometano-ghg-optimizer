@@ -5809,6 +5809,7 @@ with tab_daily:
         # =================================================================
         _do_plant_safe = (_do_plant or "").strip() or "default"
         _do_key = f"do_data||{_do_plant_safe}||{int(_do_year)}||{int(_do_month)}"
+        _hours_key = _do_key + "::hours"
         if _do_key not in st.session_state:
             try:
                 _init_db()
@@ -5820,10 +5821,13 @@ with tab_daily:
                 _loaded = []
             _all_days = _gen_days(int(_do_year), int(_do_month))
             _data_map: dict = {d: {} for d in _all_days}
+            _hours_init: dict = {d: 24.0 for d in _all_days}
             for _e in _loaded:
                 if _e.date in _data_map:
                     _data_map[_e.date] = dict(_e.feedstocks)
+                    _hours_init[_e.date] = float(_e.hours_per_day)
             st.session_state[_do_key] = _data_map
+            st.session_state[_hours_key] = _hours_init
 
         # Audit robustezza #11: safety net "altri plant_id con dati salvati".
         # Quando l'utente rinomina l'impianto (es. "Cascina A" → "Cascina A srl")
@@ -5856,10 +5860,13 @@ with tab_daily:
                                                plant_id=_do_plant_safe)
                         _all_days = _gen_days(int(_do_year), int(_do_month))
                         _data_map = {d: {} for d in _all_days}
+                        _hours_reload: dict = {d: 24.0 for d in _all_days}
                         for _e in _loaded:
                             if _e.date in _data_map:
                                 _data_map[_e.date] = dict(_e.feedstocks)
+                                _hours_reload[_e.date] = float(_e.hours_per_day)
                         st.session_state[_do_key] = _data_map
+                        st.session_state[_hours_key] = _hours_reload
                         st.success(_t("Mese ricaricato dal database."))
                     except Exception as _exc:  # noqa: BLE001
                         _LOG.exception("Daily reload failed for %s",
@@ -5870,6 +5877,7 @@ with tab_daily:
                              key="do_btn_new", use_container_width=True):
                     _all_days = _gen_days(int(_do_year), int(_do_month))
                     st.session_state[_do_key] = {d: {} for d in _all_days}
+                    st.session_state[_hours_key] = {d: 24.0 for d in _all_days}
                     st.success(_t("Mese azzerato. Inserisci nuovi dati nella tabella."))
 
         _do_active_feeds = list(active_feeds) if active_feeds else list(FEED_NAMES)[:6]
@@ -5919,11 +5927,8 @@ with tab_daily:
                 _LOG.exception("Daily compute failed for %s: %s", _date, _exc)
                 return None
 
-        # Pre-calcolo basato sui dati salvati (senza ore — default 24h).
-        # Le ore di funzionamento per giorno sono memorizzate in
-        # session_state[_do_key + "::hours"] (separato dai feedstocks per
-        # non rompere il modello DailyEntry).
-        _hours_key = _do_key + "::hours"
+        # _hours_key è già definito sopra (stesso scope) — safety net per
+        # session reinizializzazioni parziali.
         if _hours_key not in st.session_state:
             st.session_state[_hours_key] = {_d: 24.0 for _d in _all_days}
         _hours_map = st.session_state[_hours_key]
@@ -6102,8 +6107,11 @@ with tab_daily:
         # Usa _hours_map aggiornato ad ogni giorno → Sm³/h riflettono
         # le ore reali di funzionamento.
         # =================================================================
-        _entries_list = [_DEntry(date=_d, feedstocks=dict(_data_map.get(_d) or {}))
-                         for _d in _all_days]
+        _entries_list = [
+            _DEntry(date=_d, feedstocks=dict(_data_map.get(_d) or {}),
+                    hours_per_day=float(_hours_map.get(_d, 24.0)))
+            for _d in _all_days
+        ]
         _computed_raw = [
             _compute_safely(
                 _e.date, _e.feedstocks,

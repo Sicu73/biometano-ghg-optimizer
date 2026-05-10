@@ -4,6 +4,7 @@
 Salva e ricarica i dati operativi mese-per-mese in un database SQLite
 locale. Schema:
   - daily_entries(plant_id, date, feedstock_type, qty_t, notes, updated_at)
+  - daily_hours(plant_id, date, hours_per_day)
   - month_meta(plant_id, year, month, regime, threshold, saved_at)
 
 NB: il file DB NON va committato (vedi .gitignore -> data/*.db).
@@ -52,6 +53,12 @@ def init_db(path: str | None = None) -> str:
                 updated_at      TEXT NOT NULL,
                 PRIMARY KEY (plant_id, date, feedstock_type)
             );
+            CREATE TABLE IF NOT EXISTS daily_hours (
+                plant_id        TEXT NOT NULL,
+                date            TEXT NOT NULL,
+                hours_per_day   REAL NOT NULL DEFAULT 24.0,
+                PRIMARY KEY (plant_id, date)
+            );
             CREATE TABLE IF NOT EXISTS month_meta (
                 plant_id        TEXT NOT NULL,
                 year            INTEGER NOT NULL,
@@ -91,8 +98,20 @@ def save_month(year: int, month: int, daily_entries: list[DailyEntry],
             "AND date >= ? AND date <= ?",
             (plant_id, first, last),
         )
+        conn.execute(
+            "DELETE FROM daily_hours WHERE plant_id = ? "
+            "AND date >= ? AND date <= ?",
+            (plant_id, first, last),
+        )
         for entry in (daily_entries or []):
             d_iso = entry.date.isoformat()
+            hours = float(getattr(entry, "hours_per_day", 24.0) or 24.0)
+            hours = max(0.0, min(24.0, hours))
+            conn.execute(
+                "INSERT OR REPLACE INTO daily_hours "
+                "(plant_id, date, hours_per_day) VALUES (?, ?, ?)",
+                (plant_id, d_iso, hours),
+            )
             for fname, qty in (entry.feedstocks or {}).items():
                 if qty is None:
                     continue
@@ -129,6 +148,7 @@ def load_month(year: int, month: int, plant_id: str = "default",
     last = f"{year:04d}-{month:02d}-31"
     rows: dict[str, dict[str, float]] = {}
     notes_by_day: dict[str, str] = {}
+    hours_by_day: dict[str, float] = {}
     with _connect(db_path) as conn:
         cur = conn.execute(
             "SELECT date, feedstock_type, qty_t, notes "
@@ -142,6 +162,13 @@ def load_month(year: int, month: int, plant_id: str = "default",
             d_map[str(fname)] = float(qty)
             if notes:
                 notes_by_day[d_iso] = str(notes)
+        cur_h = conn.execute(
+            "SELECT date, hours_per_day FROM daily_hours WHERE plant_id = ? "
+            "AND date >= ? AND date <= ?",
+            (plant_id, first, last),
+        )
+        for d_iso, h in cur_h.fetchall():
+            hours_by_day[d_iso] = float(h)
 
     entries: list[DailyEntry] = []
     for d_iso in sorted(rows.keys()):
@@ -153,6 +180,7 @@ def load_month(year: int, month: int, plant_id: str = "default",
             date=d_obj,
             feedstocks=rows[d_iso],
             notes=notes_by_day.get(d_iso, ""),
+            hours_per_day=hours_by_day.get(d_iso, 24.0),
         ))
     return entries
 
@@ -185,6 +213,11 @@ def delete_month(year: int, month: int, plant_id: str = "default",
             (plant_id, first, last),
         )
         n = cur.rowcount
+        conn.execute(
+            "DELETE FROM daily_hours WHERE plant_id = ? "
+            "AND date >= ? AND date <= ?",
+            (plant_id, first, last),
+        )
         conn.execute(
             "DELETE FROM month_meta WHERE plant_id = ? "
             "AND year = ? AND month = ?",

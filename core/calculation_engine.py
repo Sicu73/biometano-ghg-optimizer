@@ -231,11 +231,12 @@ def _feeds_by_category():
 #   Priorità A: sys.modules["__main__"] se è app_mensile.py (Streamlit runtime)
 #   Priorità B: import classico app_mensile (test isolati / shell)
 # ---------------------------------------------------------------------------
+# SOLO COSTANTI (dict/list/scalar). Le FUNZIONI del proxy sono già wrapper
+# lazy (ghg_summary, _yield_of, ecc.) e si auto-delegano via _live_call —
+# NON vanno sovrascritte qui, altrimenti il check anti-recursion del
+# wrapper fallisce e i risultati restano a 0 (vedi bug sm3_gross=0
+# diagnosticato il 2026-05-10).
 _PROXY_NAMES = (
-    "compute_business_plan", "compute_aux_factor", "ghg_summary",
-    "solve_1_unknown_production", "solve_2_unknowns_dual", "find_optimal_pair",
-    "e_total_feedstock", "_emission_factors_of", "_yield_of", "_feeds_by_category",
-    "fmt_it", "parse_it",
     "FEEDSTOCK_DB", "FEED_NAMES", "FEEDSTOCK_CATEGORIES",
     "MONTHS", "MONTH_HOURS", "LHV_BIOMETHANE", "NM3_TO_MWH",
     "DEFAULT_AUX_FACTOR", "DEFAULT_PLANT_NET_SMCH",

@@ -45,10 +45,12 @@ class DailyEntry:
         date: Data del giorno (datetime.date).
         feedstocks: Mappa {tipologia_biomassa: quantita_t}. Tonnellate/giorno.
         notes: Annotazioni libere (opzionali).
+        hours_per_day: Ore di funzionamento del giorno (0-24, default 24.0).
     """
     date: date
     feedstocks: dict[str, float] = field(default_factory=dict)
     notes: str = ""
+    hours_per_day: float = 24.0
 
 
 @dataclass
