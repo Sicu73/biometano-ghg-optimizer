@@ -5915,8 +5915,9 @@ with tab_daily:
                          for _d in _all_days]
 
         # =================================================================
-        # TABELLA UNICA: input biomasse + Sm³/h netti + Saving + Esito
+        # TABELLA UNICA: input biomasse + Sm³/h lordi + Sm³/h netti + Saving + Esito
         # =================================================================
+        _SMH_GROSS_COL = "Sm³/h lordi"
         _SMH_COL = "Sm³/h netti"
         _SAV_COL = "Saving GHG (%)"
         _OK_COL = "Esito"
@@ -5926,7 +5927,7 @@ with tab_daily:
 
         def _row_outcome(c, biomass_t):
             """Restituisce icona di esito per la riga giornaliera.
-              ✅  giorno OK (Sm³/h ≤ cap E saving ≥ soglia, con biomassa > 0)
+              ✅  giorno OK (Sm³/h netti ≤ cap E saving ≥ soglia, con biomassa > 0)
               ❌  giorno con violazione (cap superato o saving sotto soglia)
               —   nessun dato (biomassa = 0)
             """
@@ -5946,9 +5947,13 @@ with tab_daily:
                 _row[_f] = _v
                 _bio_row += _v
             _c = _pre_computed[_i]
-            _row[_SMH_COL] = float(_c.sm3_netti / 24.0) if _c is not None else 0.0
-            _row[_SAV_COL] = float(_c.daily_saving_estimate) if _c is not None else 0.0
-            _row[_OK_COL] = _row_outcome(_c, _bio_row)
+            # Sm³/h lordi = sm3_gross / 24h (biogas grezzo dalla digestione,
+            # PRIMA dell'upgrading e dei consumi di servizi ausiliari).
+            # Sm³/h netti = sm3_netti / 24h (biometano effettivo immesso).
+            _row[_SMH_GROSS_COL] = float(_c.sm3_gross / 24.0) if _c is not None else 0.0
+            _row[_SMH_COL]       = float(_c.sm3_netti / 24.0) if _c is not None else 0.0
+            _row[_SAV_COL]       = float(_c.daily_saving_estimate) if _c is not None else 0.0
+            _row[_OK_COL]        = _row_outcome(_c, _bio_row)
             _edit_rows.append(_row)
         _edit_df = _pd_daily.DataFrame(_edit_rows)
 
@@ -5970,9 +5975,17 @@ with tab_daily:
                     )
                     for _f in _do_active_feeds
                 },
+                _SMH_GROSS_COL: st.column_config.NumberColumn(
+                    _SMH_GROSS_COL, disabled=True, format="%.1f",
+                    help=_t("Biogas LORDO (pre-upgrading) prodotto in 1 ora. "
+                            "Calcolato = Sm³ lordi / 24h. Include CH₄ + CO₂ "
+                            "+ slip — comprende cioè anche la frazione persa "
+                            "nell'upgrading e nei consumi ausiliari."),
+                ),
                 _SMH_COL: st.column_config.NumberColumn(
                     _SMH_COL, disabled=True, format="%.1f",
-                    help=_t("Calcolato = Sm³ netti / 24h. Cap autorizzato:")
+                    help=_t("Biometano NETTO immesso in rete in 1 ora. "
+                            "Calcolato = Sm³ netti / 24h. Cap autorizzato:")
                          + f" {_cap_smch:,.0f}",
                 ),
                 _SAV_COL: st.column_config.NumberColumn(
