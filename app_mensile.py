@@ -5896,11 +5896,19 @@ with tab_daily:
         # =================================================================
         _compute_config_errors: set = set()
 
-        def _compute_safely(_date, _feedstocks):
+        def _compute_safely(_date, _feedstocks, _hours_run=24.0):
+            """Calcola DailyComputed, accettando ore di funzionamento per riga.
+
+            Le ore di funzionamento finiscono nel ctx come `hours_per_day`
+            override → `compute_daily` calcola correttamente Sm³/giorno e
+            il check del cap autorizzativo orario.
+            """
+            _ctx_local = dict(_ctx)
+            _ctx_local["hours_per_day"] = float(_hours_run) if _hours_run else 24.0
             try:
                 return _compute_daily(
                     _DEntry(date=_date, feedstocks=_feedstocks),
-                    ctx=_ctx,
+                    ctx=_ctx_local,
                 )
             except KeyError as _kexc:  # biomassa non in FEEDSTOCK_DB
                 _missing = str(_kexc).strip("'\"")
@@ -5911,53 +5919,52 @@ with tab_daily:
                 _LOG.exception("Daily compute failed for %s: %s", _date, _exc)
                 return None
 
-        _pre_computed = [_compute_safely(_d, dict(_data_map.get(_d) or {}))
-                         for _d in _all_days]
+        # Pre-calcolo basato sui dati salvati (senza ore — default 24h).
+        # Le ore di funzionamento per giorno sono memorizzate in
+        # session_state[_do_key + "::hours"] (separato dai feedstocks per
+        # non rompere il modello DailyEntry).
+        _hours_key = _do_key + "::hours"
+        if _hours_key not in st.session_state:
+            st.session_state[_hours_key] = {_d: 24.0 for _d in _all_days}
+        _hours_map = st.session_state[_hours_key]
+        # Garantisce che ci sia una entry per ogni giorno (aggiunge giorni nuovi)
+        for _d in _all_days:
+            _hours_map.setdefault(_d, 24.0)
+
+        _pre_computed = [
+            _compute_safely(
+                _d,
+                dict(_data_map.get(_d) or {}),
+                _hours_run=float(_hours_map.get(_d, 24.0)),
+            )
+            for _d in _all_days
+        ]
 
         # =================================================================
-        # TABELLA UNICA: input biomasse + Sm³/h lordi + Sm³/h netti + Saving + Esito
+        # EDITOR INPUT: Data + Ore funz. + biomasse t/giorno
+        # ------------------------------------------------------------
+        # Solo le colonne INPUT sono nel data_editor (per evitare il bug noto
+        # di Streamlit data_editor che cache le colonne disabled e non le
+        # aggiorna dopo edits delle colonne editabili).
+        # Le colonne CALCOLATE (Sm³/h lordi/netti, Saving, Esito) sono in
+        # una tabella st.dataframe sotto, sempre fresh dai dati post-edit.
         # =================================================================
-        _SMH_GROSS_COL = "Sm³/h lordi"
-        _SMH_COL = "Sm³/h netti"
-        _SAV_COL = "Saving GHG (%)"
-        _OK_COL = "Esito"
+        _HOURS_COL = "Ore funz."
 
-        # Soglia GHG in % per la verifica per-giorno (già normalizzata)
-        _thr_pct_pre = float(ghg_threshold) * 100.0 if ghg_threshold else 80.0
-
-        def _row_outcome(c, biomass_t):
-            """Restituisce icona di esito per la riga giornaliera.
-              ✅  giorno OK (Sm³/h netti ≤ cap E saving ≥ soglia, con biomassa > 0)
-              ❌  giorno con violazione (cap superato o saving sotto soglia)
-              —   nessun dato (biomassa = 0)
-            """
-            if c is None or biomass_t <= 0:
-                return "—"
-            sm3h = c.sm3_netti / 24.0
-            cap_ok = (_cap_smch <= 0) or (sm3h <= _cap_smch)
-            sav_ok = c.daily_saving_estimate >= _thr_pct_pre
-            return "✅" if (cap_ok and sav_ok) else "❌"
+        st.markdown(f"### 🌾 {_t('Tabella giornaliera — Input')}")
+        st.caption(
+            _t("Inserisci ore di funzionamento (formato decimale: 16.50 = 16h 30min) "
+               "e biomasse t/giorno. Gli indicatori operativi appaiono nella tabella "
+               "qui sotto, aggiornati automaticamente.")
+        )
 
         _edit_rows = []
-        for _i, _d in enumerate(_all_days):
-            _row = {"Data": _d}
-            _bio_row = 0.0
+        for _d in _all_days:
+            _row = {"Data": _d, _HOURS_COL: float(_hours_map.get(_d, 24.0))}
             for _f in _do_active_feeds:
-                _v = float((_data_map.get(_d) or {}).get(_f, 0.0))
-                _row[_f] = _v
-                _bio_row += _v
-            _c = _pre_computed[_i]
-            # Sm³/h lordi = sm3_gross / 24h (biogas grezzo dalla digestione,
-            # PRIMA dell'upgrading e dei consumi di servizi ausiliari).
-            # Sm³/h netti = sm3_netti / 24h (biometano effettivo immesso).
-            _row[_SMH_GROSS_COL] = float(_c.sm3_gross / 24.0) if _c is not None else 0.0
-            _row[_SMH_COL]       = float(_c.sm3_netti / 24.0) if _c is not None else 0.0
-            _row[_SAV_COL]       = float(_c.daily_saving_estimate) if _c is not None else 0.0
-            _row[_OK_COL]        = _row_outcome(_c, _bio_row)
+                _row[_f] = float((_data_map.get(_d) or {}).get(_f, 0.0))
             _edit_rows.append(_row)
         _edit_df = _pd_daily.DataFrame(_edit_rows)
-
-        st.markdown(f"### 🌾 {_t('Tabella giornaliera')}")
 
         _edited = st.data_editor(
             _edit_df,
@@ -5968,6 +5975,14 @@ with tab_daily:
                 "Data": st.column_config.DateColumn(
                     "Data", disabled=True, format="DD/MM/YYYY",
                 ),
+                _HOURS_COL: st.column_config.NumberColumn(
+                    _HOURS_COL, min_value=0.0, max_value=24.0,
+                    step=0.25, format="%.2f",
+                    help=_t("Ore di funzionamento dell'impianto in quel giorno. "
+                            "Formato decimale: 16.50 = 16h 30min, "
+                            "16.25 = 16h 15min, 16.75 = 16h 45min. "
+                            "Default 24.00 (impianto sempre attivo)."),
+                ),
                 **{
                     _f: st.column_config.NumberColumn(
                         _f, min_value=0.0, step=0.1, format="%.2f",
@@ -5975,48 +5990,21 @@ with tab_daily:
                     )
                     for _f in _do_active_feeds
                 },
-                _SMH_GROSS_COL: st.column_config.NumberColumn(
-                    _SMH_GROSS_COL, disabled=True, format="%.1f",
-                    help=_t("Biogas LORDO (pre-upgrading) prodotto in 1 ora. "
-                            "Calcolato = Sm³ lordi / 24h. Include CH₄ + CO₂ "
-                            "+ slip — comprende cioè anche la frazione persa "
-                            "nell'upgrading e nei consumi ausiliari."),
-                ),
-                _SMH_COL: st.column_config.NumberColumn(
-                    _SMH_COL, disabled=True, format="%.1f",
-                    help=_t("Biometano NETTO immesso in rete in 1 ora. "
-                            "Calcolato = Sm³ netti / 24h. Cap autorizzato:")
-                         + f" {_cap_smch:,.0f}",
-                ),
-                _SAV_COL: st.column_config.NumberColumn(
-                    _SAV_COL, disabled=True, format="%.2f",
-                    help=_t("Saving GHG giornaliero (informativo). La compliance è mensile."),
-                ),
-                _OK_COL: st.column_config.TextColumn(
-                    _OK_COL, disabled=True, width="small",
-                    help=_t("✅ giorno OK (entro cap e sopra soglia GHG) · "
-                            "❌ violazione cap o saving sotto soglia · "
-                            "— nessun dato. NB: la conformità ufficiale resta mensile."),
-                ),
             },
             use_container_width=True,
         )
 
         # =================================================================
-        # AGGIORNA _data_map dagli edits (ignora colonne disabled)
+        # AGGIORNA _data_map E _hours_map dagli edits
         # ------------------------------------------------------------
-        # Snapshot PRIMA dell'aggiornamento per rilevare modifiche reali.
-        # Se gli edits cambiano i dati, forziamo st.rerun() così al rerun
-        # successivo le colonne computed (Sm³/h lordi/netti, Saving, Esito)
-        # mostrano i valori CORRETTI (basati sui nuovi _data_map).
-        # Senza rerun esplicito, l'utente vedrebbe le biomasse aggiornate
-        # ma le colonne computed ancora a 0 — frustrante.
+        # Snapshot PRIMA per rilevare modifiche reali e forzare rerun
+        # solo se necessario (così la tabella OUTPUT sotto si aggiorna).
         # =================================================================
-        _data_map_snapshot = {
-            _d: dict(_v) for _d, _v in (_data_map or {}).items()
-        }
+        _data_map_snapshot = {_d: dict(_v) for _d, _v in (_data_map or {}).items()}
+        _hours_map_snapshot = dict(_hours_map)
         try:
             _new_map: dict = {}
+            _new_hours: dict = {}
             for _, _r in _edited.iterrows():
                 _d = _r["Data"]
                 if hasattr(_d, "to_pydatetime"):
@@ -6027,25 +6015,42 @@ with tab_daily:
                     _f: float(_r[_f] or 0.0) for _f in _do_active_feeds
                     if (_r[_f] or 0.0) > 0
                 }
+                _h = _r.get(_HOURS_COL, 24.0)
+                try:
+                    _new_hours[_d] = max(0.0, min(24.0, float(_h)))
+                except (TypeError, ValueError):
+                    _new_hours[_d] = 24.0
             _data_map = _new_map
+            _hours_map = _new_hours
             st.session_state[_do_key] = _data_map
+            st.session_state[_hours_key] = _hours_map
         except Exception as _upd_exc:  # noqa: BLE001
             _LOG.exception("Daily edit update failed")
             st.warning(_t("Aggiornamento tabella fallito:") + f" {_upd_exc}")
             _data_map = _data_map_snapshot
+            _hours_map = _hours_map_snapshot
 
-        # Confronto deep: se i dati sono cambiati, rerun per refresh colonne computed.
-        # Filtriamo solo le date presenti in entrambi (entrambi hanno tutte le date
-        # del mese) e confrontiamo dict di dict.
-        if _data_map != _data_map_snapshot:
+        # Rerun forzato se gli edits hanno cambiato qualcosa → la tabella
+        # OUTPUT sotto si aggiorna immediatamente coi nuovi calcoli.
+        if (_data_map != _data_map_snapshot
+                or _hours_map != _hours_map_snapshot):
             st.rerun()
 
         # =================================================================
-        # CALCOLO POST-EDIT (sorgente unica per caption + KPI + banner)
+        # CALCOLO POST-EDIT (sorgente unica per tabella OUTPUT + KPI + banner)
+        # ------------------------------------------------------------
+        # Usa _hours_map aggiornato ad ogni giorno → Sm³/h riflettono
+        # le ore reali di funzionamento.
         # =================================================================
         _entries_list = [_DEntry(date=_d, feedstocks=dict(_data_map.get(_d) or {}))
                          for _d in _all_days]
-        _computed_raw = [_compute_safely(_e.date, _e.feedstocks) for _e in _entries_list]
+        _computed_raw = [
+            _compute_safely(
+                _e.date, _e.feedstocks,
+                _hours_run=float(_hours_map.get(_e.date, 24.0)),
+            )
+            for _e in _entries_list
+        ]
         _computed_list = [_c for _c in _computed_raw if _c is not None]
 
         # Mostra UNA volta la lista delle biomasse non riconosciute (config error)
@@ -6055,6 +6060,83 @@ with tab_daily:
                 + " " + ", ".join(f"`{f}`" for f in sorted(_compute_config_errors))
                 + ". " + _t("Verifica le biomasse attive nella sidebar.")
             )
+
+        # =================================================================
+        # TABELLA OUTPUT (read-only) — indicatori operativi sempre fresh
+        # ------------------------------------------------------------
+        # Calcolata POST-edit con _data_map e _hours_map appena aggiornati.
+        # NB: Sm³/h dividono Sm³ giornalieri per le ORE EFFETTIVE di
+        # funzionamento (non sempre 24h). Esempio: 4800 Sm³/giorno con
+        # 16h funzionamento = 300 Sm³/h.
+        # =================================================================
+        _thr_pct_pre = float(ghg_threshold) * 100.0 if ghg_threshold else 80.0
+
+        def _row_outcome(c, biomass_t, hours_run):
+            """✅ giorno OK · ❌ violazione · — nessun dato/fermo."""
+            if c is None or biomass_t <= 0 or hours_run <= 0:
+                return "—"
+            sm3h = c.sm3_netti / hours_run if hours_run > 0 else 0.0
+            cap_ok = (_cap_smch <= 0) or (sm3h <= _cap_smch)
+            sav_ok = c.daily_saving_estimate >= _thr_pct_pre
+            return "✅" if (cap_ok and sav_ok) else "❌"
+
+        _OUT_GROSS = "Sm³/h lordi"
+        _OUT_NET = "Sm³/h netti"
+        _OUT_SAV = "Saving GHG (%)"
+        _OUT_ESITO = "Esito"
+
+        _out_rows = []
+        for _i, _d in enumerate(_all_days):
+            _h = float(_hours_map.get(_d, 24.0))
+            _bio_row = sum((_data_map.get(_d) or {}).values())
+            _c = _computed_raw[_i]  # post-edit, sempre fresh
+            _gross_h = (_c.sm3_gross / _h) if (_c is not None and _h > 0) else 0.0
+            _net_h = (_c.sm3_netti / _h) if (_c is not None and _h > 0) else 0.0
+            _sav = _c.daily_saving_estimate if _c is not None else 0.0
+            _out_rows.append({
+                "Data": _d.strftime("%d/%m/%Y"),
+                "Ore": _h,
+                _OUT_GROSS: _gross_h,
+                _OUT_NET: _net_h,
+                _OUT_SAV: _sav,
+                _OUT_ESITO: _row_outcome(_c, _bio_row, _h),
+            })
+        _out_df = _pd_daily.DataFrame(_out_rows)
+
+        st.markdown(f"### 📊 {_t('Tabella giornaliera — Indicatori operativi')}")
+
+        # Styling: rosso su Sm³/h netti se > cap, su Saving se sotto soglia
+        def _style_out(df):
+            _RED = "background-color: #ffd6d6; color: #b00020; font-weight: 600;"
+            styler = df.style.format({
+                "Ore": "{:.2f}",
+                _OUT_GROSS: "{:.1f}",
+                _OUT_NET: "{:.1f}",
+                _OUT_SAV: "{:.2f}",
+            }, na_rep="-")
+            if _cap_smch > 0:
+                styler = styler.apply(
+                    lambda s: [_RED if v > _cap_smch else "" for v in s],
+                    subset=[_OUT_NET],
+                )
+            styler = styler.apply(
+                lambda s: [_RED if 0 < v < _thr_pct_pre else "" for v in s],
+                subset=[_OUT_SAV],
+            )
+            return styler
+
+        try:
+            st.dataframe(_style_out(_out_df), use_container_width=True, hide_index=True)
+        except Exception:  # noqa: BLE001
+            st.dataframe(_out_df, use_container_width=True, hide_index=True)
+        st.caption(
+            _t("🔴 cella rossa: Sm³/h netti oltre il cap autorizzato "
+               "({cap:,.0f}) o saving sotto la soglia ({thr:.1f}%). "
+               "I valori giornalieri sono solo informativi: la conformità "
+               "ufficiale è mensile (riassunto nei KPI sotto).").format(
+                cap=_cap_smch, thr=_thr_pct_pre,
+            )
+        )
 
         _regime_lbl = "DM 2022 (RED III)" if IS_DM2022 else (
             "DM 2018" if IS_DM2018 else APP_MODE
