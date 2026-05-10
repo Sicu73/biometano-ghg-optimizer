@@ -51,6 +51,10 @@ except Exception as _om_imp_exc:  # noqa: BLE001
     _HAS_OUTPUT_MODEL = False
     _OM_IMPORT_ERR = str(_om_imp_exc)
 
+# ── Logging strutturato per produzione (audit robustezza #3) ────────────────
+from core.logging_setup import get_logger
+_LOG = get_logger("app")
+
 # ── i18n: selettore lingua + funzione di traduzione ──────────────────────────
 from i18n_runtime import t as _t, get_lang, render_lang_selector, translate_df
 
@@ -2531,6 +2535,25 @@ with st.sidebar:
         st.warning(_t("⚠️ Seleziona almeno 1 biomassa per procedere."))
         st.stop()
 # ============================================================
+# DEFAULT GLOBALI per tab-globals (audit robustezza #1)
+# ------------------------------------------------------------
+# Le variabili definite dentro `with tab_solver:` (annex/cic/tot_*)
+# sono usate dagli export in `with tab_export:`. Se tab_solver crasha
+# prima di definirle (es. pie chart con sum=0, audit #2), gli export
+# crashano con NameError. Inizializzazione difensiva qui = zero crash.
+# ============================================================
+annex_mass_share         = 0.0
+is_advanced              = False
+cic_double               = False
+cic_active               = False
+pdf_revenue_rows         = []
+tot_n_cic                = 0.0
+tot_revenue              = 0.0
+tot_revenue_base_mwh     = 0.0
+tariffa_media_ponderata  = 0.0
+tot_mwh                  = 0.0
+
+# ============================================================
 # TABS PRINCIPALI (Main Area)
 # ============================================================
 tab_solver, tab_daily, tab_tech, tab_bp, tab_export = st.tabs([
@@ -4423,19 +4446,29 @@ with tab_solver:
         }
         color_map = {n: FEEDSTOCK_DB[n]["color"] for n in active_feeds}
 
+        # Audit robustezza #2: protezione pie chart con sum=0 (Plotly raises)
+        _has_data = sum(annual_t.values()) > 0 and sum(annual_mwh.values()) > 0
+        if not _has_data:
+            st.info(
+                "ℹ️ " + _t("Nessun dato annuale ancora disponibile. "
+                           "Inserisci almeno un valore nella tabella mensile "
+                           "per vedere il mix annuale.")
+            )
+
         colA, colB = st.columns(2)
         with colA:
-            fig4a = px.pie(
-                names=list(annual_t.keys()),
-                values=list(annual_t.values()),
-                color=list(annual_t.keys()),
-                color_discrete_map=color_map,
-                title=f"Mix t/anno (totale {fmt_it(sum(annual_t.values()), 0)} t)",
-                hole=0.4,
-            )
-            fig4a.update_traces(textposition="inside", textinfo="percent+label")
-            apply_metaniq_theme(fig4a, dark=IS_DARK)
-            st.plotly_chart(fig4a, use_container_width=True)
+            if _has_data:
+                fig4a = px.pie(
+                    names=list(annual_t.keys()),
+                    values=list(annual_t.values()),
+                    color=list(annual_t.keys()),
+                    color_discrete_map=color_map,
+                    title=f"Mix t/anno (totale {fmt_it(sum(annual_t.values()), 0)} t)",
+                    hole=0.4,
+                )
+                fig4a.update_traces(textposition="inside", textinfo="percent+label")
+                apply_metaniq_theme(fig4a, dark=IS_DARK)
+                st.plotly_chart(fig4a, use_container_width=True)
 
         with colB:
             _pie_mwh_label = (
@@ -4449,18 +4482,19 @@ with tab_solver:
                 [v * eta_el * (1.0 - aux_el_pct) for v in annual_mwh.values()]
                 if IS_CHP else list(annual_mwh.values())
             )
-            fig4b = px.pie(
-                names=list(annual_mwh.keys()),
-                values=_pie_values,
-                color=list(annual_mwh.keys()),
-                color_discrete_map=color_map,
-                title=f"Mix {_pie_mwh_label}/anno "
-                      f"(totale {fmt_it(_pie_total, 0)} MWh)",
-                hole=0.4,
-            )
-            fig4b.update_traces(textposition="inside", textinfo="percent+label")
-            apply_metaniq_theme(fig4b, dark=IS_DARK)
-            st.plotly_chart(fig4b, use_container_width=True)
+            if _has_data and sum(_pie_values) > 0:
+                fig4b = px.pie(
+                    names=list(annual_mwh.keys()),
+                    values=_pie_values,
+                    color=list(annual_mwh.keys()),
+                    color_discrete_map=color_map,
+                    title=f"Mix {_pie_mwh_label}/anno "
+                          f"(totale {fmt_it(_pie_total, 0)} MWh)",
+                    hole=0.4,
+                )
+                fig4b.update_traces(textposition="inside", textinfo="percent+label")
+                apply_metaniq_theme(fig4b, dark=IS_DARK)
+                st.plotly_chart(fig4b, use_container_width=True)
 
         # ============================================================
         # CALCOLO STATUS AVANZATO IMPIANTO (solo DM 2018)
@@ -5742,8 +5776,14 @@ with tab_daily:
 
         # =================================================================
         # CARICAMENTO STATO (DB → session_state)
+        # ------------------------------------------------------------
+        # Audit robustezza #7: separator "||" improbabile in plant_id reale
+        # (al posto di "_") evita collisioni del tipo "Impianto_2024_01"
+        # year=2024 month=1 vs "Impianto" year=2024 month=01.
+        # Audit robustezza #8: sanitize plant_id (no vuoti, no whitespace).
         # =================================================================
-        _do_key = f"do_data_{_do_plant}_{int(_do_year)}_{int(_do_month)}"
+        _do_plant_safe = (_do_plant or "").strip() or "default"
+        _do_key = f"do_data||{_do_plant_safe}||{int(_do_year)}||{int(_do_month)}"
         if _do_key not in st.session_state:
             try:
                 _init_db()
@@ -5928,44 +5968,74 @@ with tab_daily:
         # =================================================================
         # BANNER ESITO MENSILE — HTML custom con gradient e palette brand
         # =================================================================
-        if _kpis["compliant"]:
-            _bg = f"linear-gradient(135deg, {SUCCESS} 0%, #047857 100%)"
-            _icon = "✅"
-            _label = _t("MESE SOSTENIBILE")
-            _detail = (f"{_t('saving')} <b>{_kpis['saving_pct']:.2f}%</b> ≥ "
-                       f"{_t('soglia')} {_thr_pct:.2f}% "
-                       f"(+{_kpis['margin']:.2f} pt {_t('di margine')})")
-        else:
-            _bg = "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)"
-            _icon = "❌"
-            _label = _t("MESE NON SOSTENIBILE")
-            _detail = (f"{_t('saving')} <b>{_kpis['saving_pct']:.2f}%</b> &lt; "
-                       f"{_t('soglia')} {_thr_pct:.2f}% "
-                       f"({_kpis['margin']:.2f} pt {_t('sotto soglia')})")
-        st.markdown(
-            f"""
-            <div style='background:{_bg};color:#FFFFFF;padding:18px 22px;
-                 border-radius:14px;margin:10px 0 16px 0;
-                 box-shadow:0 4px 12px rgba(15,23,42,0.18);'>
-                <div style='font-size:0.7rem;font-weight:700;letter-spacing:1.5px;
-                     text-transform:uppercase;opacity:0.85;margin-bottom:4px;'>
-                    {_t('Esito ufficiale')} — {_regime_lbl}
-                </div>
-                <div style='display:flex;align-items:center;gap:14px;'>
-                    <div style='font-size:2.2rem;line-height:1;'>{_icon}</div>
-                    <div>
-                        <div style='font-size:1.6rem;font-weight:700;line-height:1.1;'>
-                            {_label}
-                        </div>
-                        <div style='font-size:0.95rem;opacity:0.95;margin-top:4px;'>
-                            {_detail}
+        # Audit robustezza #20: mese vuoto NON deve mostrare "MESE SOSTENIBILE
+        # 100%". Quando non ci sono dati, mostriamo banner neutro "in attesa".
+        if _n_days_data == 0:
+            st.markdown(
+                f"""
+                <div style='background:linear-gradient(135deg,#64748B 0%,#475569 100%);
+                     color:#FFFFFF;padding:18px 22px;border-radius:14px;
+                     margin:10px 0 16px 0;
+                     box-shadow:0 4px 12px rgba(15,23,42,0.18);'>
+                    <div style='font-size:0.7rem;font-weight:700;letter-spacing:1.5px;
+                         text-transform:uppercase;opacity:0.85;margin-bottom:4px;'>
+                        {_t('Esito ufficiale')} — {_regime_lbl}
+                    </div>
+                    <div style='display:flex;align-items:center;gap:14px;'>
+                        <div style='font-size:2.2rem;line-height:1;'>⏳</div>
+                        <div>
+                            <div style='font-size:1.6rem;font-weight:700;line-height:1.1;'>
+                                {_t('IN ATTESA DI DATI')}
+                            </div>
+                            <div style='font-size:0.95rem;opacity:0.95;margin-top:4px;'>
+                                {_t('Inserisci almeno un giorno con biomassa &gt; 0 '
+                                    'per calcolare il saving GHG mensile.')}
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            if _kpis["compliant"]:
+                _bg = f"linear-gradient(135deg, {SUCCESS} 0%, #047857 100%)"
+                _icon = "✅"
+                _label = _t("MESE SOSTENIBILE")
+                _detail = (f"{_t('saving')} <b>{_kpis['saving_pct']:.2f}%</b> ≥ "
+                           f"{_t('soglia')} {_thr_pct:.2f}% "
+                           f"(+{_kpis['margin']:.2f} pt {_t('di margine')})")
+            else:
+                _bg = "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)"
+                _icon = "❌"
+                _label = _t("MESE NON SOSTENIBILE")
+                _detail = (f"{_t('saving')} <b>{_kpis['saving_pct']:.2f}%</b> &lt; "
+                           f"{_t('soglia')} {_thr_pct:.2f}% "
+                           f"({_kpis['margin']:.2f} pt {_t('sotto soglia')})")
+            st.markdown(
+                f"""
+                <div style='background:{_bg};color:#FFFFFF;padding:18px 22px;
+                     border-radius:14px;margin:10px 0 16px 0;
+                     box-shadow:0 4px 12px rgba(15,23,42,0.18);'>
+                    <div style='font-size:0.7rem;font-weight:700;letter-spacing:1.5px;
+                         text-transform:uppercase;opacity:0.85;margin-bottom:4px;'>
+                        {_t('Esito ufficiale')} — {_regime_lbl}
+                    </div>
+                    <div style='display:flex;align-items:center;gap:14px;'>
+                        <div style='font-size:2.2rem;line-height:1;'>{_icon}</div>
+                        <div>
+                            <div style='font-size:1.6rem;font-weight:700;line-height:1.1;'>
+                                {_label}
+                            </div>
+                            <div style='font-size:0.95rem;opacity:0.95;margin-top:4px;'>
+                                {_detail}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         # 3 KPI laterali (saving NON ripetuto: già nel banner)
         def _it_num(value, decimals):
@@ -6041,7 +6111,7 @@ with tab_daily:
                     if not _has_err:
                         _n = _save_month(
                             int(_do_year), int(_do_month), _entries_list,
-                            plant_id=_do_plant, regime=_regime_lbl,
+                            plant_id=_do_plant_safe, regime=_regime_lbl,
                             threshold=float(ghg_threshold),
                         )
                         st.success(_t("Mese salvato:") + f" {_n} record.")
@@ -6066,6 +6136,7 @@ with tab_daily:
                         use_container_width=True,
                     )
                 except Exception as _exc:  # noqa: BLE001
+                    _LOG.exception("Daily CSV export failed")
                     st.warning(f"CSV: {_exc}")
             with _scol2:
                 try:
@@ -6077,6 +6148,7 @@ with tab_daily:
                         use_container_width=True,
                     )
                 except Exception as _exc:  # noqa: BLE001
+                    _LOG.exception("Daily XLSX export failed")
                     st.warning(f"Excel: {_exc}")
             with _scol3:
                 try:
@@ -6087,6 +6159,7 @@ with tab_daily:
                         use_container_width=True,
                     )
                 except Exception as _exc:  # noqa: BLE001
+                    _LOG.exception("Daily PDF export failed")
                     st.warning(f"PDF: {_exc}")
     else:
         st.markdown("---")
