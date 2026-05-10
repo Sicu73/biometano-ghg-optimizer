@@ -5994,6 +5994,46 @@ with tab_daily:
         ]
 
         # =================================================================
+        # 🧪 DEBUG TEMPORANEO — diagnosi bug Sm³/h non calcolati
+        # ------------------------------------------------------------
+        # Mostra cosa Streamlit ha salvato in session_state[editor_key] e
+        # se _compute_safely produce sm3_gross > 0. Se vedi "edits=0" dopo
+        # aver editato una cella e premuto Tab, allora Streamlit non sta
+        # propagando gli edits nel dict edited_rows con la struttura attesa.
+        # Da rimuovere appena diagnosticato.
+        # =================================================================
+        with st.expander("🧪 DEBUG (rimuovere dopo diagnosi)", expanded=True):
+            _dbg_max_gross = max(
+                ((_c.sm3_gross if _c is not None else 0.0)
+                 for _c in _pre_computed),
+                default=0.0,
+            )
+            _dbg_n_with_data = sum(
+                1 for _c in _pre_computed
+                if _c is not None and _c.biomass_total_t > 0
+            )
+            st.write({
+                "build_commit": "0e01796 + debug",
+                "editor_key": _editor_key,
+                "session_has_editor_state": _editor_key in st.session_state,
+                "editor_state_type": type(st.session_state.get(_editor_key)).__name__,
+                "pending_edits_count": len(_pending_edits),
+                "pending_edits_sample": dict(list(_pending_edits.items())[:3]) if _pending_edits else {},
+                "data_map_n_days_with_data": sum(
+                    1 for v in _data_map.values() if v
+                ),
+                "data_map_sample": {
+                    str(d): v for d, v in list(_data_map.items())[:3] if v
+                },
+                "pre_computed_max_sm3_gross": round(_dbg_max_gross, 2),
+                "pre_computed_n_days_with_data": _dbg_n_with_data,
+                "aux_factor": float(aux_factor),
+                "ep_total": float(ep_total),
+                "fossil_comparator": float(FOSSIL_COMPARATOR),
+                "active_feeds": _do_active_feeds,
+            })
+
+        # =================================================================
         # TABELLA UNICA — input editabili + colonne calcolate (disabled)
         # Gli edits sono GIÀ stati applicati a _data_map / _hours_map sopra
         # (lettura di session_state[editor_key].edited_rows pre-render),
