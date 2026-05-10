@@ -6004,21 +6004,41 @@ with tab_daily:
 
         # =================================================================
         # AGGIORNA _data_map dagli edits (ignora colonne disabled)
+        # ------------------------------------------------------------
+        # Snapshot PRIMA dell'aggiornamento per rilevare modifiche reali.
+        # Se gli edits cambiano i dati, forziamo st.rerun() così al rerun
+        # successivo le colonne computed (Sm³/h lordi/netti, Saving, Esito)
+        # mostrano i valori CORRETTI (basati sui nuovi _data_map).
+        # Senza rerun esplicito, l'utente vedrebbe le biomasse aggiornate
+        # ma le colonne computed ancora a 0 — frustrante.
         # =================================================================
+        _data_map_snapshot = {
+            _d: dict(_v) for _d, _v in (_data_map or {}).items()
+        }
         try:
+            _new_map: dict = {}
             for _, _r in _edited.iterrows():
                 _d = _r["Data"]
                 if hasattr(_d, "to_pydatetime"):
                     _d = _d.to_pydatetime().date()
                 elif isinstance(_d, _dt.datetime):
                     _d = _d.date()
-                _data_map[_d] = {
+                _new_map[_d] = {
                     _f: float(_r[_f] or 0.0) for _f in _do_active_feeds
                     if (_r[_f] or 0.0) > 0
                 }
+            _data_map = _new_map
             st.session_state[_do_key] = _data_map
         except Exception as _upd_exc:  # noqa: BLE001
+            _LOG.exception("Daily edit update failed")
             st.warning(_t("Aggiornamento tabella fallito:") + f" {_upd_exc}")
+            _data_map = _data_map_snapshot
+
+        # Confronto deep: se i dati sono cambiati, rerun per refresh colonne computed.
+        # Filtriamo solo le date presenti in entrambi (entrambi hanno tutte le date
+        # del mese) e confrontiamo dict di dict.
+        if _data_map != _data_map_snapshot:
+            st.rerun()
 
         # =================================================================
         # CALCOLO POST-EDIT (sorgente unica per caption + KPI + banner)
