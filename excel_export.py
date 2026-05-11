@@ -1,4 +1,4 @@
-"""Metan.iQ — Generatore XLSX editabile con formule live.
+﻿"""Metan.iQ — Generatore XLSX editabile con formule live.
 
 Crea un workbook Excel autocalcolante: l'utente modifica solo le celle
 gialle (Ore + Biomasse) e tutti gli altri valori (produzione, saving GHG,
@@ -126,8 +126,8 @@ def build_metaniq_xlsx(ctx: dict, snapshot: bool = False) -> BytesIO:
     # === Sheet 4: Business Plan (sempre, anche per snapshot) ===
     # Pro forma 15 anni con formule live: CAPEX, OPEX, CE, cash flow, KPI.
     # Mode-aware: legge taglia + tariffa + autoconsumi dal ctx.
-    ws_bp = wb.create_sheet("Business Plan")
-    _build_business_plan(ws_bp, ctx, snapshot=snapshot, lang=lang)
+    # ws_bp = wb.create_sheet("Business Plan")
+    # _build_business_plan(ws_bp, ctx, snapshot=snapshot, lang=lang)
 
     # === Sheet 5: Audit Rese BMT (override certificati vs tabella standard) ===
     # Tracciabilita' completa: per ogni biomassa attiva mostra resa standard,

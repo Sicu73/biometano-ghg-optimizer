@@ -1,4 +1,4 @@
-import io
+﻿import io
 import datetime
 try:
     from pptx import Presentation
@@ -163,7 +163,6 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     
     draw_kpi_card(s2, 0.5, 4.3, 5.9, 2.0, "RICAVI MEDI ANNUI", _fmt_num(rev, 0, ' €', ' '), subtitle="Include tariffa GSE e mercato")
     draw_kpi_card(s2, 6.9, 4.3, 5.9, 2.0, "EBITDA MEDIO", _fmt_num(avg_ebitda, 0, ' €', ' '), subtitle="Margine operativo lordo post-OPEX")
-    
     # ==========================================
     # SLIDE 3: Mix Biomasse e Sostenibilità
     # ==========================================
@@ -227,40 +226,6 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     tf.paragraphs[0].font.bold = True
 
     # ==========================================
-    # SLIDE 5: CAPEX & OPEX
-    # ==========================================
-    s5 = prs.slides.add_slide(layout_blank)
-    add_background(s5)
-    add_title(s5, "Analisi Investimenti (CAPEX) e Costi (OPEX)")
-    
-    draw_kpi_card(s5, 0.5, 1.8, 5.9, 2.5, "TOTALE INVESTIMENTO (CAPEX)", _fmt_num(capex, 0, ' €'), color_value=C_ERROR if capex > 0 else C_TEXT_MUTED, subtitle="Opere civili, biologia e upgrading")
-    draw_kpi_card(s5, 6.9, 1.8, 5.9, 2.5, "COSTI OPERATIVI (OPEX MEDIO)", _fmt_num(avg_opex, 0, ' €/anno'), color_value=C_ERROR if avg_opex > 0 else C_TEXT_MUTED, subtitle="Approvvigionamento biomasse, Manutenzioni, Utilities")
-
-    tx = s5.shapes.add_textbox(Inches(0.5), Inches(4.8), Inches(12.3), Inches(2))
-    tf = tx.text_frame
-    tf.word_wrap = True
-    p = tf.paragraphs[0]
-    p.text = "I dati OPEX includono la stima dei costi variabili basati sui listini delle biomasse immesse nel simulatore. E' fortemente raccomandato validare questi costi con fornitori locali in fase esecutiva."
-    p.font.size = Pt(16)
-    p.font.color.rgb = C_TEXT_MUTED
-
-    # ==========================================
-    # SLIDE 6: Indicatori Finanziari
-    # ==========================================
-    s6 = prs.slides.add_slide(layout_blank)
-    add_background(s6)
-    add_title(s6, "Indicatori Finanziari (Ritorno)")
-    
-    draw_kpi_card(s6, 0.5, 1.8, 3.8, 2.5, "EBITDA MEDIO", _fmt_num(avg_ebitda, 0, ' €/a'), color_value=C_SUCCESS if avg_ebitda > 0 else C_ERROR)
-    
-    pb_val = f"{payback} anni" if isinstance(payback, (int, float)) else "N/D"
-    draw_kpi_card(s6, 4.75, 1.8, 3.8, 2.5, "PAYBACK TIME", pb_val, subtitle="Anni al pareggio (Break-even)")
-    
-    irr = bp.get("irr_equity", "N/D") if isinstance(bp, dict) else "N/D"
-    irr_val = _fmt_num(irr, 1, '%') if isinstance(irr, (int, float)) else "N/D"
-    draw_kpi_card(s6, 9.0, 1.8, 3.8, 2.5, "IRR (EQUITY)", irr_val, color_value=C_SUCCESS if (isinstance(irr, (int, float)) and irr > 0) else C_TEXT_MUTED, subtitle="Tasso interno di rendimento")
-
-    # ==========================================
     # SLIDE 7: Piano di Produzione
     # ==========================================
     s7 = prs.slides.add_slide(layout_blank)
@@ -290,17 +255,11 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     tf = tx.text_frame
     tf.word_wrap = True
     
-    if compliant and avg_ebitda > 0:
-        conc_text = "FATTIBILITÀ CONFERMATA\n\nIl mix di biomasse analizzato rispetta pienamente la Direttiva RED III.\nIl quadro economico proietta una marginalità positiva e stabile."
+    if compliant:
+        conc_text = "FATTIBILITÀ CONFERMATA\n\nIl mix di biomasse analizzato rispetta pienamente la Direttiva RED III."
         tf.paragraphs[0].font.color.rgb = C_SUCCESS
-    elif compliant and avg_ebitda <= 0:
-        conc_text = "ALLERTA MARGINALITÀ\n\nSostenibilità ambientale confermata, ma l'EBITDA risulta negativo o nullo.\nNecessario ottimizzare i costi OPEX."
-        tf.paragraphs[0].font.color.rgb = C_ACCENT
-    elif not compliant and avg_ebitda > 0:
-        conc_text = "ALLERTA RED III\n\nBuona marginalità economica, ma l'impianto supera i limiti di emissione.\nÈ obbligatorio ricalibrare il mix."
-        tf.paragraphs[0].font.color.rgb = C_ERROR
     else:
-        conc_text = "NON FATTIBILE\n\nSia i limiti RED III che i margini operativi non sono adeguati."
+        conc_text = "ALLERTA RED III\n\nL'impianto supera i limiti di emissione.\nÈ obbligatorio ricalibrare il mix."
         tf.paragraphs[0].font.color.rgb = C_ERROR
 
     for i, line in enumerate(conc_text.split('\n')):

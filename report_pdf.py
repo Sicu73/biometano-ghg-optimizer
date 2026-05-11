@@ -1,4 +1,4 @@
-"""Metan.iQ — Generatore report PDF (consulting-grade, palette Navy + Amber).
+﻿"""Metan.iQ — Generatore report PDF (consulting-grade, palette Navy + Amber).
 
 Punto d'ingresso: build_metaniq_pdf(ctx) -> BytesIO
 
@@ -1682,7 +1682,7 @@ def build_metaniq_pdf(ctx: dict) -> BytesIO:
     flow.append(PageBreak())
     # Business Plan (solo DM 2022 con BP attivo)
     if ctx.get("bp_result") is not None:
-        flow.extend(_build_business_plan(ctx, s))
+        # flow.extend(_build_business_plan(ctx, s))
         flow.append(PageBreak())
     # Methodology
     flow.extend(_build_methodology(ctx, s))
