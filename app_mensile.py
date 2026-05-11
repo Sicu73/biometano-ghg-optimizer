@@ -5737,6 +5737,29 @@ with tab_daily:
         _kpis = _build_kpis(_agg, _sust)
         _thr_pct = float(_kpis["threshold"])
 
+        def _it_num(value, decimals):
+            s = f"{float(value):,.{decimals}f}"
+            return s.replace(",", "X").replace(".", ",").replace("X", ".")
+
+        # =================================================================
+        # RIGA TOTALI (FOOTER TABELLA)
+        # =================================================================
+        _is_sust_mtd = _kpis.get('compliant', False)
+        _sust_color = "#059669" if _is_sust_mtd else "#DC2626"
+        _sust_icon = "✅ SOSTENIBILE" if _is_sust_mtd else "❌ NON SOSTENIBILE"
+        
+        st.markdown(
+            f"""
+            <div style='background-color:#1E293B;color:white;padding:12px 20px;border-radius:0 0 8px 8px;margin-top:-1rem;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:0.95rem;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);'>
+                <div style='color:#94A3B8;text-transform:uppercase;font-size:0.8rem;letter-spacing:1px;'>Totale Progressivo Mese</div>
+                <div>🌾 {_it_num(_kpis['biomass_total_t'], 1)} t Biomasse</div>
+                <div>📈 {_it_num(_kpis.get('remi_vb_total', 0), 0)} Sm³ Reali</div>
+                <div>🎯 Saving MTD: {_kpis.get('saving_pct', 0):.2f}%</div>
+                <div style='background-color:{_sust_color};padding:4px 10px;border-radius:4px;color:white;'>{_sust_icon}</div>
+            </div>
+            """, unsafe_allow_html=True
+        )
+
         # Conteggi anomalie giornaliere (post-edit, sempre fresh)
         _n_days_data = sum(1 for _c in _computed_list if _c.biomass_total_t > 0)
         _n_cap_viol = sum(
@@ -5847,9 +5870,6 @@ with tab_daily:
             )
 
         # 3 KPI laterali (saving NON ripetuto: già nel banner)
-        def _it_num(value, decimals):
-            s = f"{float(value):,.{decimals}f}"
-            return s.replace(",", "X").replace(".", ",").replace("X", ".")
 
         _k1, _k2, _k3 = st.columns(3)
         _k1.metric("🌾 " + _t("Biomassa mese"), f"{_it_num(_kpis['biomass_total_t'], 1)} t")
