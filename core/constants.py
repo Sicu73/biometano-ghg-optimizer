@@ -73,30 +73,6 @@ SAVING_THRESHOLD_CHP = 0.80
 
 
 # ---------------------------------------------------------------------------
-# Sistema CIC (DM 2018 / D.Lgs. 199/2021)
-# ---------------------------------------------------------------------------
-
-GCAL_PER_CIC = 10.0
-MWH_PER_CIC = 11.628
-CIC_PRICE_DEFAULT_EUR = 375.0
-ANNEX_IX_THRESHOLD = 0.70
-
-
-# ---------------------------------------------------------------------------
-# FER 2 — DM 19/06/2024 (cap, tariffe, soglie)
-# ---------------------------------------------------------------------------
-
-FER2_KWE_CAP = 300.0                    # taglia massima kWe
-FER2_TARIFFA_BASE_DEFAULT_EUR_MWH = 256.0
-FER2_PREMIO_MATRICE_DEFAULT_EUR_MWH = 30.0
-FER2_PREMIO_CAR_DEFAULT_EUR_MWH = 10.0
-FER2_FEEDSTOCK_REQ_THRESHOLD = 0.80    # quota minima sottoprodotti/effluenti
-FER2_PERIODO_ANNI = 20
-FER2_GHG_THRESHOLD = 0.80
-FER2_CAP_COLTURE_DEDICATE = 0.20
-
-
-# ---------------------------------------------------------------------------
 # Manure credit (gCO2eq/MJ) — GSE LG 2024 / IPCC 2019 Vol.4 Cap.10
 # ---------------------------------------------------------------------------
 
@@ -115,12 +91,6 @@ __all__ = [
     "DLGS_RED_III_DATA",
     "DLGS_RED_III_GU",
     "DLGS_RED_III_VIGORE",
-    "DM_BIOMETANO_2018",
-    "DM_FER2",
-    "DM_FER2_AVVISO_GU",
-    "DM_FER2_REGOLE_OPERATIVE",
-    "DM_FER2_DESCRIZIONE",
-    "DM_BIOGAS_2012",
     "UNI_TS_11567",
     "JEC_WTT_V5",
     # energetici
@@ -130,24 +100,8 @@ __all__ = [
     # comparator + soglie
     "COMPARATOR_GRID_HEAT_GCO2_MJ",
     "COMPARATOR_TRANSPORT_GCO2_MJ",
-    "COMPARATOR_CHP_EU_MIX_GCO2_MJ",
     "SAVING_THRESHOLD_GRID_HEAT",
     "SAVING_THRESHOLD_TRANSPORT",
-    "SAVING_THRESHOLD_CHP",
-    # CIC
-    "GCAL_PER_CIC",
-    "MWH_PER_CIC",
-    "CIC_PRICE_DEFAULT_EUR",
-    "ANNEX_IX_THRESHOLD",
-    # FER 2
-    "FER2_KWE_CAP",
-    "FER2_TARIFFA_BASE_DEFAULT_EUR_MWH",
-    "FER2_PREMIO_MATRICE_DEFAULT_EUR_MWH",
-    "FER2_PREMIO_CAR_DEFAULT_EUR_MWH",
-    "FER2_FEEDSTOCK_REQ_THRESHOLD",
-    "FER2_PERIODO_ANNI",
-    "FER2_GHG_THRESHOLD",
-    "FER2_CAP_COLTURE_DEDICATE",
     # manure credits
     "MANURE_CREDIT_LIQUAME_SUINO",
     "MANURE_CREDIT_LIQUAME_BOVINO",

@@ -1705,73 +1705,17 @@ PLANT_NAME                = st.session_state.get("plant_name", "")
 PLANT_OPERATIONAL_ADDRESS = st.session_state.get("plant_operational_address", "")
 
 # ===========================================================
-# Metan.iQ Mode Selector (4 modalita' in griglia 2x2)
+# Metan.iQ Mode - FORZATO A DM 2022 (RED III)
 # ===========================================================
-_VALID_MODES = ("biometano", "biometano_2018",
-                "biogas_chp", "biogas_chp_fer2")
-if "app_mode" not in st.session_state:
-    st.session_state.app_mode = "biometano"
-
-# Migrazione automatica session_state da etichette legacy
-if st.session_state.app_mode not in _VALID_MODES:
-    st.session_state.app_mode = "biometano"
+st.session_state.app_mode = "biometano"
+APP_MODE       = "biometano"
+IS_CHP_DM2012  = False
+IS_FER2        = False
+IS_CHP         = False
+IS_DM2018      = False
+IS_DM2022      = True
 
 with st.sidebar:
-    st.markdown(
-        f"""
-        <div style='font-size:0.7rem; font-weight:700; letter-spacing:1px; 
-             text-transform:uppercase; color:#64748B; margin-bottom:8px; margin-left:2px;'>
-             🏭 Regime Incentivante / Mode
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    # Riga 1: regimi BIOMETANO
-    _mc1, _mc2 = st.columns(2)
-    with _mc1:
-        if st.button(
-            "🧬 DM 2022",
-            use_container_width=True,
-            type="primary" if st.session_state.app_mode == "biometano" else "secondary",
-            key="btn_mode_biometano",
-            help="Biometano DM 15/9/2022 — tariffa diretta €/MWh. Saving RED III.",
-        ):
-            st.session_state.app_mode = "biometano"
-            st.rerun()
-    with _mc2:
-        if st.button(
-            "🌿 DM 2018",
-            use_container_width=True,
-            type="primary" if st.session_state.app_mode == "biometano_2018" else "secondary",
-            key="btn_mode_biometano_2018",
-            help="Biometano DM 2/3/2018 — sistema CIC (avanzato). Saving RED II/III.",
-        ):
-            st.session_state.app_mode = "biometano_2018"
-            st.rerun()
-    # Riga 2: regimi BIOGAS CHP
-    _mc3, _mc4 = st.columns(2)
-    with _mc3:
-        if st.button(
-            "⚡ CHP 2012",
-            use_container_width=True,
-            type="primary" if st.session_state.app_mode == "biogas_chp" else "secondary",
-            key="btn_mode_chp",
-            help="Biogas → cogenerazione DM 6/7/2012. Tariffa Omnicomprensiva + premio CAR.",
-        ):
-            st.session_state.app_mode = "biogas_chp"
-            st.rerun()
-    with _mc4:
-        if st.button(
-            "🔋 FER 2",
-            use_container_width=True,
-            type="primary" if st.session_state.app_mode == "biogas_chp_fer2" else "secondary",
-            key="btn_mode_chp_fer2",
-            help="Biogas CHP FER 2 (DM 19/06/2024) — taglia max 300 kWe, TR + premi.",
-        ):
-            st.session_state.app_mode = "biogas_chp_fer2"
-            st.rerun()
-    st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
-
     # ============================================================
     # 📋 Normativa applicata + Verifica aggiornamenti
     # ============================================================
@@ -1868,13 +1812,6 @@ with st.sidebar:
                 "certificazioni o adempimenti."
             )
     st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
-
-APP_MODE       = st.session_state.app_mode
-IS_CHP_DM2012  = APP_MODE == "biogas_chp"
-IS_FER2        = APP_MODE == "biogas_chp_fer2"
-IS_CHP         = IS_CHP_DM2012 or IS_FER2  # branche condivise (kW input, motore, biogas grezzo)
-IS_DM2018      = APP_MODE == "biometano_2018"
-IS_DM2022      = APP_MODE == "biometano"
 # NB: branche "biometano generico" (DM 2022 + DM 2018) si esprimono come
 # `not IS_CHP` -- entrambi i regimi condividono upgrading/off-gas/iniezione.
 # `IS_CHP` cattura entrambi i CHP (DM 2012 + FER 2) per UI/calcoli condivisi;
