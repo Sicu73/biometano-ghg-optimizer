@@ -6068,7 +6068,7 @@ with tab_daily:
                "si aggiornano automaticamente.")
         )
 
-        _edit_rows = []
+        _modifica1
         for _i, _d in enumerate(_all_days):
             _h = float(_hours_map.get(_d, 24.0))
             _bio_row = 0.0
