@@ -145,10 +145,9 @@ def parse_it(value) -> float:  # type: ignore[misc]
 
 def _find_app_module():
     """Restituisce il modulo app_mensile vero (non lo stub), o None."""
-    _m = sys.modules.get("__main__")
-    if _m is not None:
+    for _m in list(sys.modules.values()):
         _f = getattr(_m, "__file__", "") or ""
-        if _f.endswith("app_mensile.py") or hasattr(_m, "FEEDSTOCK_DB"):
+        if _f.endswith("app_mensile.py") and hasattr(_m, "FEEDSTOCK_DB"):
             return _m
     _m = sys.modules.get("app_mensile")
     if _m is not None and hasattr(_m, "FEEDSTOCK_DB"):
@@ -259,21 +258,18 @@ _PROXY_NAMES = (
 _APP_MOD = None
 _APP_MENSILE_AVAILABLE = False
 
-# Priorità A: __main__ è app_mensile.py?
-_main = sys.modules.get("__main__")
-if _main is not None:
-    _main_file = getattr(_main, "__file__", "") or ""
-    if _main_file.endswith("app_mensile.py") or hasattr(_main, "FEEDSTOCK_DB"):
-        _APP_MOD = _main
+# Cerca il modulo app_mensile in sys.modules indipendentemente dal nome (Streamlit 1.30+ usa nomi generati)
+for _m in list(sys.modules.values()):
+    _m_file = getattr(_m, "__file__", "") or ""
+    if _m_file.endswith("app_mensile.py") and hasattr(_m, "FEEDSTOCK_DB"):
+        _APP_MOD = _m
+        break
 
-# Priorità B: import classico (solo se A ha fallito E __main__ NON è app_mensile)
-# (evita di rieseguire app_mensile.py mentre è in mid-execution come __main__)
+# Solo in test isolati (dove app_mensile non è caricato da Streamlit), prova import legacy
 if _APP_MOD is None:
-    _main_is_app_mensile = (
-        _main is not None
-        and (getattr(_main, "__file__", "") or "").endswith("app_mensile.py")
-    )
-    if not _main_is_app_mensile:
+    # Verifichiamo se siamo nel mezzo di un caricamento per non fare circular import
+    _in_streamlit = any("streamlit" in str(getattr(m, "__file__", "")) for m in sys.modules.values())
+    if not _in_streamlit:
         try:
             import app_mensile as _APP_MOD  # type: ignore[no-redef]
         except ImportError:
