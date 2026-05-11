@@ -5528,6 +5528,7 @@ with tab_daily:
         _SMH_COL = "Sm³/h netti"
         _SAV_COL = "Saving GHG (%)"
         _OK_COL = "Esito"
+        _BIO_TOT_COL = "Totale Biomasse (t)"
 
         _thr_pct_pre = float(ghg_threshold) * 100.0 if ghg_threshold else 80.0
 
@@ -5565,6 +5566,7 @@ with tab_daily:
                 _v = float((_data_map.get(_d) or {}).get(_f, 0.0))
                 _row[_f] = _v
                 _bio_row += _v
+            _row[_BIO_TOT_COL] = _bio_row
             
             _rm = _remi_map.get(_d, {})
             _row.update({
@@ -5620,6 +5622,10 @@ with tab_daily:
                     )
                     for _f in _do_active_feeds
                 },
+                _BIO_TOT_COL: st.column_config.NumberColumn(
+                    _BIO_TOT_COL, disabled=True, format="%.2f",
+                    help=_t("Somma totale delle biomasse inserite nel giorno (t)"),
+                ),
                 _SMH_GROSS_COL: st.column_config.NumberColumn(
                     _SMH_GROSS_COL, disabled=True, format="%.1f",
                     help=_t("Biogas LORDO prodotto in 1 ora. "
