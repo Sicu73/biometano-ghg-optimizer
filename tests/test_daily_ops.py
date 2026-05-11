@@ -200,6 +200,49 @@ def test_persistence_empty_days(tmp_path):
     assert loaded == []
 
 
+def test_persistence_hours_roundtrip(tmp_path):
+    """Le ore di funzionamento vengono salvate e ricaricate correttamente."""
+    db = str(tmp_path / "hours.db")
+    init_db(db)
+    entries = [
+        DailyEntry(date=date(2025, 7, 1), feedstocks={"FeedA": 10.0}, hours_per_day=16.5),
+        DailyEntry(date=date(2025, 7, 2), feedstocks={"FeedA": 12.0}, hours_per_day=24.0),
+        DailyEntry(date=date(2025, 7, 3), feedstocks={"FeedA": 8.0},  hours_per_day=8.0),
+    ]
+    save_month(2025, 7, entries, plant_id="P1", path=db)
+    loaded = load_month(2025, 7, plant_id="P1", path=db)
+    by_date = {e.date: e for e in loaded}
+    assert by_date[date(2025, 7, 1)].hours_per_day == 16.5
+    assert by_date[date(2025, 7, 2)].hours_per_day == 24.0
+    assert by_date[date(2025, 7, 3)].hours_per_day == 8.0
+
+
+def test_persistence_hours_default_when_missing(tmp_path):
+    """Giorni senza ore salvate ritornano con default 24.0."""
+    db = str(tmp_path / "hours_def.db")
+    init_db(db)
+    # Salva senza specificare hours_per_day (usa default 24.0)
+    entries = [DailyEntry(date=date(2025, 8, 1), feedstocks={"FeedA": 5.0})]
+    save_month(2025, 8, entries, plant_id="P1", path=db)
+    loaded = load_month(2025, 8, plant_id="P1", path=db)
+    assert loaded[0].hours_per_day == 24.0
+
+
+def test_persistence_hours_clamped(tmp_path):
+    """Le ore fuori range [0, 24] sono aggiustate al salvataggio."""
+    db = str(tmp_path / "hours_clamp.db")
+    init_db(db)
+    entries = [
+        DailyEntry(date=date(2025, 9, 1), feedstocks={"FeedA": 5.0}, hours_per_day=999.0),
+        DailyEntry(date=date(2025, 9, 2), feedstocks={"FeedA": 5.0}, hours_per_day=-1.0),
+    ]
+    save_month(2025, 9, entries, plant_id="P1", path=db)
+    loaded = load_month(2025, 9, plant_id="P1", path=db)
+    by_date = {e.date: e for e in loaded}
+    assert by_date[date(2025, 9, 1)].hours_per_day == 24.0
+    assert by_date[date(2025, 9, 2)].hours_per_day == 0.0
+
+
 # ---------------------------------------------------------------------------
 # Validator
 # ---------------------------------------------------------------------------

@@ -5739,6 +5739,46 @@ except Exception as _daily_imp_exc:  # noqa: BLE001
 
 with tab_daily:
     if _DAILY_OPS_AVAILABLE:
+        # ================================================================
+        # 🧪 BANNER DIAGNOSTICA — verifica fix sm3_gross. Da rimuovere.
+        # ================================================================
+        try:
+            _test_entry = _DEntry(
+                date=_dt.date(2026, 5, 1),
+                feedstocks={"Trinciato di mais": 50.0,
+                            "Pollina ovaiole (aerobico)": 60.0},
+            )
+            _test_ctx_diag = {
+                "aux_factor": 1.236, "ep": -2.0,
+                "fossil_comparator": 80.0,
+                "plant_net_smch": 300.0, "hours_per_day": 24.0,
+            }
+            _test_c = _compute_daily(_test_entry, ctx=_test_ctx_diag)
+            _test_gross = float(_test_c.sm3_gross) if _test_c else 0.0
+            _test_net = float(_test_c.sm3_netti) if _test_c else 0.0
+        except Exception as _texc:  # noqa: BLE001
+            _test_gross = -1.0
+            _test_net = -1.0
+
+        _bg_color = "#10B981" if _test_gross > 0 else "#DC2626"
+        _verdict = ("✅ FIX ATTIVO — sm3_gross calcolato"
+                    if _test_gross > 0
+                    else "❌ BUG ANCORA PRESENTE — sm3_gross=0")
+        st.markdown(
+            f"<div style='background:{_bg_color};color:#FFFFFF;padding:10px 14px;"
+            f"border-radius:8px;margin-bottom:10px;font-family:monospace;"
+            f"font-size:0.85rem;'>"
+            f"<b>🧪 DIAGNOSTICA — build ac44e5f</b><br>"
+            f"Test compute_daily(50t mais + 60t pollina, aux=1.236, ep=-2):<br>"
+            f"&nbsp;&nbsp;sm3_gross = <b>{_test_gross:.1f}</b> "
+            f"(atteso 10600.0)<br>"
+            f"&nbsp;&nbsp;sm3_netti = <b>{_test_net:.1f}</b> "
+            f"(atteso 8576.0)<br>"
+            f"<b>{_verdict}</b>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
         # =================================================================
         # HEADER + selettore periodo
         # =================================================================
