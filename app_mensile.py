@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 BioMethane Monthly Planner - Dual-Constraint Solver
 ---------------------------------------------------
@@ -3178,16 +3178,16 @@ with tab_bp:
         bp_ribasso_pct = 0.0
         bp_tariffa_eff = 0.0
         bp_pnrr_pct = 0.0
-        bp_capex_breakdown = {}
-        bp_capex_forfait = {}
-        bp_opex_breakdown = {}
-        bp_opex_forfait = {}
-        bp_lt_tasso = 0.0
-        bp_lt_durata = 15
-        bp_lt_leva = 0.0
-        bp_ebitda_target_pct = 0.0
-        bp_inflazione_pct = 0.0
-        bp_ch4_in_biogas_pct = 54.25
+
+
+
+
+
+
+
+
+
+
         bp_ore_anno = 8500.0
         bp_result = None
 
@@ -4703,32 +4703,24 @@ with tab_solver:
             _xlsx_ctx.update({
                 "bp_tariffa_eff_mwh":        _bp_tariffa_mwh,
                 "bp_ore_anno":               _bp_ore_anno,
-                "bp_lt_tasso":               BP_FINANCE_DEFAULTS["lt_tasso"]
-                                              if not IS_DM2022 else bp_lt_tasso,
-                "bp_lt_durata":              (BP_FINANCE_DEFAULTS["lt_durata"]
-                                               if not IS_DM2022 else bp_lt_durata),
-                "bp_lt_leva":                (BP_FINANCE_DEFAULTS["lt_leva"]
-                                               if not IS_DM2022 else bp_lt_leva),
-                "bp_inflazione_pct":         (BP_INFLAZIONE_DEFAULT_PCT
-                                               if not IS_DM2022 else bp_inflazione_pct),
+
+
+
+
+
+
+
+
                 "bp_durata_tariffa":         BP_DURATA_TARIFFA_ANNI,
                 "bp_pnrr_pct":               (BP_PNRR_QUOTA_PCT_DEFAULT
                                                if not IS_DM2022 else bp_pnrr_pct),
-                "bp_ebitda_target_pct":      (24.5 if not IS_DM2022
-                                               else bp_ebitda_target_pct),
+
+
                 "bp_tax_rate_pct":           BP_TAX_RATE_PCT,
                 "bp_ammort_anni":            BP_AMMORTAMENTO_ANNI,
                 "bp_npv_disc_rate_pct":      6.0,
                 "bp_massimale_eur_per_smch": BP_MASSIMALE_SPESA_EUR_PER_SMCH,
-                # CAPEX/OPEX breakdown: passa quelli del BP se disponibili
-                "bp_capex_breakdown":        (bp_capex_breakdown
-                                               if IS_DM2022 else None),
-                "bp_capex_forfait":          (bp_capex_forfait
-                                               if IS_DM2022 else None),
-                "bp_opex_breakdown":         (bp_opex_breakdown
-                                               if IS_DM2022 else None),
-                "bp_opex_forfait":           (bp_opex_forfait
-                                               if IS_DM2022 else None),
+                # CAPEX/OPEX breakdown rimosso
                 "NM3_TO_MWH":                NM3_TO_MWH,
                 "lang":                      _LANG,
                 # === BMT override audit (resa effettiva vs standard) ===
@@ -4818,14 +4810,14 @@ with tab_solver:
             "bp_ribasso_pct": bp_ribasso_pct if IS_DM2022 else None,
             "bp_tariffa_eff": bp_tariffa_eff if IS_DM2022 else None,
             "bp_pnrr_pct": bp_pnrr_pct if IS_DM2022 else None,
-            "bp_capex_breakdown": bp_capex_breakdown if IS_DM2022 else None,
-            "bp_capex_forfait": bp_capex_forfait if IS_DM2022 else None,
-            "bp_lt_tasso": bp_lt_tasso if IS_DM2022 else None,
-            "bp_lt_durata": bp_lt_durata if IS_DM2022 else None,
-            "bp_lt_leva": bp_lt_leva if IS_DM2022 else None,
-            "bp_ebitda_target_pct": bp_ebitda_target_pct if IS_DM2022 else None,
-            "bp_inflazione_pct": bp_inflazione_pct if IS_DM2022 else None,
-            "bp_ch4_in_biogas_pct": bp_ch4_in_biogas_pct if IS_DM2022 else None,
+
+
+
+
+
+
+
+
             "bp_durata_tariffa": BP_DURATA_TARIFFA_ANNI,
             # Aggregati comuni
             "tot_biomasse_t": float(df_res["Totale biomasse (t)"].sum()),
