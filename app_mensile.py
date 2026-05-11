@@ -2233,14 +2233,13 @@ with st.sidebar:
     )
     st.session_state.active_feeds = active_feeds_sel
     active_feeds = st.session_state.active_feeds
-    if not active_feeds:
-        st.warning(_t("⚠️ Seleziona almeno 1 biomassa per procedere."))
-        st.stop()
+        if not active_feeds:
+            st.warning(_t("⚠️ Seleziona almeno 1 biomassa per procedere."))
+            st.stop()
+
 # ============================================================
 # DEFAULT GLOBALI per tab-globals (audit robustezza #1)
 # ------------------------------------------------------------
-# Le variabili definite dentro `with tab_solver:` (annex/cic/tot_*)
-# sono usate dagli export in `with tab_export:`. Se tab_solver crasha
 # prima di definirle (es. pie chart con sum=0, audit #2), gli export
 # crashano con NameError. Inizializzazione difensiva qui = zero crash.
 # ============================================================
@@ -2256,10 +2255,127 @@ tariffa_media_ponderata  = 0.0
 tot_mwh                  = 0.0
 
 # ============================================================
-# TABS PRINCIPALI (Main Area)
+# AGGREGAZIONE DATI DAL DATABASE (Sostituisce il Solver)
+# ------------------------------------------------------------
+# Invece di usare il solver per stimare i mesi, leggiamo i dati
+# REALI salvati nel database per l'anno corrente.
 # ============================================================
-tab_solver, tab_daily, tab_tech, tab_bp, tab_export = st.tabs([
-    "🎯 " + _t("Solver Mensile"),
+try:
+    from core.persistence import init_db as _init_db_main, load_month as _load_month_main
+    from core.daily_model import compute_daily as _compute_daily_main
+    from core.monthly_aggregate import aggregate_month as _aggregate_month_main
+    
+    _init_db_main()
+    
+    _current_year = int(st.session_state.get("do_year", 2024))
+    _plant_id = st.session_state.get("do_plant", "default_plant")
+    
+    # Contesto per il calcolo (ricalcolo dinamico in base alla sidebar)
+    _ctx = {
+        "aux_factor": aux_factor,
+        "ep": ep_total,
+        "fossil_comparator": FOSSIL_COMPARATOR,
+        "plant_net_smch": plant_net_smch,
+        "IS_CHP": IS_CHP,
+        "eta_el": eta_el if IS_CHP else 0.40,
+        "eta_th": eta_th if IS_CHP else 0.42,
+        "aux_el_pct": aux_el_pct if IS_CHP else 0.08,
+    }
+    
+    _all_months_data = []
+    for m_idx in range(1, 13):
+        _month_entries = _load_month_main(_current_year, m_idx, plant_id=_plant_id)
+        if _month_entries:
+            # Calcola i dati giornalieri (DailyEntry -> DailyComputed)
+            _computed_days = [_compute_daily_main(e, ctx=_ctx) for e in _month_entries]
+            # Aggrega il mese (list[DailyComputed] -> MonthlyAggregate)
+            _agg_obj = _aggregate_month_main(_computed_days, ctx=_ctx, year=_current_year, month=m_idx)
+            # Converte in dict per il DataFrame (compatibile con df_res)
+            _all_months_data.append(_agg_obj.to_dict())
+        else:
+            _all_months_data.append({
+                "Mese": MONTHS[m_idx-1],
+                "Ore": 0.0, "Sm³ lordi": 0.0, "Sm³ netti": 0.0, "MWh netti": 0.0,
+                "e_w": 0.0, "Saving %": 0.0, "Validità": "❌ " + _t("Nessun dato"),
+                "Totale biomasse (t)": 0.0,
+                **{f: 0.0 for f in FEED_NAMES}
+            })
+    df_res = pd.DataFrame(_all_months_data)
+    
+    # --- KPI ANNUALI ---
+    annual_t = {n: float(max(df_res[n].sum(), 0.0)) for n in active_feeds}
+    annual_mwh = {n: float(max(df_res[n].sum(), 0.0)) * _yield_of(n) / aux_factor * NM3_TO_MWH for n in active_feeds}
+    _tot_t = sum(annual_t.values())
+    annex_mass_share = (sum(t for n, t in annual_t.items() if FEEDSTOCK_DB[n].get("annex_ix") in ("A", "B")) / _tot_t) if _tot_t > 0 else 0.0
+
+    if IS_DM2018:
+        _adv_mode = st.session_state.get("advanced_mode_manual", "Auto (da quota Annex IX)")
+        if _adv_mode == "Forza AVANZATO": is_advanced = True
+        elif _adv_mode == "Forza NON avanzato": is_advanced = False
+        else: is_advanced = annex_mass_share >= annex_threshold
+        _cic_premium_use = DM2018_END_USES[end_use]["cic_premium"]
+        cic_double = is_advanced and _cic_premium_use
+        cic_active = _cic_premium_use
+    else:
+        is_advanced = False; cic_double = False; cic_active = False
+
+    if IS_FER2:
+        fer2_subprod_share = annex_mass_share
+        fer2_qualified = fer2_subprod_share >= fer2_matrice_threshold
+        fer2_apply_matrice = fer2_premio_matrice_attivo and fer2_qualified
+        fer2_apply_car = fer2_premio_car_attivo
+        fer2_tariffa_eff = fer2_tariffa_base + (fer2_premio_matrice_eur if fer2_apply_matrice else 0.0) + (fer2_premio_car_eur if fer2_apply_car else 0.0)
+    else:
+        fer2_subprod_share = 0.0; fer2_qualified = False; fer2_apply_matrice = False; fer2_apply_car = False; fer2_tariffa_eff = 0.0
+
+    _tar_key = f"tariffs_eur_mwh_{APP_MODE}"
+    if IS_FER2:
+        st.session_state[_tar_key] = {n: fer2_tariffa_eff for n in active_feeds}
+    else:
+        _tar_default = 280.0 if IS_CHP else (110.0 if IS_DM2018 and not cic_active else 120.0)
+        if _tar_key not in st.session_state: st.session_state[_tar_key] = {n: _tar_default for n in active_feeds}
+        for n in active_feeds:
+            if n not in st.session_state[_tar_key]: st.session_state[_tar_key][n] = _tar_default
+
+    pdf_revenue_rows = []
+    tot_n_cic = 0.0
+    for n in active_feeds:
+        t, mwh_netti = annual_t[n], annual_mwh[n]
+        if IS_CHP:
+            mwh_rev = mwh_netti * eta_el * (1.0 - aux_el_pct); tariffa = st.session_state[_tar_key][n]; ricavi = mwh_rev * tariffa; n_cic = 0.0
+        elif IS_DM2018 and cic_active:
+            mwh_rev = mwh_netti; n_cic = (mwh_netti / MWH_PER_CIC) * (2.0 if cic_double else 1.0); tariffa = cic_price; ricavi = n_cic * cic_price
+        else:
+            mwh_rev = mwh_netti; tariffa = st.session_state[_tar_key][n]; ricavi = mwh_rev * tariffa; n_cic = 0.0
+        tot_n_cic += n_cic
+        _tot_mwh_b = sum(annual_mwh.values())
+        pdf_revenue_rows.append((n, {"t_anno": t, "yield": _yield_of(n), "mwh_netti": mwh_netti, "mwh_basis": mwh_rev, "tariffa": tariffa, "ricavi": ricavi, "quota": (mwh_netti / _tot_mwh_b * 100) if _tot_mwh_b > 0 else 0, "annex_ix": FEEDSTOCK_DB[n].get("annex_ix"), "n_cic": n_cic}))
+    
+    tot_mwh = sum(annual_mwh.values())
+    _chp_f = (eta_el * (1.0 - aux_el_pct)) if IS_CHP else 1.0
+    tot_revenue_base_mwh = tot_mwh * _chp_f
+    if cic_active:
+        tot_revenue = tot_n_cic * cic_price
+        tariffa_media_ponderata = (tot_revenue / tot_mwh) if tot_mwh > 0 else 0.0
+    else:
+        tot_revenue = sum(annual_mwh[n] * _chp_f * st.session_state[_tar_key][n] for n in active_feeds)
+        tariffa_media_ponderata = (tot_revenue / tot_revenue_base_mwh) if tot_revenue_base_mwh > 0 else 0.0
+
+except Exception as _agg_exc:
+    st.error(f"Errore aggregazione DB: {_agg_exc}")
+    df_res = pd.DataFrame()
+    annual_t = {n: 0.0 for n in active_feeds}
+    annual_mwh = {n: 0.0 for n in active_feeds}
+    tot_mwh = 0.0
+    tot_revenue = 0.0
+    tot_revenue_base_mwh = 0.0
+    tariffa_media_ponderata = 0.0
+    pdf_revenue_rows = []
+    tot_n_cic = 0.0
+    is_advanced = False; cic_double = False; cic_active = False
+    fer2_qualified = False; fer2_apply_matrice = False; fer2_apply_car = False; fer2_tariffa_eff = 0.0
+
+tab_daily, tab_tech, tab_bp, tab_export = st.tabs([
     "📆 " + _t("Gestione Giornaliera"),
     "⚙️ " + _t("Config. Tecnica & GHG"),
     "💶 " + _t("Incentivi & Business Plan"),
@@ -3244,60 +3360,110 @@ with tab_bp:
         fmt_it(plant_net_smch * aux_factor, 1, f" {_unit_lordo}"),
     )
 
-with tab_solver:
-    st.divider()
-    st.header(f"📋 Database feedstock attivi ({len(active_feeds)}/{len(FEED_NAMES)})")
-    # Refresh _EMISSION_OVERRIDES con ep_total impianto-wide per fattori
-    # standard non-overridden (cosi' ep e' coerente nella tabella display)
-    rows = []
-    for n in active_feeds:
-        d = FEEDSTOCK_DB[n]
-        # Fattori effettivi (override real se attivo, altrimenti standard)
-        f_used = _emission_factors_of(n, ep_total)
-        e_tot = e_total_feedstock(n, ep_total)
-        is_real = (f_used.get("source") == EF_SOURCE_REAL)
-        rows.append({
-            "Feedstock": n,
-            "Categoria": d.get("cat", ""),
-            # Resa: usa BMT override se attivo (altrimenti resa tabella standard)
-            "Resa (Nm³/t)": _yield_of(n),
-            # Fattori emissivi: usa override "Relazione tecnica" se attivo,
-            # altrimenti tabella standard. NB: prima c'era un bug — le 5 chiavi
-            # qui sotto venivano duplicate con d["eec"]/ep_total/d["etd"]/
-            # d["esca"]/d["yield"] e poi sovrascritte: il risultato era che
-            # BMT override veniva silenziosamente scartato e i fattori reali
-            # finivano comunque sovrascritti. Ora il dict ha chiavi uniche.
-            "eec":     f_used["eec"],
-            "ep":      f_used["ep"],
-            "etd":     f_used["etd"],
-            "esca":    f_used["esca"],
-            "crediti extra": f_used.get("extra", 0.0),
-            "e_total": round(e_tot, 2),
-            "saving %": round(
-                (FOSSIL_COMPARATOR - e_tot) / FOSSIL_COMPARATOR * 100, 1
-            ),
-            "Origine fattori": ("🧬 Relazione tecnica" if is_real
-                                 else "📚 Tab. standard"),
-        })
-    df_feed = pd.DataFrame(rows)
-    styled_feed = df_feed.style.format({
-        "Resa (Nm³/t)":   lambda v: fmt_it(v, 0),
-        "eec":            lambda v: fmt_it(v, 1, signed=True),
-        "ep":             lambda v: fmt_it(v, 1, signed=True),
-        "etd":            lambda v: fmt_it(v, 1, signed=True),
-        "esca":           lambda v: fmt_it(v, 1, signed=True),
-        "crediti extra":  lambda v: fmt_it(v, 1),
-        "e_total":        lambda v: fmt_it(v, 2, signed=True),
-        "saving %":       lambda v: fmt_it(v, 1, "%"),
-    })
-    st.dataframe(styled_feed, hide_index=True, use_container_width=True)
-    st.caption(
-        "**Formula coerente**: e_total = eec + etd + ep − esca − crediti_extra. "
-        "Origine fattori: 🧬 Relazione tecnica = override REALE attivo per quella biomassa; "
-        "📚 Tab. standard = valori UNI-TS 11567:2024 / JEC WTT v5 / All. IX RED III / GSE LG 2024. "
-        "Manure credit incorporato in `eec` (negativo). I crediti emissivi NON "
-        "vengono mai sottratti due volte (esca e crediti_extra sono voci distinte)."
-    )
+with tab_export:
+    # ============================================================
+    # EXPORT & REPORTING
+    # ============================================================
+    st.header(_t("📊 Risultati & Export Annuali"))
+    st.caption(_t("Sintesi delle performance annuali aggregate sulla base dei dati mensili salvati nel database."))
+
+    if df_res.empty or df_res["Sm³ netti"].sum() == 0:
+        st.info(_t("ℹ️ Nessun dato annuale disponibile. Inserisci e salva i dati nella «Gestione Giornaliera» per generare i report."))
+    else:
+        # Tabella riepilogativa annuale
+        st.subheader(_t("📈 Piano Mensile Consolidato (da DB)"))
+        st.dataframe(df_res.style.format({
+            "Ore": "{:.0f}", "Sm³ lordi": "{:,.0f}", "Sm³ netti": "{:,.0f}",
+            "MWh netti": "{:,.1f}", "e_w": "{:.2f}", "Saving %": "{:.1f}%",
+            "Totale biomasse (t)": "{:,.0f}"
+        }), use_container_width=True, hide_index=True)
+
+        # --- SEZIONE REMI ---
+        if "remi_vb" in df_res.columns and df_res["remi_vb"].sum() > 0:
+            st.divider()
+            st.subheader(_t("📉 Consolidato REMI (Real-Time)"))
+            _remi_cols = [
+                "Mese", "remi_vb", "remi_e", "remi_qb_max", 
+                "remi_pci", "remi_rho", "remi_portata_media", 
+                "remi_potenza_media", "remi_energia_specifica"
+            ]
+            st.dataframe(df_res[_remi_cols], column_config={
+                "Mese": st.column_config.TextColumn("Mese"),
+                "remi_vb": st.column_config.NumberColumn("Vb (Sm³)", format="%d"),
+                "remi_e": st.column_config.NumberColumn("E (kWh)", format="%d"),
+                "remi_qb_max": st.column_config.NumberColumn("Qb max (Sm³/h)", format="%.1f"),
+                "remi_pci": st.column_config.NumberColumn("PCI (kWh/Sm³)", format="%.4f"),
+                "remi_rho": st.column_config.NumberColumn("Rho (kg/Sm³)", format="%.4f"),
+                "remi_portata_media": st.column_config.NumberColumn("Portata Media (Sm³/h)", format="%.1f"),
+                "remi_potenza_media": st.column_config.NumberColumn("Potenza Media (MW)", format="%.3f"),
+                "remi_energia_specifica": st.column_config.NumberColumn("Energia Specif. (kWh/Sm³)", format="%.3f"),
+            }, use_container_width=True, hide_index=True)
+
+        # Logica Export (estratta dal Solver)
+        try:
+            # Output model context per export
+            _om_ctx = {
+                "APP_MODE": APP_MODE, "APP_MODE_LABEL": _MODE["label"], "lang": _LANG,
+                "IS_CHP": IS_CHP, "plant_net_smch": plant_net_smch, "plant_kwe": plant_kwe,
+                "aux_factor": aux_factor, "ep_total": ep_total, "end_use": end_use,
+                "ghg_threshold": ghg_threshold, "fossil_comparator": FOSSIL_COMPARATOR,
+                "active_feeds": active_feeds, "FEEDSTOCK_DB": FEEDSTOCK_DB,
+                "df_res": df_res, "tot_biomasse_t": float(df_res["Totale biomasse (t)"].sum()),
+                "tot_sm3_netti": float(df_res["Sm³ netti"].sum()), "tot_mwh_netti": float(df_res["MWh netti"].sum()),
+                "saving_avg": float(df_res["Saving %"].mean()), "valid_months": int(df_res["Validità"].str.startswith("✅").sum()),
+                "tot_revenue": float(tot_revenue), "tariffa_media_ponderata": float(tariffa_media_ponderata),
+                "revenue_rows": pdf_revenue_rows,
+            }
+            
+            # --- EXPORT BUTTONS ---
+            st.divider()
+            _dl_col1, _dl_col2, _dl_col_pptx, _dl_col3, _dl_col4 = st.columns([1.2, 1.0, 1.0, 0.8, 0.8])
+            
+            # Context for XLSX
+            _xlsx_ctx = {
+                "active_feeds": active_feeds, "FEEDSTOCK_DB": FEEDSTOCK_DB,
+                "aux_factor": aux_factor, "ep_total": ep_total,
+                "fossil_comparator": FOSSIL_COMPARATOR, "ghg_threshold": ghg_threshold,
+                "plant_net_smch": plant_net_smch, "NM3_TO_MWH": NM3_TO_MWH,
+                "MONTHS": MONTHS, "MONTH_HOURS": MONTH_HOURS,
+                "initial_data": {row["Mese"]: {"Ore": int(row["Ore"]), **{f: row[f] for f in active_feeds if f in row}} for _, row in df_res.iterrows()},
+                "APP_MODE_LABEL": _MODE["label"], "end_use": end_use,
+                "IS_CHP": IS_CHP, "plant_kwe": plant_kwe, "plant_kwe_net": plant_kwe_net,
+                "eta_el": eta_el, "eta_th": eta_th, "aux_el_pct": aux_el_pct,
+                "bp_tariffa_eff_mwh": float(tariffa_media_ponderata), "bp_ore_anno": 8500.0,
+                "bp_durata_tariffa": BP_DURATA_TARIFFA_ANNI,
+                "bp_pnrr_pct": (BP_PNRR_QUOTA_PCT_DEFAULT if not IS_DM2022 else st.session_state.get("bp_pnrr_pct", 40.0)),
+                "bp_tax_rate_pct": BP_TAX_RATE_PCT, "bp_ammort_anni": BP_AMMORTAMENTO_ANNI,
+                "bp_npv_disc_rate_pct": 6.0, "bp_massimale_eur_per_smch": BP_MASSIMALE_SPESA_EUR_PER_SMCH,
+                "NM3_TO_MWH": NM3_TO_MWH, "lang": _LANG,
+                "yield_audit_rows": list(_yield_audit_rows), "effective_yields": dict(_EFFECTIVE_YIELDS),
+                "emission_audit_rows": list(_emission_audit_rows), "emission_overrides": dict(_EMISSION_OVERRIDES),
+            }
+
+            with _dl_col1:
+                try:
+                    from excel_export import build_metaniq_xlsx
+                    _xlsx_buf = build_metaniq_xlsx(_xlsx_ctx)
+                    st.download_button(_t("📊 Scarica Excel"), data=_xlsx_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_consolidato.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True, type="primary")
+                except Exception as _e: st.error(f"XLSX Error: {_e}")
+
+            with _dl_col2:
+                try:
+                    from pdf_export import build_metaniq_pdf
+                    # Re-use _xlsx_ctx or build specific one
+                    _pdf_buf = build_metaniq_pdf(_xlsx_ctx)
+                    st.download_button(_t("📄 Scarica PDF"), data=_pdf_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_report.pdf", mime="application/pdf", use_container_width=True, type="primary")
+                except Exception as _e: st.error(f"PDF Error: {_e}")
+
+            with _dl_col_pptx:
+                try:
+                    from export.pptx_export import build_metaniq_pptx
+                    _pptx_buf = build_metaniq_pptx(_xlsx_ctx)
+                    st.download_button(_t("📊 Presentazione"), data=_pptx_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_slides.pptx", mime="application/vnd.openxmlformats-officedocument.presentationml.presentation", use_container_width=True, type="primary")
+                except Exception as _e: st.error(f"PPTX Error: {_e}")
+
+        except Exception as _exp_ui_exc:
+            st.error(f"Errore UI Export: {_exp_ui_exc}")
 
     # ============================================================
     # AUDIT RESE — Tracciabilita' BMT vs tabella standard

@@ -19,6 +19,7 @@ from core.calculation_engine import (
     DEFAULT_AUX_FACTOR,
     FOSSIL_COMPARATOR,
     ghg_summary,
+    MONTHS,
 )
 from core.daily_model import DailyComputed
 
@@ -60,6 +61,11 @@ class MonthlyAggregate:
     cap_ok_days: int = 0
     cap_violation_days: list[date] = field(default_factory=list)
 
+    # CHP metrics
+    mwh_el_lordo: float = 0.0
+    mwh_el_netto: float = 0.0
+    mwh_termico: float = 0.0
+
     # REMI metrics (consolidate mese)
     remi_vb_total: float = 0.0
     remi_e_total: float = 0.0
@@ -69,6 +75,44 @@ class MonthlyAggregate:
     remi_portata_media_smch: float = 0.0
     remi_potenza_media_mw: float = 0.0
     remi_energia_specifica_kwh_smc: float = 0.0
+    total_hours: float = 0.0
+
+    def to_dict(self) -> dict:
+        """Converte l'aggregato in un dizionario per compatibilità UI (df_res)."""
+        d = {
+            "Mese": MONTHS[self.month - 1] if 1 <= self.month <= 12 else str(self.month),
+            "Ore": self.total_hours,
+            "Sm³ lordi": self.sm3_gross,
+            "Sm³ netti": self.sm3_netti,
+            "MWh netti": self.mwh,
+            "e_w": self.e_total,
+            "Saving %": self.saving_pct,
+            "Totale biomasse (t)": self.biomass_total_t,
+            "Validità": "✅ OK" if self.n_days_with_data > 0 else "❌ Nessun dato",
+        }
+        
+        # Aggiungi colonne CHP se valorizzate
+        if self.mwh_el_lordo > 0:
+            d["MWh elettrici lordi"] = self.mwh_el_lordo
+        if self.mwh_el_netto > 0:
+            d["MWh elettrici netti"] = self.mwh_el_netto
+        if self.mwh_termico > 0:
+            d["MWh termici"] = self.mwh_termico
+
+        d.update({
+            "remi_vb": self.remi_vb_total,
+            "remi_e": self.remi_e_total,
+            "remi_qb_max": self.remi_qb_max_month,
+            "remi_pci": self.remi_pci_avg,
+            "remi_rho": self.remi_rho_avg,
+            "remi_portata_media": self.remi_portata_media_smch,
+            "remi_potenza_media": self.remi_potenza_media_mw,
+            "remi_energia_specifica": self.remi_energia_specifica_kwh_smc,
+        })
+        # Aggiungi i feedstock individuali per la visualizzazione tabellare
+        for name, qty in self.feedstock_totals_t.items():
+            d[name] = qty
+        return d
 
 
 def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
@@ -134,6 +178,7 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
     agg.remi_vb_total = tot_vb
     agg.remi_e_total = tot_e
     agg.remi_qb_max_month = max_qb
+    agg.total_hours = total_hours
     if remi_days > 0:
         agg.remi_pci_avg = pci_sum / remi_days
         agg.remi_rho_avg = rho_sum / remi_days
@@ -170,6 +215,17 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
         # numerico (intensita') ma cambia l'energia di riferimento.
         agg.saving_pct_net = float(summary.get("saving") or 0.0)
         agg.sustainability_basis = "LORDO"
+
+        # Calcolo CHP se richiesto in ctx
+        if ctx.get("IS_CHP"):
+            eta_el = float(ctx.get("eta_el") or 0.40)
+            eta_th = float(ctx.get("eta_th") or 0.42)
+            aux_el_pct = float(ctx.get("aux_el_pct") or 0.08)
+            
+            # mwh_gross è MWh CH4 lordi (resa biomasse)
+            agg.mwh_el_lordo = agg.mwh_gross * eta_el
+            agg.mwh_el_netto = agg.mwh_el_lordo * (1.0 - aux_el_pct)
+            agg.mwh_termico = agg.mwh_gross * eta_th
 
     # Decomposizione media pesata su MJ (per l'audit trail)
     from core.calculation_engine import _emission_factors_of, _yield_of
