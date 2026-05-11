@@ -199,8 +199,8 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
             summary = {"e_w": 0.0, "saving": 0.0, "nm3_gross": 0.0,
                        "nm3_net": 0.0, "mwh_net": 0.0}
         agg.sm3_gross = float(summary.get("nm3_gross") or 0.0)
-        agg.sm3_netti = float(summary.get("nm3_net") or 0.0)
-        agg.mwh = float(summary.get("mwh_net") or agg.sm3_netti * NM3_TO_MWH)
+        agg.sm3_netti = tot_vb
+        agg.mwh = tot_e / 1000.0 if tot_e > 0 else (agg.sm3_netti * NM3_TO_MWH)
         agg.mwh_gross = float(agg.sm3_gross * NM3_TO_MWH)
         agg.e_total = float(summary.get("e_w") or 0.0)
         # saving_pct: base normativa = LORDO (gCO2eq/MJ su MJ lordi)

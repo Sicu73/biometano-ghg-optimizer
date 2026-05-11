@@ -67,8 +67,10 @@ class DailyComputed:
     """
     date: date
     biomass_total_t: float = 0.0
-    sm3_gross: float = 0.0          # Sm3 lordi (resa biomassa)
-    sm3_netti: float = 0.0          # Sm3 netti (lordi / aux_factor)
+    sm3_gross: float = 0.0          # Sm3 lordi (calcolati dalle rese teoriche biomasse)
+    sm3_netti: float = 0.0          # Sm3 netti (reali misurati al REMI)
+    sm3_gross_ora: float = 0.0
+    sm3_netti_ora: float = 0.0
     mwh: float = 0.0                # Energia netta MWh
     eec: float = 0.0                # gCO2eq/MJ ponderato
     esca: float = 0.0
@@ -158,14 +160,21 @@ def compute_daily(entry: DailyEntry, ctx: dict[str, Any] | None = None) -> Daily
         eec_v = esca_v = etd_v = ep_v = 0.0
 
     sm3_gross = float(summary.get("nm3_gross") or 0.0)
-    sm3_net = float(summary.get("nm3_net") or 0.0)
-    mwh = float(summary.get("mwh_net") or sm3_net * NM3_TO_MWH)
+    
+    vb = getattr(entry, "remi_vb", 0.0)
+    e_val = getattr(entry, "remi_e", 0.0)
+    
+    # NUOVA LOGICA: sm3_netti = dato inserito dall'utente
+    sm3_net = vb
+    mwh = e_val / 1000.0 if e_val > 0 else (sm3_net * NM3_TO_MWH)
 
-    # Verifica cap autorizzativo (sm3 lordi/giorno vs capacita' giornaliera)
+    sm3_gross_ora = sm3_gross / hours_per_day if hours_per_day > 0 else 0.0
+    sm3_net_ora = sm3_net / hours_per_day if hours_per_day > 0 else 0.0
+
+    # Verifica cap autorizzativo: la produzione NETTA ORARIA REALE <= cap
     cap_ok = True
     if plant_net_smch > 0 and hours_per_day > 0:
-        max_gross_day = plant_net_smch * aux * hours_per_day
-        cap_ok = sm3_gross <= max_gross_day * 1.0001  # tolleranza arrotondamento
+        cap_ok = sm3_net_ora <= plant_net_smch * 1.0001  # tolleranza
 
     vb = getattr(entry, "remi_vb", 0.0)
     e_val = getattr(entry, "remi_e", 0.0)
@@ -179,6 +188,8 @@ def compute_daily(entry: DailyEntry, ctx: dict[str, Any] | None = None) -> Daily
         biomass_total_t=biomass_total,
         sm3_gross=sm3_gross,
         sm3_netti=sm3_net,
+        sm3_gross_ora=sm3_gross_ora,
+        sm3_netti_ora=sm3_net_ora,
         mwh=mwh,
         eec=eec_v,
         esca=esca_v,

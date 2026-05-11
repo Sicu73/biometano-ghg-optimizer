@@ -5479,7 +5479,7 @@ with tab_daily:
                                 _hours_map[_d_edit] = max(0.0, min(24.0, float(_val or 24.0)))
                             except (TypeError, ValueError):
                                 _hours_map[_d_edit] = 24.0
-                        elif _col == "Vb (Smc)":
+                        elif _col == "Sm³ reali giorno":
                             _remi_map[_d_edit]["vb"] = float(_val or 0.0)
                         elif _col == "E (kWh)":
                             _remi_map[_d_edit]["e"] = float(_val or 0.0)
@@ -5535,7 +5535,7 @@ with tab_daily:
             """✅ giorno OK · ❌ violazione · — nessun dato/fermo."""
             if c is None or biomass_t <= 0 or hours_run <= 0:
                 return "—"
-            sm3h = c.sm3_netti / hours_run if hours_run > 0 else 0.0
+            sm3h = float(c.sm3_netti_ora)
             cap_ok = (_cap_smch <= 0) or (sm3h <= _cap_smch)
             sav_ok = c.daily_saving_estimate >= _thr_pct_pre
             return "✅" if (cap_ok and sav_ok) else "❌"
@@ -5547,7 +5547,7 @@ with tab_daily:
                "si aggiornano automaticamente.")
         )
 
-        _REMI_VB_COL = "Vb (Smc)"
+        _REMI_VB_COL = "Sm³ reali giorno"
         _REMI_E_COL = "E (kWh)"
         _REMI_QBMAX_COL = "Qb max (Smc/h)"
         _REMI_PCI_COL = "PCI (kWh/mc)"
@@ -5577,8 +5577,8 @@ with tab_daily:
 
             _c = _pre_computed[_i]
             if _c is not None:
-                _row[_SMH_GROSS_COL] = (_c.sm3_gross / _h) if _h > 0 else 0.0
-                _row[_SMH_COL]       = (_c.sm3_netti / _h) if _h > 0 else 0.0
+                _row[_SMH_GROSS_COL] = float(_c.sm3_gross_ora)
+                _row[_SMH_COL]       = float(_c.sm3_netti_ora)
                 _row[_SAV_COL]       = float(_c.daily_saving_estimate)
                 _row[_REMI_FLOW_COL] = _c.remi_portata_media_smch
                 _row[_REMI_POW_COL]  = _c.remi_potenza_media_mw
@@ -5622,14 +5622,14 @@ with tab_daily:
                 },
                 _SMH_GROSS_COL: st.column_config.NumberColumn(
                     _SMH_GROSS_COL, disabled=True, format="%.1f",
-                    help=_t("Biogas LORDO (pre-upgrading) prodotto in 1 ora. "
-                            "Calcolato = Sm³ lordi giornalieri / ore di funzionamento."),
+                    help=_t("Biogas LORDO prodotto in 1 ora. "
+                            "Calcolato = Resa teorica biomasse / ore di funzionamento."),
                 ),
                 _SMH_COL: st.column_config.NumberColumn(
                     _SMH_COL, disabled=True, format="%.1f",
                     help=_t("Biometano NETTO immesso in rete in 1 ora. "
-                            "Calcolato = Sm³ netti giornalieri / ore. Cap autorizzato:")
-                         + f" {_cap_smch:,.0f}",
+                            "Calcolato = Sm³ reali giorno / ore di funzionamento. "
+                            "Cap autorizzato:") + f" {_cap_smch:,.0f}",
                 ),
                 _SAV_COL: st.column_config.NumberColumn(
                     _SAV_COL, disabled=True, format="%.2f",
@@ -5643,7 +5643,8 @@ with tab_daily:
                 ),
                 _REMI_VB_COL: st.column_config.NumberColumn(
                     _REMI_VB_COL, min_value=0.0, format="%.0f",
-                    help=_t("Volume biometano REMI (Smc)"),
+                    help=_t("Volume biometano reale misurato al REMI (Sm³) in questo giorno. "
+                            "Questo valore viene diviso per le Ore per determinare gli Sm³/h netti."),
                 ),
                 _REMI_E_COL: st.column_config.NumberColumn(
                     _REMI_E_COL, min_value=0.0, format="%.0f",
@@ -5734,7 +5735,7 @@ with tab_daily:
         _n_days_data = sum(1 for _c in _computed_list if _c.biomass_total_t > 0)
         _n_cap_viol = sum(
             1 for _c in _computed_list
-            if _cap_smch > 0 and (_c.sm3_netti / 24.0) > _cap_smch
+            if _cap_smch > 0 and _c.sm3_netti_ora > _cap_smch
         )
         # Audit robustezza #19: il filtro `0 < saving` mascherava i giorni
         # patologici con saving NEGATIVO (e_total > comparator → impianto
