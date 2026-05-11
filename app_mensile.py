@@ -2233,9 +2233,9 @@ with st.sidebar:
     )
     st.session_state.active_feeds = active_feeds_sel
     active_feeds = st.session_state.active_feeds
-        if not active_feeds:
-            st.warning(_t("⚠️ Seleziona almeno 1 biomassa per procedere."))
-            st.stop()
+    if not active_feeds:
+        st.warning(_t("⚠️ Seleziona almeno 1 biomassa per procedere."))
+        st.stop()
 
 # ============================================================
 # DEFAULT GLOBALI per tab-globals (audit robustezza #1)
