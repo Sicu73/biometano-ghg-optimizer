@@ -34,6 +34,8 @@ def build_daily_dataframe(
       eec, esca, etd, ep, e_total,
       Saving giornaliero (stima %),
       Cap OK,
+      remi_vb, remi_e, remi_qb_max, remi_pci, remi_rho,
+      remi_portata_media_smch, remi_potenza_media_mw, remi_energia_specifica_kwh_smc,
       Cumulato Sm3, Cumulato MWh, Cumulato t.
     """
     by_date_entry = {e.date: e for e in (daily_entries or [])}
@@ -76,9 +78,24 @@ def build_daily_dataframe(
                 "e_total":                 c.e_total,
                 "Saving giornaliero (stima %)": c.daily_saving_estimate,
                 "Cap OK":                  c.cap_ok,
+                "remi_vb":                 c.remi_portata_media_smch * hpd if hpd > 0 else 0.0, # Placeholder if needed, but we have entry
+                "remi_e":                  0.0, # Placeholder
                 "Cumulato Sm3":            cum_sm3,
                 "Cumulato MWh":            cum_mwh,
                 "Cumulato t":              cum_t,
+            })
+            if e:
+                row.update({
+                    "remi_vb":             e.remi_vb,
+                    "remi_e":              e.remi_e,
+                    "remi_qb_max":         e.remi_qb_max,
+                    "remi_pci":            e.remi_pci,
+                    "remi_rho":            e.remi_rho,
+                })
+            row.update({
+                "remi_portata_media_smch": c.remi_portata_media_smch,
+                "remi_potenza_media_mw":   c.remi_potenza_media_mw,
+                "remi_energia_specifica_kwh_smc": c.remi_energia_specifica_kwh_smc,
             })
         else:
             tot_t = sum(row.get(f, 0.0) for f in feed_columns) if feed_columns else 0.0
@@ -95,6 +112,14 @@ def build_daily_dataframe(
                 "e_total":                 0.0,
                 "Saving giornaliero (stima %)": 0.0,
                 "Cap OK":                  True,
+                "remi_vb":                 e.remi_vb if e else 0.0,
+                "remi_e":                  e.remi_e if e else 0.0,
+                "remi_qb_max":             e.remi_qb_max if e else 0.0,
+                "remi_pci":                e.remi_pci if e else 0.0,
+                "remi_rho":                e.remi_rho if e else 0.0,
+                "remi_portata_media_smch": 0.0,
+                "remi_potenza_media_mw":   0.0,
+                "remi_energia_specifica_kwh_smc": 0.0,
                 "Cumulato Sm3":            cum_sm3,
                 "Cumulato MWh":            cum_mwh,
                 "Cumulato t":              cum_t,
@@ -106,6 +131,8 @@ def build_daily_dataframe(
             "Tot biomasse t", "Sm3 netti", "Sm³/h netti", "MWh",
             "eec", "esca", "etd", "ep", "e_total",
             "Saving giornaliero (stima %)", "Cap OK",
+            "remi_vb", "remi_e", "remi_qb_max", "remi_pci", "remi_rho",
+            "remi_portata_media_smch", "remi_potenza_media_mw", "remi_energia_specifica_kwh_smc",
             "Cumulato Sm3", "Cumulato MWh", "Cumulato t",
         ])
         return pd.DataFrame(columns=cols)
@@ -166,6 +193,32 @@ def append_monthly_total_row(
             total["Sm³/h netti"] = float(out["Sm³/h netti"].max())
         except (TypeError, ValueError):
             total["Sm³/h netti"] = 0.0
+
+    # Aggregati REMI
+    if "remi_vb" in out.columns:
+        total["remi_vb"] = float(out["remi_vb"].sum())
+    if "remi_e" in out.columns:
+        total["remi_e"] = float(out["remi_e"].sum())
+    if "remi_qb_max" in out.columns:
+        total["remi_qb_max"] = float(out["remi_qb_max"].max())
+    
+    # KPI REMI medi mensili
+    if "remi_vb" in total and total["remi_vb"] > 0:
+        if "remi_e" in total:
+            total["remi_energia_specifica_kwh_smc"] = total["remi_e"] / total["remi_vb"]
+    
+    # Per portata e potenza media mensile, servirebbe il totale ore del mese
+    # Possiamo approssimare o calcolare se abbiamo accesso alle ore.
+    # In questa vista, le ore non sono aggregate esplicitamente nella riga totale ancora.
+    # Ma possiamo calcolare la media delle colonne se presenti.
+    if "remi_portata_media_smch" in out.columns:
+        mask = out["remi_portata_media_smch"] > 0
+        if mask.any():
+            total["remi_portata_media_smch"] = out.loc[mask, "remi_portata_media_smch"].mean()
+    if "remi_potenza_media_mw" in out.columns:
+        mask = out["remi_potenza_media_mw"] > 0
+        if mask.any():
+            total["remi_potenza_media_mw"] = out.loc[mask, "remi_potenza_media_mw"].mean()
 
     # Saving giornaliero medio pesato (su giorni con biomassa effettiva)
     if "Saving giornaliero (stima %)" in out.columns and "Tot biomasse t" in out.columns:
@@ -279,6 +332,15 @@ def style_daily_dataframe(
     for col in ("Cumulato Sm3", "Cumulato MWh", "Cumulato t"):
         if col in df.columns:
             fmt_map[col] = "{:,.1f}"
+    
+    # Formattazione REMI
+    for col in ("remi_vb", "remi_e", "remi_qb_max", "remi_portata_media_smch"):
+        if col in df.columns:
+            fmt_map[col] = "{:,.0f}"
+    for col in ("remi_pci", "remi_rho", "remi_potenza_media_mw", "remi_energia_specifica_kwh_smc"):
+        if col in df.columns:
+            fmt_map[col] = "{:,.2f}"
+
     try:
         styler = styler.format(fmt_map, na_rep="-")
     except Exception:

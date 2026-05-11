@@ -5140,12 +5140,21 @@ with tab_daily:
             _all_days = _gen_days(int(_do_year), int(_do_month))
             _data_map: dict = {d: {} for d in _all_days}
             _hours_init: dict = {d: 24.0 for d in _all_days}
+            _remi_init: dict = {d: {"vb": 0.0, "e": 0.0, "qb_max": 0.0, "pci": 0.0, "rho": 0.0} for d in _all_days}
             for _e in _loaded:
                 if _e.date in _data_map:
                     _data_map[_e.date] = dict(_e.feedstocks)
                     _hours_init[_e.date] = float(_e.hours_per_day)
+                    _remi_init[_e.date] = {
+                        "vb": float(_e.remi_vb),
+                        "e": float(_e.remi_e),
+                        "qb_max": float(_e.remi_qb_max),
+                        "pci": float(_e.remi_pci),
+                        "rho": float(_e.remi_rho),
+                    }
             st.session_state[_do_key] = _data_map
             st.session_state[_hours_key] = _hours_init
+            st.session_state[_do_key + "::remi"] = _remi_init
 
         # Audit robustezza #11: safety net "altri plant_id con dati salvati".
         # Quando l'utente rinomina l'impianto (es. "Cascina A" → "Cascina A srl")
@@ -5196,6 +5205,7 @@ with tab_daily:
                     _all_days = _gen_days(int(_do_year), int(_do_month))
                     st.session_state[_do_key] = {d: {} for d in _all_days}
                     st.session_state[_hours_key] = {d: 24.0 for d in _all_days}
+                    st.session_state[_do_key + "::remi"] = {d: {"vb": 0.0, "e": 0.0, "qb_max": 0.0, "pci": 0.0, "rho": 0.0} for d in _all_days}
                     st.success(_t("Mese azzerato. Inserisci nuovi dati nella tabella."))
 
         _do_active_feeds = list(active_feeds) if active_feeds else list(FEED_NAMES)[:6]
@@ -5222,7 +5232,7 @@ with tab_daily:
         # =================================================================
         _compute_config_errors: set = set()
 
-        def _compute_safely(_date, _feedstocks, _hours_run=24.0):
+        def _compute_safely(_date, _feedstocks, _hours_run=24.0, _remi_data=None):
             """Calcola DailyComputed, accettando ore di funzionamento per riga.
 
             Le ore di funzionamento finiscono nel ctx come `hours_per_day`
@@ -5232,8 +5242,16 @@ with tab_daily:
             _ctx_local = dict(_ctx)
             _ctx_local["hours_per_day"] = float(_hours_run) if _hours_run else 24.0
             try:
+                _entry = _DEntry(date=_date, feedstocks=_feedstocks)
+                if _remi_data:
+                    _entry.remi_vb = float(_remi_data.get("vb", 0.0))
+                    _entry.remi_e = float(_remi_data.get("e", 0.0))
+                    _entry.remi_qb_max = float(_remi_data.get("qb_max", 0.0))
+                    _entry.remi_pci = float(_remi_data.get("pci", 0.0))
+                    _entry.remi_rho = float(_remi_data.get("rho", 0.0))
+
                 return _compute_daily(
-                    _DEntry(date=_date, feedstocks=_feedstocks),
+                    _entry,
                     ctx=_ctx_local,
                 )
             except KeyError as _kexc:  # biomassa non in FEEDSTOCK_DB
@@ -5247,12 +5265,18 @@ with tab_daily:
 
         # _hours_key è già definito sopra (stesso scope) — safety net per
         # session reinizializzazioni parziali.
+        _remi_key = _do_key + "::remi"
         if _hours_key not in st.session_state:
             st.session_state[_hours_key] = {_d: 24.0 for _d in _all_days}
+        if _remi_key not in st.session_state:
+            st.session_state[_remi_key] = {_d: {"vb": 0.0, "e": 0.0, "qb_max": 0.0, "pci": 0.0, "rho": 0.0} for _d in _all_days}
+        
         _hours_map = st.session_state[_hours_key]
+        _remi_map = st.session_state[_remi_key]
         # Garantisce che ci sia una entry per ogni giorno (aggiunge giorni nuovi)
         for _d in _all_days:
             _hours_map.setdefault(_d, 24.0)
+            _remi_map.setdefault(_d, {"vb": 0.0, "e": 0.0, "qb_max": 0.0, "pci": 0.0, "rho": 0.0})
 
         # =================================================================
         # FIX BUG SM³/h NON CALCOLATI: applicazione PRE-RENDER degli edits
@@ -5289,6 +5313,16 @@ with tab_daily:
                                 _hours_map[_d_edit] = max(0.0, min(24.0, float(_val or 24.0)))
                             except (TypeError, ValueError):
                                 _hours_map[_d_edit] = 24.0
+                        elif _col == "Vb (Smc)":
+                            _remi_map[_d_edit]["vb"] = float(_val or 0.0)
+                        elif _col == "E (kWh)":
+                            _remi_map[_d_edit]["e"] = float(_val or 0.0)
+                        elif _col == "Qb max (Smc/h)":
+                            _remi_map[_d_edit]["qb_max"] = float(_val or 0.0)
+                        elif _col == "PCI (kWh/mc)":
+                            _remi_map[_d_edit]["pci"] = float(_val or 0.0)
+                        elif _col == "Rho (kg/mc)":
+                            _remi_map[_d_edit]["rho"] = float(_val or 0.0)
                         elif _col in _do_active_feeds:
                             try:
                                 _v = float(_val or 0.0)
@@ -5312,6 +5346,7 @@ with tab_daily:
                 _d,
                 dict(_data_map.get(_d) or {}),
                 _hours_run=float(_hours_map.get(_d, 24.0)),
+                _remi_data=_remi_map.get(_d),
             )
             for _d in _all_days
         ]
@@ -5346,6 +5381,15 @@ with tab_daily:
                "si aggiornano automaticamente.")
         )
 
+        _REMI_VB_COL = "Vb (Smc)"
+        _REMI_E_COL = "E (kWh)"
+        _REMI_QBMAX_COL = "Qb max (Smc/h)"
+        _REMI_PCI_COL = "PCI (kWh/mc)"
+        _REMI_RHO_COL = "Rho (kg/mc)"
+        _REMI_FLOW_COL = "Portata REMI (Smc/h)"
+        _REMI_POW_COL = "Potenza REMI (MW)"
+        _REMI_SPEC_COL = "Energia Spec. (kWh/Smc)"
+
         _edit_rows = []
         for _i, _d in enumerate(_all_days):
             _h = float(_hours_map.get(_d, 24.0))
@@ -5355,10 +5399,32 @@ with tab_daily:
                 _v = float((_data_map.get(_d) or {}).get(_f, 0.0))
                 _row[_f] = _v
                 _bio_row += _v
+            
+            _rm = _remi_map.get(_d, {})
+            _row.update({
+                _REMI_VB_COL: _rm.get("vb", 0.0),
+                _REMI_E_COL: _rm.get("e", 0.0),
+                _REMI_QBMAX_COL: _rm.get("qb_max", 0.0),
+                _REMI_PCI_COL: _rm.get("pci", 0.0),
+                _REMI_RHO_COL: _rm.get("rho", 0.0),
+            })
+
             _c = _pre_computed[_i]
-            _row[_SMH_GROSS_COL] = (_c.sm3_gross / _h) if (_c is not None and _h > 0) else 0.0
-            _row[_SMH_COL]       = (_c.sm3_netti / _h) if (_c is not None and _h > 0) else 0.0
-            _row[_SAV_COL]       = float(_c.daily_saving_estimate) if _c is not None else 0.0
+            if _c is not None:
+                _row[_SMH_GROSS_COL] = (_c.sm3_gross / _h) if _h > 0 else 0.0
+                _row[_SMH_COL]       = (_c.sm3_netti / _h) if _h > 0 else 0.0
+                _row[_SAV_COL]       = float(_c.daily_saving_estimate)
+                _row[_REMI_FLOW_COL] = _c.remi_portata_media_smch
+                _row[_REMI_POW_COL]  = _c.remi_potenza_media_mw
+                _row[_REMI_SPEC_COL] = _c.remi_energia_specifica_kwh_smc
+            else:
+                _row[_SMH_GROSS_COL] = 0.0
+                _row[_SMH_COL]       = 0.0
+                _row[_SAV_COL]       = 0.0
+                _row[_REMI_FLOW_COL] = 0.0
+                _row[_REMI_POW_COL]  = 0.0
+                _row[_REMI_SPEC_COL] = 0.0
+
             _row[_OK_COL]        = _row_outcome(_c, _bio_row, _h)
             _edit_rows.append(_row)
         _edit_df = _pd_daily.DataFrame(_edit_rows)
@@ -5409,6 +5475,38 @@ with tab_daily:
                             "❌ violazione cap o saving sotto soglia · "
                             "— nessun dato. NB: la conformità ufficiale resta mensile."),
                 ),
+                _REMI_VB_COL: st.column_config.NumberColumn(
+                    _REMI_VB_COL, min_value=0.0, format="%.0f",
+                    help=_t("Volume biometano REMI (Smc)"),
+                ),
+                _REMI_E_COL: st.column_config.NumberColumn(
+                    _REMI_E_COL, min_value=0.0, format="%.0f",
+                    help=_t("Energia biometano REMI (kWh)"),
+                ),
+                _REMI_QBMAX_COL: st.column_config.NumberColumn(
+                    _REMI_QBMAX_COL, min_value=0.0, format="%.1f",
+                    help=_t("Portata massima REMI (Smc/h)"),
+                ),
+                _REMI_PCI_COL: st.column_config.NumberColumn(
+                    _REMI_PCI_COL, min_value=0.0, format="%.4f",
+                    help=_t("Potere calorifico inferiore REMI (kWh/mc)"),
+                ),
+                _REMI_RHO_COL: st.column_config.NumberColumn(
+                    _REMI_RHO_COL, min_value=0.0, format="%.4f",
+                    help=_t("Densità biometano REMI (kg/mc)"),
+                ),
+                _REMI_FLOW_COL: st.column_config.NumberColumn(
+                    _REMI_FLOW_COL, disabled=True, format="%.1f",
+                    help=_t("Portata media REMI calcolata (Smc/h)"),
+                ),
+                _REMI_POW_COL: st.column_config.NumberColumn(
+                    _REMI_POW_COL, disabled=True, format="%.3f",
+                    help=_t("Potenza termica media REMI (MW)"),
+                ),
+                _REMI_SPEC_COL: st.column_config.NumberColumn(
+                    _REMI_SPEC_COL, disabled=True, format="%.3f",
+                    help=_t("Energia specifica REMI (kWh/Smc)"),
+                ),
             },
             use_container_width=True,
         )
@@ -5427,13 +5525,19 @@ with tab_daily:
         # =================================================================
         _entries_list = [
             _DEntry(date=_d, feedstocks=dict(_data_map.get(_d) or {}),
-                    hours_per_day=float(_hours_map.get(_d, 24.0)))
+                    hours_per_day=float(_hours_map.get(_d, 24.0)),
+                    remi_vb=float(_remi_map[_d]["vb"]),
+                    remi_e=float(_remi_map[_d]["e"]),
+                    remi_qb_max=float(_remi_map[_d]["qb_max"]),
+                    remi_pci=float(_remi_map[_d]["pci"]),
+                    remi_rho=float(_remi_map[_d]["rho"]))
             for _d in _all_days
         ]
         _computed_raw = [
             _compute_safely(
                 _e.date, _e.feedstocks,
                 _hours_run=float(_hours_map.get(_e.date, 24.0)),
+                _remi_data=_remi_map.get(_e.date),
             )
             for _e in _entries_list
         ]
@@ -5581,6 +5685,16 @@ with tab_daily:
             "📅 " + _t("Giorni con dati"),
             f"{_kpis['n_days_with_data']} / {len(_all_days)}",
         )
+
+        # KPI REMI consolidati (se presenti dati)
+        if _kpis.get("remi_vb_total", 0) > 0:
+            st.markdown(f"#### 📊 {_t('Consolidato REMI mese')}")
+            _r1, _r2, _r3, _r4, _r5 = st.columns(5)
+            _r1.metric("📉 " + _t("Vb totale"), f"{_it_num(_kpis['remi_vb_total'], 0)} Smc")
+            _r2.metric("🔋 " + _t("E totale"), f"{_it_num(_kpis['remi_e_total'], 0)} kWh")
+            _r3.metric("🌀 " + _t("Portata media"), f"{_it_num(_kpis['remi_portata_media_smch'], 1)} Smc/h")
+            _r4.metric("⚡ " + _t("Potenza media"), f"{_it_num(_kpis['remi_potenza_media_mw'], 3)} MW")
+            _r5.metric("🎯 " + _t("Energia Spec."), f"{_it_num(_kpis['remi_energia_specifica_kwh_smc'], 3)} kWh/Smc")
 
         # =================================================================
         # DETTAGLI & AUDIT — un solo expander con vincoli + indicazioni + audit

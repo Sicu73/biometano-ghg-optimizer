@@ -60,6 +60,16 @@ class MonthlyAggregate:
     cap_ok_days: int = 0
     cap_violation_days: list[date] = field(default_factory=list)
 
+    # REMI metrics (consolidate mese)
+    remi_vb_total: float = 0.0
+    remi_e_total: float = 0.0
+    remi_qb_max_month: float = 0.0
+    remi_pci_avg: float = 0.0
+    remi_rho_avg: float = 0.0
+    remi_portata_media_smch: float = 0.0
+    remi_potenza_media_mw: float = 0.0
+    remi_energia_specifica_kwh_smc: float = 0.0
+
 
 def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
                year: int = 0, month: int = 0) -> MonthlyAggregate:
@@ -94,6 +104,46 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
     agg.n_days_with_data = days_with_data
     agg.cap_ok_days = cap_ok_days
     agg.cap_violation_days = cap_violations
+
+    # Aggregazione REMI
+    tot_vb = 0.0
+    tot_e = 0.0
+    max_qb = 0.0
+    pci_sum = 0.0
+    rho_sum = 0.0
+    remi_days = 0
+    total_hours = 0.0
+
+    for d in daily_list:
+        vb = getattr(d, "remi_vb", 0.0)
+        e_val = getattr(d, "remi_e", 0.0)
+        qb = getattr(d, "remi_qb_max", 0.0)
+        pci = getattr(d, "remi_pci", 0.0)
+        rho = getattr(d, "remi_rho", 0.0)
+        h = getattr(d, "hours_per_day", 24.0)
+
+        tot_vb += vb
+        tot_e += e_val
+        max_qb = max(max_qb, qb)
+        if vb > 0 or e_val > 0:
+            pci_sum += pci
+            rho_sum += rho
+            remi_days += 1
+            total_hours += h
+
+    agg.remi_vb_total = tot_vb
+    agg.remi_e_total = tot_e
+    agg.remi_qb_max_month = max_qb
+    if remi_days > 0:
+        agg.remi_pci_avg = pci_sum / remi_days
+        agg.remi_rho_avg = rho_sum / remi_days
+    
+    if total_hours > 0:
+        agg.remi_portata_media_smch = tot_vb / total_hours
+        agg.remi_potenza_media_mw = tot_e / total_hours / 1000.0
+    
+    if tot_vb > 0:
+        agg.remi_energia_specifica_kwh_smc = tot_e / tot_vb
 
     # Sostenibilita' ricalcolata sull'AGGREGATO mensile (regola compliance)
     if feed_totals and agg.biomass_total_t > 0:

@@ -73,7 +73,9 @@ def build_daily_pdf(daily_df: pd.DataFrame, monthly_kpis: dict[str, Any],
     story.append(Paragraph("KPI Mensili", styles["Heading2"]))
     kpi_data = [["KPI", "Valore"]]
     for k in ("year", "month", "regime", "biomass_total_t", "sm3_netti", "mwh",
-              "saving_pct", "threshold", "margin", "compliant"):
+              "saving_pct", "threshold", "margin", "compliant",
+              "remi_vb_total", "remi_e_total", "remi_portata_media_smch",
+              "remi_potenza_media_mw", "remi_energia_specifica_kwh_smc"):
         if k in monthly_kpis:
             v = monthly_kpis[k]
             if isinstance(v, float):

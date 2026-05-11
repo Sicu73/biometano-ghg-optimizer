@@ -102,6 +102,29 @@ def test_aggregate_month_sum_equals_total():
     assert agg.n_days_with_data == 3
 
 
+def test_aggregate_month_remi():
+    daily = [
+        DailyComputed(date=date(2025, 1, 1), biomass_total_t=10.0,
+                      remi_vb=1000.0, remi_e=10000.0, remi_qb_max=100.0,
+                      hours_per_day=24.0),
+        DailyComputed(date=date(2025, 1, 2), biomass_total_t=10.0,
+                      remi_vb=2000.0, remi_e=20000.0, remi_qb_max=150.0,
+                      hours_per_day=12.0),
+    ]
+    agg = aggregate_month(daily, year=2025, month=1)
+    
+    assert agg.remi_vb_total == pytest.approx(3000.0)
+    assert agg.remi_e_total == pytest.approx(30000.0)
+    assert agg.remi_qb_max_month == pytest.approx(150.0)
+    # Total hours = 24 + 12 = 36
+    # Portata media = 3000 / 36 = 83.33
+    assert agg.remi_portata_media_smch == pytest.approx(3000.0 / 36.0)
+    # Potenza media = 30000 / 36 / 1000 = 0.833
+    assert agg.remi_potenza_media_mw == pytest.approx(30000.0 / 36.0 / 1000.0)
+    # Energia specifica = 30000 / 3000 = 10.0
+    assert agg.remi_energia_specifica_kwh_smc == pytest.approx(10.0)
+
+
 def test_monthly_sustainability_compliant():
     # Mock aggregato gia' calcolato con saving > soglia
     from core.monthly_aggregate import MonthlyAggregate

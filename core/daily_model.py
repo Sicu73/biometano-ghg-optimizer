@@ -49,6 +49,11 @@ class DailyEntry:
     """
     date: date
     feedstocks: dict[str, float] = field(default_factory=dict)
+    remi_vb: float = 0.0
+    remi_e: float = 0.0
+    remi_qb_max: float = 0.0
+    remi_pci: float = 0.0
+    remi_rho: float = 0.0
     notes: str = ""
     hours_per_day: float = 24.0
 
@@ -74,6 +79,17 @@ class DailyComputed:
     cap_ok: bool = True             # vincolo autorizzativo (Sm3/h capacita')
     feedstock_breakdown: dict[str, float] = field(default_factory=dict)
 
+    remi_portata_media_smch: float = 0.0
+    remi_potenza_media_mw: float = 0.0
+    remi_energia_specifica_kwh_smc: float = 0.0
+
+    # Raw REMI inputs for aggregation
+    remi_vb: float = 0.0
+    remi_e: float = 0.0
+    remi_qb_max: float = 0.0
+    remi_pci: float = 0.0
+    remi_rho: float = 0.0
+    hours_per_day: float = 24.0
 
 # ---------------------------------------------------------------------------
 # Calcolo giornaliero
@@ -151,6 +167,13 @@ def compute_daily(entry: DailyEntry, ctx: dict[str, Any] | None = None) -> Daily
         max_gross_day = plant_net_smch * aux * hours_per_day
         cap_ok = sm3_gross <= max_gross_day * 1.0001  # tolleranza arrotondamento
 
+    vb = getattr(entry, "remi_vb", 0.0)
+    e_val = getattr(entry, "remi_e", 0.0)
+
+    portata_media = vb / hours_per_day if hours_per_day > 0 else 0.0
+    potenza_media = e_val / hours_per_day / 1000.0 if hours_per_day > 0 else 0.0
+    energia_spec = e_val / vb if vb > 0 else 0.0
+
     return DailyComputed(
         date=entry.date,
         biomass_total_t=biomass_total,
@@ -165,8 +188,16 @@ def compute_daily(entry: DailyEntry, ctx: dict[str, Any] | None = None) -> Daily
         daily_saving_estimate=float(summary.get("saving") or 0.0),
         cap_ok=cap_ok,
         feedstock_breakdown=dict(masses),
+        remi_portata_media_smch=portata_media,
+        remi_potenza_media_mw=potenza_media,
+        remi_energia_specifica_kwh_smc=energia_spec,
+        remi_vb=vb,
+        remi_e=e_val,
+        remi_qb_max=getattr(entry, "remi_qb_max", 0.0),
+        remi_pci=getattr(entry, "remi_pci", 0.0),
+        remi_rho=getattr(entry, "remi_rho", 0.0),
+        hours_per_day=hours_per_day,
     )
-
 
 __all__ = [
     "DailyEntry",

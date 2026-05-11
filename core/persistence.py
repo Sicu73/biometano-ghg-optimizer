@@ -73,6 +73,14 @@ def init_db(path: str | None = None) -> str:
             """
         )
         conn.commit()
+        try:
+            conn.execute("ALTER TABLE daily_hours ADD COLUMN remi_vb REAL DEFAULT 0.0")
+            conn.execute("ALTER TABLE daily_hours ADD COLUMN remi_e REAL DEFAULT 0.0")
+            conn.execute("ALTER TABLE daily_hours ADD COLUMN remi_qb_max REAL DEFAULT 0.0")
+            conn.execute("ALTER TABLE daily_hours ADD COLUMN remi_pci REAL DEFAULT 0.0")
+            conn.execute("ALTER TABLE daily_hours ADD COLUMN remi_rho REAL DEFAULT 0.0")
+        except sqlite3.OperationalError:
+            pass
     return db_path
 
 
@@ -109,8 +117,14 @@ def save_month(year: int, month: int, daily_entries: list[DailyEntry],
             hours = max(0.0, min(24.0, hours))
             conn.execute(
                 "INSERT OR REPLACE INTO daily_hours "
-                "(plant_id, date, hours_per_day) VALUES (?, ?, ?)",
-                (plant_id, d_iso, hours),
+                "(plant_id, date, hours_per_day, remi_vb, remi_e, remi_qb_max, remi_pci, remi_rho) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (plant_id, d_iso, hours,
+                 float(getattr(entry, "remi_vb", 0.0) or 0.0),
+                 float(getattr(entry, "remi_e", 0.0) or 0.0),
+                 float(getattr(entry, "remi_qb_max", 0.0) or 0.0),
+                 float(getattr(entry, "remi_pci", 0.0) or 0.0),
+                 float(getattr(entry, "remi_rho", 0.0) or 0.0)),
             )
             for fname, qty in (entry.feedstocks or {}).items():
                 if qty is None:
@@ -163,12 +177,21 @@ def load_month(year: int, month: int, plant_id: str = "default",
             if notes:
                 notes_by_day[d_iso] = str(notes)
         cur_h = conn.execute(
-            "SELECT date, hours_per_day FROM daily_hours WHERE plant_id = ? "
+            "SELECT date, hours_per_day, remi_vb, remi_e, remi_qb_max, remi_pci, remi_rho FROM daily_hours WHERE plant_id = ? "
             "AND date >= ? AND date <= ?",
             (plant_id, first, last),
         )
-        for d_iso, h in cur_h.fetchall():
-            hours_by_day[d_iso] = float(h)
+        remi_by_day = {}
+        for row in cur_h.fetchall():
+            d_iso = row[0]
+            hours_by_day[d_iso] = float(row[1])
+            remi_by_day[d_iso] = {
+                "remi_vb": float(row[2]) if row[2] is not None else 0.0,
+                "remi_e": float(row[3]) if row[3] is not None else 0.0,
+                "remi_qb_max": float(row[4]) if row[4] is not None else 0.0,
+                "remi_pci": float(row[5]) if row[5] is not None else 0.0,
+                "remi_rho": float(row[6]) if row[6] is not None else 0.0,
+            }
 
     entries: list[DailyEntry] = []
     for d_iso in sorted(rows.keys()):
@@ -176,11 +199,17 @@ def load_month(year: int, month: int, plant_id: str = "default",
             d_obj = date.fromisoformat(d_iso)
         except ValueError:
             continue
+        rm = remi_by_day.get(d_iso, {})
         entries.append(DailyEntry(
             date=d_obj,
             feedstocks=rows[d_iso],
             notes=notes_by_day.get(d_iso, ""),
             hours_per_day=hours_by_day.get(d_iso, 24.0),
+            remi_vb=rm.get("remi_vb", 0.0),
+            remi_e=rm.get("remi_e", 0.0),
+            remi_qb_max=rm.get("remi_qb_max", 0.0),
+            remi_pci=rm.get("remi_pci", 0.0),
+            remi_rho=rm.get("remi_rho", 0.0),
         ))
     return entries
 

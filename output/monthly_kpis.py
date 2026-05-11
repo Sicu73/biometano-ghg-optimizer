@@ -44,6 +44,15 @@ def build_monthly_kpis(
         "constraints_status":  list(se.get("constraints_status", [])),
         "regime":              str(se.get("regime", "")),
         "cap_violation_days":  list(getattr(monthly_agg, "cap_violation_days", []) or []),
+        # REMI consolidated KPIs
+        "remi_vb_total":       float(getattr(monthly_agg, "remi_vb_total", 0.0)),
+        "remi_e_total":        float(getattr(monthly_agg, "remi_e_total", 0.0)),
+        "remi_qb_max_month":   float(getattr(monthly_agg, "remi_qb_max_month", 0.0)),
+        "remi_pci_avg":        float(getattr(monthly_agg, "remi_pci_avg", 0.0)),
+        "remi_rho_avg":        float(getattr(monthly_agg, "remi_rho_avg", 0.0)),
+        "remi_portata_media_smch": float(getattr(monthly_agg, "remi_portata_media_smch", 0.0)),
+        "remi_potenza_media_mw":   float(getattr(monthly_agg, "remi_potenza_media_mw", 0.0)),
+        "remi_energia_specifica_kwh_smc": float(getattr(monthly_agg, "remi_energia_specifica_kwh_smc", 0.0)),
     }
 
 
