@@ -5654,7 +5654,8 @@ with tab_daily:
             if _saving_pct < _thr:
                 _totals_row["Note"] = f"KO — Saving {_saving_pct:.1f}% (soglia {_thr:.0f}%)"
             else:
-                _totals_row["Note"] = "KO — " + " | ".join(_kpis.get('constraints_status', []))
+                _failed_c = [c.get("name", "") for c in _kpis.get('constraints_status', []) if not c.get("ok", True)]
+                _totals_row["Note"] = "KO — Vincoli violati: " + " | ".join(_failed_c)
         
         _edit_rows.append(_totals_row)
         _edit_df = _pd_daily.DataFrame(_edit_rows)
