@@ -5507,15 +5507,38 @@ with tab_daily:
             st.session_state[_do_key] = _data_map
             st.session_state[_hours_key] = _hours_map
 
-        _pre_computed = [
-            _compute_safely(
-                _d,
-                dict(_data_map.get(_d) or {}),
-                _hours_run=float(_hours_map.get(_d, 24.0)),
-                _remi_data=_remi_map.get(_d),
-            )
+        _entries_list = [
+            _DEntry(date=_d, feedstocks=dict(_data_map.get(_d) or {}),
+                    hours_per_day=float(_hours_map.get(_d, 24.0)),
+                    remi_vb=float(_remi_map[_d]["vb"]),
+                    remi_e=float(_remi_map[_d]["e"]),
+                    remi_qb_max=float(_remi_map[_d]["qb_max"]),
+                    remi_pci=float(_remi_map[_d]["pci"]),
+                    remi_rho=float(_remi_map[_d]["rho"]))
             for _d in _all_days
         ]
+        _pre_computed = [
+            _compute_safely(
+                _e.date, _e.feedstocks,
+                _hours_run=float(_hours_map.get(_e.date, 24.0)),
+                _remi_data=_remi_map.get(_e.date),
+            )
+            for _e in _entries_list
+        ]
+        _computed_list = [_c for _c in _pre_computed if _c is not None]
+
+        _regime_lbl = "DM 2022 (RED III)" if IS_DM2022 else (
+            "DM 2018" if IS_DM2018 else APP_MODE
+        )
+        _agg = _agg_month(_computed_list, ctx=_ctx,
+                           year=int(_do_year), month=int(_do_month))
+        _sust = _eval_sust(
+            _agg, regime=_regime_lbl,
+            threshold=float(ghg_threshold),
+            regime_constraints={"max_sm3h_authorized": _cap_smch or None},
+        )
+        _kpis = _build_kpis(_agg, _sust)
+        _thr_pct = float(_kpis["threshold"])
 
 
         # =================================================================
@@ -5578,7 +5601,7 @@ with tab_daily:
         for _i, _d in enumerate(_all_days):
             _h = float(_hours_map.get(_d, 24.0))
             _bio_row = 0.0
-            _row = {"Data": _d, _HOURS_COL: _h}
+            _row = {"Data": _d.strftime("%d/%m/%Y"), _HOURS_COL: _h}
             for _f in _do_active_feeds:
                 _v = float((_data_map.get(_d) or {}).get(_f, 0.0))
                 _row[_f] = _v
@@ -5605,6 +5628,26 @@ with tab_daily:
             _row[_OK_COL]        = _row_outcome(_c, _bio_row, _h)
             _row["Note"]         = _row_note(_c, _bio_row, _h)
             _edit_rows.append(_row)
+            
+        _is_sust_mtd = _kpis.get('compliant', False)
+        _sust_icon = "✅ SOSTENIBILE" if _is_sust_mtd else "❌ NON SOSTENIBILE"
+        _totals_row = {
+            "Data": "TOTALE MESE",
+            _HOURS_COL: sum(float(_hours_map.get(_d, 24.0)) for _d in _all_days)
+        }
+        for _f in _do_active_feeds:
+            _totals_row[_f] = sum(float((_data_map.get(_d) or {}).get(_f, 0.0)) for _d in _all_days)
+        
+        _totals_row[_BIO_TOT_COL] = _kpis.get('biomass_total_t', 0.0)
+        _totals_row[_REMI_VB_COL] = _kpis.get('remi_vb_total', 0.0)
+        _totals_row[_SMH_GROSS_COL] = None
+        _totals_row[_SMH_COL] = None
+        _totals_row[_SAV_COL] = _kpis.get('saving_pct', 0.0)
+        _totals_row[_REMI_FLOW_COL] = None
+        _totals_row[_OK_COL] = _sust_icon
+        _totals_row["Note"] = "Esito mese in corso"
+        
+        _edit_rows.append(_totals_row)
         _edit_df = _pd_daily.DataFrame(_edit_rows)
 
         # _editor_key è stato definito sopra (g{counter}). Cambia solo se
@@ -5615,8 +5658,8 @@ with tab_daily:
             num_rows="fixed",
             hide_index=True,
             column_config={
-                "Data": st.column_config.DateColumn(
-                    "Data", disabled=True, format="DD/MM/YYYY",
+                "Data": st.column_config.TextColumn(
+                    "Data", disabled=True,
                 ),
                 _HOURS_COL: st.column_config.NumberColumn(
                     _HOURS_COL, min_value=0.0, max_value=24.0,
@@ -5686,46 +5729,7 @@ with tab_daily:
         # Usa _hours_map aggiornato ad ogni giorno → Sm³/h riflettono
         # le ore reali di funzionamento.
         # =================================================================
-        _entries_list = [
-            _DEntry(date=_d, feedstocks=dict(_data_map.get(_d) or {}),
-                    hours_per_day=float(_hours_map.get(_d, 24.0)),
-                    remi_vb=float(_remi_map[_d]["vb"]),
-                    remi_e=float(_remi_map[_d]["e"]),
-                    remi_qb_max=float(_remi_map[_d]["qb_max"]),
-                    remi_pci=float(_remi_map[_d]["pci"]),
-                    remi_rho=float(_remi_map[_d]["rho"]))
-            for _d in _all_days
-        ]
-        _computed_raw = [
-            _compute_safely(
-                _e.date, _e.feedstocks,
-                _hours_run=float(_hours_map.get(_e.date, 24.0)),
-                _remi_data=_remi_map.get(_e.date),
-            )
-            for _e in _entries_list
-        ]
-        _computed_list = [_c for _c in _computed_raw if _c is not None]
-
-        # Mostra UNA volta la lista delle biomasse non riconosciute (config error)
-        if _compute_config_errors:
-            st.warning(
-                "⚠️ " + _t("Biomasse non riconosciute nel database tecnico:")
-                + " " + ", ".join(f"`{f}`" for f in sorted(_compute_config_errors))
-                + ". " + _t("Verifica le biomasse attive nella sidebar.")
-            )
-
-        _regime_lbl = "DM 2022 (RED III)" if IS_DM2022 else (
-            "DM 2018" if IS_DM2018 else APP_MODE
-        )
-        _agg = _agg_month(_computed_list, ctx=_ctx,
-                           year=int(_do_year), month=int(_do_month))
-        _sust = _eval_sust(
-            _agg, regime=_regime_lbl,
-            threshold=float(ghg_threshold),
-            regime_constraints={"max_sm3h_authorized": _cap_smch or None},
-        )
-        _kpis = _build_kpis(_agg, _sust)
-        _thr_pct = float(_kpis["threshold"])
+        # I KPI sono già stati calcolati in fase di pre-render (sopra l'editor)
 
         def _it_num(value, decimals):
             s = f"{float(value):,.{decimals}f}"
