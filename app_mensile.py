@@ -5640,9 +5640,9 @@ with tab_daily:
         
         _totals_row[_BIO_TOT_COL] = _kpis.get('biomass_total_t', 0.0)
         _totals_row[_REMI_VB_COL] = _kpis.get('remi_vb_total', 0.0)
-        _tot_hours = _totals_row[_HOURS_COL]
-        _totals_row[_SMH_GROSS_COL] = _kpis.get('sm3_gross', 0.0) / _tot_hours if _tot_hours > 0 else 0.0
-        _totals_row[_SMH_COL] = _kpis.get('sm3_netti', 0.0) / _tot_hours if _tot_hours > 0 else 0.0
+        _compiled_hours = sum(_r.get(_HOURS_COL, 24.0) for _r in _edit_rows if _r.get(_BIO_TOT_COL, 0) > 0 or _r.get(_REMI_VB_COL, 0) > 0 or _r.get(_SMH_GROSS_COL, 0) > 0)
+        _totals_row[_SMH_GROSS_COL] = _kpis.get('sm3_gross', 0.0) / _compiled_hours if _compiled_hours > 0 else 0.0
+        _totals_row[_SMH_COL] = _kpis.get('sm3_netti', 0.0) / _compiled_hours if _compiled_hours > 0 else 0.0
         _totals_row[_SAV_COL] = _kpis.get('saving_pct', 0.0)
         _totals_row[_REMI_FLOW_COL] = None
         _totals_row[_OK_COL] = _sust_icon
