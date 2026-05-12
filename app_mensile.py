@@ -5579,15 +5579,11 @@ with tab_daily:
                 _row[_SMH_COL]       = float(_c.sm3_netti_ora)
                 _row[_SAV_COL]       = float(_c.daily_saving_estimate)
                 _row[_REMI_FLOW_COL] = _c.remi_portata_media_smch
-                _row[_REMI_POW_COL]  = _c.remi_potenza_media_mw
-                _row[_REMI_SPEC_COL] = _c.remi_energia_specifica_kwh_smc
             else:
                 _row[_SMH_GROSS_COL] = 0.0
                 _row[_SMH_COL]       = 0.0
                 _row[_SAV_COL]       = 0.0
                 _row[_REMI_FLOW_COL] = 0.0
-                _row[_REMI_POW_COL]  = 0.0
-                _row[_REMI_SPEC_COL] = 0.0
 
             _row[_OK_COL]        = _row_outcome(_c, _bio_row, _h)
             _edit_rows.append(_row)
@@ -5651,14 +5647,6 @@ with tab_daily:
                 _REMI_FLOW_COL: st.column_config.NumberColumn(
                     _REMI_FLOW_COL, disabled=True, format="%.1f",
                     help=_t("Portata media REMI calcolata (Smc/h)"),
-                ),
-                _REMI_POW_COL: st.column_config.NumberColumn(
-                    _REMI_POW_COL, disabled=True, format="%.3f",
-                    help=_t("Potenza termica media REMI (MW)"),
-                ),
-                _REMI_SPEC_COL: st.column_config.NumberColumn(
-                    _REMI_SPEC_COL, disabled=True, format="%.3f",
-                    help=_t("Energia specifica REMI (kWh/Smc)"),
                 ),
             },
             use_container_width=True,
