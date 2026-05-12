@@ -5831,9 +5831,14 @@ with tab_daily:
                 _bg = "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)"
                 _icon = "❌"
                 _label = _t("MESE NON SOSTENIBILE")
-                _detail = (f"{_t('saving')} <b>{_kpis['saving_pct']:.2f}%</b> &lt; "
-                           f"{_t('soglia')} {_thr_pct:.2f}% "
-                           f"({_kpis['margin']:.2f} pt {_t('sotto soglia')})")
+                if _kpis['saving_pct'] >= _thr_pct:
+                    _detail = (f"{_t('saving')} <b>{_kpis['saving_pct']:.2f}%</b> ≥ "
+                               f"{_t('soglia')} {_thr_pct:.2f}%. "
+                               f"<b>{_t('Tuttavia, ci sono vincoli di regime violati')}</b> ({_t('vedi Dettagli')}).")
+                else:
+                    _detail = (f"{_t('saving')} <b>{_kpis['saving_pct']:.2f}%</b> &lt; "
+                               f"{_t('soglia')} {_thr_pct:.2f}% "
+                               f"({abs(_kpis['margin']):.2f} pt {_t('sotto soglia')})")
             st.markdown(
                 f"""
                 <div style='background:{_bg};color:#FFFFFF;padding:18px 22px;
