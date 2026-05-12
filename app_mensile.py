@@ -5646,7 +5646,15 @@ with tab_daily:
         _totals_row[_SAV_COL] = _kpis.get('saving_pct', 0.0)
         _totals_row[_REMI_FLOW_COL] = _kpis.get('remi_vb_total', 0.0) / _compiled_hours if _compiled_hours > 0 else 0.0
         _totals_row[_OK_COL] = _sust_icon
-        _totals_row["Note"] = "Esito mese in corso"
+        _saving_pct = _kpis.get('saving_pct_net', 0.0)
+        _thr = _kpis.get('threshold', 0.0)
+        if _is_sust_mtd:
+            _totals_row["Note"] = f"OK — Saving {_saving_pct:.1f}% (≥ {_thr:.0f}%) e limiti rispettati"
+        else:
+            if _saving_pct < _thr:
+                _totals_row["Note"] = f"KO — Saving {_saving_pct:.1f}% (soglia {_thr:.0f}%)"
+            else:
+                _totals_row["Note"] = "KO — " + " | ".join(_kpis.get('constraints_status', []))
         
         _edit_rows.append(_totals_row)
         _edit_df = _pd_daily.DataFrame(_edit_rows)
