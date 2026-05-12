@@ -5541,6 +5541,23 @@ with tab_daily:
             sav_ok = c.daily_saving_estimate >= _thr_pct_pre
             return "✅" if (cap_ok and sav_ok) else "❌"
 
+        def _row_note(c, biomass_t, hours_run):
+            if c is None or biomass_t <= 0 or hours_run <= 0:
+                return "—"
+            sm3h = float(c.sm3_netti_ora)
+            cap_ok = (_cap_smch <= 0) or (sm3h <= _cap_smch)
+            sav_ok = c.daily_saving_estimate >= _thr_pct_pre
+            
+            notes = []
+            if not cap_ok:
+                notes.append(_t("Violazione cap"))
+            if not sav_ok:
+                notes.append(_t("Saving < soglia"))
+            
+            if not notes:
+                return _t("OK")
+            return " + ".join(notes)
+
         st.markdown(f"### 🌾 {_t('Tabella giornaliera')}")
         st.caption(
             _t("Inserisci **ore di funzionamento** (formato decimale: 16.50 = 16h 30min) "
@@ -5586,6 +5603,7 @@ with tab_daily:
                 _row[_REMI_FLOW_COL] = 0.0
 
             _row[_OK_COL]        = _row_outcome(_c, _bio_row, _h)
+            _row["Note"]         = _row_note(_c, _bio_row, _h)
             _edit_rows.append(_row)
         _edit_df = _pd_daily.DataFrame(_edit_rows)
 
@@ -5638,6 +5656,10 @@ with tab_daily:
                     help=_t("✅ giorno OK (entro cap e sopra soglia GHG) · "
                             "❌ violazione cap o saving sotto soglia · "
                             "— nessun dato. NB: la conformità ufficiale resta mensile."),
+                ),
+                "Note": st.column_config.TextColumn(
+                    "Note", disabled=True, width="medium",
+                    help=_t("Dettaglio dell'esito (es. OK, Violazione cap, Saving sotto soglia)."),
                 ),
                 _REMI_VB_COL: st.column_config.NumberColumn(
                     _REMI_VB_COL, min_value=0.0, format="%.0f",
