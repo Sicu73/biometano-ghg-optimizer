@@ -5644,7 +5644,7 @@ with tab_daily:
         _totals_row[_SMH_GROSS_COL] = _kpis.get('sm3_gross', 0.0) / _compiled_hours if _compiled_hours > 0 else 0.0
         _totals_row[_SMH_COL] = _kpis.get('sm3_netti', 0.0) / _compiled_hours if _compiled_hours > 0 else 0.0
         _totals_row[_SAV_COL] = _kpis.get('saving_pct', 0.0)
-        _totals_row[_REMI_FLOW_COL] = None
+        _totals_row[_REMI_FLOW_COL] = _kpis.get('remi_vb_total', 0.0) / _compiled_hours if _compiled_hours > 0 else 0.0
         _totals_row[_OK_COL] = _sust_icon
         _totals_row["Note"] = "Esito mese in corso"
         
