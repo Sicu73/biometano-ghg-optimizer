@@ -5571,10 +5571,6 @@ with tab_daily:
             _rm = _remi_map.get(_d, {})
             _row.update({
                 _REMI_VB_COL: _rm.get("vb", 0.0),
-                _REMI_E_COL: _rm.get("e", 0.0),
-                _REMI_QBMAX_COL: _rm.get("qb_max", 0.0),
-                _REMI_PCI_COL: _rm.get("pci", 0.0),
-                _REMI_RHO_COL: _rm.get("rho", 0.0),
             })
 
             _c = _pre_computed[_i]
@@ -5651,22 +5647,6 @@ with tab_daily:
                     _REMI_VB_COL, min_value=0.0, format="%.0f",
                     help=_t("Volume biometano reale misurato al REMI (Sm³) in questo giorno. "
                             "Questo valore viene diviso per le Ore per determinare gli Sm³/h netti."),
-                ),
-                _REMI_E_COL: st.column_config.NumberColumn(
-                    _REMI_E_COL, min_value=0.0, format="%.0f",
-                    help=_t("Energia biometano REMI (kWh)"),
-                ),
-                _REMI_QBMAX_COL: st.column_config.NumberColumn(
-                    _REMI_QBMAX_COL, min_value=0.0, format="%.1f",
-                    help=_t("Portata massima REMI (Smc/h)"),
-                ),
-                _REMI_PCI_COL: st.column_config.NumberColumn(
-                    _REMI_PCI_COL, min_value=0.0, format="%.4f",
-                    help=_t("Potere calorifico inferiore REMI (kWh/mc)"),
-                ),
-                _REMI_RHO_COL: st.column_config.NumberColumn(
-                    _REMI_RHO_COL, min_value=0.0, format="%.4f",
-                    help=_t("Densità biometano REMI (kg/mc)"),
                 ),
                 _REMI_FLOW_COL: st.column_config.NumberColumn(
                     _REMI_FLOW_COL, disabled=True, format="%.1f",
