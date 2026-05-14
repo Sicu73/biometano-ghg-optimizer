@@ -1363,15 +1363,17 @@ PLANT_NAME                = st.session_state.get("plant_name", "")
 PLANT_OPERATIONAL_ADDRESS = st.session_state.get("plant_operational_address", "")
 
 # ===========================================================
-# Metan.iQ Mode - FORZATO A DM 2022 (RED III)
+# Metan.iQ Mode - DM 2022 (RED III)
 # ===========================================================
 st.session_state.app_mode = "biometano"
 APP_MODE       = "biometano"
-IS_CHP_DM2012  = False
-IS_FER2        = False
-IS_CHP         = False
-IS_DM2018      = False
-IS_DM2022      = True
+
+if APP_MODE != "biometano":
+    raise RuntimeError(
+        f"Mode '{APP_MODE}' non supportato. L'app supporta solo biometano "
+        "DM 2022 (RED III). Vedi tag 'pre-cleanup-legacy-modes' per la "
+        "versione multi-mode storica."
+    )
 
 with st.sidebar:
     # ============================================================
@@ -1940,16 +1942,6 @@ with st.sidebar:
                "(include upgrading e caldaia). Ora uso default: "
                f"aux = {fmt_it(_aux_base, 3)} ({fmt_it((1-_up_eff_base)*100, 0, '%')} autoconsumo totale).")
         )
-
-    # Stub transitori per variabili "elettriche" legacy CHP: sono ancora referenziate
-    # in dict ctx passati a PDF/Excel/output_builder. Verranno rimosse del tutto
-    # quando saranno eliminati anche i consumer downstream. Valori coerenti con
-    # quelli usati prima nei rami "biometano" del codice morto.
-    eta_el        = 0.40
-    eta_th        = 0.42
-    aux_el_pct    = 0.0
-    plant_kwe     = plant_net_smch * eta_el * 9.97
-    plant_kwe_net = plant_kwe
 
     st.markdown("---")
     with st.sidebar.expander("⚙️ " + _t("Config. Tecnica & GHG"), expanded=False):
@@ -3909,52 +3901,12 @@ with tab_export:
                 "initial_data":      _initial_data,
                 "APP_MODE_LABEL":    _MODE["label"],
                 "end_use":           end_use,
-                # === CHP-specific (per validazione kW lordi) ===
-                "IS_CHP":            IS_CHP,
-                "plant_kwe":         plant_kwe,        # potenza LORDA targa motore
-                "plant_kwe_net":     plant_kwe_net,    # info-only
-                "eta_el":            eta_el,
-                "eta_th":            eta_th,
-                "aux_el_pct":        aux_el_pct,
             }
-            # === Aggiunge contesto Business Plan (mode-aware) ===
-            # Tariffa effettiva e parametri BP per la sheet "Business Plan".
-            # Per ogni mode calcoliamo:
-            #   - bp_tariffa_eff_mwh: €/MWh equivalenti (per BP unico mode-agnostic)
-            #   - bp_ore_anno: ore funzionamento (default 8500)
-            if IS_FER2:
-                _bp_tariffa_mwh = float(fer2_tariffa_eff)
-            elif IS_CHP_DM2012:
-                # CHP DM 6/7/2012: TO 280 €/MWh_el (tipico)
-                # se l'utente ha gia' impostato tariffa per biomassa la
-                # prendiamo come weighted average.
-                try:
-                    _tk = f"tariffs_eur_mwh_{APP_MODE}"
-                    _tar_dict = st.session_state.get(_tk, {})
-                    _vals = list(_tar_dict.values())
-                    _bp_tariffa_mwh = sum(_vals) / len(_vals) if _vals else 280.0
-                except Exception:
-                    _bp_tariffa_mwh = 280.0
-            elif IS_DM2018:
-                if cic_active:
-                    # CIC system: tariffa €/MWh equivalente = ricavi / mwh_netti
-                    _mwh_for_calc = float(df_res["MWh netti"].sum()) or 1.0
-                    _bp_tariffa_mwh = float(tot_revenue) / _mwh_for_calc
-                else:
-                    # DM 2018 altri usi: tariffa diretta media
-                    try:
-                        _tk = f"tariffs_eur_mwh_{APP_MODE}"
-                        _tar_dict = st.session_state.get(_tk, {})
-                        _vals = list(_tar_dict.values())
-                        _bp_tariffa_mwh = sum(_vals) / len(_vals) if _vals else 110.0
-                    except Exception:
-                        _bp_tariffa_mwh = 110.0
-            else:
-                # Biometano DM 2022 (default app)
-                _bp_tariffa_mwh = (
-                    float(bp_tariffa_eff) if IS_DM2022 and bp_result is not None
-                    else 131.0
-                )
+            # === Aggiunge contesto Business Plan ===
+            # Tariffa effettiva DM 2022 (€/MWh) per la sheet "Business Plan".
+            _bp_tariffa_mwh = (
+                float(bp_tariffa_eff) if bp_result is not None else 131.0
+            )
 
             # Ore anno default 8500 (puo' essere editato in Excel)
             _bp_ore_anno = 8500.0
@@ -3972,8 +3924,7 @@ with tab_export:
 
 
                 "bp_durata_tariffa":         BP_DURATA_TARIFFA_ANNI,
-                "bp_pnrr_pct":               (BP_PNRR_QUOTA_PCT_DEFAULT
-                                               if not IS_DM2022 else bp_pnrr_pct),
+                "bp_pnrr_pct":               bp_pnrr_pct,
 
 
                 "bp_tax_rate_pct":           BP_TAX_RATE_PCT,
@@ -4022,18 +3973,8 @@ with tab_export:
         # ReportLab pure Python -> nessuna dipendenza di sistema.
         _pdf_ctx = {
             "df_res": df_res,
-            "IS_CHP": IS_CHP,
-            "IS_CHP_DM2012": IS_CHP_DM2012,
-            "IS_FER2": IS_FER2,
-            "IS_DM2018": IS_DM2018,
-            "IS_DM2022": IS_DM2022,
             "APP_MODE": APP_MODE,
-            "plant_kwe": plant_kwe,
-            "plant_kwe_net": plant_kwe_net,
             "plant_net_smch": plant_net_smch,
-            "eta_el": eta_el,
-            "eta_th": eta_th,
-            "aux_el_pct": aux_el_pct,
             "aux_factor": aux_factor,
             "ep_total": ep_total,
             "end_use": end_use,
@@ -4042,28 +3983,6 @@ with tab_export:
             "upgrading_opt": upgrading_opt,
             "offgas_opt": offgas_opt,
             "injection_opt": injection_opt,
-            # DM 2018 specifics
-            "is_advanced": is_advanced,
-            "cic_active": cic_active,
-            "cic_double": cic_double,
-            "cic_price": cic_price,
-            "annex_mass_share": annex_mass_share,
-            "annex_threshold": annex_threshold,
-            "tot_n_cic": tot_n_cic,
-            "MWH_PER_CIC": MWH_PER_CIC,
-            "GCAL_PER_CIC": GCAL_PER_CIC,
-            # FER 2 specifics
-            "fer2_kwe_cap": FER2_KWE_CAP,
-            "fer2_periodo_anni": FER2_PERIODO_ANNI,
-            "fer2_subprod_share": fer2_subprod_share,
-            "fer2_matrice_threshold": fer2_matrice_threshold,
-            "fer2_qualified": fer2_qualified,
-            "fer2_tariffa_base": fer2_tariffa_base,
-            "fer2_premio_matrice_eur": fer2_premio_matrice_eur,
-            "fer2_premio_car_eur": fer2_premio_car_eur,
-            "fer2_apply_matrice": fer2_apply_matrice,
-            "fer2_apply_car": fer2_apply_car,
-            "fer2_tariffa_eff": fer2_tariffa_eff,
             # BP DM 2022
             "bp_result": bp_result,
             "bp_tariffa_eur_mwh": bp_tariffa_eur_mwh,
@@ -4074,21 +3993,11 @@ with tab_export:
 
 
 
-
-
-
-
             "bp_durata_tariffa": BP_DURATA_TARIFFA_ANNI,
             # Aggregati comuni
             "tot_biomasse_t": float(df_res["Totale biomasse (t)"].sum()),
             "tot_sm3_netti": float(df_res["Sm³ netti"].sum()),
             "tot_mwh_netti": float(df_res["MWh netti"].sum()),
-            "tot_mwh_el_lordo": float(df_res["MWh elettrici lordi"].sum())
-                                 if IS_CHP and "MWh elettrici lordi" in df_res
-                                 else 0.0,
-            "tot_mwh_el_netto": float(df_res["MWh elettrici netti"].sum())
-                                 if IS_CHP and "MWh elettrici netti" in df_res
-                                 else 0.0,
             "saving_avg": float(df_res["Saving %"].mean()),
             "valid_months": int(df_res["Validità"].str.startswith("✅").sum()),
             "tot_revenue": float(tot_revenue),
