@@ -290,33 +290,9 @@ from core.constants import (
     COMPARATOR_GRID_HEAT_GCO2_MJ     as _COMP_GRID_HEAT,
 )
 
-# Dummy variables to prevent NameError in dead code (IS_CHP = False, etc.)
-GCAL_PER_CIC = 0
-MWH_PER_CIC = 0
-CIC_PRICE_DEFAULT = 0
-ANNEX_IX_THRESHOLD = 0
-FER2_KWE_CAP = 0
-FER2_TARIFFA_BASE_DEFAULT = 0
-FER2_PREMIO_MATRICE_DEFAULT = 0
-FER2_PREMIO_CAR_DEFAULT = 0
-FER2_FEEDSTOCK_REQ_THRESHOLD = 0
-FER2_PERIODO_ANNI = 0
-FER2_GHG_THRESHOLD = 0
-COMPARATOR_CHP = 0
-
-FOSSIL_COMPARATOR = _COMP_GRID_HEAT  # default biometano->rete; aggiornato dinamicamente
-DEFAULT_AUX_FACTOR = 1.29                      # netto -> lordo (CHP+caldaia)
+FOSSIL_COMPARATOR = _COMP_GRID_HEAT
+DEFAULT_AUX_FACTOR = 1.29                      # netto -> lordo (perdite upgrading + caldaia)
 DEFAULT_PLANT_NET_SMCH = 300.0                 # Sm3/h netti autorizzati (default)
-
-# ============================================================
-# COSTANTI BIOGAS CHP (modalita' cogenerazione)
-# ============================================================
-# Efficienze di default motore cogeneratore (CHP ad alto rendimento):
-ETA_EL_DEFAULT = 0.40        # efficienza elettrica (40% tipica motori 500-1000 kWe)
-ETA_TH_DEFAULT = 0.42        # efficienza termica (42% tipica con recupero fumi+acqua)
-AUX_EL_DEFAULT = 0.08        # autoconsumo elettrico (pompe, agitatori, upgrading off)
-# Default potenza CHP: 999 kWe (taglia tipica biogas agricolo <1 MWe - TO GSE)
-DEFAULT_PLANT_KWE = 999.0
 
 # ============================================================
 # SOGLIE RED III per destinazione d'uso biometano
@@ -327,78 +303,6 @@ END_USE_THRESHOLDS = {
     "Elettricità/calore (esistente <10 MW, primi 15 anni)": 0.70,
     "Trasporti (BioGNL/BioCNG)": 0.65,
 }
-
-# ============================================================
-# DM 2 MARZO 2018 — Sistema CIC (Certificati Immissione in Consumo)
-# ============================================================
-# Riferimenti: DM 2/3/2018 (Decreto Biometano), aggiornato DM 15/9/2022
-# e D.Lgs. 199/2021 (recepimento RED II).
-#
-# Conversione energia <-> CIC:
-#   1 CIC = 10 Gcal = 11,628 MWh (1 toe = tonnellata di olio equivalente)
-#   1 Gcal = 4,184 GJ = 1,1628 MWh
-#
-# Double counting biometano AVANZATO (matrici Annex IX RED II/III):
-#   Il biometano avanzato vale doppio per la quota d'obbligo CIC
-#   -> equivalente a 1 CIC ogni 5 Gcal (5,814 MWh) anziche' 10
-#   -> n_CIC_avanzato = (energia / 10 Gcal) x 2
-#
-# Valore CIC: GSE ritira a prezzo regolato (~375 EUR base, variabile
-# per anno di emissione e tipologia trasporti / altri usi). Sul
-# mercato i CIC scambiati possono valere di piu' (rilancio scarsita').
-#
-# Soglia "biometano avanzato a livello di impianto":
-#   Per qualificare l'IMPIANTO come avanzato, la matrice in input deve
-#   essere prevalentemente Annex IX. Soglia operativa GSE: >= 70%
-#   in massa di feedstock Annex IX (in Italia spesso interpretato
-#   come 100% per evitare contestazioni). Default app: 70% con
-#   override manuale.
-# ============================================================
-GCAL_PER_MWH       = 1.0 / 1.1628                  # ~0,860 Gcal per MWh
-MWH_PER_GCAL       = 1.1628                        # 1 Gcal -> MWh
-# GCAL_PER_CIC, MWH_PER_CIC, CIC_PRICE_DEFAULT, ANNEX_IX_THRESHOLD
-# importati da core/constants.py (vedi blocco import in cima al file).
-
-# Soglie saving GHG e comparator per DM 2018 (RED II / III recepito).
-# Per trasporti: 50% impianti operativi pre-1/1/2021, 65% post.
-# Per altri usi (rete/calore) e cogenerazione: 70% (RED II); 80% RED III nuovi.
-DM2018_END_USES = {
-    "Trasporti (BioGNL/BioCNG)":               {"sav": 0.65, "cmp": 94.0,
-                                                "cic_premium": True},
-    "Trasporti — impianti pre-1/1/2021":       {"sav": 0.50, "cmp": 94.0,
-                                                "cic_premium": True},
-    "Altri usi (rete gas / calore)":           {"sav": 0.70, "cmp": 80.0,
-                                                "cic_premium": False},
-    "Cogenerazione ad alto rendimento (CAR)":  {"sav": 0.70, "cmp": 80.0,
-                                                "cic_premium": False},
-}
-
-# ============================================================
-# DM 19 GIUGNO 2024 — "FER 2" / Biogas CHP piccoli impianti agricoli
-# (avviso GU 24A04589; regole operative GSE 24A06795)
-# ============================================================
-# Riferimenti: DM 19/06/2024 (Decreto FER 2), focus piccoli impianti
-# biogas cogenerativi <= 300 kWe destinati ad agricoltura sostenibile.
-#
-# Caratteristiche normative:
-#   - Taglia massima: 300 kWe (hard cap)
-#   - Periodo incentivazione: 20 anni
-#   - Matrice obbligatoria: >= 80% in MASSA da sottoprodotti, effluenti
-#     zootecnici, residui colturali, FORSU. Cap colture dedicate <= 20%.
-#   - Tariffa di Riferimento (TR) base: ~256 EUR/MWh_el (configurabile,
-#     dipende da fascia/asta/registro). Default app: 256.
-#   - Premio matrice: +30 EUR/MWh_el se >= 80% sottoprodotti/effluenti
-#   - Premio CAR (Cogenerazione ad Alto Rendimento, PES > 10%): +10 EUR/MWh_el
-#   - Soglia saving GHG: 80% RED III (comparator 183 gCO2/MJ mix EU)
-#   - Tariffa applicata ai MWh elettrici NETTI immessi in rete
-#     (lordo motore meno autoconsumi ausiliari)
-#
-# NB: i numeri esatti di tariffa e premi possono cambiare per asta/anno.
-# I default qui sotto sono indicativi e configurabili dall'utente in app.
-# ============================================================
-# FER2_KWE_CAP, FER2_TARIFFA_BASE_DEFAULT, FER2_PREMIO_*, FER2_FEEDSTOCK_REQ_*,
-# FER2_PERIODO_ANNI, FER2_GHG_THRESHOLD: importati da core/constants.py
-DEFAULT_PLANT_KWE_FER2        = 250.0    # default plant size (sotto cap)
 
 
 
