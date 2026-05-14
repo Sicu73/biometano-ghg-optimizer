@@ -2062,12 +2062,8 @@ try:
         "ep": ep_total,
         "fossil_comparator": FOSSIL_COMPARATOR,
         "plant_net_smch": plant_net_smch,
-        "IS_CHP": IS_CHP,
-        "eta_el": eta_el if IS_CHP else 0.40,
-        "eta_th": eta_th if IS_CHP else 0.42,
-        "aux_el_pct": aux_el_pct if IS_CHP else 0.08,
     }
-    
+
     _all_months_data = []
     for m_idx in range(1, 13):
         _month_entries = _load_month_main(_current_year, m_idx, plant_id=_plant_id)
@@ -2087,65 +2083,36 @@ try:
                 **{f: 0.0 for f in FEED_NAMES}
             })
     df_res = pd.DataFrame(_all_months_data)
-    
+
     # --- KPI ANNUALI ---
     annual_t = {n: float(max(df_res[n].sum(), 0.0)) for n in active_feeds}
     annual_mwh = {n: float(max(df_res[n].sum(), 0.0)) * _yield_of(n) / aux_factor * NM3_TO_MWH for n in active_feeds}
     _tot_t = sum(annual_t.values())
     annex_mass_share = (sum(t for n, t in annual_t.items() if FEEDSTOCK_DB[n].get("annex_ix") in ("A", "B")) / _tot_t) if _tot_t > 0 else 0.0
 
-    if IS_DM2018:
-        _adv_mode = st.session_state.get("advanced_mode_manual", "Auto (da quota Annex IX)")
-        if _adv_mode == "Forza AVANZATO": is_advanced = True
-        elif _adv_mode == "Forza NON avanzato": is_advanced = False
-        else: is_advanced = annex_mass_share >= annex_threshold
-        _cic_premium_use = DM2018_END_USES[end_use]["cic_premium"]
-        cic_double = is_advanced and _cic_premium_use
-        cic_active = _cic_premium_use
-    else:
-        is_advanced = False; cic_double = False; cic_active = False
-
-    if IS_FER2:
-        fer2_subprod_share = annex_mass_share
-        fer2_qualified = fer2_subprod_share >= fer2_matrice_threshold
-        fer2_apply_matrice = fer2_premio_matrice_attivo and fer2_qualified
-        fer2_apply_car = fer2_premio_car_attivo
-        fer2_tariffa_eff = fer2_tariffa_base + (fer2_premio_matrice_eur if fer2_apply_matrice else 0.0) + (fer2_premio_car_eur if fer2_apply_car else 0.0)
-    else:
-        fer2_subprod_share = 0.0; fer2_qualified = False; fer2_apply_matrice = False; fer2_apply_car = False; fer2_tariffa_eff = 0.0
-
     _tar_key = f"tariffs_eur_mwh_{APP_MODE}"
-    if IS_FER2:
-        st.session_state[_tar_key] = {n: fer2_tariffa_eff for n in active_feeds}
-    else:
-        _tar_default = 280.0 if IS_CHP else (110.0 if IS_DM2018 and not cic_active else 120.0)
-        if _tar_key not in st.session_state: st.session_state[_tar_key] = {n: _tar_default for n in active_feeds}
-        for n in active_feeds:
-            if n not in st.session_state[_tar_key]: st.session_state[_tar_key][n] = _tar_default
+    _tar_default = 120.0  # €/MWh biometano rete (DM 15/9/2022, baseline editabile)
+    if _tar_key not in st.session_state:
+        st.session_state[_tar_key] = {n: _tar_default for n in active_feeds}
+    for n in active_feeds:
+        if n not in st.session_state[_tar_key]:
+            st.session_state[_tar_key][n] = _tar_default
 
     pdf_revenue_rows = []
     tot_n_cic = 0.0
     for n in active_feeds:
         t, mwh_netti = annual_t[n], annual_mwh[n]
-        if IS_CHP:
-            mwh_rev = mwh_netti * eta_el * (1.0 - aux_el_pct); tariffa = st.session_state[_tar_key][n]; ricavi = mwh_rev * tariffa; n_cic = 0.0
-        elif IS_DM2018 and cic_active:
-            mwh_rev = mwh_netti; n_cic = (mwh_netti / MWH_PER_CIC) * (2.0 if cic_double else 1.0); tariffa = cic_price; ricavi = n_cic * cic_price
-        else:
-            mwh_rev = mwh_netti; tariffa = st.session_state[_tar_key][n]; ricavi = mwh_rev * tariffa; n_cic = 0.0
-        tot_n_cic += n_cic
+        mwh_rev = mwh_netti
+        tariffa = st.session_state[_tar_key][n]
+        ricavi = mwh_rev * tariffa
+        n_cic = 0.0
         _tot_mwh_b = sum(annual_mwh.values())
         pdf_revenue_rows.append((n, {"t_anno": t, "yield": _yield_of(n), "mwh_netti": mwh_netti, "mwh_basis": mwh_rev, "tariffa": tariffa, "ricavi": ricavi, "quota": (mwh_netti / _tot_mwh_b * 100) if _tot_mwh_b > 0 else 0, "annex_ix": FEEDSTOCK_DB[n].get("annex_ix"), "n_cic": n_cic}))
-    
+
     tot_mwh = sum(annual_mwh.values())
-    _chp_f = (eta_el * (1.0 - aux_el_pct)) if IS_CHP else 1.0
-    tot_revenue_base_mwh = tot_mwh * _chp_f
-    if cic_active:
-        tot_revenue = tot_n_cic * cic_price
-        tariffa_media_ponderata = (tot_revenue / tot_mwh) if tot_mwh > 0 else 0.0
-    else:
-        tot_revenue = sum(annual_mwh[n] * _chp_f * st.session_state[_tar_key][n] for n in active_feeds)
-        tariffa_media_ponderata = (tot_revenue / tot_revenue_base_mwh) if tot_revenue_base_mwh > 0 else 0.0
+    tot_revenue_base_mwh = tot_mwh
+    tot_revenue = sum(annual_mwh[n] * st.session_state[_tar_key][n] for n in active_feeds)
+    tariffa_media_ponderata = (tot_revenue / tot_revenue_base_mwh) if tot_revenue_base_mwh > 0 else 0.0
 
 except Exception as _agg_exc:
     st.error(f"Errore aggregazione DB: {_agg_exc}")
@@ -2158,8 +2125,6 @@ except Exception as _agg_exc:
     tariffa_media_ponderata = 0.0
     pdf_revenue_rows = []
     tot_n_cic = 0.0
-    is_advanced = False; cic_double = False; cic_active = False
-    fer2_qualified = False; fer2_apply_matrice = False; fer2_apply_car = False; fer2_tariffa_eff = 0.0
 
 tab_daily, tab_tech, tab_bp, tab_export = st.tabs([
     "📆 " + _t("Gestione Giornaliera"),
