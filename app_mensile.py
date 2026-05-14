@@ -2960,7 +2960,7 @@ with tab_export:
                 "eta_el": eta_el, "eta_th": eta_th, "aux_el_pct": aux_el_pct,
                 "bp_tariffa_eff_mwh": float(tariffa_media_ponderata), "bp_ore_anno": 8500.0,
                 "bp_durata_tariffa": BP_DURATA_TARIFFA_ANNI,
-                "bp_pnrr_pct": (BP_PNRR_QUOTA_PCT_DEFAULT if not IS_DM2022 else st.session_state.get("bp_pnrr_pct", 40.0)),
+                "bp_pnrr_pct": st.session_state.get("bp_pnrr_pct", 40.0),
                 "bp_tax_rate_pct": BP_TAX_RATE_PCT, "bp_ammort_anni": BP_AMMORTAMENTO_ANNI,
                 "bp_npv_disc_rate_pct": 6.0, "bp_massimale_eur_per_smch": BP_MASSIMALE_SPESA_EUR_PER_SMCH,
                 "NM3_TO_MWH": NM3_TO_MWH, "lang": _LANG,
@@ -3140,18 +3140,10 @@ with tab_export:
         )
         if best is None:
             _tip_impianto = (
-                "stoccaggio digestato coperto con recupero gas, recupero calore "
-                "CHP per digestori, ottimizzare autoconsumi elettrici"
-            ) if IS_CHP else (
                 "stoccaggio digestato coperto, upgrading a membrane/amminico, "
                 "off-gas RTO"
             )
-            _unit_prod = (
-                f"{fmt_it(plant_kwe, 0)} kW_el lordi "
-                f"({fmt_it(plant_kwe_net, 0)} kW_el netti rete)"
-                if IS_CHP
-                else f"{fmt_it(plant_net_smch, 0)} Sm³/h"
-            )
+            _unit_prod = f"{fmt_it(plant_net_smch, 0)} Sm³/h"
             st.error(
                 "❌ Nessuna combinazione delle biomasse attive riesce a soddisfare "
                 f"simultaneamente saving ≥ {fmt_it(ghg_threshold*100, 0, '%')} e "
@@ -3454,8 +3446,8 @@ with tab_export:
             help=f"CALCOLATA dal solver – Resa {fmt_it(_yield_of(u), 0)} Nm³/t FM",
         )
     col_cfg["Totale biomasse (t)"] = st.column_config.TextColumn("Tot. t", disabled=True)
-    _lbl_lordo_col = "Sm³ CH₄ lordi" if IS_CHP else "Sm³ lordi"
-    _lbl_netto_col = "Sm³ CH₄ motore" if IS_CHP else "Sm³ netti"
+    "Sm³ lordi"
+    "Sm³ netti"
     col_cfg["Sm³ lordi"]   = st.column_config.TextColumn(
         _lbl_lordo_col, disabled=True,
         help=("CH₄ equivalente prodotto dalle biomasse (pre-perdite)"
@@ -3467,7 +3459,7 @@ with tab_export:
               if IS_CHP else "Sm³ biometano immessi in rete (post-aux_factor)"),
     )
     col_cfg["MWh netti"]   = st.column_config.TextColumn(
-        "MWh_CH₄ netti" if IS_CHP else "MWh netti",
+        "MWh netti",
         disabled=True,
         help=("Energia CH₄ in ingresso al cogeneratore (pre-conversione elettrica)"
               if IS_CHP else "Energia biometano netta immessa in rete"),
@@ -3662,10 +3654,10 @@ with tab_export:
         netti_labels = [fmt_it(v, 0) for v in netti_vals]
 
         _lbl_lordo = (
-            "Sm³ CH₄ lordi (biomasse)" if IS_CHP else "Sm³ lordi (biomasse)"
+            "Sm³ lordi (biomasse)"
         )
         _lbl_netto = (
-            "Sm³ CH₄ al motore" if IS_CHP else "Sm³ netti (immessi in rete)"
+            "Sm³ netti (immessi in rete)"
         )
         _lbl_title = (
             "Produzione mensile CH₄ equivalente (biogas CHP)" if IS_CHP
@@ -3740,7 +3732,7 @@ with tab_export:
 
         with colB:
             _pie_mwh_label = (
-                "MWh_el netti rete" if IS_CHP else "MWh netti"
+                "MWh netti"
             )
             _pie_total = (
                 sum(annual_mwh.values()) * eta_el * (1.0 - aux_el_pct)
@@ -4018,8 +4010,7 @@ with tab_export:
             "Ricavi €/anno": st.column_config.TextColumn(
                 "Ricavi €/anno 🧮", disabled=True,
                 help=("CIC × valore CIC" if cic_active
-                      else f"MWh {'elettrici netti rete' if IS_CHP else 'netti'}"
-                           f" × tariffa {_tar_unit}")
+                      else f"MWh netti × tariffa {_tar_unit}")
                      + " (si ricalcola al variare dei parametri)",
             ),
         }
@@ -4273,9 +4264,9 @@ with tab_export:
                 "saving_avg":        float(df_res["Saving %"].mean()),
                 "valid_months":      int(df_res["Validità"].str.startswith("✅").sum()),
                 "tot_revenue":       float(tot_revenue),
-                "tot_n_cic":         float(tot_n_cic) if IS_DM2018 else 0.0,
-                "cic_active":        bool(cic_active) if IS_DM2018 else False,
-                "is_advanced":       bool(is_advanced) if IS_DM2018 else False,
+                "tot_n_cic":         0.0,
+                "cic_active":        False,
+                "is_advanced":       False,
                 "tariffa_media_ponderata": float(tariffa_media_ponderata)
                                            if 'tariffa_media_ponderata' in dir() else 0.0,
                 "tot_mwh_el_lordo":  float(df_res["MWh elettrici lordi"].sum())
@@ -4285,7 +4276,7 @@ with tab_export:
                                      if IS_CHP and "MWh elettrici netti" in df_res
                                      else 0.0,
                 # Business plan (DM 2022)
-                "bp_result":         bp_result if IS_DM2022 else None,
+                "bp_result":         bp_result,
                 # Audit
                 "yield_audit_rows":     list(_yield_audit_rows),
                 "emission_audit_rows":  list(_emission_audit_rows),
@@ -4498,12 +4489,12 @@ with tab_export:
             "fer2_apply_matrice": fer2_apply_matrice,
             "fer2_apply_car": fer2_apply_car,
             "fer2_tariffa_eff": fer2_tariffa_eff,
-            # BP DM 2022 specifics (None se non DM 2022)
-            "bp_result": bp_result if IS_DM2022 else None,
-            "bp_tariffa_eur_mwh": bp_tariffa_eur_mwh if IS_DM2022 else None,
-            "bp_ribasso_pct": bp_ribasso_pct if IS_DM2022 else None,
-            "bp_tariffa_eff": bp_tariffa_eff if IS_DM2022 else None,
-            "bp_pnrr_pct": bp_pnrr_pct if IS_DM2022 else None,
+            # BP DM 2022
+            "bp_result": bp_result,
+            "bp_tariffa_eur_mwh": bp_tariffa_eur_mwh,
+            "bp_ribasso_pct": bp_ribasso_pct,
+            "bp_tariffa_eff": bp_tariffa_eff,
+            "bp_pnrr_pct": bp_pnrr_pct,
 
 
 
@@ -5055,9 +5046,7 @@ with tab_daily:
         ]
         _computed_list = [_c for _c in _pre_computed if _c is not None]
 
-        _regime_lbl = "DM 2022 (RED III)" if IS_DM2022 else (
-            "DM 2018" if IS_DM2018 else APP_MODE
-        )
+        _regime_lbl = "DM 2022 (RED III)"
         _agg = _agg_month(_computed_list, ctx=_ctx,
                            year=int(_do_year), month=int(_do_month))
         _sust = _eval_sust(
