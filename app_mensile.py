@@ -3587,23 +3587,13 @@ with tab_export:
               delta_color="normal" if valid_months == 12 else "inverse")
 
     # ------------------------- GRAFICI -------------------------
-    # Tab "Business Plan" visibile solo in DM 2022 (BP applicabile)
-    if IS_DM2022:
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
-            _t("🌾 Biomasse per mese"),
-            _t("🌍 Sostenibilità"),
-            _t("⚡ Produzione"),
-            _t("🥧 Mix annuale"),
-            _t("💼 Ricavi"),
-        ])
-    else:
-        tab1, tab2, tab3, tab4 = st.tabs([
-            _t("🌾 Biomasse per mese"),
-            _t("🌍 Sostenibilità"),
-            _t("⚡ Produzione"),
-            _t("🥧 Mix annuale"),
-        ])
-        tab5 = None
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        _t("🌾 Biomasse per mese"),
+        _t("🌍 Sostenibilità"),
+        _t("⚡ Produzione"),
+        _t("🥧 Mix annuale"),
+        _t("💼 Ricavi"),
+    ])
 
     with tab1:
         df_melt = df_res.melt(
@@ -4197,9 +4187,9 @@ with tab_export:
             )
 
     # ============================================================
-    # TAB 5 — BUSINESS PLAN (solo DM 2022)
+    # TAB 5 — BUSINESS PLAN (DM 2022)
     # ============================================================
-    if IS_DM2022 and tab5 is not None and bp_result is not None:
+    if bp_result is not None:
         with tab5:
             st.markdown("<div style='font-family:\"JetBrains Mono\", monospace; font-size:0.7rem; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:#94A3B8; margin-bottom:8px;'>// PRO FORMA · DM 2022</div>", unsafe_allow_html=True)
             st.subheader(_t("💼 Ricavi Annui"))
