@@ -1816,207 +1816,140 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### " + _t("🎯 Taglia Impianto"))
 
-    if IS_CHP:
-        # Parametri CHP: input utente in kW_el LORDI (potenza nominale motore),
-        # convertito internamente in Sm3/h CH4 al motore (unit del solver).
-        eta_el = st.slider(
-            _t("Efficienza elettrica CHP [η_el]"),
-            min_value=0.30, max_value=0.45,
-            value=ETA_EL_DEFAULT, step=0.01,
-            help=_t("Rendimento elettrico motore cogeneratore. Tipico 38-42% per motori biogas 500-1000 kWe (Jenbacher, MWM, Guascor)."),
+    # ── Modalità unità di misura: Netti o Lordi ──────────────────────────
+    _unit_key = "plant_input_unit"
+    if _unit_key not in st.session_state:
+        st.session_state[_unit_key] = "netti"
+
+    _unit_opts = [_t("Sm³/h NETTI"), _t("Sm³/h LORDI")]
+    _unit_idx  = 0 if st.session_state[_unit_key] == "netti" else 1
+    _unit_sel  = st.radio(
+        _t("📐 Inserisci taglia come"),
+        options=_unit_opts,
+        index=_unit_idx,
+        horizontal=True,
+        help=_t(
+            "• **Netti**: Sm³/h di biometano a valle dell'upgrading, pronti per l'iniezione o l'utilizzo (valore del Decreto e del contatore di rete).\n"
+            "• **Lordi**: Sm³/h di biogas grezzo in ingresso all'upgrading, prima della rimozione di CO₂ e delle perdite di processo."
+        ),
+        key="plant_unit_radio",
+    )
+    st.session_state[_unit_key] = "netti" if _unit_sel == _unit_opts[0] else "lordi"
+
+    # Fattore globale lordi->netti: legge aux_factor da Config. Tecnica
+    # (include upgrading slip + caldaia + margini)
+    # Default = DEFAULT_AUX_FACTOR = 1.29 (calcolato JRC-CONCAWE)
+    _aux_base = st.session_state.get("aux_factor", DEFAULT_AUX_FACTOR)
+
+    # Toggle per sincronizzazione automatica o override manuale del lordo
+    if "override_gross_manual" not in st.session_state:
+        st.session_state.override_gross_manual = False
+
+    _sync = st.toggle(
+        _t("Sincronizza Lordo con Config. Tecnica"),
+        value=not st.session_state.override_gross_manual,
+        help=_t("Se attivo, il Lordo è calcolato automaticamente come Netto × aux_factor (da Config. Tecnica). Se disattivato, puoi inserire il Lordo manualmente.")
+    )
+    st.session_state.override_gross_manual = not _sync
+
+    if st.session_state[_unit_key] == "netti":
+        _plant_input_net = st.number_input(
+            "🎯 " + _t("Netto autorizzato [Sm³/h netti]"),
+            min_value=10.0, max_value=2000.0,
+            value=float(st.session_state.get("plant_net_smch_saved", DEFAULT_PLANT_NET_SMCH)),
+            step=5.0,
+            help=_t("Portata di biometano **netto** a valle upgrading. Valore contatore rete / decreto."),
+            key="input_smch_netti",
         )
-        eta_th = st.slider(
-            _t("Efficienza termica CHP [η_th]"),
-            min_value=0.30, max_value=0.50,
-            value=ETA_TH_DEFAULT, step=0.01,
-            help=_t("Rendimento termico recuperato (fumi + acqua motore). Tipico 40-45%. Per CAR richiesto PES > 10%."),
-        )
-        # Cap dimensionale: FER 2 ha hard cap a 300 kWe (DM 19/06/2024).
-        # DM 6/7/2012 fino a 1 MW agricolo (cap pratico 999 kWe per evitare
-        # passaggio a fascia successiva). Manteniamo max wide-range per
-        # consentire scenari simulativi anche fuori normativa.
-        if IS_FER2:
-            _kwe_min   = 50.0
-            _kwe_max   = FER2_KWE_CAP
-            _kwe_value = min(DEFAULT_PLANT_KWE_FER2, FER2_KWE_CAP)
-            _kwe_help  = _t("FER 2 (DM 19/06/2024): hard cap **{fmt_it(FER2_KWE_CAP, 0)} kWe**. Targa motore = potenza ai morsetti alternatore. Esempi tipici <300 kWe: Jenbacher JMC 312 GS = 250 kWe, MAN E0834 = 250 kWe.").replace("{fmt_it(FER2_KWE_CAP, 0)}", fmt_it(FER2_KWE_CAP, 0))
-        else:
-            _kwe_min   = 50.0
-            _kwe_max   = 10000.0
-            _kwe_value = DEFAULT_PLANT_KWE
-            _kwe_help  = _t("Potenza elettrica nominale al morsetti alternatore (dato di targa motore). Esempi: Jenbacher JMC 420 GS-BL = 999 kWe, MWM TCG 2020V20 = 2000 kWe. L'autoconsumo ausiliari viene sottratto separatamente qui sotto.")
-        plant_kwe = st.number_input(
-            "🎯 " + _t("Potenza elettrica LORDA (targa motore) [kW_el]")
-            + (f" — {_t('max ')}{fmt_it(FER2_KWE_CAP, 0)} {_t('kWe (cap FER 2)')}"
-               if IS_FER2 else ""),
-            min_value=_kwe_min, max_value=_kwe_max,
-            value=_kwe_value, step=10.0,
-            help=_kwe_help,
-        )
-        # Sanity check: se IS_FER2 e per qualche motivo plant_kwe > cap
-        # (es. riapertura pagina con valore precedente da altro mode)
-        if IS_FER2 and plant_kwe > FER2_KWE_CAP:
-            st.error(
-                f"❌ {_t('FER 2 prevede taglia max ')}**{fmt_it(FER2_KWE_CAP, 0)} kWe**. "
-                f"{_t('Impostato ')}{fmt_it(plant_kwe, 0)} kWe → {_t('fuori normativa.')}"
+        plant_net_smch = _plant_input_net
+
+        # Calcolo lordo base
+        _gross_suggested = plant_net_smch * _aux_base
+
+        if st.session_state.override_gross_manual:
+            # Inserimento manuale del lordo
+            plant_gross_smch = st.number_input(
+                "📥 " + _t("Lordo manuale [Sm³/h lordi]"),
+                min_value=plant_net_smch, max_value=10000.0,
+                value=float(st.session_state.get("plant_gross_smch_saved", _gross_suggested)),
+                step=5.0,
+                help=_t("Inserisci manualmente la portata di biogas lordo. Questo sovrascrive il fattore aux calcolato."),
+                key="input_smch_lordi_manual",
             )
-            plant_kwe = FER2_KWE_CAP
-        aux_el_pct = st.slider(
-            "⚙️ " + _t("Autoconsumo elettrico ausiliari [% del lordo]"),
-            min_value=0.0, max_value=20.0,
-            value=AUX_EL_DEFAULT * 100, step=0.5,
-            help=_t("Assorbimento elettrico dei servizi d'impianto (pompe alimentazione, agitatori digestori, desolforatore, soffiante, PLC, illuminazione, trattamento digestato). Tipico 8-10% del lordo. Impianti ben ottimizzati 5-7% (con FV a supporto). Impianti vecchi/biologie difficili 10-13%."),
-        ) / 100.0
-        # Potenza netta immessa in rete (quella che fattura)
-        plant_kwe_net = plant_kwe * (1.0 - aux_el_pct)
-        # Conversione: il CH4 serve per il LORDO (prima del prelievo aux)
-        # 1 Sm3/h CH4 eq → η_el × 9.97 kW_el lordo
-        plant_net_smch = plant_kwe / (eta_el * 9.97)  # Sm3/h CH4 eq al motore
-        st.caption(
-            f"📐 **{_t('Bilancio elettrico')}**: "
-            f"{fmt_it(plant_kwe, 0)} {_t('kW_el lordi −')} "
-            f"{fmt_it(plant_kwe * aux_el_pct, 0)} {_t('kW aux')} "
-            f"({fmt_it(aux_el_pct*100, 1, '%')}) = "
-            f"**{fmt_it(plant_kwe_net, 0)} {_t('kW_el netti')}** {_t('(rete). CH₄ al motore:')} "
-            f"{fmt_it(plant_net_smch, 1)} {_t('Sm³/h.')}"
-        )
-        colA, colB, colC = st.columns(3)
-        colA.metric("🔌 " + _t("Lordo motore"), fmt_it(plant_kwe, 0, " kWₑ"))
-        colB.metric("⚡ " + _t("Netto in rete"), fmt_it(plant_kwe_net, 0, " kWₑ"),
-                    delta=f"-{fmt_it(aux_el_pct*100, 1, '%')} {_t('aux')}")
-        colC.metric("🔥 " + _t("Termico"), fmt_it(plant_kwe * eta_th / eta_el, 0, " kW_th"))
+            # Aggiorno aux_factor in session_state per coerenza globale
+            if plant_net_smch > 0:
+                st.session_state["aux_factor"] = plant_gross_smch / plant_net_smch
+        else:
+            plant_gross_smch = _gross_suggested
+            st.caption(f"💡 {_t('Lordo calcolato')}: **{fmt_it(plant_gross_smch, 1)} Sm³/h** (aux {fmt_it(_aux_base, 3)})")
     else:
-        # ── Modalità unità di misura: Netti o Lordi ──────────────────────────
-        _unit_key = "plant_input_unit"
-        if _unit_key not in st.session_state:
-            st.session_state[_unit_key] = "netti"
-
-        _unit_opts = [_t("Sm³/h NETTI"), _t("Sm³/h LORDI")]
-        _unit_idx  = 0 if st.session_state[_unit_key] == "netti" else 1
-        _unit_sel  = st.radio(
-            _t("📐 Inserisci taglia come"),
-            options=_unit_opts,
-            index=_unit_idx,
-            horizontal=True,
-            help=_t(
-                "• **Netti**: Sm³/h di biometano a valle dell'upgrading, pronti per l'iniezione o l'utilizzo (valore del Decreto e del contatore di rete).\n"
-                "• **Lordi**: Sm³/h di biogas grezzo in ingresso all'upgrading, prima della rimozione di CO₂ e delle perdite di processo."
-            ),
-            key="plant_unit_radio",
+        # Modalità inserimento LORDI
+        _plant_input_gross = st.number_input(
+            "🎯 " + _t("Portata biogas grezzo [Sm³/h lordi]"),
+            min_value=10.0, max_value=10000.0,
+            value=float(st.session_state.get("plant_gross_smch_saved", DEFAULT_PLANT_NET_SMCH * _aux_base)),
+            step=5.0,
+            help=_t("Portata di biogas **lordo** in ingresso all'upgrading."),
+            key="input_smch_lordi",
         )
-        st.session_state[_unit_key] = "netti" if _unit_sel == _unit_opts[0] else "lordi"
+        plant_gross_smch = _plant_input_gross
 
-        # Fattore globale lordi->netti: legge aux_factor da Config. Tecnica
-        # (include upgrading slip + caldaia + CHP interno + margini)
-        # Default = DEFAULT_AUX_FACTOR = 1.29 (calcolato JRC-CONCAWE)
-        _aux_base = st.session_state.get("aux_factor", DEFAULT_AUX_FACTOR)
-        
-        # Toggle per sincronizzazione automatica o override manuale del lordo
-        if "override_gross_manual" not in st.session_state:
-            st.session_state.override_gross_manual = False
-            
-        _sync = st.toggle(
-            _t("Sincronizza Lordo con Config. Tecnica"), 
-            value=not st.session_state.override_gross_manual,
-            help=_t("Se attivo, il Lordo è calcolato automaticamente come Netto × aux_factor (da Config. Tecnica). Se disattivato, puoi inserire il Lordo manualmente.")
+        if st.session_state.override_gross_manual:
+            plant_net_smch = st.number_input(
+                "📤 " + _t("Netto manuale [Sm³/h netti]"),
+                min_value=10.0, max_value=plant_gross_smch,
+                value=float(st.session_state.get("plant_net_smch_saved", plant_gross_smch / _aux_base)),
+                step=5.0,
+                key="input_smch_netti_manual",
+            )
+            if plant_net_smch > 0:
+                st.session_state["aux_factor"] = plant_gross_smch / plant_net_smch
+        else:
+            plant_net_smch = plant_gross_smch / _aux_base
+            st.caption(f"💡 {_t('Netto calcolato')}: **{fmt_it(plant_net_smch, 1)} Sm³/h** (aux {fmt_it(_aux_base, 3)})")
+
+    # Salvo i valori in session_state per ricordarli al prossimo switch
+    st.session_state["plant_net_smch_saved"]   = plant_net_smch
+    st.session_state["plant_gross_smch_saved"] = plant_gross_smch
+
+    # Riepilogo visivo lordi ↔ netti
+    _c1, _c2, _c3 = st.columns(3)
+    _c1.metric("📥 " + _t("Lordi"), fmt_it(plant_gross_smch, 0, " Sm³/h"))
+    _c2.metric("📤 " + _t("Netti"), fmt_it(plant_net_smch, 0, " Sm³/h"))
+    _c3.metric("⚙️ " + _t("aux"), fmt_it(st.session_state.get("aux_factor", _aux_base), 3))
+
+    # Breakdown autoconsumi se disponibile (solo se non manuale o se vogliamo mostrare comunque i teorici)
+    _detail = st.session_state.get("aux_factor_detail", {})
+    if _detail and not st.session_state.override_gross_manual:
+        _f_heat = _detail.get("f_heat", 0)
+        _f_elec = _detail.get("f_elec", 0)
+        _f_slip = _detail.get("f_slip", 0)
+        _f_marg = _detail.get("f_margin", 0)
+        st.caption(
+            f"📊 **Breakdown autoconsumo** (% del lordo): "
+            f"🔥 Caldaia {fmt_it(_f_heat*100, 1, '%')} · "
+            f"⚡ Elettrico {fmt_it(_f_elec*100, 1, '%')} · "
+            f"💨 Slip {fmt_it(_f_slip*100, 1, '%')} · "
+            f"🔧 Margine {fmt_it(_f_marg*100, 1, '%')} "
+            f"→ Totale {fmt_it((_f_heat+_f_elec+_f_slip+_f_marg)*100, 1, '%')} ≡ aux {fmt_it(_aux_base, 3)}"
         )
-        st.session_state.override_gross_manual = not _sync
+    else:
+        _up_eff_base = 1.0 / _aux_base if _aux_base > 0 else 0.8
+        st.caption(
+            _t("ℹ️ Vai in **Config. Tecnica** per calcolare il fattore lordi/netti reale "
+               "(include upgrading e caldaia). Ora uso default: "
+               f"aux = {fmt_it(_aux_base, 3)} ({fmt_it((1-_up_eff_base)*100, 0, '%')} autoconsumo totale).")
+        )
 
-        if st.session_state[_unit_key] == "netti":
-            _plant_input_net = st.number_input(
-                "🎯 " + _t("Netto autorizzato [Sm³/h netti]"),
-                min_value=10.0, max_value=2000.0,
-                value=float(st.session_state.get("plant_net_smch_saved", DEFAULT_PLANT_NET_SMCH)),
-                step=5.0,
-                help=_t("Portata di biometano **netto** a valle upgrading. Valore contatore rete / decreto."),
-                key="input_smch_netti",
-            )
-            plant_net_smch = _plant_input_net
-            
-            # Calcolo lordo base
-            _gross_suggested = plant_net_smch * _aux_base
-            
-            if st.session_state.override_gross_manual:
-                # Inserimento manuale del lordo
-                plant_gross_smch = st.number_input(
-                    "📥 " + _t("Lordo manuale [Sm³/h lordi]"),
-                    min_value=plant_net_smch, max_value=10000.0,
-                    value=float(st.session_state.get("plant_gross_smch_saved", _gross_suggested)),
-                    step=5.0,
-                    help=_t("Inserisci manualmente la portata di biogas lordo. Questo sovrascrive il fattore aux calcolato."),
-                    key="input_smch_lordi_manual",
-                )
-                # Aggiorno aux_factor in session_state per coerenza globale
-                if plant_net_smch > 0:
-                    st.session_state["aux_factor"] = plant_gross_smch / plant_net_smch
-            else:
-                plant_gross_smch = _gross_suggested
-                st.caption(f"💡 {_t('Lordo calcolato')}: **{fmt_it(plant_gross_smch, 1)} Sm³/h** (aux {fmt_it(_aux_base, 3)})")
-        else:
-            # Modalità inserimento LORDI
-            _plant_input_gross = st.number_input(
-                "🎯 " + _t("Portata biogas grezzo [Sm³/h lordi]"),
-                min_value=10.0, max_value=10000.0,
-                value=float(st.session_state.get("plant_gross_smch_saved", DEFAULT_PLANT_NET_SMCH * _aux_base)),
-                step=5.0,
-                help=_t("Portata di biogas **lordo** in ingresso all'upgrading."),
-                key="input_smch_lordi",
-            )
-            plant_gross_smch = _plant_input_gross
-            
-            if st.session_state.override_gross_manual:
-                plant_net_smch = st.number_input(
-                    "📤 " + _t("Netto manuale [Sm³/h netti]"),
-                    min_value=10.0, max_value=plant_gross_smch,
-                    value=float(st.session_state.get("plant_net_smch_saved", plant_gross_smch / _aux_base)),
-                    step=5.0,
-                    key="input_smch_netti_manual",
-                )
-                if plant_net_smch > 0:
-                    st.session_state["aux_factor"] = plant_gross_smch / plant_net_smch
-            else:
-                plant_net_smch = plant_gross_smch / _aux_base
-                st.caption(f"💡 {_t('Netto calcolato')}: **{fmt_it(plant_net_smch, 1)} Sm³/h** (aux {fmt_it(_aux_base, 3)})")
-
-        # Salvo i valori in session_state per ricordarli al prossimo switch
-        st.session_state["plant_net_smch_saved"]   = plant_net_smch
-        st.session_state["plant_gross_smch_saved"] = plant_gross_smch
-
-        # Riepilogo visivo lordi ↔ netti
-        _c1, _c2, _c3 = st.columns(3)
-        _c1.metric("📥 " + _t("Lordi"), fmt_it(plant_gross_smch, 0, " Sm³/h"))
-        _c2.metric("📤 " + _t("Netti"), fmt_it(plant_net_smch, 0, " Sm³/h"))
-        _c3.metric("⚙️ " + _t("aux"), fmt_it(st.session_state.get("aux_factor", _aux_base), 3))
-        
-        # Breakdown autoconsumi se disponibile (solo se non manuale o se vogliamo mostrare comunque i teorici)
-        _detail = st.session_state.get("aux_factor_detail", {})
-        if _detail and not st.session_state.override_gross_manual:
-            _f_heat = _detail.get("f_heat", 0)
-            _f_elec = _detail.get("f_elec", 0)
-            _f_slip = _detail.get("f_slip", 0)
-            _f_marg = _detail.get("f_margin", 0)
-            st.caption(
-                f"📊 **Breakdown autoconsumo** (% del lordo): "
-                f"🔥 Caldaia {fmt_it(_f_heat*100, 1, '%')} · "
-                f"⚡ CHP {fmt_it(_f_elec*100, 1, '%')} · "
-                f"💨 Slip {fmt_it(_f_slip*100, 1, '%')} · "
-                f"🔧 Margine {fmt_it(_f_marg*100, 1, '%')} "
-                f"→ Totale {fmt_it((_f_heat+_f_elec+_f_slip+_f_marg)*100, 1, '%')} ≡ aux {fmt_it(_aux_base, 3)}"
-            )
-        else:
-            _up_eff_base = 1.0 / _aux_base if _aux_base > 0 else 0.8
-            st.caption(
-                _t("ℹ️ Vai in **Config. Tecnica** per calcolare il fattore lordi/netti reale "
-                   "(include upgrading, caldaia e CHP interno). Ora uso default: "
-                   f"aux = {fmt_it(_aux_base, 3)} ({fmt_it((1-_up_eff_base)*100, 0, '%')} autoconsumo totale).")
-            )
-
-        # Per coerenza in mode biometano: eta_el/eta_th/aux_el_pct non usati
-        eta_el      = ETA_EL_DEFAULT
-        eta_th      = ETA_TH_DEFAULT
-        aux_el_pct  = 0.0
-        plant_kwe     = plant_net_smch * eta_el * 9.97   # info-only
-        plant_kwe_net = plant_kwe
+    # Stub transitori per variabili "elettriche" legacy CHP: sono ancora referenziate
+    # in dict ctx passati a PDF/Excel/output_builder. Verranno rimosse del tutto
+    # quando saranno eliminati anche i consumer downstream. Valori coerenti con
+    # quelli usati prima nei rami "biometano" del codice morto.
+    eta_el        = 0.40
+    eta_th        = 0.42
+    aux_el_pct    = 0.0
+    plant_kwe     = plant_net_smch * eta_el * 9.97
+    plant_kwe_net = plant_kwe
 
     st.markdown("---")
     with st.sidebar.expander("⚙️ " + _t("Config. Tecnica & GHG"), expanded=False):
@@ -2026,67 +1959,54 @@ with st.sidebar:
             list(EP_DIGESTATE.keys()), index=1,
             help=_t("RED III All.V Parte C: APERTO o CHIUSO con recupero gas."),
         )
-        
-        if IS_CHP:
-            upgrading_opt = None
-            offgas_opt = None
-            injection_opt = None
-            ep_upgrading = 0.0
-            ep_offgas = 0.0
-        else:
-            upgrading_opt = st.selectbox(_t("Tecnologia upgrading"),
-                                          list(EP_UPGRADING.keys()), index=1)
-            offgas_opt = st.selectbox(_t("Combustione off-gas"),
-                                       list(EP_OFFGAS.keys()), index=0)
-            ep_upgrading = EP_UPGRADING[upgrading_opt]
-            ep_offgas = EP_OFFGAS[offgas_opt]
-            injection_opt = st.selectbox(
-                _t("Iniezione in rete"),
-                list(INJECTION_PRESSURE.keys()), index=1
-            )
+
+        upgrading_opt = st.selectbox(_t("Tecnologia upgrading"),
+                                      list(EP_UPGRADING.keys()), index=1)
+        offgas_opt = st.selectbox(_t("Combustione off-gas"),
+                                   list(EP_OFFGAS.keys()), index=0)
+        ep_upgrading = EP_UPGRADING[upgrading_opt]
+        ep_offgas = EP_OFFGAS[offgas_opt]
+        injection_opt = st.selectbox(
+            _t("Iniezione in rete"),
+            list(INJECTION_PRESSURE.keys()), index=1
+        )
 
         heat_opt = st.selectbox(_t("Fonte calore"), list(EP_HEAT.keys()), index=0)
         elec_opt = st.selectbox(_t("Elettricità ausiliari"), list(EP_ELEC.keys()), index=1)
-        
+
         ep_digestate = EP_DIGESTATE[digestate_opt]
         ep_heat = EP_HEAT[heat_opt]
         ep_elec = EP_ELEC[elec_opt]
         ep_total = ep_digestate + ep_upgrading + ep_offgas + ep_heat + ep_elec
-        
+
         st.markdown(f"**ep totale: {fmt_it(ep_total, 1, signed=True)} gCO₂/MJ**")
-        
+
         # aux_factor
         st.markdown("---")
         margin_pct = st.slider(_t("Margine/Downtime [%]"), 0.0, 10.0, 3.0, 0.5)
-        
-        if IS_CHP:
-            aux_auto = 1.0 / max(1.0 - margin_pct / 100.0, 0.80)
-            aux_auto_data = None
-            cogen_frac = 0.0
-            recover_chp_heat = False
-        else:
-            cogen_frac = 0.6
-            recover_chp_heat = True
-            if elec_opt == ELEC_IS_INTERNAL:
-                c1, c2 = st.columns(2)
-                cogen_frac = c1.number_input("% Cogen", 0.0, 100.0, 60.0) / 100.0
-                recover_chp_heat = c2.checkbox("Recupero Q", True)
-            
-            aux_auto_data = compute_aux_factor(
-                upgrading_opt=upgrading_opt, heat_opt=heat_opt, elec_opt=elec_opt,
-                injection_opt=injection_opt, margin=margin_pct/100.0,
-                cogen_fraction=cogen_frac, recover_chp_heat=recover_chp_heat
-            )
-            aux_auto = aux_auto_data["aux_factor"]
-            
+
+        cogen_frac = 0.6
+        recover_chp_heat = True
+        if elec_opt == ELEC_IS_INTERNAL:
+            c1, c2 = st.columns(2)
+            cogen_frac = c1.number_input("% Cogen", 0.0, 100.0, 60.0) / 100.0
+            recover_chp_heat = c2.checkbox("Recupero Q", True)
+
+        aux_auto_data = compute_aux_factor(
+            upgrading_opt=upgrading_opt, heat_opt=heat_opt, elec_opt=elec_opt,
+            injection_opt=injection_opt, margin=margin_pct/100.0,
+            cogen_fraction=cogen_frac, recover_chp_heat=recover_chp_heat
+        )
+        aux_auto = aux_auto_data["aux_factor"]
+
         manual_aux_on = st.checkbox(_t("Override aux manuale"), False)
         if manual_aux_on:
             aux_factor = st.number_input("aux manuale", 1.0, 2.0, round(aux_auto, 3), 0.005)
         else:
             aux_factor = aux_auto
-            
+
         st.session_state["aux_factor"] = aux_factor
-        if not IS_CHP: st.session_state["aux_factor_detail"] = aux_auto_data
+        st.session_state["aux_factor_detail"] = aux_auto_data
 
     st.markdown("---")
     st.markdown("### " + _t("🌾 Biomasse attive"))
