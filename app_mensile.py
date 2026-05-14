@@ -3661,155 +3661,30 @@ with tab_export:
         else:
             annex_mass_share = 0.0
 
-        if IS_DM2018:
-            if advanced_mode == "Forza AVANZATO (override manuale)":
-                is_advanced = True
-            elif advanced_mode == "Forza NON avanzato (override manuale)":
-                is_advanced = False
-            else:  # auto da quota Annex IX in massa
-                is_advanced = annex_mass_share >= annex_threshold
-            # CIC double counting attivo SOLO se end_use ammette CIC
-            # (trasporti) E impianto avanzato.
-            _cic_premium_use = DM2018_END_USES[end_use]["cic_premium"]
-            cic_double = is_advanced and _cic_premium_use
-            cic_active  = _cic_premium_use  # CIC system in use (single or double)
-        else:
-            is_advanced  = False
-            cic_double   = False
-            cic_active   = False
+        # DM 2022: nessun regime CIC, niente classificazione "avanzato"
+        is_advanced  = False
+        cic_double   = False
+        cic_active   = False
 
         # ============================================================
-        # CALCOLO STATUS FER 2 (matrice >=80% sottoprodotti)
+        # TARIFFA PER BIOMASSA (DM 2022 — tariffa diretta €/MWh)
         # ============================================================
-        if IS_FER2:
-            # Stessa logica della quota Annex IX in massa: i sottoprodotti
-            # FER 2 = tutti i feedstock con annex_ix in ("A","B").
-            # Le colture dedicate (annex_ix=None) NON contano come sottoprodotti.
-            fer2_subprod_share = annex_mass_share  # alias semantico
-            fer2_qualified = fer2_subprod_share >= fer2_matrice_threshold
-            # Premi effettivi (toggle utente AND condizione fisica)
-            fer2_apply_matrice = fer2_premio_matrice_attivo and fer2_qualified
-            fer2_apply_car = fer2_premio_car_attivo
-            fer2_tariffa_eff = (
-                fer2_tariffa_base
-                + (fer2_premio_matrice_eur if fer2_apply_matrice else 0.0)
-                + (fer2_premio_car_eur if fer2_apply_car else 0.0)
-            )
-        else:
-            fer2_subprod_share   = 0.0
-            fer2_qualified       = False
-            fer2_apply_matrice   = False
-            fer2_apply_car       = False
-            fer2_tariffa_eff     = 0.0
-
-        # ============================================================
-        # TARIFFA PER BIOMASSA — applicabile solo se NON in regime CIC
-        # ============================================================
-        # In regime CIC (DM 2018 trasporti) il prezzo e' unico per tutto il
-        # biometano (cic_price € per CIC), non personalizzato per biomassa.
-        # In regime FER 2 la tariffa e' calcolata da TR + premi (uniforme),
-        # ma resta editabile per biomassa per scenari custom.
-        if IS_FER2:
-            _tar_unit = "€/MWh_el"
-            _tar_default = fer2_tariffa_eff
-        elif IS_CHP:
-            _tar_unit = "€/MWh_el"
-            _tar_default = 280.0
-        elif IS_DM2018 and not cic_active:
-            _tar_unit = "€/MWh"
-            _tar_default = 110.0   # DM 2018 altri usi/CAR: tariffa base
-        else:
-            _tar_unit = "€/MWh"
-            _tar_default = 120.0
+        _tar_unit = "€/MWh"
+        _tar_default = 120.0
         st.markdown(
             f"##### 💶 Dettaglio per tipologia di biomassa"
-            + (
-                f" (regime CIC unico — tariffa €/MWh non applicabile per biomassa)"
-                if cic_active else f" (tariffa {_tar_unit} editabile ✏️)"
-            )
+            f" (tariffa {_tar_unit} editabile ✏️)"
         )
-        if IS_FER2:
-            # Box riepilogo FER 2
-            if fer2_qualified:
-                st.success(
-                    f"🔋 **FER 2 · QUOTA MATRICE OK** "
-                    f"({fmt_it(fer2_subprod_share*100, 1, '%')} sottoprodotti, "
-                    f"soglia {fmt_it(fer2_matrice_threshold*100, 0, '%')}). "
-                    f"Tariffa effettiva: "
-                    f"**{fmt_it(fer2_tariffa_base, 0)} TR**"
-                    + (f" **+ {fmt_it(fer2_premio_matrice_eur, 0)} matrice**"
-                       if fer2_apply_matrice else
-                       f" + ~~{fmt_it(fer2_premio_matrice_eur, 0)} matrice~~")
-                    + (f" **+ {fmt_it(fer2_premio_car_eur, 0)} CAR**"
-                       if fer2_apply_car else
-                       f" + ~~{fmt_it(fer2_premio_car_eur, 0)} CAR~~")
-                    + f" = **{fmt_it(fer2_tariffa_eff, 0)} €/MWh_el**. "
-                    f"Periodo incentivo: {FER2_PERIODO_ANNI} anni."
-                )
-            else:
-                st.error(
-                    f"❌ **FER 2 · QUOTA MATRICE INSUFFICIENTE** "
-                    f"({fmt_it(fer2_subprod_share*100, 1, '%')} sottoprodotti vs "
-                    f"soglia richiesta {fmt_it(fer2_matrice_threshold*100, 0, '%')}). "
-                    f"Premio matrice DISATTIVATO. Riduci la quota di colture "
-                    f"dedicate (cap normativo 20%) o aumenta sottoprodotti/effluenti. "
-                    f"Tariffa effettiva: **{fmt_it(fer2_tariffa_eff, 0)} €/MWh_el**."
-                )
-        elif IS_CHP:
-            st.caption(
-                "⚡ **Modalità Biogas CHP DM 6/7/2012**: tariffa €/MWh_el "
-                "applicata ai **MWh elettrici NETTI immessi in rete** "
-                f"(= MWh_el lordi × (1 − aux%), con aux = {fmt_it(aux_el_pct*100, 1, '%')}). "
-                "Default **280 €/MWh** (TO base DM 6/7/2012 per biogas agricolo "
-                "<1 MW + premio CAR + premio matrice sottoprodotti). "
-                "Modificabile per scenari FER-X, PPA, vendita spot."
-            )
-        elif IS_DM2018 and cic_active:
-            if is_advanced:
-                st.success(
-                    f"🌿 **DM 2018 · BIOMETANO AVANZATO** "
-                    f"(quota Annex IX in massa: "
-                    f"{fmt_it(annex_mass_share*100, 1, '%')}, soglia "
-                    f"{fmt_it(annex_threshold*100, 0, '%')}). "
-                    f"Sistema CIC con **double counting**: 1 CIC ogni "
-                    f"{fmt_it(MWH_PER_CIC/2, 2)} MWh "
-                    f"({fmt_it(GCAL_PER_CIC/2, 0)} Gcal). "
-                    f"Valore CIC: **{fmt_it(cic_price, 0)} €/CIC**."
-                )
-            else:
-                st.warning(
-                    f"⚠️ **DM 2018 · BIOMETANO NON AVANZATO** "
-                    f"(quota Annex IX in massa: "
-                    f"{fmt_it(annex_mass_share*100, 1, '%')}, sotto soglia "
-                    f"{fmt_it(annex_threshold*100, 0, '%')}). "
-                    f"Sistema CIC **senza** double counting: 1 CIC ogni "
-                    f"{fmt_it(MWH_PER_CIC, 2)} MWh "
-                    f"({fmt_it(GCAL_PER_CIC, 0)} Gcal). "
-                    f"Valore CIC: **{fmt_it(cic_price, 0)} €/CIC**."
-                )
-        elif IS_DM2018 and not cic_active:
-            st.info(
-                f"ℹ️ **DM 2018 · {end_use}**: regime tariffa diretta €/MWh "
-                f"(non CIC). Modifica le tariffe per biomassa qui sotto "
-                f"per simulare scenari diversi."
-            )
 
-        # Stato persistente: tariffe per biomassa (separate per mode).
-        # In FER 2 la tariffa e' uniforme (TR+premi) e calcolata dinamicamente:
-        # forziamo ogni run a fer2_tariffa_eff per riflettere subito le modifiche
-        # sidebar (TR, premi). Niente cache per biomassa.
+        # Stato persistente: tariffe per biomassa.
         _tar_key = f"tariffs_eur_mwh_{APP_MODE}"
-        if IS_FER2:
-            st.session_state[_tar_key] = {n: fer2_tariffa_eff for n in active_feeds}
-        else:
-            if _tar_key not in st.session_state:
-                st.session_state[_tar_key] = {n: _tar_default for n in active_feeds}
-            # Retrocompat: se mancano chiavi per nuove biomasse
-            for n in active_feeds:
-                if n not in st.session_state[_tar_key]:
-                    st.session_state[_tar_key][n] = _tar_default
+        if _tar_key not in st.session_state:
+            st.session_state[_tar_key] = {n: _tar_default for n in active_feeds}
+        # Retrocompat: se mancano chiavi per nuove biomasse
+        for n in active_feeds:
+            if n not in st.session_state[_tar_key]:
+                st.session_state[_tar_key][n] = _tar_default
 
-        # MWh totale (base CIC nel caso DM 2018)
         _tot_mwh_basis_raw = sum(annual_mwh.values())  # MWh CH4 netto per biometano
 
         detail_rows = []
@@ -3821,33 +3696,11 @@ with tab_export:
             nm3_netti = nm3_lordi / aux_factor
             mwh_netti = nm3_netti * NM3_TO_MWH
 
-            # --- Calcolo ricavi mode-aware ---
-            if IS_CHP:
-                mwh_el_lordo = mwh_netti * eta_el
-                mwh_el_netto_rete = mwh_el_lordo * (1.0 - aux_el_pct)
-                mwh_revenue = mwh_el_netto_rete  # tariffa T.O. applicata al netto rete
-                tariffa = st.session_state[_tar_key][n]
-                ricavi = mwh_revenue * tariffa
-                n_cic = 0.0
-            elif IS_DM2018 and cic_active:
-                # CIC SYSTEM: prezzo unico, ricavi = n_CIC * cic_price.
-                # double counting plant-level (vedi cic_double).
-                mwh_el_lordo = 0.0
-                mwh_el_netto_rete = 0.0
-                mwh_revenue = mwh_netti
-                cic_factor = 2.0 if cic_double else 1.0
-                n_cic = (mwh_netti / MWH_PER_CIC) * cic_factor
-                tariffa = cic_price  # informativo, non per biomassa
-                ricavi = n_cic * cic_price
-            else:
-                # DM 2022 o DM 2018 altri usi: tariffa diretta €/MWh
-                mwh_el_lordo = 0.0
-                mwh_el_netto_rete = 0.0
-                mwh_revenue = mwh_netti
-                tariffa = st.session_state[_tar_key][n]
-                ricavi = mwh_revenue * tariffa
-                n_cic = 0.0
-            tot_n_cic += n_cic
+            # DM 2022: tariffa diretta €/MWh
+            mwh_revenue = mwh_netti
+            tariffa = st.session_state[_tar_key][n]
+            ricavi = mwh_revenue * tariffa
+            n_cic = 0.0
             quota = ((mwh_netti / _tot_mwh_basis_raw * 100)
                      if _tot_mwh_basis_raw > 0 else 0)
             pdf_revenue_rows.append((n, {
@@ -3867,27 +3720,10 @@ with tab_export:
                 "Resa (Nm³/t)":    fmt_it(_yield_of(n), 0),  # resa effettiva
                 "Sm³ netti/anno":  fmt_it(nm3_netti, 0),
                 "MWh netti/anno":  fmt_it(mwh_netti, 1),
+                "Quota % MWh":     fmt_it(quota, 1, "%"),
+                f"Tariffa {_tar_unit}": fmt_it(tariffa, 2),
+                "Ricavi €/anno":   fmt_it(ricavi, 0, " €"),
             }
-            if IS_CHP:
-                row_detail["MWh_el lordi/anno"] = fmt_it(mwh_el_lordo, 1)
-                row_detail["MWh_el netti rete/anno"] = fmt_it(mwh_el_netto_rete, 1)
-                row_detail["MWh termici/anno"] = fmt_it(mwh_netti * eta_th, 1)
-            if IS_DM2018:
-                _aix = FEEDSTOCK_DB[n].get("annex_ix")
-                row_detail["Annex IX"] = (
-                    "✅ A" if _aix == "A" else
-                    "✅ B" if _aix == "B" else
-                    "—"
-                )
-                if cic_active:
-                    row_detail["CIC/anno"] = fmt_it(n_cic, 2)
-            row_detail["Quota % MWh"] = fmt_it(quota, 1, "%")
-            if cic_active:
-                # In regime CIC mostriamo "Tariffa €/CIC" uniforme (non editabile per riga)
-                row_detail[f"Tariffa €/CIC"] = fmt_it(cic_price, 2)
-            else:
-                row_detail[f"Tariffa {_tar_unit}"] = fmt_it(tariffa, 2)
-            row_detail["Ricavi €/anno"] = fmt_it(ricavi, 0, " €")
             detail_rows.append(row_detail)
         df_detail = pd.DataFrame(detail_rows)
 
@@ -3900,64 +3736,14 @@ with tab_export:
             "Quota % MWh":    st.column_config.TextColumn("Quota % MWh", disabled=True),
             "Ricavi €/anno": st.column_config.TextColumn(
                 "Ricavi €/anno 🧮", disabled=True,
-                help=("CIC × valore CIC" if cic_active
-                      else f"MWh netti × tariffa {_tar_unit}")
-                     + " (si ricalcola al variare dei parametri)",
+                help=f"MWh netti × tariffa {_tar_unit} (si ricalcola al variare dei parametri)",
             ),
-        }
-        if cic_active:
-            detail_col_cfg["Tariffa €/CIC"] = st.column_config.TextColumn(
-                "Valore CIC €", disabled=True,
-                help="Prezzo unitario CIC fissato in sidebar. Uniforme per "
-                     "tutto il biometano (no editing per biomassa in regime CIC).",
-            )
-        elif IS_FER2:
-            detail_col_cfg[f"Tariffa {_tar_unit}"] = st.column_config.TextColumn(
-                "Tariffa eff. €/MWh_el", disabled=True,
-                help="Tariffa effettiva FER 2 = TR base + premio matrice "
-                     "(se attivo) + premio CAR (se attivo). Uniforme: "
-                     "modifica TR/premi in sidebar per aggiornare.",
-            )
-        else:
-            detail_col_cfg[f"Tariffa {_tar_unit}"] = st.column_config.TextColumn(
+            f"Tariffa {_tar_unit}": st.column_config.TextColumn(
                 f"Tariffa {_tar_unit} ✏️",
                 help=f"Tariffa incentivante/PPA [{_tar_unit}] in formato "
                      f"italiano (es. 1.234,56). Modificabile per simulazioni.",
-            )
-        if IS_CHP:
-            detail_col_cfg["MWh_el lordi/anno"] = st.column_config.TextColumn(
-                "MWh_el lordi/anno", disabled=True,
-                help="MWh elettrici lordi ai morsetti alternatore "
-                     "(= MWh netti × η_el). Non fatturabili direttamente: "
-                     "occorre sottrarre gli autoconsumi ausiliari.",
-            )
-            detail_col_cfg["MWh_el netti rete/anno"] = st.column_config.TextColumn(
-                "MWh_el netti rete/anno", disabled=True,
-                help="MWh elettrici NETTI immessi in rete e fatturati a tariffa T.O. "
-                     "(= MWh_el lordi × (1 − aux%)). Questa è la base ricavi.",
-            )
-            detail_col_cfg["MWh termici/anno"] = st.column_config.TextColumn(
-                "MWh_th/anno", disabled=True,
-                help="MWh termici recuperati dal cogeneratore "
-                     "(= MWh netti × η_th). Usabili per teleriscaldamento / processo.",
-            )
-        if IS_DM2018:
-            detail_col_cfg["Annex IX"] = st.column_config.TextColumn(
-                "All. IX", disabled=True,
-                help="Classificazione Annex IX RED II/III. Parte A = "
-                     "letame, FORSU, sottoprodotti agroindustriali, paglia. "
-                     "Parte B = oli/grassi (UCO, scarti macellazione cat. 3). "
-                     "Solo le matrici Annex IX qualificano per double counting "
-                     "CIC quando l'impianto e' classificato «avanzato».",
-            )
-            if cic_active:
-                detail_col_cfg["CIC/anno"] = st.column_config.TextColumn(
-                    "CIC/anno 🧮", disabled=True,
-                    help=(f"Numero CIC generati = MWh / "
-                          f"{fmt_it(MWH_PER_CIC if not cic_double else MWH_PER_CIC/2, 2)}"
-                          f" MWh per CIC"
-                          + (" (×2 double counting avanzato)" if cic_double else "")),
-                )
+            ),
+        }
 
         edited_detail = st.data_editor(
             df_detail,
@@ -3970,124 +3756,38 @@ with tab_export:
 
         # Se l'utente ha modificato una tariffa -> salva e rerun.
         # Clamp: tariffe negative non hanno senso fisico -> >=0.
-        # NB1: in regime CIC le tariffe non sono editabili (cic_price unico in sidebar).
-        # NB2: in regime FER 2 la tariffa e' uniforme TR+premi (forzata in sidebar).
-        if not cic_active and not IS_FER2:
-            _tar_col = f"Tariffa {_tar_unit}"
-            new_tariffs = {
-                row["Biomassa"]: max(parse_it(row[_tar_col]), 0.0)
-                for _, row in edited_detail.iterrows()
-            }
-            if new_tariffs != st.session_state[_tar_key]:
-                st.session_state[_tar_key] = new_tariffs
-                st.rerun()
+        _tar_col = f"Tariffa {_tar_unit}"
+        new_tariffs = {
+            row["Biomassa"]: max(parse_it(row[_tar_col]), 0.0)
+            for _, row in edited_detail.iterrows()
+        }
+        if new_tariffs != st.session_state[_tar_key]:
+            st.session_state[_tar_key] = new_tariffs
+            st.rerun()
 
         # ============================================================
-        # TOTALI RICAVI (mode-aware)
+        # TOTALI RICAVI (DM 2022 — tariffa diretta €/MWh)
         # ============================================================
         tot_mwh = sum(annual_mwh.values())
-        # Base MWh su cui si calcola la tariffa:
-        #  - biometano DM 2022 / DM 2018 altri usi -> MWh netti
-        #  - CHP -> MWh elettrici netti rete (lordo × (1 − aux%))
-        #  - DM 2018 CIC -> n_CIC × cic_price (gia' aggregato in tot_n_cic)
-        if IS_CHP:
-            _chp_factor = eta_el * (1.0 - aux_el_pct)
-        else:
-            _chp_factor = 1.0
-        tot_revenue_base_mwh = tot_mwh * _chp_factor
-        if cic_active:
-            tot_revenue = tot_n_cic * cic_price
-            tariffa_media_ponderata = (
-                (tot_revenue / tot_mwh) if tot_mwh > 0 else 0.0
-            )  # equivalente €/MWh per confronto cross-mode
-        else:
-            tot_revenue = sum(
-                annual_mwh[n] * _chp_factor * st.session_state[_tar_key][n]
-                for n in active_feeds
-            )
-            tariffa_media_ponderata = (
-                (tot_revenue / tot_revenue_base_mwh) if tot_revenue_base_mwh > 0 else 0.0
-            )
-        if IS_CHP:
-            tot_mwh_el_lordo = tot_mwh * eta_el
-            tot_mwh_el_netto = tot_mwh_el_lordo * (1.0 - aux_el_pct)
-            tot_mwh_el_aux = tot_mwh_el_lordo - tot_mwh_el_netto
-            tot_mwh_th = tot_mwh * eta_th
-            cA, cB, cC, cD = st.columns(4)
-            cA.metric("MWh_el lordi/anno", fmt_it(tot_mwh_el_lordo, 0),
-                      delta=f"−{fmt_it(tot_mwh_el_aux, 0)} aux",
-                      delta_color="inverse")
-            cB.metric("⚡ MWh_el netti rete/anno", fmt_it(tot_mwh_el_netto, 0))
-            cC.metric("🔥 MWh termici/anno", fmt_it(tot_mwh_th, 0))
-            cD.metric("💰 Ricavi elettrici/anno", fmt_it(tot_revenue, 0, " €"))
-            if IS_FER2:
-                st.caption(
-                    f"📐 **Calcolo FER 2 (≤{fmt_it(FER2_KWE_CAP, 0)} kWe)**: "
-                    f"MWh_el lordi = MWh_CH₄ × η_el "
-                    f"({fmt_it(eta_el*100, 0, '%')}) · "
-                    f"MWh_el netti rete = lordi × (1 − aux%) "
-                    f"(aux = {fmt_it(aux_el_pct*100, 1, '%')}) · "
-                    f"**Tariffa effettiva = TR ({fmt_it(fer2_tariffa_base, 0)})"
-                    + (f" + matrice ({fmt_it(fer2_premio_matrice_eur, 0)})"
-                       if fer2_apply_matrice else "")
-                    + (f" + CAR ({fmt_it(fer2_premio_car_eur, 0)})"
-                       if fer2_apply_car else "")
-                    + f" = {fmt_it(fer2_tariffa_eff, 0)} €/MWh_el** · "
-                    f"Ricavi = MWh_el netti × tariffa effettiva. "
-                    f"Cumulo nel periodo {FER2_PERIODO_ANNI} anni: "
-                    f"~{fmt_it(tot_revenue * FER2_PERIODO_ANNI / 1_000_000, 1)} M€."
-                )
-            else:
-                st.caption(
-                    f"📐 **Calcolo CHP DM 6/7/2012**: MWh_el lordi = MWh netti × η_el "
-                    f"({fmt_it(eta_el*100, 0, '%')}) · "
-                    f"MWh_el netti rete = lordi × (1 − aux%) "
-                    f"(aux = {fmt_it(aux_el_pct*100, 1, '%')}) · "
-                    f"MWh termici = MWh netti × η_th "
-                    f"({fmt_it(eta_th*100, 0, '%')}) · "
-                    f"**Ricavi = MWh_el netti rete × tariffa €/MWh_el** "
-                    f"(è l'energia realmente immessa in rete e fatturata al GSE). "
-                    f"Il calore può generare ricavi aggiuntivi (teleriscaldamento, "
-                    f"processo, essiccazione digestato) non inclusi qui."
-                )
-        elif cic_active:
-            cA, cB, cC, cD = st.columns(4)
-            cA.metric("MWh netti totali/anno", fmt_it(tot_mwh, 0))
-            cB.metric("CIC/anno",
-                      fmt_it(tot_n_cic, 1),
-                      delta=("AVANZATO ×2" if cic_double else "non avanzato"),
-                      delta_color="normal" if cic_double else "off")
-            cC.metric("Quota Annex IX (massa)",
-                      fmt_it(annex_mass_share*100, 1, "%"),
-                      delta=f"soglia {fmt_it(annex_threshold*100, 0, '%')}",
-                      delta_color="normal" if is_advanced else "inverse")
-            cD.metric("💰 Ricavi CIC/anno", fmt_it(tot_revenue, 0, " €"),
-                      delta=f"≈ {fmt_it(tariffa_media_ponderata, 1)} €/MWh equiv.")
-            st.caption(
-                f"📐 **Calcolo DM 2018 CIC**: 1 CIC = "
-                f"{fmt_it(MWH_PER_CIC, 2)} MWh "
-                f"({fmt_it(GCAL_PER_CIC, 0)} Gcal). "
-                + (f"**Double counting AVANZATO** → 1 CIC ogni "
-                   f"{fmt_it(MWH_PER_CIC/2, 2)} MWh "
-                   f"({fmt_it(GCAL_PER_CIC/2, 0)} Gcal). "
-                   if cic_double else
-                   "Non avanzato → single counting. ")
-                + f"**Ricavi = N_CIC × {fmt_it(cic_price, 0)} €/CIC**. "
-                f"NB: per certificazione GSE serve dichiarazione di sostenibilità "
-                f"con tracciabilità feedstock per ogni periodo di rendicontazione."
-            )
-        else:
-            cA, cB, cC = st.columns(3)
-            cA.metric("MWh netti totali/anno", fmt_it(tot_mwh, 0))
-            cB.metric("Tariffa media ponderata",
-                      fmt_it(tariffa_media_ponderata, 2, " €/MWh"))
-            cC.metric("💰 Ricavi totali/anno", fmt_it(tot_revenue, 0, " €"))
-            st.caption(
-                f"📐 **Calcolo**: MWh netti/biomassa = t × resa_Nm³/t ÷ "
-                f"{fmt_it(aux_factor, 2)} × 0,00997. "
-                f"Ricavi/biomassa = MWh netti × tariffa €/MWh. "
-                f"Modifica la colonna «Tariffa €/MWh» per simulare scenari diversi."
-            )
+        tot_revenue_base_mwh = tot_mwh
+        tot_revenue = sum(
+            annual_mwh[n] * st.session_state[_tar_key][n]
+            for n in active_feeds
+        )
+        tariffa_media_ponderata = (
+            (tot_revenue / tot_revenue_base_mwh) if tot_revenue_base_mwh > 0 else 0.0
+        )
+        cA, cB, cC = st.columns(3)
+        cA.metric("MWh netti totali/anno", fmt_it(tot_mwh, 0))
+        cB.metric("Tariffa media ponderata",
+                  fmt_it(tariffa_media_ponderata, 2, " €/MWh"))
+        cC.metric("💰 Ricavi totali/anno", fmt_it(tot_revenue, 0, " €"))
+        st.caption(
+            f"📐 **Calcolo**: MWh netti/biomassa = t × resa_Nm³/t ÷ "
+            f"{fmt_it(aux_factor, 2)} × 0,00997. "
+            f"Ricavi/biomassa = MWh netti × tariffa €/MWh. "
+            f"Modifica la colonna «Tariffa €/MWh» per simulare scenari diversi."
+        )
 
     # ============================================================
     # TAB 5 — BUSINESS PLAN (DM 2022)
