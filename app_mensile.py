@@ -2932,7 +2932,7 @@ with tab_export:
             # Output model context per export
             _om_ctx = {
                 "APP_MODE": APP_MODE, "APP_MODE_LABEL": _MODE["label"], "lang": _LANG,
-                "IS_CHP": IS_CHP, "plant_net_smch": plant_net_smch, "plant_kwe": plant_kwe,
+                "plant_net_smch": plant_net_smch,
                 "aux_factor": aux_factor, "ep_total": ep_total, "end_use": end_use,
                 "ghg_threshold": ghg_threshold, "fossil_comparator": FOSSIL_COMPARATOR,
                 "active_feeds": active_feeds, "FEEDSTOCK_DB": FEEDSTOCK_DB,
@@ -2956,8 +2956,6 @@ with tab_export:
                 "MONTHS": MONTHS, "MONTH_HOURS": MONTH_HOURS,
                 "initial_data": {row["Mese"]: {"Ore": int(row["Ore"]), **{f: row[f] for f in active_feeds if f in row}} for _, row in df_res.iterrows()},
                 "APP_MODE_LABEL": _MODE["label"], "end_use": end_use,
-                "IS_CHP": IS_CHP, "plant_kwe": plant_kwe, "plant_kwe_net": plant_kwe_net,
-                "eta_el": eta_el, "eta_th": eta_th, "aux_el_pct": aux_el_pct,
                 "bp_tariffa_eff_mwh": float(tariffa_media_ponderata), "bp_ore_anno": 8500.0,
                 "bp_durata_tariffa": BP_DURATA_TARIFFA_ANNI,
                 "bp_pnrr_pct": st.session_state.get("bp_pnrr_pct", 40.0),
@@ -4231,15 +4229,8 @@ with tab_export:
                 "APP_MODE":          APP_MODE,
                 "APP_MODE_LABEL":    _MODE["label"],
                 "lang":              _LANG,
-                # Flag normativi
-                "IS_CHP":            IS_CHP,
-                "IS_CHP_DM2012":     IS_CHP_DM2012,
-                "IS_FER2":           IS_FER2,
-                "IS_DM2018":         IS_DM2018,
-                "IS_DM2022":         IS_DM2022,
                 # Impianto
                 "plant_net_smch":    plant_net_smch,
-                "plant_kwe":         plant_kwe,
                 "aux_factor":        aux_factor,
                 "ep_total":          ep_total,
                 "end_use":           end_use,
@@ -4264,18 +4255,9 @@ with tab_export:
                 "saving_avg":        float(df_res["Saving %"].mean()),
                 "valid_months":      int(df_res["Validità"].str.startswith("✅").sum()),
                 "tot_revenue":       float(tot_revenue),
-                "tot_n_cic":         0.0,
-                "cic_active":        False,
-                "is_advanced":       False,
                 "tariffa_media_ponderata": float(tariffa_media_ponderata)
                                            if 'tariffa_media_ponderata' in dir() else 0.0,
-                "tot_mwh_el_lordo":  float(df_res["MWh elettrici lordi"].sum())
-                                     if IS_CHP and "MWh elettrici lordi" in df_res
-                                     else 0.0,
-                "tot_mwh_el_netto":  float(df_res["MWh elettrici netti"].sum())
-                                     if IS_CHP and "MWh elettrici netti" in df_res
-                                     else 0.0,
-                # Business plan (DM 2022)
+                # Business plan DM 2022
                 "bp_result":         bp_result,
                 # Audit
                 "yield_audit_rows":     list(_yield_audit_rows),
