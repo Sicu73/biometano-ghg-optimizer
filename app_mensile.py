@@ -1470,54 +1470,16 @@ with st.sidebar:
                 "certificazioni o adempimenti."
             )
     st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
-# NB: branche "biometano generico" (DM 2022 + DM 2018) si esprimono come
-# `not IS_CHP` -- entrambi i regimi condividono upgrading/off-gas/iniezione.
-# `IS_CHP` cattura entrambi i CHP (DM 2012 + FER 2) per UI/calcoli condivisi;
-# `IS_FER2` differenzia solo le specificita' FER 2 (cap 300 kW, premi).
-# Comparator fossile aggiornato dinamicamente:
-#  - mode CHP (qualsiasi): 183 gCO2/MJ (mix elettrico EU)
-#  - mode DM 2022:         80 rete/elec/calore, 94 trasporti (per end_use)
-#  - mode DM 2018:         94 trasporti, 80 altri usi/CAR (per end_use)
-if IS_CHP:
-    FOSSIL_COMPARATOR = COMPARATOR_CHP
-
-# ---------------------------------------------------------------------------
-# MODE_META — Single source of truth per le stringhe mode-specific
-# Sostituisce ternari nidificati IS_FER2/IS_CHP/IS_DM2018/IS_DM2022 ripetuti
-# in 5+ punti (header tagline/pill, sidebar badge, label/colonne export).
-# Per aggiungere un mode: aggiungere una entry e aggiornare le 5 chiavi.
-# ---------------------------------------------------------------------------
-_MODE_META: dict = {
-    "biogas_chp_fer2": {
-        "tagline":   "DM 19/06/2024 · CHP biogas piccoli impianti agricoli ≤300 kWe. Tariffa di Riferimento + premi matrice (≥80% sottoprodotti) e CAR. Periodo 20 anni, saving 80% RED III.",
-        "pill_main": "BIOGAS · CHP · FER 2 (≤300 kW)",
-        "pill_norm": "DM 19/06/2024 · FER 2",
-        "badge":     "Biogas · CHP · FER 2 (≤300 kW)",
-        "label":     "Biogas CHP FER 2 (≤300 kW)",
-    },
-    "biogas_chp": {
-        "tagline":   "Pianificazione e business case per impianti biogas cogenerativi (DM 6/7/2012, ≤1 MW). Bilancio elettrico-termico, tariffa T.O. e saving RED III.",
-        "pill_main": "BIOGAS · CHP · DM 6/7/2012",
-        "pill_norm": "RED III · D.LGS 5/2026",
-        "badge":     "Biogas · CHP · DM 6/7/2012",
-        "label":     "Biogas CHP DM 6/7/2012",
-    },
-    "biometano_2018": {
-        "tagline":   "DM 2/3/2018 · sistema CIC con double counting per matrici Annex IX (biometano avanzato). Pianificazione mensile, sostenibilità RED II/III e simulazione CIC.",
-        "pill_main": "BIOMETANO · DM 2/3/2018 · CIC",
-        "pill_norm": "RED II · ALL. IX (avanzato)",
-        "badge":     "Biometano · DM 2018 · CIC",
-        "label":     "Biometano DM 2018 (CIC)",
-    },
-    "biometano": {  # DM 15/09/2022
-        "tagline":   "DM 15/9/2022 · pianificazione mensile e ottimizzazione GHG per biometano: tariffa diretta €/MWh, saving RED III/D.Lgs. 5/2026 per uso finale.",
-        "pill_main": "BIOMETANO · DM 15/9/2022",
-        "pill_norm": "RED III · D.LGS 5/2026",
-        "badge":     "Biometano · DM 2022",
-        "label":     "Biometano DM 2022",
-    },
+# Stringhe mode-specific (tagline/pill/badge/label) per header, sidebar, export.
+# App mono-mode (DM 15/09/2022, RED III): mantengo il dict _MODE per i lettori
+# esistenti (_MODE["tagline"], _MODE["badge"], ecc.) senza ulteriori refactor.
+_MODE: dict = {
+    "tagline":   "DM 15/9/2022 · pianificazione mensile e ottimizzazione GHG per biometano: tariffa diretta €/MWh, saving RED III/D.Lgs. 5/2026 per uso finale.",
+    "pill_main": "BIOMETANO · DM 15/9/2022",
+    "pill_norm": "RED III · D.LGS 5/2026",
+    "badge":     "Biometano · DM 2022",
+    "label":     "Biometano DM 2022",
 }
-_MODE = _MODE_META.get(APP_MODE, _MODE_META["biometano"])
 
 IS_DARK = st.session_state.methaniq_theme == "dark"
 
