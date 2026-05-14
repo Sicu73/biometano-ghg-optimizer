@@ -1341,7 +1341,7 @@ def find_optimal_pair(aux: float, plant_net: float, ep: float,
 # UI
 # ===========================================================
 st.set_page_config(
-    page_title="Metan.iQ — Biometano (DM 2018/2022) & Biogas CHP (DM 2012/FER 2)",
+    page_title="Metan.iQ — Biometano DM 2022 (RED III)",
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="expanded",
