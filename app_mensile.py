@@ -2583,63 +2583,21 @@ with tab_tech:
     st.header(_t("🏭 Configurazione impianto (ep)"))
     st.caption(_t("I parametri impiantistici concorrono a `ep` (processing), che incide direttamente sul saving GHG ex RED III."))
 
-    # Destinazione d'uso -> soglia GHG saving (mode-aware)
-    if IS_CHP:
-        # Per biogas CHP: solo destinazione elettrica, soglia 80% (RED III).
-        # Comparator 183 gCO2/MJ (mix elettrico EU).
-        end_use = ("Elettricità CHP — FER 2 (DM 19/06/2024, ≤300 kW)"
-                   if IS_FER2 else "Elettricità CHP — DM 6/7/2012 (≤1 MW)")
-        ghg_threshold = 0.80
-        # FOSSIL_COMPARATOR gia' settato a 183 nel mode selector
-        if IS_FER2:
-            st.info(
-                "🔋 **Biogas → CHP FER 2** (DM 19/06/2024) · Taglia max "
-                f"**{fmt_it(FER2_KWE_CAP, 0)} kWe** · Comparator fossile "
-                "RED III: **183 gCO₂/MJ** (mix elettrico EU) · "
-                "Soglia saving: 80% · Periodo incentivo: 20 anni"
-            )
-        else:
-            st.info(
-                "⚡ **Biogas → CHP DM 6/7/2012** · Taglia tipica ≤1 MWe "
-                "agricolo · Comparator fossile RED III: **183 gCO₂/MJ** "
-                "(mix elettrico EU) · Soglia saving: 80%"
-            )
-    elif IS_DM2018:
-        # DM 2 marzo 2018: 4 destinazioni d'uso con soglie/comparator distinti.
-        end_use = st.selectbox(
-            "🎯 " + _t("Destinazione biometano (→ soglia saving + comparator)"),
-            list(DM2018_END_USES.keys()),
-            index=0,
-            help=_t("DM 2018: trasporti -> CIC con double counting per matrici Annex IX (avanzato). Altri usi/CAR -> tariffa diretta €/MWh (no CIC). Soglia saving e comparator fossile cambiano per uso finale."),
-        )
-        _du = DM2018_END_USES[end_use]
-        ghg_threshold = _du["sav"]
-        FOSSIL_COMPARATOR = _du["cmp"]
-        st.caption(
-            f"📐 Comparator fossile **{fmt_it(FOSSIL_COMPARATOR, 0)} "
-            f"gCO₂/MJ** "
-            + ("(diesel sostituito · trasporti)" if FOSSIL_COMPARATOR == 94.0
-               else "(gas naturale sostituito · rete/calore/CAR)")
-            + (" · CIC double-counting attivo se matrice Annex IX"
-               if _du["cic_premium"] else " · sistema tariffa fissa (no CIC)")
-        )
-    else:
-        # DM 15 settembre 2022 (default biometano)
-        end_use = st.selectbox(
-            "🎯 " + _t("Destinazione biometano (→ soglia saving + comparator)"),
-            list(END_USE_THRESHOLDS.keys()),
-            index=0,
-            help=_t("RED III + D.Lgs. 5/2026: 80% per elettricita'/calore (impianto nuovo ≥20/11/2023), 70% per esistenti <10 MW primi 15 anni, 65% per trasporti. Il comparator fossile (80 per rete/calore, 94 per trasporti) viene aggiornato di conseguenza."),
-        )
-        ghg_threshold = END_USE_THRESHOLDS[end_use]
-        # Comparator mode-aware: 80 per rete/elec/calore, 94 per trasporti
-        FOSSIL_COMPARATOR = COMPARATOR_BY_END_USE[end_use]
-        st.caption(
-            f"📐 Comparator fossile RED III: **{fmt_it(FOSSIL_COMPARATOR, 0)} "
-            f"gCO₂/MJ** "
-            + ("(gas naturale sostituito)" if FOSSIL_COMPARATOR == 80.0
-               else "(diesel sostituito)")
-        )
+    # Destinazione d'uso -> soglia GHG saving (DM 15/9/2022 / RED III)
+    end_use = st.selectbox(
+        "🎯 " + _t("Destinazione biometano (→ soglia saving + comparator)"),
+        list(END_USE_THRESHOLDS.keys()),
+        index=0,
+        help=_t("RED III + D.Lgs. 5/2026: 80% per elettricita'/calore (impianto nuovo ≥20/11/2023), 70% per esistenti <10 MW primi 15 anni, 65% per trasporti. Il comparator fossile (80 per rete/calore, 94 per trasporti) viene aggiornato di conseguenza."),
+    )
+    ghg_threshold = END_USE_THRESHOLDS[end_use]
+    FOSSIL_COMPARATOR = COMPARATOR_BY_END_USE[end_use]
+    st.caption(
+        f"📐 Comparator fossile RED III: **{fmt_it(FOSSIL_COMPARATOR, 0)} "
+        f"gCO₂/MJ** "
+        + ("(gas naturale sostituito)" if FOSSIL_COMPARATOR == 80.0
+           else "(diesel sostituito)")
+    )
     target_saving = ghg_threshold + 0.01  # +1 pp margine sicurezza
     target_e_max = FOSSIL_COMPARATOR * (1 - target_saving)
     max_allowed_e = FOSSIL_COMPARATOR * (1 - ghg_threshold)
@@ -2649,415 +2607,239 @@ with tab_tech:
 
 with tab_bp:
     # ============================================================
-    # DM 2018 — Configurazione CIC e classificazione avanzato
-    # ============================================================
-    if IS_DM2018:
-        st.divider()
-        st.header(_t("🌿 DM 2018 — Sistema CIC"))
-
-        # Conteggio Annex IX tra biomasse attive
-        n_annex = sum(
-            1 for f in active_feeds
-            if FEEDSTOCK_DB[f].get("annex_ix") in ("A", "B")
-        )
-        n_total = max(len(active_feeds), 1)
-        annex_pct_count = n_annex / n_total
-
-        st.caption(
-            f"📋 **Matrice attiva**: {n_annex} di {n_total} biomasse "
-            f"selezionate sono classificate Annex IX RED II/III "
-            f"({fmt_it(annex_pct_count*100, 0, '%')} per numero). "
-            f"La quota effettiva in MASSA dell'impianto viene calcolata in "
-            f"tab «🥧 Mix annuale» ed e' quella che determina lo status "
-            f"avanzato dell'impianto."
-        )
-
-        # Soglia configurabile per "avanzato"
-        annex_threshold = st.slider(
-            _t("Soglia massa Annex IX per status «avanzato» [%]"),
-            min_value=50.0, max_value=100.0,
-            value=ANNEX_IX_THRESHOLD * 100, step=5.0,
-            help=_t("Quota minima in MASSA di feedstock Annex IX richiesta per qualificare l'impianto come «biometano avanzato» (double counting CIC). Default 70% (interpretazione GSE). Alcune autorita' richiedono 100% per evitare contestazioni."),
-        ) / 100.0
-
-        advanced_mode = st.radio(
-            _t("Classificazione impianto"),
-            [_t("Auto (calcolata da matrice annuale)"),
-             _t("Forza AVANZATO (override manuale)"),
-             _t("Forza NON avanzato (override manuale)")],
-            index=0,
-            help=_t("«Auto» determina lo status dalla quota in massa Annex IX vs soglia. Override solo se hai certificazione GSE specifica o vincoli contrattuali."),
-        )
-
-        # Valore CIC
-        cic_price = st.number_input(
-            "💰 " + _t("Valore CIC [€/CIC]"),
-            min_value=0.0, max_value=600.0,
-            value=CIC_PRICE_DEFAULT, step=5.0,
-            help=f"{_t('Prezzo medio unitario del CIC. Riferimento GSE base ~')}{fmt_it(CIC_PRICE_DEFAULT, 0)} {_t('€/CIC; sul mercato secondario (operatori obbligati) tipicamente 300-450 €/CIC. Valore solo per simulazione ricavi.')}",
-        )
-
-        # Caption attiva CIC double counting solo se uso ammette CIC
-        _cic_active = DM2018_END_USES[end_use]["cic_premium"]
-        if _cic_active:
-            st.success(
-                f"✅ **Sistema CIC attivo** · 1 CIC = "
-                f"{fmt_it(MWH_PER_CIC, 2)} MWh "
-                f"({fmt_it(GCAL_PER_CIC, 0)} Gcal). Biometano avanzato → "
-                f"double counting → 1 CIC ogni "
-                f"{fmt_it(MWH_PER_CIC/2, 2)} MWh "
-                f"({fmt_it(GCAL_PER_CIC/2, 0)} Gcal)."
-            )
-        else:
-            st.warning(
-                "ℹ️ **Uso non ammesso al sistema CIC**: per «altri usi» "
-                "e CAR il DM 2018 prevede tariffa diretta €/MWh, NON CIC. "
-                "Il prezzo CIC inserito sopra non viene applicato."
-            )
-    else:
-        # Default per tutte le mode che non sono DM 2018 (dummy non usati)
-        annex_threshold = ANNEX_IX_THRESHOLD
-        advanced_mode = "Auto (calcolata da matrice annuale)"
-        cic_price = 0.0
-
-    # ============================================================
-    # FER 2 — Configurazione tariffa + premi + check matrice
-    # ============================================================
-    if IS_FER2:
-        st.divider()
-        st.header(_t("🔋 FER 2 — Tariffa e premi"))
-
-        # Sottoprodotti = Annex IX A/B + effluenti zootecnici (gia' tutti
-        # marcati Annex IX A nel DB), tutto tranne le colture dedicate.
-        # Soglia FER 2: ≥ 80% in MASSA da NON colture dedicate.
-        # Gia' calcolato in tab4 (annex_mass_share usa Annex IX A/B che
-        # corrisponde a tutto cio' che NON e' coltura dedicata).
-        n_subprod = sum(
-            1 for f in active_feeds
-            if FEEDSTOCK_DB[f].get("annex_ix") in ("A", "B")
-        )
-        n_total = max(len(active_feeds), 1)
-        st.caption(
-            f"📋 **Matrice attiva**: {n_subprod} di {n_total} biomasse "
-            f"sono sottoprodotti/effluenti (no colture dedicate). "
-            f"FER 2 richiede **≥ 80% in MASSA** da sottoprodotti — "
-            f"verifica reale calcolata in tab «🥧 Mix annuale» con "
-            f"i tonnellaggi mensili."
-        )
-
-        fer2_matrice_threshold = st.slider(
-            _t("Soglia massa sottoprodotti per accesso FER 2 [%]"),
-            min_value=70.0, max_value=100.0,
-            value=FER2_FEEDSTOCK_REQ_THRESHOLD * 100, step=5.0,
-            help=_t("Quota minima sottoprodotti/effluenti zootecnici/residui per qualificare l'impianto a FER 2. Default ") + f"{fmt_it(FER2_FEEDSTOCK_REQ_THRESHOLD*100, 0, '%')} " + _t("(DM 18/9/2024). Cap residuo per colture dedicate: 20%."),
-        ) / 100.0
-
-        st.subheader(_t("💰 Tariffa FER 2 [€/MWh_el]"))
-        fer2_tariffa_base = st.number_input(
-            _t("Tariffa di Riferimento (TR) base"),
-            min_value=0.0, max_value=500.0,
-            value=FER2_TARIFFA_BASE_DEFAULT, step=1.0,
-            help=f"{_t('Tariffa di Riferimento FER 2 base, applicata ai MWh_el NETTI immessi in rete. Default ')}{fmt_it(FER2_TARIFFA_BASE_DEFAULT, 0)} {_t('€/MWh_el (piccoli impianti agricoli ≤300 kWe). Variabile per fascia/asta/registro: aggiorna se hai aggiudicato con tariffa specifica.')}",
-        )
-
-        col_pa, col_pb = st.columns(2)
-        with col_pa:
-            fer2_premio_matrice_attivo = st.checkbox(
-                f"{_t('Premio matrice')} (+{fmt_it(FER2_PREMIO_MATRICE_DEFAULT, 0)} €/MWh)",
-                value=True,
-                help=f"{_t('Premio per matrice ≥')}{fmt_it(FER2_FEEDSTOCK_REQ_THRESHOLD*100, 0, '%')} {_t('sottoprodotti/effluenti. Si attiva automaticamente in tab «Ricavi» se la quota in massa supera la soglia.')}",
-            )
-        with col_pb:
-            fer2_premio_car_attivo = st.checkbox(
-                f"{_t('Premio CAR')} (+{fmt_it(FER2_PREMIO_CAR_DEFAULT, 0)} €/MWh)",
-                value=True,
-                help=_t("Premio Cogenerazione ad Alto Rendimento. Richiede PES > 10% (η_el + η_th_recuperato ≥ 75-80%). Verifica certificato CAR del GSE."),
-            )
-
-        fer2_premio_matrice_eur = st.number_input(
-            _t("Valore premio matrice [€/MWh]"),
-            min_value=0.0, max_value=100.0,
-            value=FER2_PREMIO_MATRICE_DEFAULT, step=1.0,
-            help=_t("Valore del premio matrice (sommato alla TR base se la soglia matrice e' raggiunta)."),
-        )
-        fer2_premio_car_eur = st.number_input(
-            _t("Valore premio CAR [€/MWh]"),
-            min_value=0.0, max_value=50.0,
-            value=FER2_PREMIO_CAR_DEFAULT, step=1.0,
-            help=_t("Valore del premio CAR (sommato alla TR base se attivo)."),
-        )
-
-        st.success(
-            f"📐 **Tariffa target** (se entrambi i premi attivi): "
-            f"{fmt_it(fer2_tariffa_base, 0)} TR + "
-            f"{fmt_it(fer2_premio_matrice_eur, 0)} matrice + "
-            f"{fmt_it(fer2_premio_car_eur, 0)} CAR = "
-            f"**{fmt_it(fer2_tariffa_base + fer2_premio_matrice_eur + fer2_premio_car_eur, 0)} "
-            f"€/MWh_el** · Periodo: {FER2_PERIODO_ANNI} anni"
-        )
-    else:
-        # Default per non-FER 2 (dummy non usati)
-        fer2_matrice_threshold     = FER2_FEEDSTOCK_REQ_THRESHOLD
-        fer2_tariffa_base          = 0.0
-        fer2_premio_matrice_attivo = False
-        fer2_premio_car_attivo     = False
-        fer2_premio_matrice_eur    = 0.0
-        fer2_premio_car_eur        = 0.0
-
-    # ============================================================
-    # PRO FORMA / BUSINESS PLAN (solo DM 2022)
+    # PRO FORMA / BUSINESS PLAN — DM 2022
     # ============================================================
     # Defaults derivati da benchmark impianto medio biometano agricolo
     # (250 Smc/h, costi medi settore 2024), ricalibrati al 2026 con
     # inflazione ISTAT cumulata e tassi BCE.
     # ============================================================
-    if IS_DM2022:
-        st.divider()
-        st.header(_t("🧬 DM 2022 — Configurazione Impianto & Incentivi"))
+    st.divider()
+    st.header(_t("🧬 DM 2022 — Configurazione Impianto & Incentivi"))
 
-        # ── 1. TIPOLOGIA IMPIANTO ──────────────────────────────────────────
-        st.subheader("🏭 " + _t("Tipologia impianto"))
-        st.caption(_t(
-            "La tipologia determina la **tariffa di riferimento** base a cui si partecipa all'asta GSE. "
-            "Nuova costruzione e ampliamento hanno la tariffa più alta; "
-            "riconversione parziale la più bassa (impianto CHP esistente che dedica parte del biogas a biometano)."
-        ))
+    # ── 1. TIPOLOGIA IMPIANTO ──────────────────────────────────────────
+    st.subheader("🏭 " + _t("Tipologia impianto"))
+    st.caption(_t(
+        "La tipologia determina la **tariffa di riferimento** base a cui si partecipa all'asta GSE. "
+        "Nuova costruzione e ampliamento hanno la tariffa più alta; "
+        "riconversione parziale la più bassa (impianto CHP esistente che dedica parte del biogas a biometano)."
+    ))
 
-        bp_plant_type = st.selectbox(
-            _t("Tipo di intervento"),
-            options=list(BP_PLANT_TYPES.keys()),
-            index=list(BP_PLANT_TYPES.keys()).index(BP_PLANT_TYPE_DEFAULT),
-            format_func=lambda x: BP_PLANT_TYPES[x]["label"],
-            help=_t(
-                "• **Nuova costruzione**: impianto ex-novo\n"
-                "• **Riconversione totale**: ex-biogas CHP convertito interamente a biometano\n"
-                "• **Riconversione parziale**: parte del biogas resta al CHP, parte va all'upgrading\n"
-                "• **Ampliamento**: incremento capacità su impianto esistente"
-            ),
-            key="bp_plant_type",
-        )
+    bp_plant_type = st.selectbox(
+        _t("Tipo di intervento"),
+        options=list(BP_PLANT_TYPES.keys()),
+        index=list(BP_PLANT_TYPES.keys()).index(BP_PLANT_TYPE_DEFAULT),
+        format_func=lambda x: BP_PLANT_TYPES[x]["label"],
+        help=_t(
+            "• **Nuova costruzione**: impianto ex-novo\n"
+            "• **Riconversione totale**: ex-biogas CHP convertito interamente a biometano\n"
+            "• **Riconversione parziale**: parte del biogas resta al CHP, parte va all'upgrading\n"
+            "• **Ampliamento**: incremento capacità su impianto esistente"
+        ),
+        key="bp_plant_type",
+    )
 
-        # ── 2. DESTINAZIONE D'USO ─────────────────────────────────────────
-        st.subheader("🎯 " + _t("Destinazione d'uso biometano"))
-        st.caption(_t(
-            "La destinazione d'uso determina la **soglia GHG saving** richiesta (RED III) "
-            "e il comparator fossile. Non cambia la tariffa base ma può aprire accesso a mercati diversi."
-        ))
+    # ── 2. DESTINAZIONE D'USO ─────────────────────────────────────────
+    st.subheader("🎯 " + _t("Destinazione d'uso biometano"))
+    st.caption(_t(
+        "La destinazione d'uso determina la **soglia GHG saving** richiesta (RED III) "
+        "e il comparator fossile. Non cambia la tariffa base ma può aprire accesso a mercati diversi."
+    ))
 
-        bp_dest_use = st.selectbox(
-            _t("Destinazione finale"),
-            options=list(BP_DEST_USE.keys()),
-            index=0,
-            help=_t(
-                "• **Rete gas / industria / calore**: saving ≥ 80%, comparator 80 gCO₂/MJ\n"
-                "• **Trasporti (Bio-CNG/Bio-GNL)**: saving ≥ 65%, comparator 94 gCO₂/MJ — mercato premium\n"
-                "• **Uso termico residenziale/terziario**: saving ≥ 80%, comparator 80 gCO₂/MJ"
-            ),
-            key="bp_dest_use",
-        )
-        _dest_info = BP_DEST_USE[bp_dest_use]
-        st.info(
-            f"📋 **Soglia GHG saving RED III**: ≥ {fmt_it(_dest_info['ghg_thr']*100, 0, '%')} · "
-            f"**Comparator fossile**: {fmt_it(_dest_info['cmp'], 0)} gCO₂/MJ"
-        )
+    bp_dest_use = st.selectbox(
+        _t("Destinazione finale"),
+        options=list(BP_DEST_USE.keys()),
+        index=0,
+        help=_t(
+            "• **Rete gas / industria / calore**: saving ≥ 80%, comparator 80 gCO₂/MJ\n"
+            "• **Trasporti (Bio-CNG/Bio-GNL)**: saving ≥ 65%, comparator 94 gCO₂/MJ — mercato premium\n"
+            "• **Uso termico residenziale/terziario**: saving ≥ 80%, comparator 80 gCO₂/MJ"
+        ),
+        key="bp_dest_use",
+    )
+    _dest_info = BP_DEST_USE[bp_dest_use]
+    st.info(
+        f"📋 **Soglia GHG saving RED III**: ≥ {fmt_it(_dest_info['ghg_thr']*100, 0, '%')} · "
+        f"**Comparator fossile**: {fmt_it(_dest_info['cmp'], 0)} gCO₂/MJ"
+    )
 
-        # ── 3. FASCIA PRODUTTIVA & MECCANISMO TARIFFA ─────────────────────
-        st.subheader("⚡ " + _t("Fascia produttiva & meccanismo tariffa"))
+    # ── 3. FASCIA PRODUTTIVA & MECCANISMO TARIFFA ─────────────────────
+    st.subheader("⚡ " + _t("Fascia produttiva & meccanismo tariffa"))
 
-        _fascia = "fascia_a" if plant_net_smch <= BP_SOGLIA_FASCIA_SMCH else "fascia_b"
-        _fascia_label = (
-            f"🅰 Fascia A (≤ {fmt_it(BP_SOGLIA_FASCIA_SMCH, 0)} Smc/h)"
-            if _fascia == "fascia_a"
-            else f"🅱 Fascia B (> {fmt_it(BP_SOGLIA_FASCIA_SMCH, 0)} Smc/h)"
-        )
-        st.markdown(
-            f"**Taglia impianto**: {fmt_it(plant_net_smch, 0)} Smc/h → "
-            f"**{_fascia_label}**"
-        )
+    _fascia = "fascia_a" if plant_net_smch <= BP_SOGLIA_FASCIA_SMCH else "fascia_b"
+    _fascia_label = (
+        f"🅰 Fascia A (≤ {fmt_it(BP_SOGLIA_FASCIA_SMCH, 0)} Smc/h)"
+        if _fascia == "fascia_a"
+        else f"🅱 Fascia B (> {fmt_it(BP_SOGLIA_FASCIA_SMCH, 0)} Smc/h)"
+    )
+    st.markdown(
+        f"**Taglia impianto**: {fmt_it(plant_net_smch, 0)} Smc/h → "
+        f"**{_fascia_label}**"
+    )
 
-        # Meccanismo tariffa (TO obbligatorio solo ≤250 con rete obbligo terzi)
-        if _fascia == "fascia_a":
-            _mecca_opts = [BP_MECCA_TO, BP_MECCA_TP]
-            _mecca_default = 0
-        else:
-            _mecca_opts = [BP_MECCA_TP]
-            _mecca_default = 0
-
-        bp_mecca = st.radio(
-            _t("Meccanismo tariffa"),
-            options=_mecca_opts,
-            index=_mecca_default,
-            horizontal=True,
-            help=_t(
-                "• **TO (Omnicomprensiva)**: GSE ritira il biometano e le GO — disponibile solo ≤ 250 Smc/h in rete con obbligo di connessione terzi. Incasso garantito.\n"
-                "• **TP (Premio)**: il produttore vende il gas sul mercato autonomamente; l'incentivo = TR_aggiudicata − (prezzo_gas_PSV + valore_GO). Più flessibile ma esposto al mercato."
-            ),
-            key="bp_mecca",
-        )
-
-        if bp_mecca == BP_MECCA_TP:
-            _col_g, _col_go = st.columns(2)
-            with _col_g:
-                bp_prezzo_gas = st.number_input(
-                    _t("Prezzo gas PSV [€/MWh]"),
-                    min_value=0.0, max_value=200.0,
-                    value=BP_PREZZO_GAS_DEFAULT, step=1.0,
-                    help=_t("Prezzo medio mensile gas naturale sul PSV (mercato italiano). Usato per calcolo Tariffa Premio netta."),
-                    key="bp_prezzo_gas",
-                )
-            with _col_go:
-                bp_prezzo_go = st.number_input(
-                    _t("Valore GO biometano [€/MWh]"),
-                    min_value=0.0, max_value=30.0,
-                    value=BP_PREZZO_GO_DEFAULT, step=0.5,
-                    help=_t("Valore medio Garanzie di Origine biometano sul mercato. Incluso nella TR netta per la Tariffa Premio."),
-                    key="bp_prezzo_go",
-                )
-        else:
-            bp_prezzo_gas = BP_PREZZO_GAS_DEFAULT
-            bp_prezzo_go  = BP_PREZZO_GO_DEFAULT
-
-        # ── 4. TARIFFA BASE + RIBASSO ──────────────────────────────────────
-        st.subheader("💰 " + _t("Tariffa di riferimento & ribasso d'asta"))
-
-        _tr_auto = BP_TARIFFE_REF[bp_plant_type][_fascia]
-        st.caption(
-            f"📐 **TR normativa** ({BP_PLANT_TYPES[bp_plant_type]['label']} · {_fascia_label}): "
-            f"**{fmt_it(_tr_auto, 1)} €/MWh** "
-            f"(fonte: DM 15/9/2022 + adeguamento ISTAT 4° bando PNRR)"
-        )
-
-        bp_tariffa_eur_mwh = st.number_input(
-            _t("Tariffa di riferimento [€/MWh] — modificabile"),
-            min_value=50.0, max_value=300.0,
-            value=float(_tr_auto), step=0.5,
-            help=_t(
-                "Valore normativo pre-calcolato in base alla tipologia e alla fascia produttiva. "
-                "Modificalo se hai ricevuto una TR diversa dal GSE o per scenari what-if."
-            ),
-            key="bp_tariffa_base_input",
-        )
-        bp_ribasso_pct = st.slider(
-            _t("Ribasso d'asta [%]"),
-            min_value=0.0, max_value=30.0,
-            value=BP_RIBASSO_DEFAULT_PCT, step=0.5,
-            help=_t("Ribasso offerto in fase di asta GSE. Tariffa aggiudicata = TR × (1 − ribasso/100)."),
-            key="bp_ribasso",
-        )
-        _tr_aggiudicata = bp_tariffa_eur_mwh * (1.0 - bp_ribasso_pct / 100.0)
-
-        # ── 5. PREMI CUMULABILI ────────────────────────────────────────────
-        st.subheader("🏆 " + _t("Premi cumulabili"))
-        st.caption(_t(
-            "I premi si sommano alla TR aggiudicata e aumentano il ricavo totale. "
-            "Vengono aggiunti alla tariffa effettiva usata nel Business Plan."
-        ))
-
-        _col_pm, _col_pu = st.columns(2)
-        with _col_pm:
-            bp_premio_matrice_on = st.checkbox(
-                f"🌿 {_t('Premio matrice avanzata')} (+{fmt_it(BP_PREMIO_MATRICE_DEFAULT, 0)} €/MWh)",
-                value=True,
-                help=_t(
-                    "Premio per impianti con > 70% in massa di feedstock Annex IX RED II/III "
-                    "(biometano avanzato). Somma +8 €/MWh alla TR aggiudicata. "
-                    "La quota Annex IX viene verificata nel tab «🥧 Mix annuale»."
-                ),
-                key="bp_pm_on",
-            )
-            bp_premio_matrice_eur = st.number_input(
-                _t("Valore premio matrice [€/MWh]"),
-                min_value=0.0, max_value=30.0,
-                value=BP_PREMIO_MATRICE_DEFAULT, step=0.5,
-                key="bp_pm_val",
-                disabled=not bp_premio_matrice_on,
-            )
-
-        with _col_pu:
-            # Premio upgrading: attivo se tecnologia è membrane o amminico
-            _upg_opt = st.session_state.get("upgrading_opt_saved", "")
-            _upg_premio_auto = any(t in _upg_opt for t in BP_PREMIO_UPGRADING_TECNO)
-            bp_premio_upg_on = st.checkbox(
-                f"⚙️ {_t('Premio upgrading qualificato')} (+{fmt_it(BP_PREMIO_UPGRADING_DEFAULT, 0)} €/MWh)",
-                value=_upg_premio_auto,
-                help=_t(
-                    "Premio per tecnologie di upgrading qualificate (membrane o amminico chimico): "
-                    "slip CH₄ < 1%, emissioni EP_upgrading ≤ 5 gCO₂/MJ. "
-                    "Rilevato automaticamente dalla configurazione upgrading in Config. Tecnica."
-                ) + (f" [{'✅ auto' if _upg_premio_auto else '⚠️ verifica in Config. Tecnica'}]",)[0],
-                key="bp_pu_on",
-            )
-            bp_premio_upg_eur = st.number_input(
-                _t("Valore premio upgrading [€/MWh]"),
-                min_value=0.0, max_value=20.0,
-                value=BP_PREMIO_UPGRADING_DEFAULT, step=0.5,
-                key="bp_pu_val",
-                disabled=not bp_premio_upg_on,
-            )
-
-        # Premio PNRR conto capitale
-        st.markdown("---")
-        bp_pnrr_pct = st.number_input(
-            "🇪🇺 " + _t("Contributo PNRR conto capitale [%]"),
-            min_value=0.0, max_value=65.0,
-            value=BP_PNRR_QUOTA_PCT_DEFAULT, step=1.0,
-            help=_t(
-                f"Quota contributo a fondo perduto su CAPEX ammissibile (cap massimale GSE "
-                f"{fmt_it(BP_MASSIMALE_SPESA_EUR_PER_SMCH, 0)} €/Smc/h). "
-                "Default 40% (M2C2 PNRR). Aumenta a 50-60% per aree del Sud (ZES/deroghe regionali)."
-            ),
-            key="bp_pnrr",
-        )
-
-        # ── RIEPILOGO TARIFFA ──────────────────────────────────────────────
-        _tot_premi = (
-            (bp_premio_matrice_eur if bp_premio_matrice_on else 0.0)
-            + (bp_premio_upg_eur   if bp_premio_upg_on   else 0.0)
-        )
-        _tariffa_lorda = _tr_aggiudicata + _tot_premi
-
-        if bp_mecca == BP_MECCA_TP:
-            _tariffa_netta_tp = _tariffa_lorda - bp_prezzo_gas - bp_prezzo_go
-            _recap_line = (
-                f"**TR aggiudicata** {fmt_it(_tr_aggiudicata, 1)} + "
-                f"**Premi** {fmt_it(_tot_premi, 1)} = "
-                f"**{fmt_it(_tariffa_lorda, 1)} €/MWh lorda** → "
-                f"TP netta = {fmt_it(_tariffa_lorda, 1)} − {fmt_it(bp_prezzo_gas, 1)} (gas) − "
-                f"{fmt_it(bp_prezzo_go, 1)} (GO) = "
-                f"**{fmt_it(_tariffa_netta_tp, 1)} €/MWh netta incentivo**"
-            )
-            bp_tariffa_eff = _tariffa_lorda   # per BP: usiamo lorda (gas venduto separatamente)
-        else:
-            _recap_line = (
-                f"**TR aggiudicata** {fmt_it(_tr_aggiudicata, 1)} + "
-                f"**Premi** {fmt_it(_tot_premi, 1)} = "
-                f"**{fmt_it(_tariffa_lorda, 1)} €/MWh** (TO — tutto incluso, GSE ritira gas + GO)"
-            )
-            bp_tariffa_eff = _tariffa_lorda
-
-        st.success(f"📐 **Riepilogo tariffa**: " + _recap_line + f" · Durata: **{BP_DURATA_TARIFFA_ANNI} anni**")
-
-
-        bp_result = compute_revenues(plant_smch=plant_net_smch, tariffa_eur_mwh=bp_tariffa_eff)
+    # Meccanismo tariffa (TO obbligatorio solo ≤250 con rete obbligo terzi)
+    if _fascia == "fascia_a":
+        _mecca_opts = [BP_MECCA_TO, BP_MECCA_TP]
+        _mecca_default = 0
     else:
-        # Defaults per modalita' non DM 2022 (BP non applicabile)
-        bp_tariffa_eur_mwh = 0.0
-        bp_ribasso_pct = 0.0
-        bp_tariffa_eff = 0.0
-        bp_pnrr_pct = 0.0
+        _mecca_opts = [BP_MECCA_TP]
+        _mecca_default = 0
+
+    bp_mecca = st.radio(
+        _t("Meccanismo tariffa"),
+        options=_mecca_opts,
+        index=_mecca_default,
+        horizontal=True,
+        help=_t(
+            "• **TO (Omnicomprensiva)**: GSE ritira il biometano e le GO — disponibile solo ≤ 250 Smc/h in rete con obbligo di connessione terzi. Incasso garantito.\n"
+            "• **TP (Premio)**: il produttore vende il gas sul mercato autonomamente; l'incentivo = TR_aggiudicata − (prezzo_gas_PSV + valore_GO). Più flessibile ma esposto al mercato."
+        ),
+        key="bp_mecca",
+    )
+
+    if bp_mecca == BP_MECCA_TP:
+        _col_g, _col_go = st.columns(2)
+        with _col_g:
+            bp_prezzo_gas = st.number_input(
+                _t("Prezzo gas PSV [€/MWh]"),
+                min_value=0.0, max_value=200.0,
+                value=BP_PREZZO_GAS_DEFAULT, step=1.0,
+                help=_t("Prezzo medio mensile gas naturale sul PSV (mercato italiano). Usato per calcolo Tariffa Premio netta."),
+                key="bp_prezzo_gas",
+            )
+        with _col_go:
+            bp_prezzo_go = st.number_input(
+                _t("Valore GO biometano [€/MWh]"),
+                min_value=0.0, max_value=30.0,
+                value=BP_PREZZO_GO_DEFAULT, step=0.5,
+                help=_t("Valore medio Garanzie di Origine biometano sul mercato. Incluso nella TR netta per la Tariffa Premio."),
+                key="bp_prezzo_go",
+            )
+    else:
+        bp_prezzo_gas = BP_PREZZO_GAS_DEFAULT
+        bp_prezzo_go  = BP_PREZZO_GO_DEFAULT
+
+    # ── 4. TARIFFA BASE + RIBASSO ──────────────────────────────────────
+    st.subheader("💰 " + _t("Tariffa di riferimento & ribasso d'asta"))
+
+    _tr_auto = BP_TARIFFE_REF[bp_plant_type][_fascia]
+    st.caption(
+        f"📐 **TR normativa** ({BP_PLANT_TYPES[bp_plant_type]['label']} · {_fascia_label}): "
+        f"**{fmt_it(_tr_auto, 1)} €/MWh** "
+        f"(fonte: DM 15/9/2022 + adeguamento ISTAT 4° bando PNRR)"
+    )
+
+    bp_tariffa_eur_mwh = st.number_input(
+        _t("Tariffa di riferimento [€/MWh] — modificabile"),
+        min_value=50.0, max_value=300.0,
+        value=float(_tr_auto), step=0.5,
+        help=_t(
+            "Valore normativo pre-calcolato in base alla tipologia e alla fascia produttiva. "
+            "Modificalo se hai ricevuto una TR diversa dal GSE o per scenari what-if."
+        ),
+        key="bp_tariffa_base_input",
+    )
+    bp_ribasso_pct = st.slider(
+        _t("Ribasso d'asta [%]"),
+        min_value=0.0, max_value=30.0,
+        value=BP_RIBASSO_DEFAULT_PCT, step=0.5,
+        help=_t("Ribasso offerto in fase di asta GSE. Tariffa aggiudicata = TR × (1 − ribasso/100)."),
+        key="bp_ribasso",
+    )
+    _tr_aggiudicata = bp_tariffa_eur_mwh * (1.0 - bp_ribasso_pct / 100.0)
+
+    # ── 5. PREMI CUMULABILI ────────────────────────────────────────────
+    st.subheader("🏆 " + _t("Premi cumulabili"))
+    st.caption(_t(
+        "I premi si sommano alla TR aggiudicata e aumentano il ricavo totale. "
+        "Vengono aggiunti alla tariffa effettiva usata nel Business Plan."
+    ))
+
+    _col_pm, _col_pu = st.columns(2)
+    with _col_pm:
+        bp_premio_matrice_on = st.checkbox(
+            f"🌿 {_t('Premio matrice avanzata')} (+{fmt_it(BP_PREMIO_MATRICE_DEFAULT, 0)} €/MWh)",
+            value=True,
+            help=_t(
+                "Premio per impianti con > 70% in massa di feedstock Annex IX RED II/III "
+                "(biometano avanzato). Somma +8 €/MWh alla TR aggiudicata. "
+                "La quota Annex IX viene verificata nel tab «🥧 Mix annuale»."
+            ),
+            key="bp_pm_on",
+        )
+        bp_premio_matrice_eur = st.number_input(
+            _t("Valore premio matrice [€/MWh]"),
+            min_value=0.0, max_value=30.0,
+            value=BP_PREMIO_MATRICE_DEFAULT, step=0.5,
+            key="bp_pm_val",
+            disabled=not bp_premio_matrice_on,
+        )
+
+    with _col_pu:
+        # Premio upgrading: attivo se tecnologia è membrane o amminico
+        _upg_opt = st.session_state.get("upgrading_opt_saved", "")
+        _upg_premio_auto = any(t in _upg_opt for t in BP_PREMIO_UPGRADING_TECNO)
+        bp_premio_upg_on = st.checkbox(
+            f"⚙️ {_t('Premio upgrading qualificato')} (+{fmt_it(BP_PREMIO_UPGRADING_DEFAULT, 0)} €/MWh)",
+            value=_upg_premio_auto,
+            help=_t(
+                "Premio per tecnologie di upgrading qualificate (membrane o amminico chimico): "
+                "slip CH₄ < 1%, emissioni EP_upgrading ≤ 5 gCO₂/MJ. "
+                "Rilevato automaticamente dalla configurazione upgrading in Config. Tecnica."
+            ) + (f" [{'✅ auto' if _upg_premio_auto else '⚠️ verifica in Config. Tecnica'}]",)[0],
+            key="bp_pu_on",
+        )
+        bp_premio_upg_eur = st.number_input(
+            _t("Valore premio upgrading [€/MWh]"),
+            min_value=0.0, max_value=20.0,
+            value=BP_PREMIO_UPGRADING_DEFAULT, step=0.5,
+            key="bp_pu_val",
+            disabled=not bp_premio_upg_on,
+        )
+
+    # Premio PNRR conto capitale
+    st.markdown("---")
+    bp_pnrr_pct = st.number_input(
+        "🇪🇺 " + _t("Contributo PNRR conto capitale [%]"),
+        min_value=0.0, max_value=65.0,
+        value=BP_PNRR_QUOTA_PCT_DEFAULT, step=1.0,
+        help=_t(
+            f"Quota contributo a fondo perduto su CAPEX ammissibile (cap massimale GSE "
+            f"{fmt_it(BP_MASSIMALE_SPESA_EUR_PER_SMCH, 0)} €/Smc/h). "
+            "Default 40% (M2C2 PNRR). Aumenta a 50-60% per aree del Sud (ZES/deroghe regionali)."
+        ),
+        key="bp_pnrr",
+    )
+
+    # ── RIEPILOGO TARIFFA ──────────────────────────────────────────────
+    _tot_premi = (
+        (bp_premio_matrice_eur if bp_premio_matrice_on else 0.0)
+        + (bp_premio_upg_eur   if bp_premio_upg_on   else 0.0)
+    )
+    _tariffa_lorda = _tr_aggiudicata + _tot_premi
+
+    if bp_mecca == BP_MECCA_TP:
+        _tariffa_netta_tp = _tariffa_lorda - bp_prezzo_gas - bp_prezzo_go
+        _recap_line = (
+            f"**TR aggiudicata** {fmt_it(_tr_aggiudicata, 1)} + "
+            f"**Premi** {fmt_it(_tot_premi, 1)} = "
+            f"**{fmt_it(_tariffa_lorda, 1)} €/MWh lorda** → "
+            f"TP netta = {fmt_it(_tariffa_lorda, 1)} − {fmt_it(bp_prezzo_gas, 1)} (gas) − "
+            f"{fmt_it(bp_prezzo_go, 1)} (GO) = "
+            f"**{fmt_it(_tariffa_netta_tp, 1)} €/MWh netta incentivo**"
+        )
+        bp_tariffa_eff = _tariffa_lorda   # per BP: usiamo lorda (gas venduto separatamente)
+    else:
+        _recap_line = (
+            f"**TR aggiudicata** {fmt_it(_tr_aggiudicata, 1)} + "
+            f"**Premi** {fmt_it(_tot_premi, 1)} = "
+            f"**{fmt_it(_tariffa_lorda, 1)} €/MWh** (TO — tutto incluso, GSE ritira gas + GO)"
+        )
+        bp_tariffa_eff = _tariffa_lorda
+
+    st.success(f"📐 **Riepilogo tariffa**: " + _recap_line + f" · Durata: **{BP_DURATA_TARIFFA_ANNI} anni**")
 
 
-
-
-
-
-
-
-
-
-        bp_ore_anno = 8500.0
-        bp_result = None
-
+    bp_result = compute_revenues(plant_smch=plant_net_smch, tariffa_eur_mwh=bp_tariffa_eff)
     # Riutilizzo delle variabili calcolate nella sidebar
     # (ep_total, aux_factor, etc. sono già definiti globalmente)
     
