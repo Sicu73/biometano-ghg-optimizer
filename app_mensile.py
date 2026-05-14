@@ -3104,12 +3104,7 @@ with tab_export:
     # -------- PULSANTE OTTIMIZZA (tutta larghezza, sempre visibile) ------------
     from math import comb as _comb
     _n_combinations = _comb(N_active, 2) if N_active >= 2 else 0
-    _prod_label = (
-        f"{fmt_it(plant_kwe, 0)} kW_el lordi "
-        f"(= {fmt_it(plant_kwe_net, 0)} kW_el netti in rete)"
-        if IS_CHP
-        else f"{fmt_it(plant_net_smch, 0)} Sm³/h netti"
-    )
+    _prod_label = f"{fmt_it(plant_net_smch, 0)} Sm³/h netti"
     st.markdown(
         f"##### ⚡ {_t('Auto-calcolo ottimale')} – {_t('enumera le')} **{_n_combinations} {_t('combinazioni')}** "
         f"{_t('possibili tra le')} {N_active} {_t('biomasse attive e minimizza la massa totale')} "
@@ -3362,23 +3357,6 @@ with tab_export:
         res["Sm³ lordi"] = summary["nm3_gross"]
         res["Sm³ netti"] = summary["nm3_net"]
         res["MWh netti"] = summary["mwh_net"]
-        if IS_CHP:
-            # In modalita' CHP: MWh_netti rappresenta l'energia CH4 equivalente
-            # entrante nel cogeneratore → split in elettrico + termico.
-            # MWh_el_lordo = CH4 × η_el (ai morsetti alternatore)
-            # MWh_el_netto = lordo × (1 − aux%) (immessi in rete, fatturabili)
-            _mwh_el_lordo = summary["mwh_net"] * eta_el
-            res["MWh elettrici lordi"] = _mwh_el_lordo
-            res["MWh elettrici netti"] = _mwh_el_lordo * (1.0 - aux_el_pct)
-            res["MWh termici"] = summary["mwh_net"] * eta_th
-            # kW lordi medi sull'ora = MWh_el_lordi × 1000 / Ore
-            # E' la metrica chiave per il vincolo CHP: deve restare <= plant_kwe
-            # (potenza LORDA targa motore). Quando l'utente lavora in modalita'
-            # CHP, vede "kW lordi" invece di "Sm3/h netti" perche' e' la grandezza
-            # rilevante autorizzativa.
-            res["kW lordi medi"] = (
-                (_mwh_el_lordo * 1000.0 / hours) if hours > 0 else 0.0
-            )
         res["GHG (gCO₂/MJ)"] = summary["e_w"]
         res["Saving %"] = summary["saving"]
         res["Sm³/h netti"] = net_smch
@@ -3406,20 +3384,6 @@ with tab_export:
     df_disp["Sm³ lordi"]   = df_disp["Sm³ lordi"].apply(lambda v: fmt_it(v, 0))
     df_disp["Sm³ netti"]   = df_disp["Sm³ netti"].apply(lambda v: fmt_it(v, 0))
     df_disp["MWh netti"]   = df_disp["MWh netti"].apply(lambda v: fmt_it(v, 1))
-    if IS_CHP:
-        df_disp["MWh elettrici lordi"] = df_disp["MWh elettrici lordi"].apply(
-            lambda v: fmt_it(v, 1)
-        )
-        df_disp["MWh elettrici netti"] = df_disp["MWh elettrici netti"].apply(
-            lambda v: fmt_it(v, 1)
-        )
-        df_disp["MWh termici"] = df_disp["MWh termici"].apply(
-            lambda v: fmt_it(v, 1)
-        )
-        # kW lordi medi: vincolo CHP (<= plant_kwe targa motore)
-        df_disp["kW lordi medi"] = df_disp["kW lordi medi"].apply(
-            lambda v: fmt_it(v, 0)
-        )
     df_disp["GHG (gCO₂/MJ)"] = df_disp["GHG (gCO₂/MJ)"].apply(lambda v: fmt_it(v, 2))
     df_disp["Saving %"]    = df_disp["Saving %"].apply(lambda v: fmt_it(v, 1, "%"))
     df_disp["Sm³/h netti"] = df_disp["Sm³/h netti"].apply(lambda v: fmt_it(v, 1))
@@ -3448,44 +3412,17 @@ with tab_export:
     "Sm³ netti"
     col_cfg["Sm³ lordi"]   = st.column_config.TextColumn(
         _lbl_lordo_col, disabled=True,
-        help=("CH₄ equivalente prodotto dalle biomasse (pre-perdite)"
-              if IS_CHP else "Sm³ biometano lordi (pre-perdite upgrading/processo)"),
+        help="Sm³ biometano lordi (pre-perdite upgrading/processo)",
     )
     col_cfg["Sm³ netti"]   = st.column_config.TextColumn(
         _lbl_netto_col, disabled=True,
-        help=("CH₄ effettivamente bruciato dal cogeneratore (post-perdite)"
-              if IS_CHP else "Sm³ biometano immessi in rete (post-aux_factor)"),
+        help="Sm³ biometano immessi in rete (post-aux_factor)",
     )
     col_cfg["MWh netti"]   = st.column_config.TextColumn(
         "MWh netti",
         disabled=True,
-        help=("Energia CH₄ in ingresso al cogeneratore (pre-conversione elettrica)"
-              if IS_CHP else "Energia biometano netta immessa in rete"),
+        help="Energia biometano netta immessa in rete",
     )
-    if IS_CHP:
-        col_cfg["MWh elettrici lordi"] = st.column_config.TextColumn(
-            "MWh_el lordi", disabled=True,
-            help="MWh elettrici ai morsetti alternatore = MWh_CH₄ × η_el. "
-                 "Non fatturabili: occorre sottrarre gli autoconsumi ausiliari.",
-        )
-        col_cfg["MWh elettrici netti"] = st.column_config.TextColumn(
-            "MWh_el netti rete", disabled=True,
-            help="MWh elettrici NETTI immessi in rete = lordi × (1 − aux%). "
-                 "Base di calcolo della tariffa T.O. GSE.",
-        )
-        col_cfg["MWh termici"] = st.column_config.TextColumn(
-            "MWh_th", disabled=True,
-            help="MWh termici recuperati dal CHP = MWh_CH₄ × η_th. "
-                 "Utilizzabili per digestori, teleriscaldamento, processo.",
-        )
-        # kW lordi medi: il VINCOLO autorizzativo CHP (vs plant_kwe targa).
-        col_cfg["kW lordi medi"] = st.column_config.TextColumn(
-            "kW lordi (medi)", disabled=True,
-            help=f"Potenza media oraria ai morsetti alternatore "
-                 f"(MWh_el lordi × 1000 / Ore). "
-                 f"VINCOLO normativo: ≤ {fmt_it(plant_kwe, 0)} kWe LORDI "
-                 f"(targa motore — dato di autorizzazione).",
-        )
     col_cfg["GHG (gCO₂/MJ)"] = st.column_config.TextColumn(
         "e_w", disabled=True, help="Emissioni pesate gCO₂eq/MJ",
     )
@@ -3493,25 +3430,10 @@ with tab_export:
         "Saving %", disabled=True,
         help=f"Obbligatorio ≥ {fmt_it(ghg_threshold*100, 0, '%')} (RED III – {end_use})",
     )
-    # Sm³/h netti: visibile in biometano (vincolo autorizzativo).
-    # In CHP il vincolo e' kW lordi (mostrato sopra), Sm³/h CH4 e' solo
-    # informativo (CH4 al motore) - lo lasciamo nascosto al display tabella
-    # per ridurre rumore. La taglia CH4 motore e' gia' visibile in sidebar.
-    if IS_CHP:
-        # Nascondiamo Sm³/h netti dalla vista (esiste in df_res ma non
-        # appare in df_disp grazie a column_order).
-        col_cfg["Sm³/h netti"] = st.column_config.TextColumn(
-            "Sm³/h CH₄ motore", disabled=True,
-            help=f"Flusso CH₄ al motore = MWh_CH₄ × 1000 / (Ore × {fmt_it(NM3_TO_MWH*1000, 2)}). "
-                 f"Info-only (il vincolo CHP e' kW lordi a sinistra). "
-                 f"Equivale a {fmt_it(plant_net_smch, 0)} Sm³/h come dato "
-                 f"di dimensionamento.",
-        )
-    else:
-        col_cfg["Sm³/h netti"] = st.column_config.TextColumn(
-            "Sm³/h netti", disabled=True,
-            help=f"Obbligatorio ≤ {fmt_it(plant_net_smch, 0)} (tetto autorizzativo)",
-        )
+    col_cfg["Sm³/h netti"] = st.column_config.TextColumn(
+        "Sm³/h netti", disabled=True,
+        help=f"Obbligatorio ≤ {fmt_it(plant_net_smch, 0)} (tetto autorizzativo)",
+    )
     col_cfg["Validità"] = st.column_config.TextColumn("Validità", disabled=True, width="medium")
     col_cfg["Note"] = st.column_config.TextColumn("Note", disabled=True, width="medium")
 
@@ -3567,18 +3489,10 @@ with tab_export:
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Tot. biomasse (t/anno)",
               fmt_it(df_res["Totale biomasse (t)"].sum(), 0))
-    if IS_CHP:
-        c2.metric("Sm³ CH₄ motore (anno)",
-                  fmt_it(df_res["Sm³ netti"].sum(), 0),
-                  help="CH₄ equivalente effettivamente bruciato dal cogeneratore")
-        c3.metric("MWh_el netti rete (anno)",
-                  fmt_it(df_res["MWh elettrici netti"].sum(), 0),
-                  help="Energia elettrica NETTA immessa in rete (post-aux)")
-    else:
-        c2.metric("Sm³ netti (anno)",
-                  fmt_it(df_res["Sm³ netti"].sum(), 0))
-        c3.metric("MWh netti (anno)",
-                  fmt_it(df_res["MWh netti"].sum(), 0))
+    c2.metric("Sm³ netti (anno)",
+              fmt_it(df_res["Sm³ netti"].sum(), 0))
+    c3.metric("MWh netti (anno)",
+              fmt_it(df_res["MWh netti"].sum(), 0))
     c4.metric("Saving medio (%)",
               fmt_it(df_res["Saving %"].mean(), 1))
     valid_months = df_res["Validità"].str.startswith("✅").sum()
@@ -3647,10 +3561,7 @@ with tab_export:
         _lbl_netto = (
             "Sm³ netti (immessi in rete)"
         )
-        _lbl_title = (
-            "Produzione mensile CH₄ equivalente (biogas CHP)" if IS_CHP
-            else "Produzione mensile Sm³"
-        )
+        _lbl_title = "Produzione mensile Sm³"
         fig3 = go.Figure()
         fig3.add_trace(go.Bar(
             x=df_res["Mese"], y=lordi_vals,
@@ -3719,17 +3630,9 @@ with tab_export:
                 st.plotly_chart(fig4a, use_container_width=True)
 
         with colB:
-            _pie_mwh_label = (
-                "MWh netti"
-            )
-            _pie_total = (
-                sum(annual_mwh.values()) * eta_el * (1.0 - aux_el_pct)
-                if IS_CHP else sum(annual_mwh.values())
-            )
-            _pie_values = (
-                [v * eta_el * (1.0 - aux_el_pct) for v in annual_mwh.values()]
-                if IS_CHP else list(annual_mwh.values())
-            )
+            _pie_mwh_label = "MWh netti"
+            _pie_total = sum(annual_mwh.values())
+            _pie_values = list(annual_mwh.values())
             if _has_data and sum(_pie_values) > 0:
                 fig4b = px.pie(
                     names=list(annual_mwh.keys()),
