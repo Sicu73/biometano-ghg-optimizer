@@ -2851,46 +2851,41 @@ with tab_bp:
         f"📊 Breakdown ep = {fmt_it(ep_total, 1, signed=True)} gCO₂/MJ",
         expanded=True,
     ):
-        _ep_lines = [f"- Digestato: **{fmt_it(ep_digestate, 1, signed=True)}**"]
-        if not IS_CHP:
-            _ep_lines.append(f"- Upgrading: **{fmt_it(ep_upgrading, 1, signed=True)}**")
-            _ep_lines.append(f"- Off-gas: **{fmt_it(ep_offgas, 1, signed=True)}**")
-        _ep_lines.append(f"- Calore: **{fmt_it(ep_heat, 1, signed=True)}**")
-        _ep_lines.append(f"- Elettricità: **{fmt_it(ep_elec, 1, signed=True)}**")
-        _ep_lines.append(
-            f"- **Totale ep: {fmt_it(ep_total, 1, signed=True)} gCO₂/MJ**"
-        )
+        _ep_lines = [
+            f"- Digestato: **{fmt_it(ep_digestate, 1, signed=True)}**",
+            f"- Upgrading: **{fmt_it(ep_upgrading, 1, signed=True)}**",
+            f"- Off-gas: **{fmt_it(ep_offgas, 1, signed=True)}**",
+            f"- Calore: **{fmt_it(ep_heat, 1, signed=True)}**",
+            f"- Elettricità: **{fmt_it(ep_elec, 1, signed=True)}**",
+            f"- **Totale ep: {fmt_it(ep_total, 1, signed=True)} gCO₂/MJ**",
+        ]
         st.markdown("\n".join(_ep_lines))
 
     st.divider()
-    
-    # Breakdown aux_factor (solo in mode biometano: in CHP e' banale)
-    st.subheader(_t("⚡ Bilancio Energetico (aux_factor)"))
-    if not IS_CHP:
-        with st.expander(
-            f"🔬 Dettaglio calcolo aux_factor = {fmt_it(aux_factor, 3)}",
-            expanded=True,
-        ):
-            if aux_auto_data:
-                st.markdown(
-                    f"**Formula**: aux = 1 / (1 − f_calore − f_elettr − f_slip − f_margine)\n\n"
-                    f"### 🔥 BILANCIO TERMICO\n"
-                    f"Fabbisogno termico lordo = **{fmt_it(aux_auto_data['heat_need_gross'], 3)} kWh_t/Sm³**\n"
-                    f"- Riscaldamento digestori (mesofilo): {fmt_it(HEAT_DIGESTORE, 3)}\n"
-                    f"- Calore upgrading: {fmt_it(HEAT_DEMAND_UPGRADING.get(upgrading_opt, 0), 3)}\n\n"
-                    f"→ **f_calore = {fmt_it(aux_auto_data['f_heat']*100, 2, '%')}**\n\n"
-                    f"### ⚡ BILANCIO ELETTRICO\n"
-                    f"Fabbisogno elettrico totale = **{fmt_it(aux_auto_data['elec_need'], 3)} kWh_e/Sm³**\n"
-                    f"→ **f_elettr = {fmt_it(aux_auto_data['f_elec']*100, 2, '%')}**\n\n"
-                    f"### ∑ TOTALE AUTOCONSUMO: **{fmt_it(aux_auto_data['f_tot']*100, 2, '%')}**"
-                )
-    else:
-        st.metric("aux_factor (perdite/downtime)", fmt_it(aux_factor, 3))
 
-    _unit_lordo = "Sm³ CH₄/h" if IS_CHP else "Sm³/h"
+    # Breakdown aux_factor
+    st.subheader(_t("⚡ Bilancio Energetico (aux_factor)"))
+    with st.expander(
+        f"🔬 Dettaglio calcolo aux_factor = {fmt_it(aux_factor, 3)}",
+        expanded=True,
+    ):
+        if aux_auto_data:
+            st.markdown(
+                f"**Formula**: aux = 1 / (1 − f_calore − f_elettr − f_slip − f_margine)\n\n"
+                f"### 🔥 BILANCIO TERMICO\n"
+                f"Fabbisogno termico lordo = **{fmt_it(aux_auto_data['heat_need_gross'], 3)} kWh_t/Sm³**\n"
+                f"- Riscaldamento digestori (mesofilo): {fmt_it(HEAT_DIGESTORE, 3)}\n"
+                f"- Calore upgrading: {fmt_it(HEAT_DEMAND_UPGRADING.get(upgrading_opt, 0), 3)}\n\n"
+                f"→ **f_calore = {fmt_it(aux_auto_data['f_heat']*100, 2, '%')}**\n\n"
+                f"### ⚡ BILANCIO ELETTRICO\n"
+                f"Fabbisogno elettrico totale = **{fmt_it(aux_auto_data['elec_need'], 3)} kWh_e/Sm³**\n"
+                f"→ **f_elettr = {fmt_it(aux_auto_data['f_elec']*100, 2, '%')}**\n\n"
+                f"### ∑ TOTALE AUTOCONSUMO: **{fmt_it(aux_auto_data['f_tot']*100, 2, '%')}**"
+            )
+
     st.metric(
         "Produzione lorda richiesta",
-        fmt_it(plant_net_smch * aux_factor, 1, f" {_unit_lordo}"),
+        fmt_it(plant_net_smch * aux_factor, 1, " Sm³/h"),
     )
 
 with tab_export:
