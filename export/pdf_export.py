@@ -93,13 +93,6 @@ def _output_model_to_pdf_ctx(output_model: dict) -> dict:
         df_res = pd.DataFrame(monthly_rows)
 
     app_mode = meta.get("app_mode", "biometano")
-    is_chp = bool(plant.get("is_chp", False))
-    is_chp_dm2012 = app_mode == "biogas_chp"
-    is_fer2 = bool(plant.get("is_fer2", False))
-    is_dm2018 = bool(plant.get("is_dm2018", False))
-    is_dm2022 = bool(plant.get("is_dm2022", True))
-    cic_active = bool(calc.get("cic_active", False))
-    is_advanced = bool(calc.get("is_advanced", False))
 
     # Audit rows
     audit_rows = output_model.get("audit_trail", [])
@@ -125,18 +118,8 @@ def _output_model_to_pdf_ctx(output_model: dict) -> dict:
 
     ctx: dict[str, Any] = {
         "df_res":          df_res,
-        "IS_CHP":          is_chp,
-        "IS_CHP_DM2012":   is_chp_dm2012,
-        "IS_FER2":         is_fer2,
-        "IS_DM2018":       is_dm2018,
-        "IS_DM2022":       is_dm2022,
         "APP_MODE":        app_mode,
-        "plant_kwe":       plant.get("plant_kwe") or 0.0,
-        "plant_kwe_net":   plant.get("plant_kwe") or 0.0,
         "plant_net_smch":  plant.get("plant_net_smch", 300.0),
-        "eta_el":          0.40,
-        "eta_th":          0.42,
-        "aux_el_pct":      0.08,
         "aux_factor":      plant.get("aux_factor", 1.29),
         "ep_total":        plant.get("ep_total", 0.0),
         "end_use":         plant.get("end_use", ""),
@@ -145,29 +128,7 @@ def _output_model_to_pdf_ctx(output_model: dict) -> dict:
         "upgrading_opt":   plant.get("upgrading_opt", ""),
         "offgas_opt":      plant.get("offgas_opt", ""),
         "injection_opt":   plant.get("injection_opt", ""),
-        # DM 2018
-        "is_advanced":     is_advanced,
-        "cic_active":      cic_active,
-        "cic_double":      is_advanced and cic_active,
-        "cic_price":       calc.get("cic_price", 375.0),
-        "annex_mass_share": 0.0,
-        "annex_threshold": 0.70,
-        "tot_n_cic":       calc.get("tot_n_cic", 0.0),
-        "MWH_PER_CIC":     11.628,
-        "GCAL_PER_CIC":    10.0,
-        # FER 2
-        "fer2_kwe_cap":    300.0,
-        "fer2_periodo_anni": 20,
-        "fer2_subprod_share": 0.0,
-        "fer2_matrice_threshold": 0.80,
-        "fer2_qualified":  False,
-        "fer2_tariffa_base": 256.0,
-        "fer2_premio_matrice_eur": 30.0,
-        "fer2_premio_car_eur": 10.0,
-        "fer2_apply_matrice": False,
-        "fer2_apply_car":  False,
-        "fer2_tariffa_eff": 256.0,
-        # BP (None se non DM 2022)
+        # BP DM 2022
         "bp_result":       bp_result,
         "bp_tariffa_eur_mwh": 131.0,
         "bp_ribasso_pct":  1.0,
@@ -186,8 +147,6 @@ def _output_model_to_pdf_ctx(output_model: dict) -> dict:
         "tot_biomasse_t":  calc.get("tot_biomasse_t", 0.0),
         "tot_sm3_netti":   calc.get("tot_sm3_netti", 0.0),
         "tot_mwh_netti":   calc.get("tot_mwh", 0.0),
-        "tot_mwh_el_lordo": calc.get("tot_mwh_el_lordo", 0.0),
-        "tot_mwh_el_netto": calc.get("tot_mwh_el_netto", 0.0),
         "saving_avg":      calc.get("saving_avg", 0.0),
         "valid_months":    calc.get("valid_months", 0),
         "tot_revenue":     calc.get("total_revenue", 0.0),

@@ -121,7 +121,6 @@ def _output_model_to_xlsx_ctx(output_model: dict, snapshot: bool = False) -> dic
         }
 
     app_mode = meta.get("app_mode", "biometano")
-    is_chp = bool(plant.get("is_chp", False))
 
     ctx: dict[str, Any] = {
         "active_feeds":      active_feeds,
@@ -140,12 +139,6 @@ def _output_model_to_xlsx_ctx(output_model: dict, snapshot: bool = False) -> dic
         "initial_data":      initial_data,
         "APP_MODE_LABEL":    meta.get("scenario_name", "Metan.iQ"),
         "end_use":           plant.get("end_use", ""),
-        "IS_CHP":            is_chp,
-        "plant_kwe":         plant.get("plant_kwe") or 0.0,
-        "plant_kwe_net":     plant.get("plant_kwe") or 0.0,
-        "eta_el":            0.40,
-        "eta_th":            0.42,
-        "aux_el_pct":        0.08,
         "lang":              meta.get("language", "it"),
         # Audit
         "yield_audit_rows":  output_model.get("audit_trail", []),

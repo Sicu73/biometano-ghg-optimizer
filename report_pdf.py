@@ -288,15 +288,15 @@ def _build_cover(ctx, styles):
     flow.append(Spacer(1, 18 * mm))
 
     # Info table — mode-aware
-    if ctx.get("IS_FER2"):
+    if False:
         cap = ctx.get("fer2_kwe_cap", 300)
         qual = ("matrice OK ≥soglia"
                 if ctx.get("fer2_qualified") else "matrice INSUFFICIENTE")
         mode_label = (f"Biogas CHP — FER 2 (DM 19/06/2024) · "
                       f"≤{cap:.0f} kWe · {qual}")
-    elif ctx["IS_CHP"]:
+    elif False:
         mode_label = "Biogas — Cogenerazione (CHP) · DM 6/7/2012"
-    elif ctx.get("IS_DM2018"):
+    elif False:
         adv = ("AVANZATO · double counting CIC"
                if ctx.get("is_advanced") else "non avanzato · single counting")
         mode_label = f"Biometano — DM 2/3/2018 · {adv}"
@@ -310,7 +310,7 @@ def _build_cover(ctx, styles):
          f"(comparator {_fmt_it(ctx['fossil_comparator'], 0)} gCO₂/MJ)"],
         ["Generato il", ctx["report_date_full"]],
     ]
-    if ctx.get("IS_DM2018") and ctx.get("cic_active"):
+    if False and ctx.get("cic_active"):
         info_rows.insert(2, [
             "Sistema CIC",
             f"{_fmt_it(ctx['MWH_PER_CIC'], 2)} MWh/CIC"
@@ -318,7 +318,7 @@ def _build_cover(ctx, styles):
                f"{_fmt_it(ctx['MWH_PER_CIC']/2, 2)} MWh)"
                if ctx.get("cic_double") else " · single counting"),
         ])
-    if ctx.get("IS_FER2"):
+    if False:
         # Tariffa effettiva FER 2 (TR + premi attivi)
         tar_str = f"{_fmt_it(ctx['fer2_tariffa_base'], 0)} TR"
         if ctx.get("fer2_apply_matrice"):
@@ -378,7 +378,7 @@ def _build_executive_summary(ctx, styles):
     # 4 KPI in row — mode-aware
     saving_accent = (EMERALD if ctx["saving_avg"] >= ctx["ghg_threshold"]*100
                      else RED)
-    if ctx.get("IS_FER2"):
+    if False:
         # FER 2: KPI dedicati al regime ≤300 kW
         kpi1 = _kpi_tile("Feedstocks" if ctx.get("_lang")=="en" else "Biomasse",
                          _fmt_it(ctx["tot_biomasse_t"], 0),
@@ -396,7 +396,7 @@ def _build_executive_summary(ctx, styles):
         kpi4 = _kpi_tile("Electrical revenue" if ctx.get("_lang")=="en" else "Ricavi elettrici",
                          _fmt_it(ctx["tot_revenue"]/1000, 0),
                          f"k€/anno · TR+premi", styles=s)
-    elif ctx["IS_CHP"]:
+    elif False:
         kpi1 = _kpi_tile("Feedstocks" if ctx.get("_lang")=="en" else "Biomasse",
                          _fmt_it(ctx["tot_biomasse_t"], 0),
                          "t/anno (FM)", styles=s)
@@ -410,7 +410,7 @@ def _build_executive_summary(ctx, styles):
         kpi4 = _kpi_tile("Electrical revenue" if ctx.get("_lang")=="en" else "Ricavi elettrici",
                          _fmt_it(ctx["tot_revenue"]/1000, 0),
                          "k€/anno", styles=s)
-    elif ctx.get("IS_DM2018") and ctx.get("cic_active"):
+    elif False and ctx.get("cic_active"):
         kpi1 = _kpi_tile("Feedstocks" if ctx.get("_lang")=="en" else "Biomasse",
                          _fmt_it(ctx["tot_biomasse_t"], 0),
                          "t/anno (FM)", styles=s)
@@ -472,7 +472,7 @@ def _build_executive_summary(ctx, styles):
         f"<font color='{'#10B981' if saving_pass else '#DC2626'}'>"
         f"<b>{'CONFORME' if saving_pass else 'NON CONFORME'}</b></font>."
     )
-    if ctx["IS_CHP"]:
+    if False:
         bullets.append(
             f"• Bilancio elettrico CHP: lordo motore "
             f"<b>{_fmt_it(ctx['plant_kwe'], 0)} kW</b> meno "
@@ -485,11 +485,11 @@ def _build_executive_summary(ctx, styles):
         bullets.append(
             f"• Taglia netta autorizzata: <b>{_fmt_it(ctx['plant_net_smch'], 0)} "
             f"Sm³/h</b> · fattore aux <b>{_fmt_it(ctx['aux_factor'], 2)}</b>"
-            + ("." if ctx.get("IS_DM2018") and ctx.get("cic_active") else
+            + ("." if False and ctx.get("cic_active") else
                f" · tariffa media ponderata "
                f"<b>{_fmt_it(ctx['tariffa_media_ponderata'], 2, ' €/MWh')}</b>.")
         )
-    if ctx.get("IS_DM2018"):
+    if False:
         adv_color = "#10B981" if ctx.get("is_advanced") else "#DC2626"
         adv_label = "AVANZATO" if ctx.get("is_advanced") else "NON AVANZATO"
         bullets.append(
@@ -503,7 +503,7 @@ def _build_executive_summary(ctx, styles):
                if ctx.get("cic_active") else
                "Sistema tariffa diretta €/MWh (CIC non applicabile per uso finale).")
         )
-    if ctx.get("IS_FER2"):
+    if False:
         qual_color = "#10B981" if ctx.get("fer2_qualified") else "#DC2626"
         qual_label = "MATRICE OK" if ctx.get("fer2_qualified") else "MATRICE KO"
         premi_str = []
@@ -559,11 +559,11 @@ def _build_plant_config(ctx, styles):
     rows = [
         [_t("Parametro",_ln), _t("Valore",_ln), _t("Note",_ln)],
     ]
-    if ctx["IS_CHP"]:
+    if False:
         regime_chp = (
             f"Biogas CHP — FER 2 (DM 19/06/2024) · cap "
             f"{_fmt_it(ctx.get('fer2_kwe_cap', 300), 0)} kWe"
-            if ctx.get("IS_FER2") else
+            if False else
             "Biogas → Cogenerazione (CHP) · DM 6/7/2012 (≤1 MW)"
         )
         rows.extend([
@@ -573,7 +573,7 @@ def _build_plant_config(ctx, styles):
              f"{_fmt_it(ctx['plant_kwe'], 0)} kW_el",
              "Targa motore (morsetti alternatore)"
              + (f" · cap FER 2 = {_fmt_it(ctx.get('fer2_kwe_cap', 300), 0)} kWe"
-                if ctx.get("IS_FER2") else "")],
+                if False else "")],
             ["Autoconsumo ausiliari",
              f"{_fmt_it(ctx['aux_el_pct']*100, 1, '%')}",
              "Pompe, agitatori, desolforatore, PLC"],
@@ -591,7 +591,7 @@ def _build_plant_config(ctx, styles):
         ])
     else:
         regime_label = (
-            "Biometano DM 2/3/2018 — sistema CIC" if ctx.get("IS_DM2018")
+            "Biometano DM 2/3/2018 — sistema CIC" if False
             else "Biometano DM 15/9/2022 — tariffa diretta €/MWh"
         )
         rows.extend([
@@ -620,7 +620,7 @@ def _build_plant_config(ctx, styles):
          f"comparator {_fmt_it(ctx['fossil_comparator'], 0)} gCO₂/MJ"],
     ])
     # Riga DM 2018 specifica
-    if ctx.get("IS_DM2018"):
+    if False:
         adv_text = (
             f"AVANZATO (Annex IX in massa "
             f"{_fmt_it(ctx['annex_mass_share']*100, 1, '%')}, "
@@ -649,7 +649,7 @@ def _build_plant_config(ctx, styles):
                 "Base ricavi DM 2018 (×prezzo CIC)",
             ])
     # Riga FER 2 specifica
-    if ctx.get("IS_FER2"):
+    if False:
         qual_text = (
             f"MATRICE OK (sottoprodotti "
             f"{_fmt_it(ctx['fer2_subprod_share']*100, 1, '%')}, "
@@ -723,7 +723,7 @@ def _build_monthly_table(ctx, styles):
     flow.append(Spacer(1, 3 * mm))
 
     df = ctx["df_res"]
-    if ctx["IS_CHP"]:
+    if False:
         cols = ["Mese", "Ore", "Totale biomasse (t)",
                 "Sm³ netti", "MWh elettrici netti", "Saving %", "Validità"]
         _ln = ctx.get("_lang","it")
@@ -846,7 +846,7 @@ def _build_revenue(ctx, styles):
         ])
         col_w_rel = [38, 12, 14, 18, 14, 28, 12]
     else:
-        tar_unit = "€/MWh_el" if ctx["IS_CHP"] else "€/MWh"
+        tar_unit = "€/MWh_el" if False else "€/MWh"
         _ln = ctx.get("_lang","it")
         headers = [_t("Biomassa",_ln), "t/year" if _ln=="en" else "t/anno", "Yield" if _ln=="en" else "Resa", _t("MWh netti",_ln),
                    f"Tariff ({tar_unit})" if _ln=="en" else f"Tariffa ({tar_unit})", "Revenue €/yr" if _ln=="en" else "Ricavi €/anno", "Share %" if _ln=="en" else "Quota %"]
@@ -909,7 +909,7 @@ def _build_revenue(ctx, styles):
     flow.append(Spacer(1, 8 * mm))
 
     # Revenue summary card
-    if ctx.get("IS_FER2"):
+    if False:
         rev_caption = (
             f"<b>Calcolo FER 2 (DM 19/06/2024, ≤"
             f"{_fmt_it(ctx.get('fer2_kwe_cap', 300), 0)} kWe)</b> · "
@@ -926,7 +926,7 @@ def _build_revenue(ctx, styles):
             f"Periodo incentivo {ctx.get('fer2_periodo_anni', 20)} anni → "
             f"cumulo ~{_fmt_it(ctx['tot_revenue']*ctx.get('fer2_periodo_anni', 20)/1_000_000, 1)} M€."
         )
-    elif ctx["IS_CHP"]:
+    elif False:
         rev_caption = (
             f"<b>Calcolo CHP DM 6/7/2012</b> · MWh_el lordi = MWh_CH₄ × η_el "
             f"({_fmt_it(ctx['eta_el']*100, 0, '%')}) · "
@@ -936,7 +936,7 @@ def _build_revenue(ctx, styles):
             f"I ricavi termici da recupero calore "
             f"({_fmt_it(ctx['eta_th']*100, 0, '%')}) non sono inclusi."
         )
-    elif ctx.get("IS_DM2018") and cic_active:
+    elif False and cic_active:
         cic_eq = (ctx["MWH_PER_CIC"] / 2.0 if ctx.get("cic_double")
                   else ctx["MWH_PER_CIC"])
         rev_caption = (
@@ -1638,7 +1638,7 @@ def build_metaniq_pdf(ctx: dict) -> BytesIO:
         subject="Report di pianificazione Metan.iQ",
     )
     # Metadata accessible by canvas callbacks
-    doc.metaniq_subtitle = ("Biogas — CHP" if ctx["IS_CHP"]
+    doc.metaniq_subtitle = ("Biogas — CHP" if False
                             else "Biometano — Upgrading")
     doc.metaniq_date = ctx["report_date_short"]
 

@@ -93,8 +93,7 @@ def build_metaniq_xlsx(ctx: dict, snapshot: bool = False) -> BytesIO:
     Parametri:
       ctx: dict con active_feeds, FEEDSTOCK_DB, aux_factor, ep_total,
            fossil_comparator, ghg_threshold, plant_net_smch, MONTHS,
-           MONTH_HOURS, NM3_TO_MWH, IS_CHP, plant_kwe (CHP), eta_el (CHP),
-           eta_th (CHP), aux_el_pct (CHP), end_use, APP_MODE_LABEL,
+           MONTH_HOURS, NM3_TO_MWH, end_use, APP_MODE_LABEL,
            initial_data (per editabile) o df_res (per snapshot).
 
       snapshot: False (default) -> file EDITABILE con formule live.
@@ -298,7 +297,7 @@ def _build_database(ws, ctx, lang='it'):
 def _build_piano(ws, ctx, db_sheet_name, snapshot: bool = False, lang='it'):
     feeds   = ctx["active_feeds"]
     n_feed  = len(feeds)
-    is_chp  = bool(ctx.get("IS_CHP", False))
+    is_chp  = False  # legacy: app è mono-mode DM 2022 biometano
     # In modalita' SNAPSHOT i valori sono statici (no formule). Le celle
     # input (Ore, Biomasse) NON sono editabili (no fill amber).
     cell_fill_input = SLATE_50 if snapshot else AMBER_BG
@@ -899,7 +898,7 @@ def _build_piano(ws, ctx, db_sheet_name, snapshot: bool = False, lang='it'):
 def _build_summary(ws, ctx, piano_sheet_name, lang='it'):
     feeds  = ctx["active_feeds"]
     n_feed = len(feeds)
-    is_chp = bool(ctx.get("IS_CHP", False))
+    is_chp = False  # legacy: app è mono-mode DM 2022 biometano
 
     L = get_column_letter
     bio_col_start = 3
@@ -1104,7 +1103,7 @@ def _build_business_plan(ws, ctx, snapshot: bool = False, lang='it'):
     pre-calcolati per ciascun mode (biometano DM 2018/2022, biogas
     CHP DM 2012/FER 2). La sheet stessa e' agnostica alla mode.
     """
-    is_chp = bool(ctx.get("IS_CHP", False))
+    is_chp = False  # legacy: app è mono-mode DM 2022 biometano
     cell_input_fill = SLATE_50 if snapshot else AMBER_BG
 
     # ============================================================
