@@ -3403,11 +3403,11 @@ with tab_export:
     "Sm³ lordi"
     "Sm³ netti"
     col_cfg["Sm³ lordi"]   = st.column_config.TextColumn(
-        _lbl_lordo_col, disabled=True,
+        "Sm³ lordi", disabled=True,
         help="Sm³ biometano lordi (pre-perdite upgrading/processo)",
     )
     col_cfg["Sm³ netti"]   = st.column_config.TextColumn(
-        _lbl_netto_col, disabled=True,
+        "Sm³ netti", disabled=True,
         help="Sm³ biometano immessi in rete (post-aux_factor)",
     )
     col_cfg["MWh netti"]   = st.column_config.TextColumn(
