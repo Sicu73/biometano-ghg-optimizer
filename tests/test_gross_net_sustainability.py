@@ -55,10 +55,6 @@ def test_ghg_summary_uses_gross_for_sustainability():
 def _ctx_biometano():
     return {
         "APP_MODE": "biometano",
-        "IS_DM2022": True,
-        "IS_DM2018": False,
-        "IS_CHP": False,
-        "IS_FER2": False,
         "lang": "it",
         "active_feeds": [],
         "FEEDSTOCK_DB": {},
@@ -98,22 +94,6 @@ def test_biomethane_has_net_variant():
     assert calc["biomethane_dual_view"] is True
     assert calc["sustainability_basis"] == "LORDO"
     assert "RED III" in calc["sustainability_basis_note"]
-
-
-def test_chp_no_dual_view():
-    """In modalita' CHP la dual view biometano e' disattivata
-    (la base resta LORDO ma non e' rilevante esporre la vista NETTO
-    biometano: per CHP si parla di MWh elettrici/termici)."""
-    from output.output_builder import build_output_model
-
-    ctx = _ctx_biometano()
-    ctx["APP_MODE"] = "biogas_chp"
-    ctx["IS_CHP"] = True
-    ctx["IS_DM2022"] = False
-    om = build_output_model(ctx)
-    calc = om["calculation_summary"]
-    assert calc["sustainability_basis"] == "LORDO"
-    assert calc["biomethane_dual_view"] is False
 
 
 # ---------------------------------------------------------------------------

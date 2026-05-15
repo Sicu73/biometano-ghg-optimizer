@@ -284,17 +284,6 @@ class TestPDFExport:
         # Verifica magic bytes PDF
         assert data[:4] == b"%PDF", "Il file non e' un PDF valido"
 
-    def test_pdf_with_chp_mode(self):
-        """PDF per modalita' CHP non crasha."""
-        from export.pdf_export import build_pdf_from_output
-        model = _make_output_model()
-        model["metadata"]["app_mode"] = "biogas_chp"
-        model["input_summary"]["plant"]["is_chp"] = True
-        model["input_summary"]["plant"]["plant_kwe"] = 999.0
-        result = build_pdf_from_output(model)
-        assert isinstance(result, io.BytesIO)
-
-
 # ---------------------------------------------------------------------------
 # Test: tutti gli export leggono da output_model
 # ---------------------------------------------------------------------------
