@@ -76,7 +76,6 @@ def build_output_model(ctx: dict) -> dict:
                   - fossil_comparator (float)
                   - ghg_threshold (float)
                   - plant_net_smch (float)
-                  - IS_CHP, IS_FER2, IS_DM2018, IS_DM2022 (bool)
                   - APP_MODE (str)
                   - end_use (str)
                   - tot_biomasse_t, tot_sm3_netti, tot_mwh_netti (float)
@@ -112,14 +111,9 @@ def build_output_model(ctx: dict) -> dict:
     active_feeds: list[str] = ctx.get("active_feeds", [])
     feedstock_db: dict = ctx.get("FEEDSTOCK_DB", {})
     plant_net_smch: float = float(ctx.get("plant_net_smch", 0.0))
-    plant_kwe: float = float(ctx.get("plant_kwe", 0.0))
     aux_factor: float = float(ctx.get("aux_factor", 1.29))
     ep_total: float = float(ctx.get("ep_total", 0.0))
     end_use: str = ctx.get("end_use", "")
-    is_chp: bool = bool(ctx.get("IS_CHP", False))
-    is_fer2: bool = bool(ctx.get("IS_FER2", False))
-    is_dm2018: bool = bool(ctx.get("IS_DM2018", False))
-    is_dm2022: bool = bool(ctx.get("IS_DM2022", True))
 
     feedstocks_summary = []
     for name in active_feeds:
@@ -138,14 +132,9 @@ def build_output_model(ctx: dict) -> dict:
     input_summary: dict[str, Any] = {
         "plant": {
             "plant_net_smch": plant_net_smch,
-            "plant_kwe": plant_kwe if is_chp else None,
             "aux_factor": aux_factor,
             "ep_total": ep_total,
             "end_use": end_use,
-            "is_chp": is_chp,
-            "is_fer2": is_fer2,
-            "is_dm2018": is_dm2018,
-            "is_dm2022": is_dm2022,
             "ghg_threshold": float(ctx.get("ghg_threshold", 0.80)),
             "fossil_comparator": float(ctx.get("fossil_comparator", 80.0)),
             "upgrading_opt": ctx.get("upgrading_opt", ""),
@@ -196,24 +185,18 @@ def build_output_model(ctx: dict) -> dict:
     total_revenue = float(ctx.get("tot_revenue", 0.0))
 
     # --- Sostenibilita': base normativa esplicita ---------------------------
-    # La saving% RED III/DM 2022/DM 2018/DM 2012/FER 2 e' calcolata come
-    # intensita' gCO2eq/MJ sull'energia LORDA (Sm3 lordi x LHV).
-    # Per il biometano (DM 2018 / DM 2022) esponiamo anche la vista NETTO
-    # come informativo aggiuntivo (Sm3 netti = effettiva immissione in rete).
-    is_biomethane = bool(is_dm2018 or is_dm2022) and not is_chp
+    # La saving% RED III/DM 2022 e' calcolata come intensita' gCO2eq/MJ
+    # sull'energia LORDA (Sm3 lordi x LHV). Per il biometano esponiamo
+    # anche la vista NETTO come informativo aggiuntivo.
     sustainability_basis = "LORDO"
     sustainability_basis_note = (
         "Saving GHG calcolato come intensita' gCO2eq/MJ sull'ENERGIA LORDA "
-        "(Sm3 lordi x LHV biometano). Base ufficiale per RED III, DM 15/9/2022, "
-        "DM 2/3/2018, DM 6/7/2012 (CHP) e DM 18/9/2024 (FER 2)."
+        "(Sm3 lordi x LHV biometano). Base ufficiale RED III / DM 15/9/2022. "
+        "Per il biometano viene esposta anche la vista NETTO "
+        "(Sm3 netti = Sm3 lordi / aux_factor) come riferimento "
+        "informativo aggiuntivo per l'energia effettivamente immessa "
+        "in rete; il vincolo normativo resta sul LORDO."
     )
-    if is_biomethane:
-        sustainability_basis_note += (
-            " Per il biometano viene esposta anche la vista NETTO "
-            "(Sm3 netti = Sm3 lordi / aux_factor) come riferimento "
-            "informativo aggiuntivo per l'energia effettivamente immessa "
-            "in rete; il vincolo normativo resta sul LORDO."
-        )
 
     calculation_summary: dict[str, Any] = {
         "tot_biomasse_t": tot_biomasse_t,
@@ -224,19 +207,12 @@ def build_output_model(ctx: dict) -> dict:
         "saving_avg": saving_avg,
         "valid_months": int(valid_months) if valid_months is not None else 0,
         "total_revenue": total_revenue,
-        # CHP-specific
-        "tot_mwh_el_lordo": float(ctx.get("tot_mwh_el_lordo", 0.0)),
-        "tot_mwh_el_netto": float(ctx.get("tot_mwh_el_netto", 0.0)),
-        # DM 2018 CIC
-        "tot_n_cic": float(ctx.get("tot_n_cic", 0.0)),
-        "cic_active": bool(ctx.get("cic_active", False)),
-        "is_advanced": bool(ctx.get("is_advanced", False)),
         # tariffa
         "tariffa_media_ponderata": float(ctx.get("tariffa_media_ponderata", 0.0)),
         # base sostenibilita' esplicita
         "sustainability_basis": sustainability_basis,
         "sustainability_basis_note": sustainability_basis_note,
-        "biomethane_dual_view": bool(is_biomethane),
+        "biomethane_dual_view": True,
     }
 
     # --- feedstock_table (dettaglio per biomassa) ----------------------------
@@ -310,10 +286,7 @@ def build_output_model(ctx: dict) -> dict:
 def _build_scenario_name(ctx: dict) -> str:
     """Costruisce un nome leggibile per lo scenario."""
     mode_labels = {
-        "biometano":       "Biometano DM 2022",
-        "biometano_2018":  "Biometano DM 2018 CIC",
-        "biogas_chp":      "Biogas CHP DM 6/7/2012",
-        "biogas_chp_fer2": "Biogas CHP FER 2",
+        "biometano": "Biometano DM 2022",
     }
     mode = ctx.get("APP_MODE", "biometano")
     label = ctx.get("APP_MODE_LABEL") or mode_labels.get(mode, mode)

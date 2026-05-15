@@ -216,17 +216,6 @@ def explain_regulatory_basis(ctx: dict) -> str:
     lang = ctx.get("lang", "it") if isinstance(ctx, dict) else "it"
     app_mode = ctx.get("APP_MODE", "biometano") if isinstance(ctx, dict) else "biometano"
     base = _REGULATORY_BASIS_EN if lang == "en" else _REGULATORY_BASIS_IT
-    # Aggiunge note specifiche per mode
-    if app_mode in ("biogas_chp", "biogas_chp_fer2"):
-        note_it = (
-            "\n[Nota: in modalita' CHP il comparatore fossile applicato e' 183 gCO2eq/MJ "
-            "(mix elettrico EU, RED III Annex VI). Il saving GHG minimo richiesto e' 80%.]"
-        )
-        note_en = (
-            "\n[Note: in CHP mode the fossil comparator is 183 gCO2eq/MJ "
-            "(EU electricity mix, RED III Annex VI). Minimum GHG saving required is 80%.]"
-        )
-        base += note_en if lang == "en" else note_it
     return base
 
 
@@ -239,44 +228,29 @@ def explain_sustainability_basis(ctx: dict) -> str:
     riferimento informativo aggiuntivo.
     """
     lang = ctx.get("lang", "it") if isinstance(ctx, dict) else "it"
-    app_mode = ctx.get("APP_MODE", "biometano") if isinstance(ctx, dict) else "biometano"
-    is_chp = bool(ctx.get("IS_CHP", False)) if isinstance(ctx, dict) else False
-    is_biomethane = (not is_chp) and app_mode in ("biometano", "biometano_2018")
 
     if lang == "en":
-        head = (
+        return (
             "Sustainability basis: GROSS.\n"
             "GHG saving and constraints are evaluated on the gross energy\n"
             "(Sm3 gross x LHV biomethane = gross MJ). This is the basis\n"
-            "required by RED III (Annex V Part C), DM 15/9/2022 (DM 2022),\n"
-            "DM 2/3/2018 (CIC), DM 6/7/2012 (biogas CHP) and DM 18/9/2024\n"
-            "(FER 2): the whole produced energy must be sustainable.\n"
+            "required by RED III (Annex V Part C) and DM 15/9/2022.\n"
+            "\nFor biomethane the reports also show the NET view\n"
+            "(Sm3 net = Sm3 gross / aux_factor) as informative\n"
+            "reference for the energy actually injected into the grid.\n"
+            "The regulatory constraint stays on the GROSS basis.\n"
         )
-        if is_biomethane:
-            head += (
-                "\nFor biomethane the reports also show the NET view\n"
-                "(Sm3 net = Sm3 gross / aux_factor) as informative\n"
-                "reference for the energy actually injected into the grid.\n"
-                "The regulatory constraint stays on the GROSS basis.\n"
-            )
-        return head
 
-    head = (
+    return (
         "Base sostenibilita': LORDO.\n"
         "Il saving GHG ed i vincoli normativi sono valutati sull'energia\n"
         "LORDA (Sm3 lordi x LHV biometano = MJ lordi). E' la base richiesta\n"
-        "da RED III (Allegato V Parte C), DM 15/9/2022 (DM 2022),\n"
-        "DM 2/3/2018 (CIC), DM 6/7/2012 (biogas CHP) e DM 18/9/2024 (FER 2):\n"
-        "l'intera energia prodotta deve essere sostenibile.\n"
+        "da RED III (Allegato V Parte C) e DM 15/9/2022.\n"
+        "\nPer il biometano i report espongono anche la vista NETTO\n"
+        "(Sm3 netti = Sm3 lordi / aux_factor) come riferimento\n"
+        "informativo per l'energia effettivamente immessa in rete.\n"
+        "Il vincolo normativo resta sul LORDO.\n"
     )
-    if is_biomethane:
-        head += (
-            "\nPer il biometano i report espongono anche la vista NETTO\n"
-            "(Sm3 netti = Sm3 lordi / aux_factor) come riferimento\n"
-            "informativo per l'energia effettivamente immessa in rete.\n"
-            "Il vincolo normativo resta sul LORDO.\n"
-        )
-    return head
 
 
 def build_all_explanations(ctx: dict) -> dict:

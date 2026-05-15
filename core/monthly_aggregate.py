@@ -216,17 +216,6 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
         agg.saving_pct_net = float(summary.get("saving") or 0.0)
         agg.sustainability_basis = "LORDO"
 
-        # Calcolo CHP se richiesto in ctx
-        if ctx.get("IS_CHP"):
-            eta_el = float(ctx.get("eta_el") or 0.40)
-            eta_th = float(ctx.get("eta_th") or 0.42)
-            aux_el_pct = float(ctx.get("aux_el_pct") or 0.08)
-            
-            # mwh_gross è MWh CH4 lordi (resa biomasse)
-            agg.mwh_el_lordo = agg.mwh_gross * eta_el
-            agg.mwh_el_netto = agg.mwh_el_lordo * (1.0 - aux_el_pct)
-            agg.mwh_termico = agg.mwh_gross * eta_th
-
     # Decomposizione media pesata su MJ (per l'audit trail)
     from core.calculation_engine import _emission_factors_of, _yield_of
     total_mj = 0.0

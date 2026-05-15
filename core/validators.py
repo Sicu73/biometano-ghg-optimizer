@@ -38,8 +38,8 @@ def validate_plant_config(
         ep_total:           Contributo processing impianto (gCO2eq/MJ).
         ghg_threshold:      Soglia saving RED III (0.0–1.0).
         fossil_comparator:  Comparatore fossile (gCO2eq/MJ).
-        app_mode:           Modalita' applicazione (biometano/biogas_chp/...).
-        plant_kwe:          Potenza elettrica CHP (kWe), solo se IS_CHP.
+        app_mode:           Modalita' applicazione (biometano DM 2022).
+        plant_kwe:          Non utilizzato (kept for API compat).
 
     Returns:
         (is_valid, errors, warnings)
@@ -67,15 +67,6 @@ def validate_plant_config(
 
     if fossil_comparator <= 0:
         errors.append(f"fossil_comparator deve essere > 0 (attuale: {fossil_comparator}).")
-
-    if app_mode in ("biogas_chp", "biogas_chp_fer2") and plant_kwe is not None:
-        if plant_kwe <= 0:
-            errors.append(f"Potenza CHP non valida: {plant_kwe} kWe (deve essere > 0).")
-        if app_mode == "biogas_chp_fer2" and plant_kwe > 300.0:
-            errors.append(
-                f"FER 2: potenza CHP ({plant_kwe} kWe) supera il cap normativo 300 kWe "
-                "(DM 19/06/2024 art. 4)."
-            )
 
     is_valid = len(errors) == 0
     return is_valid, errors, warnings
@@ -115,15 +106,6 @@ def validate_feedstock_selection(
         if name not in feedstock_db:
             errors.append(f"Biomassa sconosciuta nel database: '{name}'. "
                           "Potrebbe essere stata rimossa o rinominata.")
-
-    if app_mode == "biogas_chp_fer2" and fer2_subprod_share is not None:
-        if fer2_subprod_share < fer2_feedstock_req_threshold - 1e-6:
-            warnings.append(
-                f"FER 2: quota sottoprodotti/effluenti in massa "
-                f"({fer2_subprod_share*100:.1f}%) sotto la soglia normativa "
-                f"({fer2_feedstock_req_threshold*100:.0f}%). "
-                "Il premio matrice non e' applicabile."
-            )
 
     # Avviso se si usano solo colture dedicate (cap 30% RED III)
     dedicated_feeds = [
