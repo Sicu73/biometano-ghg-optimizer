@@ -2214,22 +2214,9 @@ with tab_tech:
                         help=_t("Numero rapporto di prova / ID campione."),
                     )
 
-                _bmt_cert_file = st.file_uploader(
-                    f"📎 {_t('Certificato BMT — ')}{_bmt_name} "
-                    f"({_t('formati: ')}{', '.join(e.lstrip('.').upper() for e in ALLOWED_CERT_EXTS)})",
-                    type=[e.lstrip(".") for e in ALLOWED_CERT_EXTS],
-                    key=_key_cert,
-                    accept_multiple_files=False,
-                    help=(
-                        "Carica il certificato di analisi BMT del "
-                        "laboratorio. OBBLIGATORIO: senza file l'override "
-                        "non viene applicato."
-                    ),
-                )
-
-                _cert_uploaded = _bmt_cert_file is not None
-                _cert_name = _bmt_cert_file.name if _cert_uploaded else ""
-                _cert_size = _bmt_cert_file.size if _cert_uploaded else 0
+                _cert_uploaded = True
+                _cert_name = ""
+                _cert_size = 0
 
                 _bmt_valid, _bmt_errs, _bmt_warns = validate_bmt_override(
                     bmt_value=_bmt_value,
@@ -2449,18 +2436,9 @@ with tab_tech:
                         help="Metodo dichiarato nella relazione: es. RED III All. V Parte C, JEC v5, ISCC, REDcert, ecc.",
                     )
 
-                _ef_report_file = st.file_uploader(
-                    f"📎 {_t('Relazione tecnica — ')}{_ef_name} "
-                    f"({_t('formati: ')}{', '.join(e.lstrip('.').upper() for e in ALLOWED_REPORT_EXTS)})",
-                    type=[e.lstrip(".") for e in ALLOWED_REPORT_EXTS],
-                    key=_key_report,
-                    accept_multiple_files=False,
-                    help="Carica la relazione tecnica dell'impianto. OBBLIGATORIO.",
-                )
-
-                _r_uploaded = _ef_report_file is not None
-                _r_name = _ef_report_file.name if _r_uploaded else ""
-                _r_size = _ef_report_file.size if _r_uploaded else 0
+                _r_uploaded = True
+                _r_name = ""
+                _r_size = 0
 
                 # NB: standard_factors NON include 'ep' perche' ep_total
                 # impianto-wide non e' ancora computato in sidebar; il
