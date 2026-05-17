@@ -2653,6 +2653,43 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         _edit_rows.append(_totals_row)
         _edit_df = _pd_daily.DataFrame(_edit_rows)
 
+        # =================================================================
+        # CSS iniettato: evidenzia l'ultima riga (TOTALE MESE) del data_editor
+        # — react-data-grid usa aria-rowindex 1-based dove header=1 e
+        # l'ultima riga del data ha indice = 1 + N_data_rows.
+        # =================================================================
+        _total_aria_idx = 1 + len(_edit_rows)  # 1 header + N righe (totale = ultima)
+        st.markdown(
+            f"""
+            <style>
+            div[data-testid="stDataFrame"] div[role="row"][aria-rowindex="{_total_aria_idx}"],
+            div[data-testid="stDataEditor"] div[role="row"][aria-rowindex="{_total_aria_idx}"] {{
+                background: linear-gradient(90deg,
+                    rgba(245,158,11,0.32) 0%,
+                    rgba(254,243,199,0.55) 50%,
+                    rgba(245,158,11,0.32) 100%) !important;
+                box-shadow: inset 0 3px 0 #F59E0B, inset 0 -3px 0 #F59E0B !important;
+            }}
+            div[data-testid="stDataFrame"] div[role="row"][aria-rowindex="{_total_aria_idx}"] [role="gridcell"],
+            div[data-testid="stDataEditor"] div[role="row"][aria-rowindex="{_total_aria_idx}"] [role="gridcell"] {{
+                font-weight: 900 !important;
+                font-size: 1.05rem !important;
+                color: #0F172A !important;
+                background-color: transparent !important;
+                border-color: #F59E0B !important;
+            }}
+            /* Prima cella (Data = "TOTALE MESE") extra-evidente */
+            div[data-testid="stDataFrame"] div[role="row"][aria-rowindex="{_total_aria_idx}"] [role="gridcell"]:first-of-type,
+            div[data-testid="stDataEditor"] div[role="row"][aria-rowindex="{_total_aria_idx}"] [role="gridcell"]:first-of-type {{
+                color: #B45309 !important;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+
         # _editor_key è stato definito sopra (g{counter}). Cambia solo se
         # bumpiamo do_editor_gen (es. dopo cambio mese / nuovo / ricarica DB).
         _edited = st.data_editor(
