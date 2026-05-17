@@ -3004,53 +3004,49 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                 st.write(f"- **{_k}**: {_v}")
 
         # =================================================================
-        # SALVATAGGIO + EXPORT — sezioni separate, export disabilitato se vuoto
+        # AUTO-SAVE silenzioso (sostituisce ex bottone "Salva mese su DB").
+        # Idempotente: save_month usa INSERT OR REPLACE; eseguiamo solo se
+        # i dati sono cambiati dall'ultimo save (hash su session_state).
+        # Skip silenzioso se ci sono errori di validazione o 0 giorni.
         # =================================================================
         st.markdown("---")
-        _save_col, _save_msg = st.columns([1, 3])
-        with _save_col:
-            if st.button("💾 " + _t("Salva mese su DB"),
-                         key=f"{_key_prefix}do_btn_save", use_container_width=True,
-                         type="primary",
-                         disabled=(_n_days_data == 0)):
-                try:
-                    _init_db()
-                    # Audit robustezza #16: aggrega tutti gli errori di
-                    # validazione e mostra UN solo warning con expander
-                    # dei dettagli (era 31 st.warning impilati nel caso
-                    # peggiore — UX inaccettabile).
-                    _validation_errors: list = []
+        if _n_days_data > 0:
+            try:
+                import hashlib as _hashlib
+                _payload = repr([
+                    (str(_e.date), float(getattr(_e, "hours_per_day", 24.0)),
+                     sorted((str(k), float(v)) for k, v in (_e.feedstocks or {}).items()),
+                     float(getattr(_e, "remi_vb", 0.0)))
+                    for _e in _entries_list
+                ]) + f"|{_regime_lbl}|{float(ghg_threshold):.4f}|{_do_plant_safe}"
+                _payload_hash = _hashlib.md5(_payload.encode("utf-8")).hexdigest()
+                _hash_key = f"_autosave_hash_{_do_plant_safe}_{int(_do_year)}_{int(_do_month)}"
+                if st.session_state.get(_hash_key) != _payload_hash:
+                    # Validazione silenziosa: salviamo solo se 0 errori
+                    _has_validation_errs = False
                     for _e in _entries_list:
-                        _ok, _errs, _ = _validate_daily(
+                        _ok, _, _ = _validate_daily(
                             _e.date, _e.feedstocks, allowed_feeds=list(FEED_NAMES))
                         if not _ok:
-                            _validation_errors.append(
-                                (_e.date, '; '.join(_errs))
-                            )
-                    if _validation_errors:
-                        st.warning(
-                            "⚠️ " + _t("Trovati errori di validazione in")
-                            + f" {len(_validation_errors)} "
-                            + _t("giorni. Salvataggio annullato.")
-                        )
-                        with st.expander("📋 " + _t("Dettagli errori")):
-                            for _date, _msg in _validation_errors:
-                                st.write(f"- **{_date}**: {_msg}")
-                        _has_err = True
-                    else:
-                        _has_err = False
-                    if not _has_err:
-                        _n = _save_month(
+                            _has_validation_errs = True
+                            break
+                    if not _has_validation_errs:
+                        _init_db()
+                        _save_month(
                             int(_do_year), int(_do_month), _entries_list,
                             plant_id=_do_plant_safe, regime=_regime_lbl,
                             threshold=float(ghg_threshold),
                         )
-                        st.success(_t("Mese salvato:") + f" {_n} record.")
-                except Exception as _exc:  # noqa: BLE001
-                    st.error(_t("Errore salvataggio:") + f" {_exc}")
-        with _save_msg:
-            if _n_days_data == 0:
-                st.caption("⚠️ " + _t("Inserisci almeno un giorno di dati per salvare ed esportare."))
+                        st.session_state[_hash_key] = _payload_hash
+                        from datetime import datetime as _dt_now
+                        st.session_state[f"{_hash_key}_ts"] = _dt_now.now().strftime("%H:%M:%S")
+                # Indicatore discreto
+                _ts = st.session_state.get(f"{_hash_key}_ts")
+                if _ts:
+                    st.caption(f"💾 {_t('Auto-salvato')} {_ts}")
+            except Exception as _exc:  # noqa: BLE001
+                _LOG.exception("Auto-save daily failed")
+                st.caption(f"⚠️ {_t('Auto-save non riuscito')}: {_exc}")
 
         # =================================================================
         # ESPORTA REPORT — sezione sempre visibile (bottoni disabilitati se
