@@ -2797,15 +2797,15 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                        if not c.get("ok", True)]
             _note_mtd = "KO vincoli: " + ", ".join(_failed) if _failed else "KO"
 
-        # Costruisco header + valori della riga totale per OGNI colonna
+        # Costruisco header + valori della riga totale per OGNI colonna.
+        # Usiamo _compiled_hours (calcolato sopra a riga ~2636 PRIMA che la
+        # totals_row venga aggiunta a _edit_rows). Se calcolassimo ora su
+        # _edit_rows includeremmo la totals_row stessa (HOURS=744 + BIO=80)
+        # gonfiando il divisore → Sm³/h medi sbagliati (es. 6,5 invece di 208).
         _tot_hours = sum(float(_hours_map.get(_d, 24.0)) for _d in _all_days)
-        _tot_compiled_hours = sum(
-            _r.get(_HOURS_COL, 24.0) for _r in _edit_rows
-            if _r.get(_BIO_TOT_COL, 0) > 0 or _r.get(_REMI_VB_COL, 0) > 0
-        )
-        _tot_smh_gross = (_kpis.get('sm3_gross', 0.0) / _tot_compiled_hours) if _tot_compiled_hours > 0 else 0.0
-        _tot_smh_net = (_kpis.get('sm3_netti', 0.0) / _tot_compiled_hours) if _tot_compiled_hours > 0 else 0.0
-        _tot_remi_flow = (_kpis.get('remi_vb_total', 0.0) / _tot_compiled_hours) if _tot_compiled_hours > 0 else 0.0
+        _tot_smh_gross = (_kpis.get('sm3_gross', 0.0) / _compiled_hours) if _compiled_hours > 0 else 0.0
+        _tot_smh_net = (_kpis.get('sm3_netti', 0.0) / _compiled_hours) if _compiled_hours > 0 else 0.0
+        _tot_remi_flow = (_kpis.get('remi_vb_total', 0.0) / _compiled_hours) if _compiled_hours > 0 else 0.0
 
         # Abbrevia i nomi biomassa per la riga compatta (massimo 8 char)
         def _abbr(name: str, n: int = 8) -> str:
