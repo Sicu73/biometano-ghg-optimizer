@@ -2491,6 +2491,50 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
 
 
         # =================================================================
+        # COMPUTE KPI STANDARD (senza override BMT / emission factor).
+        # Hack pragmatico: swap temporaneo dei dict globali, try/finally.
+        # =================================================================
+        def _compute_kpis_standard(_entries, _ctx_local, _y, _mo, _reg, _thr, _cap):
+            import sys as _sys
+            _gmod = _sys.modules[__name__]
+            _saved_yields = dict(_gmod._EFFECTIVE_YIELDS)
+            _saved_emiss = dict(_gmod._EMISSION_OVERRIDES)
+            try:
+                _gmod._EFFECTIVE_YIELDS.clear()
+                _gmod._EMISSION_OVERRIDES.clear()
+                _std_c = []
+                for _e in _entries:
+                    try:
+                        _cc = _compute_daily(_e, ctx=_ctx_local)
+                        if _cc is not None:
+                            _std_c.append(_cc)
+                    except Exception:
+                        continue
+                _std_a = _agg_month(_std_c, ctx=_ctx_local, year=_y, month=_mo)
+                _std_s = _eval_sust(
+                    _std_a, regime=_reg, threshold=_thr,
+                    regime_constraints={"max_sm3h_authorized": _cap or None},
+                )
+                return _build_kpis(_std_a, _std_s)
+            finally:
+                _gmod._EFFECTIVE_YIELDS.clear()
+                _gmod._EFFECTIVE_YIELDS.update(_saved_yields)
+                _gmod._EMISSION_OVERRIDES.clear()
+                _gmod._EMISSION_OVERRIDES.update(_saved_emiss)
+
+        _has_yield_overrides = bool(_EFFECTIVE_YIELDS)
+        _has_emiss_overrides = bool(_EMISSION_OVERRIDES)
+        _has_any_override = _has_yield_overrides or _has_emiss_overrides
+
+        if _has_any_override:
+            _kpis_standard = _compute_kpis_standard(
+                _entries_list, _ctx, int(_do_year), int(_do_month),
+                _regime_lbl, float(ghg_threshold), _cap_smch,
+            )
+        else:
+            _kpis_standard = _kpis
+
+        # =================================================================
         # TABELLA UNICA — input editabili + colonne calcolate (disabled)
         # Gli edits sono GIÀ stati applicati a _data_map / _hours_map sopra
         # (lettura di session_state[editor_key].edited_rows pre-render),
@@ -2826,6 +2870,79 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                 """,
                 unsafe_allow_html=True,
             )
+
+        # =================================================================
+        # CONFRONTO STANDARD vs ANALISI (BMT + Relazione tecnica)
+        # =================================================================
+        st.markdown("---")
+        st.markdown(f"### 📊 {_t('Confronto Standard vs Analisi')}")
+
+        if not _has_any_override:
+            st.info(_t(
+                "ℹ️ Attiva un override BMT (laboratorio) o un override "
+                "Fattori Emissivi (relazione tecnica) in sidebar per "
+                "vedere le differenze tra dato Standard "
+                "(UNI-TS/RED III tabellare) e dato di Analisi (reale impianto)."
+            ))
+        else:
+            _badges = []
+            if _has_yield_overrides:
+                _badges.append(f"🧪 {len(_EFFECTIVE_YIELDS)} BMT override")
+            if _has_emiss_overrides:
+                _badges.append(f"🧬 {len(_EMISSION_OVERRIDES)} EF override")
+            st.caption(f"Override attivi: {' · '.join(_badges)}")
+
+            def _delta_pct(_a, _s):
+                return ((_a - _s) / _s * 100.0) if _s else 0.0
+
+            _cmp_rows = [
+                {
+                    "KPI": "Biomasse (t/mese)",
+                    "Standard": _it_num(_kpis_standard.get("biomass_total_t", 0.0), 1),
+                    "Analisi":  _it_num(_kpis.get("biomass_total_t", 0.0), 1),
+                    "Δ %":      f"{_delta_pct(_kpis.get('biomass_total_t', 0), _kpis_standard.get('biomass_total_t', 0)):+.2f}%",
+                },
+                {
+                    "KPI": "Sm³ netti (mese)",
+                    "Standard": _it_num(_kpis_standard.get("sm3_netti", 0.0), 0),
+                    "Analisi":  _it_num(_kpis.get("sm3_netti", 0.0), 0),
+                    "Δ %":      f"{_delta_pct(_kpis.get('sm3_netti', 0), _kpis_standard.get('sm3_netti', 0)):+.2f}%",
+                },
+                {
+                    "KPI": "MWh netti (mese)",
+                    "Standard": _it_num(_kpis_standard.get("mwh", 0.0), 1),
+                    "Analisi":  _it_num(_kpis.get("mwh", 0.0), 1),
+                    "Δ %":      f"{_delta_pct(_kpis.get('mwh', 0), _kpis_standard.get('mwh', 0)):+.2f}%",
+                },
+                {
+                    "KPI": "Saving GHG (%)",
+                    "Standard": f"{_kpis_standard.get('saving_pct', 0.0):.2f}",
+                    "Analisi":  f"{_kpis.get('saving_pct', 0.0):.2f}",
+                    "Δ %":      f"{(_kpis.get('saving_pct', 0) - _kpis_standard.get('saving_pct', 0)):+.2f} pt",
+                },
+            ]
+            import pandas as _pd_cmp
+            st.dataframe(
+                _pd_cmp.DataFrame(_cmp_rows),
+                hide_index=True,
+                use_container_width=True,
+            )
+
+            _std_compliant = _kpis_standard.get("compliant", False)
+            _an_compliant = _kpis.get("compliant", False)
+            if _std_compliant != _an_compliant:
+                if _an_compliant and not _std_compliant:
+                    st.success(_t(
+                        "✅ Gli override (BMT/Relazione) rendono il mese "
+                        "SOSTENIBILE. Con i soli valori Standard NON saresti "
+                        "conforme."
+                    ))
+                else:
+                    st.error(_t(
+                        "❌ Con i valori Standard il mese sarebbe SOSTENIBILE, "
+                        "ma gli override applicati abbassano la performance "
+                        "sotto soglia. Verifica i certificati."
+                    ))
 
         # 3 KPI laterali (saving NON ripetuto: già nel banner)
 
