@@ -3731,7 +3731,12 @@ with tab_export:
     # EXPORT & REPORTING
     # ============================================================
     st.header(_t("📊 Risultati & Export Annuali"))
-    st.caption(_t("Sintesi delle performance annuali aggregate sulla base dei dati mensili salvati nel database."))
+    st.caption(_t("Sezione DB (in alto): dati REALI consolidati da Gestione Giornaliera. "
+                  "Sezione Simulatore (in basso): analisi what-if pre-popolata dai dati DB."))
+
+    # Snapshot del df_res da DB PRIMA che la sezione simulatore lo sovrascriva
+    # (a riga ~4205 df_res viene reassegnato con i risultati del solver/manuale).
+    df_res_db = df_res.copy() if not df_res.empty else pd.DataFrame()
 
     if df_res.empty or df_res["Sm³ netti"].sum() == 0:
         st.info(_t("ℹ️ Nessun dato annuale disponibile. Inserisci e salva i dati nella «Gestione Giornaliera» per generare i report."))
@@ -4084,27 +4089,122 @@ with tab_export:
     def _default_mass(feed):
         return defaults_all.get(feed, 200.0)
 
+    def _prefill_from_db(df_db, fixed_feeds_l, months_l, month_hours_l):
+        """Costruisce il DataFrame iniziale del simulatore pre-popolato con
+        i dati REALI aggregati dal DB (df_res_db). Una riga per mese con
+        colonne (Mese, Ore, *fixed_feeds). Mesi senza dati DB -> Ore di
+        default (calendario) e biomasse a 0 (no stime arbitrarie)."""
+        rows = []
+        df_db_idx = (df_db.set_index("Mese")
+                     if (df_db is not None and not df_db.empty)
+                     else None)
+        for _m, _hd in zip(months_l, month_hours_l):
+            row = {"Mese": _m}
+            if df_db_idx is not None and _m in df_db_idx.index:
+                db_row = df_db_idx.loc[_m]
+                ore_db = float(db_row.get("Ore", 0.0) or 0.0)
+                row["Ore"] = int(round(ore_db)) if ore_db > 0 else _hd
+                for _f in fixed_feeds_l:
+                    v = float(db_row.get(_f, 0.0) or 0.0) if _f in db_row.index else 0.0
+                    row[_f] = v
+            else:
+                row["Ore"] = _hd
+                for _f in fixed_feeds_l:
+                    row[_f] = _default_mass(_f)
+            rows.append(row)
+        return pd.DataFrame(rows)
+
     # --- Stato persistente: memorizzo SOLO le colonne editabili (Mese, Ore, fisse).
     # Chiave state univoca per combinazione mode+fisse+active_feeds, cosi' cambio
     # biomasse attive -> nuovo state (evita contaminazioni tra configurazioni diverse).
     _active_hash = str(hash(tuple(sorted(active_feeds))))[:8]
-    state_key = f"mens_in_{len(unknown_feeds)}unk_{_active_hash}_{'-'.join(fixed_feeds)}"
+    # Year/plant context: se l'utente cambia anno/impianto in Gestione
+    # Giornaliera, il simulatore invalida lo state e ri-popola con i nuovi
+    # dati DB.
+    _sim_year = int(st.session_state.get("do_year", _dt.date.today().year))
+    _sim_plant = (st.session_state.get("do_plant_id") or PLANT_NAME or "default").strip() or "default"
+    state_key = f"mens_in_{len(unknown_feeds)}unk_{_active_hash}_{_sim_year}_{_sim_plant}_{'-'.join(fixed_feeds)}"
 
-    col_tab_title, col_tab_btn = st.columns([4, 1], vertical_alignment="bottom")
+    # Inizializzazione state: pre-fill intelligente da DB.
+    _db_has_data = (not df_res_db.empty) and (df_res_db["Sm³ netti"].sum() > 0)
+    if state_key not in st.session_state:
+        if _db_has_data:
+            st.session_state[state_key] = _prefill_from_db(
+                df_res_db, fixed_feeds, MONTHS, MONTH_HOURS)
+            st.session_state[f"{state_key}__source"] = "db"
+        else:
+            init_rows = []
+            for m, h in zip(MONTHS, MONTH_HOURS):
+                row = {"Mese": m, "Ore": h}
+                for f in fixed_feeds:
+                    row[f] = _default_mass(f)
+                init_rows.append(row)
+            st.session_state[state_key] = pd.DataFrame(init_rows)
+            st.session_state[f"{state_key}__source"] = "defaults"
+
+    # Rileva "scenario modificato": tabella corrente != pre-fill DB
+    _scenario_modified = False
+    if _db_has_data:
+        try:
+            _expected_db = _prefill_from_db(df_res_db, fixed_feeds, MONTHS, MONTH_HOURS)
+            _cur_cols = ["Mese", "Ore"] + fixed_feeds
+            _cur = st.session_state[state_key][_cur_cols].reset_index(drop=True)
+            _exp = _expected_db[_cur_cols].reset_index(drop=True)
+            _scenario_modified = not _cur.round(2).equals(_exp.round(2))
+        except Exception:
+            _scenario_modified = True
+
+    # Banner di stato
+    if _db_has_data and not _scenario_modified:
+        st.info(
+            f"🟢 **Simulatore allineato al DB** — la tabella mostra i dati reali "
+            f"aggregati per anno **{_sim_year}**, impianto **{_sim_plant}**. "
+            f"Modifica liberamente le celle ✏️ per simulare scenari what-if "
+            f"(le modifiche **non vengono salvate nel database**)."
+        )
+    elif _scenario_modified:
+        st.warning(
+            f"🟡 **Simulazione what-if — scenario modificato** "
+            f"(dati base: anno {_sim_year}, impianto {_sim_plant}). "
+            f"Le modifiche sono solo in memoria, non salvate nel DB. "
+            f"Usa «🔄 Ricarica dati reali dal DB» per tornare al dato reale."
+        )
+    else:
+        st.warning(
+            f"🟡 **Simulazione what-if** — DB vuoto per anno {_sim_year} / "
+            f"impianto {_sim_plant}: la tabella usa valori plausibili di default. "
+            f"Inserisci i dati reali da «Gestione Giornaliera» per attivare "
+            f"il pre-fill DB."
+        )
+
+    col_tab_title, col_tab_btn_db, col_tab_btn = st.columns([3, 1.4, 1], vertical_alignment="bottom")
     with col_tab_title:
         st.subheader(_t("📆 Tabella mensile – modifica le celle ✏️, il resto si ricalcola"))
-    with col_tab_btn:
-        if st.button("🔄 Resetta", use_container_width=True, help=_t("Ripristina i valori iniziali di default per questa configurazione.")):
-            st.session_state.pop(state_key, None)
+    with col_tab_btn_db:
+        if st.button(
+            "🔄 Ricarica dati reali dal DB",
+            use_container_width=True,
+            disabled=not _db_has_data,
+            help=(
+                f"Sovrascrive la tabella con i valori reali aggregati dal "
+                f"database per anno {_sim_year} / impianto {_sim_plant}. "
+                f"Le modifiche correnti vengono perse."
+                if _db_has_data else
+                _t("Nessun dato nel DB per anno/impianto correnti. "
+                   "Inserisci i dati da «Gestione Giornaliera».")
+            ),
+            key=f"btn_reload_db_{state_key}",
+        ):
+            st.session_state[state_key] = _prefill_from_db(
+                df_res_db, fixed_feeds, MONTHS, MONTH_HOURS)
+            st.session_state[f"{state_key}__source"] = "db"
             st.rerun()
-    if state_key not in st.session_state:
-        init_rows = []
-        for m, h in zip(MONTHS, MONTH_HOURS):
-            row = {"Mese": m, "Ore": h}
-            for f in fixed_feeds:
-                row[f] = _default_mass(f)
-            init_rows.append(row)
-        st.session_state[state_key] = pd.DataFrame(init_rows)
+    with col_tab_btn:
+        if st.button("🔄 Reset", use_container_width=True,
+                     help=_t("Ripristina i valori iniziali di default per questa configurazione.")):
+            st.session_state.pop(state_key, None)
+            st.session_state.pop(f"{state_key}__source", None)
+            st.rerun()
 
     # Retrocompatibilita': se lo state esiste con vecchia colonna target per mese, rimuovo
     if "Target Sm³/h netti" in st.session_state[state_key].columns:
@@ -4323,7 +4423,11 @@ with tab_export:
         st.warning(_t("⚠️ Mesi con problemi di fattibilità:") + "\n\n" + "\n\n".join(f"- {w}" for w in warnings_list))
 
     # ------------------------- SINTESI -------------------------
-    st.subheader(_t("📈 Sintesi annuale"))
+    st.subheader(_t("📈 Sintesi annuale (simulazione what-if)"))
+    st.caption(_t(
+        "🟡 KPI calcolati sui valori CORRENTEMENTE in tabella (simulazione). "
+        "Non riflettono necessariamente i dati salvati nel database."
+    ))
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Tot. biomasse (t/anno)",
               fmt_it(df_res["Totale biomasse (t)"].sum(), 0))
@@ -4337,6 +4441,41 @@ with tab_export:
     c5.metric(_t("Mesi validi"), f"{valid_months}/12",
               delta="OK" if valid_months == 12 else f"{12-valid_months}{_t(' NON validi')}",
               delta_color="normal" if valid_months == 12 else "inverse")
+
+    # --- Sintesi reale (DB) — affiancata, solo se il DB ha dati ---
+    if _db_has_data:
+        st.markdown("##### 📊 " + _t("Sintesi reale (DB)") +
+                    f" — _{_t('dati salvati')} {_sim_year} / {_sim_plant}_")
+        st.caption(_t(
+            "🟢 KPI calcolati sui dati operativi REALI aggregati dal database "
+            "(Gestione Giornaliera). Non cambiano modificando la tabella sopra."
+        ))
+        d1, d2, d3, d4, d5 = st.columns(5)
+        d1.metric("Tot. biomasse (t/anno)",
+                  fmt_it(df_res_db["Totale biomasse (t)"].sum(), 0))
+        d2.metric("Sm³ netti (anno)",
+                  fmt_it(df_res_db["Sm³ netti"].sum(), 0))
+        d3.metric("MWh netti (anno)",
+                  fmt_it(df_res_db["MWh netti"].sum(), 0))
+        _saving_db_mean = df_res_db["Saving %"].replace(0, pd.NA).mean(skipna=True)
+        d4.metric("Saving medio (%)",
+                  fmt_it(float(_saving_db_mean) if pd.notna(_saving_db_mean) else 0.0, 1))
+        _valid_db = (df_res_db["Validità"].str.startswith("✅").sum()
+                     if "Validità" in df_res_db.columns else 0)
+        d5.metric(_t("Mesi con dati"), f"{_valid_db}/12")
+
+        if _scenario_modified:
+            _delta_t = (df_res["Totale biomasse (t)"].sum()
+                        - df_res_db["Totale biomasse (t)"].sum())
+            _delta_sm3 = (df_res["Sm³ netti"].sum()
+                          - df_res_db["Sm³ netti"].sum())
+            _sign_t = "+" if _delta_t >= 0 else ""
+            _sign_s = "+" if _delta_sm3 >= 0 else ""
+            st.caption(
+                f"Δ scenario vs reale: biomasse "
+                f"**{_sign_t}{fmt_it(_delta_t, 0)} t** · "
+                f"Sm³ netti **{_sign_s}{fmt_it(_delta_sm3, 0)}**"
+            )
 
     # ------------------------- GRAFICI -------------------------
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
