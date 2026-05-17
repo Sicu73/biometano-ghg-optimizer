@@ -2807,56 +2807,60 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         _tot_smh_net = (_kpis.get('sm3_netti', 0.0) / _tot_compiled_hours) if _tot_compiled_hours > 0 else 0.0
         _tot_remi_flow = (_kpis.get('remi_vb_total', 0.0) / _tot_compiled_hours) if _tot_compiled_hours > 0 else 0.0
 
-        # Costruzione celle (header + valore) — tipologia per allineamento
-        _cells: list = []  # list of (header, value_html, align, width_class)
-        _cells.append(("Voce", "📊 TOTALE MESE", "left", "wide"))
-        _cells.append((_HOURS_COL, f"{_it_num(_tot_hours, 2)} h", "right", "narrow"))
+        # Abbrevia i nomi biomassa per la riga compatta (massimo 8 char)
+        def _abbr(name: str, n: int = 8) -> str:
+            name = str(name).strip()
+            return name if len(name) <= n else (name[:n - 1] + "…")
+
+        # Costruzione celle compatte — solo dati ESSENZIALI (no Sm³/h lordi,
+        # no Portata REMI, no Note — ridondanti con Esito/Sm³ netti).
+        # Header breve + full name in `title` (tooltip al hover).
+        _cells: list = []  # list of (short_hdr, full_hdr, value, align)
+        _cells.append(("TOTALE",  "TOTALE MESE",                "📊 TOTALE MESE",                                            "left"))
+        _cells.append(("Ore",     _HOURS_COL,                    f"{_it_num(_tot_hours, 0)}h",                                "right"))
         for _f in _do_active_feeds:
             _qty = sum(float((_data_map.get(_d) or {}).get(_f, 0.0)) for _d in _all_days)
-            _cells.append((_f, f"{_it_num(_qty, 2)} t", "right", "narrow"))
-        _cells.append((_BIO_TOT_COL,   f"{_it_num(_kpis.get('biomass_total_t', 0.0), 1)} t",  "right", "narrow"))
-        _cells.append((_REMI_VB_COL,   f"{_it_num(_kpis.get('remi_vb_total', 0.0), 0)}",       "right", "narrow"))
-        _cells.append((_SMH_GROSS_COL, f"{_it_num(_tot_smh_gross, 1)}",                         "right", "narrow"))
-        _cells.append((_SMH_COL,       f"{_it_num(_tot_smh_net, 1)}",                           "right", "narrow"))
-        _cells.append((_REMI_FLOW_COL, f"{_it_num(_tot_remi_flow, 1)}",                         "right", "narrow"))
-        _cells.append((_SAV_COL,       f"{_kpis.get('saving_pct', 0.0):.2f} %",                 "right", "narrow"))
-        _cells.append((_OK_COL,        _sust_icon_full,                                          "center", "esito"))
-        _cells.append(("Note",         _note_mtd,                                                "left", "wide"))
+            _cells.append((_abbr(_f), str(_f), f"{_it_num(_qty, 1)}t", "right"))
+        _cells.append(("Tot t",   _BIO_TOT_COL,                  f"{_it_num(_kpis.get('biomass_total_t', 0.0), 1)}t",         "right"))
+        _cells.append(("Sm³ tot", _REMI_VB_COL,                  f"{_it_num(_kpis.get('remi_vb_total', 0.0), 0)}",            "right"))
+        _cells.append(("Sm³/h",   _SMH_COL,                      f"{_it_num(_tot_smh_net, 1)}",                                "right"))
+        _cells.append(("Saving",  _SAV_COL,                      f"{_kpis.get('saving_pct', 0.0):.2f}%",                       "right"))
+        _cells.append(("Esito",   _OK_COL,                       _sust_icon_full,                                              "center"))
 
-        # Genero HTML thead + tbody (1 sola riga totale) — compatto
+        # Genero HTML thead + tbody (1 sola riga totale) — ultra compatto
         _hdr_html = "".join(
-            f"<th style='padding:5px 7px;font-size:0.62rem;font-weight:700;"
-            f"text-transform:uppercase;letter-spacing:0.3px;color:#F59E0B;"
-            f"text-align:{align};border-bottom:1px solid #F59E0B;"
-            f"white-space:nowrap;line-height:1.1;'>{header}</th>"
-            for header, _val, align, _cls in _cells
+            f"<th title='{full}' style='padding:3px 5px;font-size:0.58rem;"
+            f"font-weight:700;text-transform:uppercase;letter-spacing:0.2px;"
+            f"color:#F59E0B;text-align:{align};border-bottom:1px solid #F59E0B;"
+            f"white-space:nowrap;line-height:1;'>{short}</th>"
+            for short, full, _val, align in _cells
         )
         _val_cells_html = []
-        for header, val, align, cls in _cells:
-            if cls == "esito":
+        for short, full, val, align in _cells:
+            if short == "Esito":
                 cell = (
-                    f"<td style='padding:6px 7px;text-align:{align};"
+                    f"<td title='{full}' style='padding:4px 5px;text-align:{align};"
                     f"vertical-align:middle;'>"
                     f"<span style='background:{_sust_bg};color:#FFFFFF;"
-                    f"padding:3px 8px;border-radius:4px;font-weight:800;"
-                    f"font-size:0.78rem;letter-spacing:0.2px;white-space:nowrap;'>{val}</span></td>"
+                    f"padding:2px 6px;border-radius:3px;font-weight:800;"
+                    f"font-size:0.72rem;white-space:nowrap;'>{val}</span></td>"
                 )
-            elif header == _SAV_COL:
+            elif short == "Saving":
                 cell = (
-                    f"<td style='padding:6px 7px;text-align:{align};"
-                    f"font-weight:800;font-size:0.86rem;color:{_sust_color};"
+                    f"<td title='{full}' style='padding:4px 5px;text-align:{align};"
+                    f"font-weight:800;font-size:0.82rem;color:{_sust_color};"
                     f"vertical-align:middle;white-space:nowrap;'>{val}</td>"
                 )
-            elif header == "Voce":
+            elif short == "TOTALE":
                 cell = (
-                    f"<td style='padding:6px 7px;text-align:{align};"
-                    f"font-weight:800;font-size:0.82rem;color:#F59E0B;"
+                    f"<td title='{full}' style='padding:4px 6px;text-align:{align};"
+                    f"font-weight:800;font-size:0.78rem;color:#F59E0B;"
                     f"vertical-align:middle;white-space:nowrap;'>{val}</td>"
                 )
             else:
                 cell = (
-                    f"<td style='padding:6px 7px;text-align:{align};"
-                    f"font-weight:700;font-size:0.82rem;color:#F8FAFC;"
+                    f"<td title='{full}' style='padding:4px 5px;text-align:{align};"
+                    f"font-weight:700;font-size:0.76rem;color:#F8FAFC;"
                     f"vertical-align:middle;white-space:nowrap;'>{val}</td>"
                 )
             _val_cells_html.append(cell)
@@ -2864,13 +2868,12 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
 
         st.markdown(
             f"""
-            <div style='margin-top:-0.6rem;margin-bottom:0.8rem;
+            <div style='margin-top:-0.5rem;margin-bottom:0.6rem;
                 background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);
-                border-top:3px solid #F59E0B;
-                border-radius:0 0 8px 8px;
-                box-shadow:0 4px 10px rgba(15,23,42,0.25);
-                overflow-x:auto;'>
-              <table style='width:100%;border-collapse:collapse;'>
+                border-top:2px solid #F59E0B;
+                border-radius:0 0 6px 6px;
+                box-shadow:0 3px 8px rgba(15,23,42,0.22);'>
+              <table style='width:100%;border-collapse:collapse;table-layout:auto;'>
                 <thead><tr>{_hdr_html}</tr></thead>
                 <tbody><tr>{_row_html}</tr></tbody>
               </table>
