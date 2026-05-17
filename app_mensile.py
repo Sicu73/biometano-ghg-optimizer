@@ -2625,7 +2625,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         _is_sust_mtd = _kpis.get('compliant', False)
         _sust_icon = "✅ SOSTENIBILE" if _is_sust_mtd else "❌ NON SOSTENIBILE"
         _totals_row = {
-            "Data": "TOTALE MESE",
+            "Data": "═══════ 📊 TOTALE MESE 📊 ═══════",
             _HOURS_COL: sum(float(_hours_map.get(_d, 24.0)) for _d in _all_days)
         }
         for _f in _do_active_feeds:
@@ -2739,20 +2739,67 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             return s.replace(",", "X").replace(".", ",").replace("X", ".")
 
         # =================================================================
-        # RIGA TOTALI (FOOTER TABELLA)
+        # BANNER TOTALI MENSILI — card grande, ben evidente subito sotto la
+        # tabella (sostituisce il footer mini orizzontale precedente).
         # =================================================================
         _is_sust_mtd = _kpis.get('compliant', False)
         _sust_color = "#059669" if _is_sust_mtd else "#DC2626"
+        _sust_grad = ("linear-gradient(135deg,#059669 0%,#047857 100%)"
+                      if _is_sust_mtd else
+                      "linear-gradient(135deg,#DC2626 0%,#991B1B 100%)")
         _sust_icon = "✅ SOSTENIBILE" if _is_sust_mtd else "❌ NON SOSTENIBILE"
+        _bio_mtd = _kpis.get('biomass_total_t', 0.0)
+        _sm3_mtd = _kpis.get('remi_vb_total', 0.0) or _kpis.get('sm3_netti', 0.0)
+        _mwh_mtd = _kpis.get('mwh', 0.0)
+        _sav_mtd = _kpis.get('saving_pct', 0.0)
 
         st.markdown(
             f"""
-            <div style='background-color:#1E293B;color:white;padding:12px 20px;border-radius:0 0 8px 8px;margin-top:-1rem;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:0.95rem;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);'>
-                <div style='color:#94A3B8;text-transform:uppercase;font-size:0.8rem;letter-spacing:1px;'>Totale Progressivo Mese</div>
-                <div>🌾 {_it_num(_kpis['biomass_total_t'], 1)} t Biomasse</div>
-                <div>📈 {_it_num(_kpis.get('remi_vb_total', 0), 0)} Sm³ Reali</div>
-                <div>🎯 Saving MTD: {_kpis.get('saving_pct', 0):.2f}%</div>
-                <div style='background-color:{_sust_color};padding:4px 10px;border-radius:4px;color:white;'>{_sust_icon}</div>
+            <div style='background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);
+                color:#F8FAFC;padding:20px 26px;border-radius:0 0 14px 14px;
+                margin-top:-1rem;margin-bottom:1.2rem;
+                box-shadow:0 6px 16px rgba(15,23,42,0.25);
+                border-top:4px solid #F59E0B;'>
+              <div style='display:flex;justify-content:space-between;align-items:center;
+                   margin-bottom:14px;'>
+                <div style='font-size:0.78rem;font-weight:800;letter-spacing:2px;
+                     text-transform:uppercase;color:#F59E0B;'>
+                  📊 Totale Mensile · Riepilogo
+                </div>
+                <div style='background:{_sust_grad};padding:8px 18px;border-radius:8px;
+                     font-weight:800;font-size:0.95rem;letter-spacing:0.5px;
+                     box-shadow:0 2px 8px rgba(0,0,0,0.3);'>{_sust_icon}</div>
+              </div>
+              <div style='display:grid;grid-template-columns:repeat(4,1fr);gap:14px;'>
+                <div style='background:rgba(245,158,11,0.10);border-left:3px solid #F59E0B;
+                     padding:12px 16px;border-radius:6px;'>
+                  <div style='font-size:0.72rem;color:#94A3B8;text-transform:uppercase;
+                       letter-spacing:1px;font-weight:600;'>🌾 Biomasse</div>
+                  <div style='font-size:1.65rem;font-weight:800;color:#F8FAFC;
+                       margin-top:4px;'>{_it_num(_bio_mtd, 1)} <span style='font-size:0.95rem;color:#94A3B8;font-weight:500;'>t</span></div>
+                </div>
+                <div style='background:rgba(59,130,246,0.10);border-left:3px solid #3B82F6;
+                     padding:12px 16px;border-radius:6px;'>
+                  <div style='font-size:0.72rem;color:#94A3B8;text-transform:uppercase;
+                       letter-spacing:1px;font-weight:600;'>🟢 Sm³ netti</div>
+                  <div style='font-size:1.65rem;font-weight:800;color:#F8FAFC;
+                       margin-top:4px;'>{_it_num(_sm3_mtd, 0)}</div>
+                </div>
+                <div style='background:rgba(168,85,247,0.10);border-left:3px solid #A855F7;
+                     padding:12px 16px;border-radius:6px;'>
+                  <div style='font-size:0.72rem;color:#94A3B8;text-transform:uppercase;
+                       letter-spacing:1px;font-weight:600;'>⚡ MWh netti</div>
+                  <div style='font-size:1.65rem;font-weight:800;color:#F8FAFC;
+                       margin-top:4px;'>{_it_num(_mwh_mtd, 1)}</div>
+                </div>
+                <div style='background:rgba(16,185,129,0.10);border-left:3px solid {_sust_color};
+                     padding:12px 16px;border-radius:6px;'>
+                  <div style='font-size:0.72rem;color:#94A3B8;text-transform:uppercase;
+                       letter-spacing:1px;font-weight:600;'>🎯 Saving GHG</div>
+                  <div style='font-size:1.65rem;font-weight:800;color:{_sust_color};
+                       margin-top:4px;'>{_sav_mtd:.2f}<span style='font-size:1rem;color:#94A3B8;font-weight:500;'>%</span></div>
+                </div>
+              </div>
             </div>
             """, unsafe_allow_html=True
         )
