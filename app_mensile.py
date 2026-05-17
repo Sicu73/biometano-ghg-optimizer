@@ -2785,17 +2785,17 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         _sust_bg = ("linear-gradient(135deg,#059669 0%,#047857 100%)"
                     if _is_sust_mtd else
                     "linear-gradient(135deg,#DC2626 0%,#991B1B 100%)")
-        _sust_icon_full = "✅ SOSTENIBILE" if _is_sust_mtd else "❌ NON SOSTENIBILE"
-        # Note sintetiche (stesso testo della riga editor)
+        _sust_icon_full = "✅ OK" if _is_sust_mtd else "❌ KO"
+        # Note sintetiche compatte
         _saving_pct_net = _kpis.get('saving_pct_net', 0.0)
         if _is_sust_mtd:
-            _note_mtd = f"OK — Saving {_saving_pct_net:.1f}% (≥ {_thr_pct:.0f}%)"
+            _note_mtd = f"Saving {_saving_pct_net:.1f}% ≥ {_thr_pct:.0f}%"
         elif _saving_pct_net < _thr_pct:
-            _note_mtd = f"KO — Saving {_saving_pct_net:.1f}% (soglia {_thr_pct:.0f}%)"
+            _note_mtd = f"Saving {_saving_pct_net:.1f}% < {_thr_pct:.0f}%"
         else:
             _failed = [c.get("name", "") for c in _kpis.get('constraints_status', [])
                        if not c.get("ok", True)]
-            _note_mtd = "KO — Vincoli violati: " + " | ".join(_failed) if _failed else "KO"
+            _note_mtd = "KO vincoli: " + ", ".join(_failed) if _failed else "KO"
 
         # Costruisco header + valori della riga totale per OGNI colonna
         _tot_hours = sum(float(_hours_map.get(_d, 24.0)) for _d in _all_days)
@@ -2823,41 +2823,40 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         _cells.append((_OK_COL,        _sust_icon_full,                                          "center", "esito"))
         _cells.append(("Note",         _note_mtd,                                                "left", "wide"))
 
-        # Genero HTML thead + tbody (1 sola riga totale)
+        # Genero HTML thead + tbody (1 sola riga totale) — compatto
         _hdr_html = "".join(
-            f"<th style='padding:10px 12px;font-size:0.7rem;font-weight:700;"
-            f"text-transform:uppercase;letter-spacing:0.6px;color:#F59E0B;"
-            f"text-align:{align};border-bottom:2px solid #F59E0B;"
-            f"white-space:nowrap;'>{header}</th>"
+            f"<th style='padding:5px 7px;font-size:0.62rem;font-weight:700;"
+            f"text-transform:uppercase;letter-spacing:0.3px;color:#F59E0B;"
+            f"text-align:{align};border-bottom:1px solid #F59E0B;"
+            f"white-space:nowrap;line-height:1.1;'>{header}</th>"
             for header, _val, align, _cls in _cells
         )
         _val_cells_html = []
         for header, val, align, cls in _cells:
             if cls == "esito":
                 cell = (
-                    f"<td style='padding:14px 12px;text-align:{align};"
+                    f"<td style='padding:6px 7px;text-align:{align};"
                     f"vertical-align:middle;'>"
                     f"<span style='background:{_sust_bg};color:#FFFFFF;"
-                    f"padding:7px 14px;border-radius:6px;font-weight:800;"
-                    f"font-size:0.9rem;letter-spacing:0.4px;white-space:nowrap;"
-                    f"box-shadow:0 2px 6px rgba(0,0,0,0.25);'>{val}</span></td>"
+                    f"padding:3px 8px;border-radius:4px;font-weight:800;"
+                    f"font-size:0.78rem;letter-spacing:0.2px;white-space:nowrap;'>{val}</span></td>"
                 )
             elif header == _SAV_COL:
                 cell = (
-                    f"<td style='padding:14px 12px;text-align:{align};"
-                    f"font-weight:800;font-size:1.05rem;color:{_sust_color};"
+                    f"<td style='padding:6px 7px;text-align:{align};"
+                    f"font-weight:800;font-size:0.86rem;color:{_sust_color};"
                     f"vertical-align:middle;white-space:nowrap;'>{val}</td>"
                 )
             elif header == "Voce":
                 cell = (
-                    f"<td style='padding:14px 12px;text-align:{align};"
-                    f"font-weight:800;font-size:1.05rem;color:#F59E0B;"
+                    f"<td style='padding:6px 7px;text-align:{align};"
+                    f"font-weight:800;font-size:0.82rem;color:#F59E0B;"
                     f"vertical-align:middle;white-space:nowrap;'>{val}</td>"
                 )
             else:
                 cell = (
-                    f"<td style='padding:14px 12px;text-align:{align};"
-                    f"font-weight:700;font-size:1rem;color:#F8FAFC;"
+                    f"<td style='padding:6px 7px;text-align:{align};"
+                    f"font-weight:700;font-size:0.82rem;color:#F8FAFC;"
                     f"vertical-align:middle;white-space:nowrap;'>{val}</td>"
                 )
             _val_cells_html.append(cell)
@@ -2865,11 +2864,11 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
 
         st.markdown(
             f"""
-            <div style='margin-top:-1rem;margin-bottom:1.2rem;
+            <div style='margin-top:-0.6rem;margin-bottom:0.8rem;
                 background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);
-                border-top:4px solid #F59E0B;
-                border-radius:0 0 14px 14px;
-                box-shadow:0 8px 20px rgba(15,23,42,0.30);
+                border-top:3px solid #F59E0B;
+                border-radius:0 0 8px 8px;
+                box-shadow:0 4px 10px rgba(15,23,42,0.25);
                 overflow-x:auto;'>
               <table style='width:100%;border-collapse:collapse;'>
                 <thead><tr>{_hdr_html}</tr></thead>
