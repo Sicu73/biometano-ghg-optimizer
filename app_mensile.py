@@ -3100,11 +3100,10 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         )
 
 
-tab_daily, tab_tech, tab_bp, tab_export = st.tabs([
-    "📆 " + _t("Gestione Giornaliera"),
-    "⚙️ " + _t("Config. Tecnica & GHG"),
-    "💶 " + _t("Incentivi & Business Plan"),
-    "📊 " + _t("Risultati & Export")
+tab_daily, tab_tech, tab_business = st.tabs([
+    "📆 " + _t("Conduzione Giornaliera — Standard (UNI-TS / RED III)"),
+    "🧪 " + _t("Conduzione Giornaliera — Analisi (BMT & Fattori Emissivi su misura)"),
+    "📊 " + _t("Risultati, Incentivi & Business Plan"),
 ])
 
 with tab_tech:
@@ -3560,7 +3559,7 @@ with tab_tech:
     st.markdown("---")
     _render_daily_ops_panel(_key_prefix="tech_")
 
-with tab_bp:
+with tab_business:
     # ============================================================
     # PRO FORMA / BUSINESS PLAN — DM 2022
     # ============================================================
@@ -3843,11 +3842,11 @@ with tab_bp:
         fmt_it(plant_net_smch * aux_factor, 1, " Sm³/h"),
     )
 
-with tab_export:
     # ============================================================
-    # EXPORT & REPORTING
+    # EXPORT & REPORTING (sezione accorpata nel tab Risultati, Incentivi & BP)
     # ============================================================
-    st.header(_t("📊 Risultati & Export Annuali"))
+    st.divider()
+    st.header("📊 " + _t("Risultati, Reporting & Export Annuali"))
     st.caption(_t("Sezione DB (in alto): dati REALI consolidati da Gestione Giornaliera. "
                   "Sezione Simulatore (in basso): analisi what-if pre-popolata dai dati DB."))
 
