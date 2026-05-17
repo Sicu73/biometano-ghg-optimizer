@@ -3052,65 +3052,75 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             if _n_days_data == 0:
                 st.caption("⚠️ " + _t("Inserisci almeno un giorno di dati per salvare ed esportare."))
 
-        if _n_days_data > 0:
-            st.markdown("**📥 " + _t("Esporta report") + "**")
-            _daily_df_full = _build_daily_df(_entries_list, _computed_list,
-                                              feed_columns=_do_active_feeds)
-            _scol1, _scol2, _scol3 = st.columns(3)
-            _fname_base = f"metaniq_{int(_do_year)}_{int(_do_month):02d}"
-            with _scol1:
-                try:
-                    st.download_button(
-                        "⬇️ CSV", _build_daily_csv(_daily_df_full),
-                        file_name=f"{_fname_base}.csv",
-                        mime="text/csv", key=f"{_key_prefix}do_btn_csv",
-                        use_container_width=True,
-                    )
-                except Exception as _exc:  # noqa: BLE001
-                    _LOG.exception("Daily CSV export failed")
-                    st.warning(f"CSV: {_exc}")
-            with _scol2:
-                try:
-                    _xlsx_overrides = {
-                        "bmt": dict(_EFFECTIVE_YIELDS),
-                        "ef": dict(_EMISSION_OVERRIDES),
-                    }
-                    _xlsx_plant = {
-                        "year": int(_do_year),
-                        "month": int(_do_month),
-                        "regime": _regime_lbl,
-                        "threshold_pct": float(ghg_threshold),
-                        "company": COMPANY_NAME or "—",
-                        "plant_name": PLANT_NAME or "—",
-                        "max_sm3h": _cap_smch,
-                    }
-                    st.download_button(
-                        "⬇️ Excel",
-                        _build_daily_xlsx(
-                            _daily_df_full, _kpis, _audit,
-                            kpis_standard=_kpis_standard if _has_any_override else None,
-                            overrides_info=_xlsx_overrides,
-                            plant_info=_xlsx_plant,
-                        ),
-                        file_name=f"{_fname_base}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key=f"{_key_prefix}do_btn_xlsx",
-                        use_container_width=True,
-                    )
-                except Exception as _exc:  # noqa: BLE001
-                    _LOG.exception("Daily XLSX export failed")
-                    st.warning(f"Excel: {_exc}")
-            with _scol3:
-                try:
-                    st.download_button(
-                        "⬇️ PDF", _build_daily_pdf(_daily_df_full, _kpis, _audit, _guidance),
-                        file_name=f"{_fname_base}.pdf",
-                        mime="application/pdf", key=f"{_key_prefix}do_btn_pdf",
-                        use_container_width=True,
-                    )
-                except Exception as _exc:  # noqa: BLE001
-                    _LOG.exception("Daily PDF export failed")
-                    st.warning(f"PDF: {_exc}")
+        # =================================================================
+        # ESPORTA REPORT — sezione sempre visibile (bottoni disabilitati se
+        # non ci sono giorni con dati > 0, così l'utente vede dove cliccare)
+        # =================================================================
+        st.markdown("**📥 " + _t("Esporta report") + "**")
+        _disabled = (_n_days_data == 0)
+        if _disabled:
+            st.caption("ℹ️ " + _t("I bottoni si attivano dopo aver inserito almeno un giorno con biomassa > 0."))
+        _daily_df_full = (
+            _build_daily_df(_entries_list, _computed_list, feed_columns=_do_active_feeds)
+            if not _disabled else pd.DataFrame()
+        )
+        _scol1, _scol2, _scol3 = st.columns(3)
+        _fname_base = f"metaniq_{int(_do_year)}_{int(_do_month):02d}"
+        with _scol1:
+            try:
+                st.download_button(
+                    "⬇️ CSV",
+                    _build_daily_csv(_daily_df_full) if not _disabled else b"",
+                    file_name=f"{_fname_base}.csv",
+                    mime="text/csv", key=f"{_key_prefix}do_btn_csv",
+                    use_container_width=True, disabled=_disabled,
+                )
+            except Exception as _exc:  # noqa: BLE001
+                _LOG.exception("Daily CSV export failed")
+                st.warning(f"CSV: {_exc}")
+        with _scol2:
+            try:
+                _xlsx_overrides = {
+                    "bmt": dict(_EFFECTIVE_YIELDS),
+                    "ef": dict(_EMISSION_OVERRIDES),
+                }
+                _xlsx_plant = {
+                    "year": int(_do_year),
+                    "month": int(_do_month),
+                    "regime": _regime_lbl,
+                    "threshold_pct": float(ghg_threshold),
+                    "company": COMPANY_NAME or "—",
+                    "plant_name": PLANT_NAME or "—",
+                    "max_sm3h": _cap_smch,
+                }
+                st.download_button(
+                    "⬇️ Excel",
+                    _build_daily_xlsx(
+                        _daily_df_full, _kpis, _audit,
+                        kpis_standard=_kpis_standard if _has_any_override else None,
+                        overrides_info=_xlsx_overrides,
+                        plant_info=_xlsx_plant,
+                    ) if not _disabled else b"",
+                    file_name=f"{_fname_base}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"{_key_prefix}do_btn_xlsx",
+                    use_container_width=True, disabled=_disabled,
+                )
+            except Exception as _exc:  # noqa: BLE001
+                _LOG.exception("Daily XLSX export failed")
+                st.warning(f"Excel: {_exc}")
+        with _scol3:
+            try:
+                st.download_button(
+                    "⬇️ PDF",
+                    _build_daily_pdf(_daily_df_full, _kpis, _audit, _guidance) if not _disabled else b"",
+                    file_name=f"{_fname_base}.pdf",
+                    mime="application/pdf", key=f"{_key_prefix}do_btn_pdf",
+                    use_container_width=True, disabled=_disabled,
+                )
+            except Exception as _exc:  # noqa: BLE001
+                _LOG.exception("Daily PDF export failed")
+                st.warning(f"PDF: {_exc}")
     else:
         st.markdown("---")
         st.warning(
