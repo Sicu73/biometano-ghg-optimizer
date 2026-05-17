@@ -3071,8 +3071,27 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                     st.warning(f"CSV: {_exc}")
             with _scol2:
                 try:
+                    _xlsx_overrides = {
+                        "bmt": dict(_EFFECTIVE_YIELDS),
+                        "ef": dict(_EMISSION_OVERRIDES),
+                    }
+                    _xlsx_plant = {
+                        "year": int(_do_year),
+                        "month": int(_do_month),
+                        "regime": _regime_lbl,
+                        "threshold_pct": float(ghg_threshold),
+                        "company": COMPANY_NAME or "—",
+                        "plant_name": PLANT_NAME or "—",
+                        "max_sm3h": _cap_smch,
+                    }
                     st.download_button(
-                        "⬇️ Excel", _build_daily_xlsx(_daily_df_full, _kpis, _audit),
+                        "⬇️ Excel",
+                        _build_daily_xlsx(
+                            _daily_df_full, _kpis, _audit,
+                            kpis_standard=_kpis_standard if _has_any_override else None,
+                            overrides_info=_xlsx_overrides,
+                            plant_info=_xlsx_plant,
+                        ),
                         file_name=f"{_fname_base}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         key=f"{_key_prefix}do_btn_xlsx",
