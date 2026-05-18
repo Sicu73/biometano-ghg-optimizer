@@ -252,19 +252,43 @@ def build_daily_pdf(
                         leading=16, textColor=colors.HexColor("#94A3B8"))))
     story.append(Spacer(1, 16))
 
-    # Card periodo + impianto
+    # Card periodo + impianto. Per evitare sovrapposizioni: ogni card è una
+    # mini-tabella di 3 righe (label / valore principale / sotto-valore) con
+    # leading esplicito per ciascuna fascia di font.
+    def _card_3lines(label: str, main: str, sub: str, main_size: int = 16) -> Table:
+        cells = [
+            [Paragraph(
+                f'<b>{label.upper()}</b>',
+                ParagraphStyle("lbl", fontName="Helvetica-Bold",
+                                fontSize=8, leading=10,
+                                textColor=colors.HexColor(_AMBER)))],
+            [Paragraph(
+                f'<b>{main}</b>',
+                ParagraphStyle("main", fontName="Helvetica-Bold",
+                                fontSize=main_size, leading=main_size + 4,
+                                textColor=colors.HexColor(_WHITE)))],
+        ]
+        if sub:
+            cells.append([Paragraph(
+                sub,
+                ParagraphStyle("sub", fontName="Helvetica",
+                                fontSize=9, leading=11,
+                                textColor=colors.HexColor("#94A3B8")))])
+        t = Table(cells, colWidths=[None])
+        t.setStyle(TableStyle([
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (0, 0), 0),
+            ("BOTTOMPADDING", (0, 0), (0, 0), 4),
+            ("TOPPADDING", (0, 1), (0, 1), 0),
+            ("BOTTOMPADDING", (0, 1), (0, 1), 3),
+        ]))
+        return t
+
     _info_data = [[
-        Paragraph(f'<font color="#F59E0B" size="8"><b>PERIODO</b></font><br/>'
-                  f'<font color="#FFFFFF" size="18"><b>{_periodo}</b></font>',
-                  ParagraphStyle("c1", fontSize=8)),
-        Paragraph(f'<font color="#F59E0B" size="8"><b>AZIENDA</b></font><br/>'
-                  f'<font color="#FFFFFF" size="13"><b>{_company}</b></font><br/>'
-                  f'<font color="#94A3B8" size="9">{_plant_name}</font>',
-                  ParagraphStyle("c2", fontSize=8)),
-        Paragraph(f'<font color="#F59E0B" size="8"><b>REGIME</b></font><br/>'
-                  f'<font color="#FFFFFF" size="13"><b>{_regime}</b></font><br/>'
-                  f'<font color="#94A3B8" size="9">Soglia saving GHG: {_thr:.0f}%</font>',
-                  ParagraphStyle("c3", fontSize=8)),
+        _card_3lines("Periodo", _periodo, "", main_size=18),
+        _card_3lines("Azienda", _company, _plant_name, main_size=13),
+        _card_3lines("Regime", _regime, f"Soglia saving GHG: {_thr:.0f}%", main_size=13),
     ]]
     _info_tbl = Table(_info_data, colWidths=[(PAGE_W - 40 * mm) / 3] * 3, hAlign="LEFT")
     _info_tbl.setStyle(TableStyle([
@@ -279,25 +303,42 @@ def build_daily_pdf(
     story.append(_info_tbl)
     story.append(Spacer(1, 20))
 
-    # Esito ufficiale BIG
+    # Esito ufficiale BIG — 3 righe separate con leading esplicito per ogni
+    # fascia di font (no sovrapposizioni: il <font size> dentro singolo
+    # Paragraph usa il leading del Paragraph, non quello del singolo font).
     _esito_color = _GREEN if _compliant else _RED
     _esito_txt = "SOSTENIBILE" if _compliant else "NON CONFORME"
     _esito_icon = "[OK]" if _compliant else "[!]"
-    _esito = Table(
-        [[Paragraph(
-            f'<font color="#F8FAFC" size="11"><b>ESITO UFFICIALE — {_regime}</b></font><br/>'
-            f'<font color="#FFFFFF" size="32"><b>{_esito_icon} {_esito_txt}</b></font><br/>'
-            f'<font color="#F1F5F9" size="11">Saving GHG mensile: <b>{_saving:.2f}%</b> '
-            f'· Soglia: {_thr:.0f}% · Margine: {_saving - _thr:+.2f} punti percentuali</font>',
-            ParagraphStyle("e", fontSize=11))]],
-        colWidths=[PAGE_W - 40 * mm], hAlign="CENTER",
-    )
+
+    _esito_cells = [
+        [Paragraph(
+            f'<b>ESITO UFFICIALE — {_regime}</b>',
+            ParagraphStyle("e1", fontName="Helvetica-Bold", fontSize=11,
+                            leading=14, alignment=1,
+                            textColor=colors.HexColor("#F8FAFC")))],
+        [Paragraph(
+            f'<b>{_esito_icon} {_esito_txt}</b>',
+            ParagraphStyle("e2", fontName="Helvetica-Bold", fontSize=30,
+                            leading=36, alignment=1,
+                            textColor=colors.HexColor(_WHITE)))],
+        [Paragraph(
+            f'Saving GHG mensile: <b>{_saving:.2f}%</b> · '
+            f'Soglia: {_thr:.0f}% · Margine: {_saving - _thr:+.2f} punti percentuali',
+            ParagraphStyle("e3", fontName="Helvetica", fontSize=11,
+                            leading=14, alignment=1,
+                            textColor=colors.HexColor("#F1F5F9")))],
+    ]
+    _esito = Table(_esito_cells, colWidths=[PAGE_W - 40 * mm], hAlign="CENTER")
     _esito.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(_esito_color)),
         ("LEFTPADDING", (0, 0), (-1, -1), 22),
         ("RIGHTPADDING", (0, 0), (-1, -1), 22),
-        ("TOPPADDING", (0, 0), (-1, -1), 18),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 18),
+        ("TOPPADDING", (0, 0), (0, 0), 14),
+        ("BOTTOMPADDING", (0, 0), (0, 0), 4),
+        ("TOPPADDING", (0, 1), (0, 1), 0),
+        ("BOTTOMPADDING", (0, 1), (0, 1), 4),
+        ("TOPPADDING", (0, 2), (0, 2), 0),
+        ("BOTTOMPADDING", (0, 2), (0, 2), 14),
     ]))
     story.append(_esito)
     story.append(Spacer(1, 18))
@@ -308,16 +349,35 @@ def build_daily_pdf(
     _mwh = float(monthly_kpis.get("mwh", 0.0))
 
     def _kpi_card(label: str, value: str, unit: str = "") -> Table:
-        body = (f'<font color="#F59E0B" size="8"><b>{label.upper()}</b></font><br/>'
-                f'<font color="#FFFFFF" size="22"><b>{value}</b></font>'
-                + (f' <font color="#94A3B8" size="10">{unit}</font>' if unit else ""))
-        t = Table([[Paragraph(body, ParagraphStyle("k", fontSize=8, alignment=1))]],
-                  colWidths=[None], hAlign="CENTER")
+        # Card a 2 righe separate per evitare sovrapposizioni di leading
+        inner = Table([
+            [Paragraph(
+                f'<b>{label.upper()}</b>',
+                ParagraphStyle("kl", fontName="Helvetica-Bold", fontSize=8,
+                                leading=10, alignment=1,
+                                textColor=colors.HexColor(_AMBER)))],
+            [Paragraph(
+                (f'<b>{value}</b>'
+                 + (f' <font size="10" color="#94A3B8">{unit}</font>' if unit else "")),
+                ParagraphStyle("kv", fontName="Helvetica-Bold", fontSize=20,
+                                leading=24, alignment=1,
+                                textColor=colors.HexColor(_WHITE)))],
+        ], colWidths=[None])
+        inner.setStyle(TableStyle([
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (0, 0), 0),
+            ("BOTTOMPADDING", (0, 0), (0, 0), 4),
+            ("TOPPADDING", (0, 1), (0, 1), 0),
+            ("BOTTOMPADDING", (0, 1), (0, 1), 0),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ]))
+        t = Table([[inner]], colWidths=[None], hAlign="CENTER")
         t.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#1E3A5F")),
             ("BOX", (0, 0), (-1, -1), 0.3, colors.HexColor("#475569")),
-            ("LEFTPADDING", (0, 0), (-1, -1), 12),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+            ("LEFTPADDING", (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 10),
             ("TOPPADDING", (0, 0), (-1, -1), 14),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 14),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
