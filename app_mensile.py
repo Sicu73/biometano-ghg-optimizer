@@ -1815,18 +1815,11 @@ st.markdown(
         100% {{ background-position: 200% center; }}
     }}
 
-    /* --- Hero header: text gradient + entrance --- */
+    /* --- Hero header: solo entrance animation, NO text gradient
+       (rompeva leggibilità del logo in tema light) --- */
     .methaniq-header {{
         animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
         position: relative;
-    }}
-    .methaniq-header h1 {{
-        background: linear-gradient(135deg, #FFFFFF 0%, #FED7AA 50%, #FFFFFF 100%);
-        background-size: 200% auto;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        animation: shimmer 6s linear infinite;
     }}
     .methaniq-header::after {{
         content: "● LIVE";
@@ -1843,23 +1836,19 @@ st.markdown(
         animation: pulseDot 2s infinite;
     }}
 
-    /* --- Tab principali: indicator gradient sotto il tab attivo --- */
+    /* --- Tab principali: indicator gradient sotto il tab attivo
+       (solo overlay decorativo, NIENTE override colori testo) --- */
     .stTabs [data-baseweb="tab-list"] {{
         gap: 4px;
-        border-bottom: 1px solid rgba(148,163,184,0.18);
     }}
     .stTabs [data-baseweb="tab"] {{
-        border-radius: 12px 12px 0 0 !important;
-        padding: 12px 20px !important;
-        font-weight: 600 !important;
+        border-radius: 10px 10px 0 0 !important;
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        background: transparent !important;
     }}
     .stTabs [data-baseweb="tab"]:hover {{
-        background: rgba(245,158,11,0.08) !important;
+        background: rgba(245,158,11,0.06) !important;
     }}
     .stTabs [aria-selected="true"] {{
-        background: linear-gradient(180deg, rgba(245,158,11,0.10) 0%, transparent 100%) !important;
         position: relative;
     }}
     .stTabs [aria-selected="true"]::after {{
@@ -1872,33 +1861,22 @@ st.markdown(
         box-shadow: 0 0 12px rgba(245,158,11,0.45);
     }}
 
-    /* --- st.metric: card con backdrop + hover --- */
+    /* --- st.metric: solo border + hover sottile (NIENTE override colori) --- */
     div[data-testid="stMetric"] {{
-        background: linear-gradient(135deg,
-            rgba(255,255,255,0.04) 0%,
-            rgba(245,158,11,0.04) 100%);
-        border: 1px solid rgba(148,163,184,0.15);
+        border: 1px solid rgba(148,163,184,0.18);
         border-radius: 14px;
-        padding: 16px 18px;
+        padding: 14px 16px;
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
     }}
     div[data-testid="stMetric"]:hover {{
         transform: translateY(-2px);
         border-color: rgba(245,158,11,0.4);
-        box-shadow: 0 8px 24px rgba(15,23,42,0.10);
+        box-shadow: 0 6px 16px rgba(15,23,42,0.08);
     }}
     div[data-testid="stMetricValue"] {{
-        font-weight: 800 !important;
-        background: linear-gradient(135deg, currentColor 0%, currentColor 100%);
+        font-weight: 700 !important;
         font-variant-numeric: tabular-nums;
-    }}
-    div[data-testid="stMetricLabel"] {{
-        font-size: 0.72rem !important;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        font-weight: 600 !important;
-        opacity: 0.75;
     }}
 
     /* --- Alert (info/warning/success/error): bordo accent left --- */
@@ -1917,16 +1895,8 @@ st.markdown(
         background: rgba(245,158,11,0.06) !important;
     }}
 
-    /* --- Sidebar headings: brand-aware --- */
-    section[data-testid="stSidebar"] h3,
-    section[data-testid="stSidebar"] h4 {{
-        font-size: 0.7rem !important;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        font-weight: 800 !important;
-        color: #F59E0B !important;
-        padding-top: 4px;
-    }}
+    /* --- Sidebar headings: NIENTE override colore (rompeva leggibilità in
+       tema light/dark). Lasciato al theme di Streamlit. --- */
 
     /* --- DataFrame: rounded + shadow leggera --- */
     div[data-testid="stDataFrame"], div[data-testid="stDataEditor"] {{
