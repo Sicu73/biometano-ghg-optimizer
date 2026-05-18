@@ -2290,6 +2290,13 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         # Audit robustezza #8: sanitize plant_id (no vuoti, no whitespace).
         # =================================================================
         _do_plant_safe = (_do_plant or "").strip() or "default"
+        # ISOLAMENTO MODALITA' (Standard vs Analisi): quando il pannello e' chiamato
+        # con un _key_prefix (es. "tech_" dal tab Analisi), aggiungiamo un suffix
+        # al plant_id effettivo cosi' che session_state e DB siano completamente
+        # separati. L'utente compila la tabella Analisi solo quando ha i certificati
+        # (BMT lab o EF su misura), senza interferire coi dati Standard.
+        if _key_prefix:
+            _do_plant_safe = f"{_do_plant_safe}__{_key_prefix.rstrip('_')}"
         _do_key = f"do_data||{_do_plant_safe}||{int(_do_year)}||{int(_do_month)}"
         _hours_key = _do_key + "::hours"
         if _do_key not in st.session_state:
@@ -3787,12 +3794,10 @@ with tab_tech:
 
     # =================================================================
     # TABELLA GIORNALIERA — modalità ANALISI.
-    # Compare SOLO quando l'utente ha caricato almeno un override BMT (lab)
-    # o un override Fattori Emissivi (relazione tecnica). Stesso input di
-    # biomasse/ore del tab Standard (session_state condivisa), ma i KPI e
-    # la sostenibilità vengono ricalcolati con i parametri personalizzati.
-    # Senza override la tabella non è disponibile: l'impianto sceglie quale
-    # modalità usare in base ai certificati realmente disponibili.
+    # SEMPRE VISIBILE (anche senza override) ma con dati INDIPENDENTI dal tab
+    # Standard (session_state e DB isolati tramite plant_id suffix "__tech",
+    # vedi _render_daily_ops_panel a riga 2292). L'utente la compila quando
+    # ha i certificati (BMT lab e/o EF su misura).
     # =================================================================
     _tech_has_bmt = bool(_EFFECTIVE_YIELDS)
     _tech_has_ef = bool(_EMISSION_OVERRIDES)
@@ -3808,23 +3813,21 @@ with tab_tech:
         st.success(
             "✅ " + _t("Modalità Analisi attiva") + " · " + " · ".join(_tech_badges)
         )
-        st.caption(_t(
-            "I dati giornalieri sono condivisi col tab Standard; qui vengono "
-            "ricalcolati con i tuoi BMT lab / Fattori Emissivi personalizzati. "
-            "Conformità DM 2022 verificata sul totale mensile."
-        ))
-        _render_daily_ops_panel(_key_prefix="tech_")
     else:
-        st.info(
-            "ℹ️ " + _t(
-                "La tabella di **modalità Analisi** si attiva quando hai a "
-                "disposizione almeno un certificato: carica un override **BMT "
-                "(laboratorio)** o un override **Fattori Emissivi (relazione "
-                "tecnica)** nelle sezioni qui sopra. Senza override usa il "
-                "tab **📆 Conduzione Giornaliera — Standard** con i valori "
-                "tabellari UNI-TS / RED III."
+        st.warning(
+            "⚠️ " + _t(
+                "Nessun override BMT / Fattori Emissivi attivo: la tabella "
+                "sotto è pronta per essere compilata quando avrai i certificati. "
+                "Configura BMT lab o Fattori Emissivi nelle sezioni qui sopra "
+                "per attivare i calcoli con i tuoi dati reali."
             )
         )
+    st.caption(_t(
+        "📋 Dati indipendenti dal tab Standard: questa tabella si compila e "
+        "memorizza solo per la modalità Analisi (BMT lab + EF su misura). "
+        "Conformità DM 2022 verificata sul totale mensile."
+    ))
+    _render_daily_ops_panel(_key_prefix="tech_")
 
 with tab_business:
     # ============================================================
