@@ -3832,19 +3832,20 @@ with tab_tech:
             _tech_badges.append(f"🧬 {len(_EMISSION_OVERRIDES)} EF su misura")
         st.success(
             "✅ " + _t("Modalità Analisi attiva") + " · " + " · ".join(_tech_badges)
+            + " — " + _t("override applicati sopra i valori tabellari standard.")
         )
     else:
-        st.warning(
-            "⚠️ " + _t(
-                "Nessun override BMT / Fattori Emissivi attivo: la tabella "
-                "sotto è pronta per essere compilata quando avrai i certificati. "
-                "Configura BMT lab o Fattori Emissivi nelle sezioni qui sopra "
-                "per attivare i calcoli con i tuoi dati reali."
+        st.info(
+            "ℹ️ " + _t(
+                "Nessun override caricato: la tabella sotto calcola comunque "
+                "usando i valori **STANDARD tabellari** (UNI-TS / RED III). "
+                "Quando carichi BMT lab o Fattori Emissivi su misura nelle "
+                "sezioni qui sopra, quei valori sostituiscono i tabellari "
+                "biomassa per biomassa."
             )
         )
     st.caption(_t(
-        "📋 Dati indipendenti dal tab Standard: questa tabella si compila e "
-        "memorizza solo per la modalità Analisi (BMT lab + EF su misura). "
+        "📋 Dati giornalieri (biomasse, ore, REMI) indipendenti dal tab Standard. "
         "Conformità DM 2022 verificata sul totale mensile."
     ))
     _render_daily_ops_panel(_key_prefix="tech_")
