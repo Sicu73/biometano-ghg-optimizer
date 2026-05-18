@@ -69,6 +69,7 @@ class MonthlyAggregate:
     # REMI metrics (consolidate mese)
     remi_vb_total: float = 0.0
     remi_e_total: float = 0.0
+    remi_e_estimated: bool = False  # True se E è derivato da Vb × PCI (utente non l'ha letto dal contatore)
     remi_qb_max_month: float = 0.0
     remi_pci_avg: float = 0.0
     remi_rho_avg: float = 0.0
@@ -175,6 +176,18 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
             remi_days += 1
             total_hours += h
 
+    # Auto-derivazione E totale quando l'utente ha compilato Vb ma non E.
+    # Caso tipico: legge il volume dal contatore REMI ma non l'energia
+    # totalizzata. Usa PCI medio compilato; se assente, PCI standard biometano
+    # 9.79 kWh/Smc (UNI EN 16723-1, valore tipico rete italiana).
+    PCI_BIOMETANO_STD = 9.79
+    if tot_e == 0 and tot_vb > 0:
+        _pci_use = (pci_sum / remi_days) if remi_days > 0 and pci_sum > 0 else PCI_BIOMETANO_STD
+        tot_e = tot_vb * _pci_use
+        agg.remi_e_estimated = True
+    else:
+        agg.remi_e_estimated = False
+
     agg.remi_vb_total = tot_vb
     agg.remi_e_total = tot_e
     agg.remi_qb_max_month = max_qb
@@ -182,7 +195,7 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
     if remi_days > 0:
         agg.remi_pci_avg = pci_sum / remi_days
         agg.remi_rho_avg = rho_sum / remi_days
-    
+
     if total_hours > 0:
         agg.remi_portata_media_smch = tot_vb / total_hours
         agg.remi_potenza_media_mw = tot_e / total_hours / 1000.0

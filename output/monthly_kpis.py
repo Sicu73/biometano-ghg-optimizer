@@ -47,6 +47,7 @@ def build_monthly_kpis(
         # REMI consolidated KPIs
         "remi_vb_total":       float(getattr(monthly_agg, "remi_vb_total", 0.0)),
         "remi_e_total":        float(getattr(monthly_agg, "remi_e_total", 0.0)),
+        "remi_e_estimated":    bool(getattr(monthly_agg, "remi_e_estimated", False)),
         "remi_qb_max_month":   float(getattr(monthly_agg, "remi_qb_max_month", 0.0)),
         "remi_pci_avg":        float(getattr(monthly_agg, "remi_pci_avg", 0.0)),
         "remi_rho_avg":        float(getattr(monthly_agg, "remi_rho_avg", 0.0)),

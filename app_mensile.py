@@ -3337,12 +3337,25 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         # KPI REMI consolidati (se presenti dati)
         if _kpis.get("remi_vb_total", 0) > 0:
             st.markdown(f"#### 📊 {_t('Consolidato REMI mese')}")
+            _e_estimated = bool(_kpis.get("remi_e_estimated", False))
+            _e_label = "🔋 " + _t("E totale") + (" *" if _e_estimated else "")
             _r1, _r2, _r3, _r4, _r5 = st.columns(5)
             _r1.metric("📉 " + _t("Vb totale"), f"{_it_num(_kpis['remi_vb_total'], 0)} Smc")
-            _r2.metric("🔋 " + _t("E totale"), f"{_it_num(_kpis['remi_e_total'], 0)} kWh")
+            _r2.metric(_e_label, f"{_it_num(_kpis['remi_e_total'], 0)} kWh")
             _r3.metric("🌀 " + _t("Portata media"), f"{_it_num(_kpis['remi_portata_media_smch'], 1)} Smc/h")
             _r4.metric("⚡ " + _t("Potenza media"), f"{_it_num(_kpis['remi_potenza_media_mw'], 3)} MW")
             _r5.metric("🎯 " + _t("Energia Spec."), f"{_it_num(_kpis['remi_energia_specifica_kwh_smc'], 3)} kWh/Smc")
+            if _e_estimated:
+                _pci_use = _kpis.get("remi_pci_avg") or 9.79
+                st.caption(
+                    "ℹ️ *E totale stimato come **Vb × PCI** "
+                    f"({_it_num(_pci_use, 2)} kWh/Smc, "
+                    + (_t("media compilata") if _kpis.get("remi_pci_avg") else _t("PCI standard biometano UNI EN 16723-1"))
+                    + "). " + _t(
+                        "Compila la colonna **E (kWh)** giornaliera per usare la "
+                        "lettura reale del contatore REMI."
+                    )
+                )
 
         # =================================================================
         # DETTAGLI & AUDIT — un solo expander con vincoli + indicazioni + audit
