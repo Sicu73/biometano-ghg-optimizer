@@ -3336,15 +3336,70 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
 
         # KPI REMI consolidati (se presenti dati)
         if _kpis.get("remi_vb_total", 0) > 0:
-            st.markdown(f"#### 📊 {_t('Consolidato REMI mese')}")
+            st.markdown(f"#### 📊 {_t('Consolidato REMI mese (dati dal contatore fiscale)')}")
+
+            # Formattazione compatta: numeri grandi -> K (×10³) / M (×10⁶)
+            # con 1 decimale, separatore italiano.
+            def _fmt_compact(value: float, unit: str, decimals_small: int = 0) -> str:
+                v = float(value or 0.0)
+                if abs(v) >= 1_000_000:
+                    s = f"{v/1_000_000:.2f}".replace(".", ",")
+                    return f"{s} M{unit}"
+                if abs(v) >= 10_000:
+                    s = f"{v/1_000:.1f}".replace(".", ",")
+                    return f"{s} k{unit}"
+                return f"{_it_num(v, decimals_small)} {unit}"
+
             _e_estimated = bool(_kpis.get("remi_e_estimated", False))
-            _e_label = "🔋 " + _t("E totale") + (" *" if _e_estimated else "")
+            _e_marker = " *" if _e_estimated else ""
+
             _r1, _r2, _r3, _r4, _r5 = st.columns(5)
-            _r1.metric("📉 " + _t("Vb totale"), f"{_it_num(_kpis['remi_vb_total'], 0)} Smc")
-            _r2.metric(_e_label, f"{_it_num(_kpis['remi_e_total'], 0)} kWh")
-            _r3.metric("🌀 " + _t("Portata media"), f"{_it_num(_kpis['remi_portata_media_smch'], 1)} Smc/h")
-            _r4.metric("⚡ " + _t("Potenza media"), f"{_it_num(_kpis['remi_potenza_media_mw'], 3)} MW")
-            _r5.metric("🎯 " + _t("Energia Spec."), f"{_it_num(_kpis['remi_energia_specifica_kwh_smc'], 3)} kWh/Smc")
+            _r1.metric(
+                "📉 " + _t("Volume biometano (Vb)"),
+                _fmt_compact(_kpis["remi_vb_total"], "Sm³"),
+                help=_t(
+                    "Vb = Volume di biometano immesso in rete nel mese, "
+                    "letto dal contatore REMI (Sm³ standard a 15°C, 1.01325 bar). "
+                    "È il totale di tutte le letture giornaliere 'Sm³ reali giorno' "
+                    "compilate nella tabella."
+                ),
+            )
+            _r2.metric(
+                "🔋 " + _t("Energia immessa (E)") + _e_marker,
+                _fmt_compact(_kpis["remi_e_total"], "Wh"),
+                help=_t(
+                    "E = Energia termica totale immessa in rete (kWh). "
+                    "Se non compili la colonna 'E (kWh)' giornaliera, viene "
+                    "stimata come Vb × PCI (PCI medio compilato, oppure "
+                    "9.79 kWh/Sm³ standard biometano UNI EN 16723-1)."
+                ),
+            )
+            _r3.metric(
+                "🌀 " + _t("Portata media"),
+                _fmt_compact(_kpis["remi_portata_media_smch"], "Sm³/h", decimals_small=1),
+                help=_t(
+                    "Portata oraria media del biometano (Vb totale / ore di "
+                    "funzionamento effettive). Da confrontare col cap "
+                    "autorizzativo dell'impianto."
+                ),
+            )
+            _r4.metric(
+                "⚡ " + _t("Potenza media"),
+                f"{_it_num(_kpis['remi_potenza_media_mw'], 3)} MW",
+                help=_t(
+                    "Potenza termica media (E totale / ore / 1000). "
+                    "Indica la capacità effettiva di immissione."
+                ),
+            )
+            _r5.metric(
+                "🎯 " + _t("PCI medio"),
+                f"{_it_num(_kpis['remi_energia_specifica_kwh_smc'], 2)} kWh/Sm³",
+                help=_t(
+                    "Energia specifica = E / Vb. Per il biometano puro UNI EN "
+                    "16723-1 è ~9.79 kWh/Sm³. Valori molto diversi indicano "
+                    "biometano fuori specifica o errore di lettura."
+                ),
+            )
             if _e_estimated:
                 _pci_use = _kpis.get("remi_pci_avg") or 9.79
                 st.caption(
