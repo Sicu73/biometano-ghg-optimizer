@@ -2960,19 +2960,17 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             if _c.biomass_total_t > 0 and _c.daily_saving_estimate < _thr_pct
         )
         _n_ok = max(0, _n_days_data - _n_cap_viol - _n_save_viol)
-        # Avviso esplicativo sul cap se ci sono violazioni giornaliere ma il
-        # medio mensile è sotto soglia (caso confuso per l'utente: vede "266
-        # Sm³/h netti medio < 300 cap" ma il mese risulta KO).
+        # Nota: i giorni di picco oltre cap non bloccano la conformità (la
+        # verifica DM 2022 è MENSILE sulla portata media). Mostriamo info
+        # se ci sono picchi ma il mese è OK: utile per audit, non per blocco.
         if _n_cap_viol > 0 and _cap_smch > 0:
             _avg_smh_net_mese = (_kpis.get('sm3_netti', 0.0) / _compiled_hours) if _compiled_hours > 0 else 0.0
-            if _avg_smh_net_mese < _cap_smch:
-                st.warning(
-                    f"⚠️ **{_n_cap_viol} {_t('giorni')}** "
-                    f"{_t('hanno la portata oraria sopra il cap autorizzativo')} "
-                    f"({_cap_smch:,.0f} Sm³/h), "
-                    f"{_t('anche se la media mensile')} "
-                    f"({_avg_smh_net_mese:,.1f} Sm³/h) {_t('è sotto soglia')}. "
-                    f"{_t('Il cap è verificato GIORNO PER GIORNO, non sulla media. Riequilibra i giorni di picco.')}"
+            if _avg_smh_net_mese <= _cap_smch:
+                st.info(
+                    f"ℹ️ {_n_cap_viol} {_t('giorno/i di picco sopra cap')} "
+                    f"({_cap_smch:,.0f} Sm³/h), {_t('ma la portata media mensile')} "
+                    f"({_avg_smh_net_mese:,.1f} Sm³/h) {_t('è sotto soglia')} — "
+                    f"{_t('conformità DM 2022 verificata sul totale mensile, mese OK.')}"
                 )
         st.caption(
             f"✅ **{_n_ok}** {_t('giorni OK')} · "

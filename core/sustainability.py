@@ -143,18 +143,38 @@ def evaluate_monthly_sustainability(
             ),
         })
 
-    # Vincolo cap autorizzativo: giorni con violazione
-    cap_viol = list(getattr(monthly_agg, "cap_violation_days", []) or [])
-    if rc.get("max_sm3h_authorized"):
-        ok = len(cap_viol) == 0
+    # Vincolo cap autorizzativo: verifica MENSILE su base aggregata.
+    # NORMATIVA DM 2022 / RED III: la conformità è valutata sul TOTALE MENSILE,
+    # non sui singoli giorni. Cap autorizzato = portata oraria media mensile,
+    # calcolata come Sm³ netti totali / ore di funzionamento effettive.
+    # I giorni di picco oltre cap NON costituiscono violazione se la media
+    # mensile rimane sotto soglia (operatore può concentrare produzione).
+    cap_value = rc.get("max_sm3h_authorized")
+    if cap_value:
+        cap_value = float(cap_value)
+        sm3_netti_tot = float(getattr(monthly_agg, "sm3_netti", 0.0))
+        # Ore di funzionamento effettive: somma ore dei giorni con produzione > 0.
+        # `monthly_agg` espone `total_hours` (vedi monthly_aggregate.py:159+);
+        # fallback su giorni con dati × 24h.
+        hours_run = float(getattr(monthly_agg, "total_hours", 0.0) or 0.0)
+        if hours_run <= 0:
+            n_days = int(getattr(monthly_agg, "n_days_with_data", 0) or 0)
+            hours_run = float(n_days) * 24.0
+        sm3h_mensile_medio = (sm3_netti_tot / hours_run) if hours_run > 0 else 0.0
+        ok = sm3h_mensile_medio <= cap_value * 1.0001  # tolleranza num. ~0.01%
+        # Info aggiuntiva: numero giorni di picco (solo per audit, non blocca).
+        cap_peak_days = list(getattr(monthly_agg, "cap_violation_days", []) or [])
+        peak_note = ""
+        if cap_peak_days:
+            peak_note = f" (info: {len(cap_peak_days)} giorno/i di picco sopra cap, non bloccanti — la verifica è mensile)"
         constraints_status.append({
-            "name": "Cap autorizzativo Sm3/h",
+            "name": "Cap autorizzativo Sm3/h (media mensile)",
             "ok": ok,
-            "value": float(len(cap_viol)),
-            "limit": 0.0,
+            "value": float(sm3h_mensile_medio),
+            "limit": cap_value,
             "msg": (
-                "Nessuna violazione cap" if ok
-                else f"{len(cap_viol)} giorno/i sopra cap autorizzativo"
+                f"Portata media mensile {sm3h_mensile_medio:.1f} Sm³/h "
+                f"{'≤' if ok else '>'} cap {cap_value:.0f} Sm³/h{peak_note}"
             ),
         })
 
