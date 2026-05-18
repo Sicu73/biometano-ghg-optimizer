@@ -222,6 +222,53 @@ def fmt_it(value, decimals: int = 0, suffix: str = "", signed: bool = False) -> 
     return s + suffix
 
 
+def saving_annuale_pesato(df, *, saving_col: str = "Saving %",
+                          energy_col: str = "MWh netti",
+                          comparator: float | None = None) -> float:
+    """Calcola il saving GHG ANNUALE corretto normativamente (RED III / DM 2022).
+
+    NON usare `df["Saving %"].mean()`: la media aritmetica dei saving mensili NON
+    coincide col saving ricalcolato sui totali annuali (intensità g/MJ pesata
+    sull'energia prodotta). Per audit GSE/DM 2022 vale il ricalcolo sui totali.
+
+    Implementazione (equivalente al ricalcolo sui totali):
+        e_w_m       = comparator * (1 - saving_m/100)        # intensità mensile g/MJ
+        e_w_anno    = Σ(e_w_m × MWh_m) / Σ(MWh_m)            # media pesata sull'energia
+        saving_anno = (comparator - e_w_anno) / comparator × 100
+
+    Args:
+        df: DataFrame con almeno le colonne `saving_col` e `energy_col` (1 riga/mese).
+        saving_col: nome colonna saving mensile in % (0-100).
+        energy_col: nome colonna energia mensile (MWh netti), usata come peso.
+        comparator: comparatore fossile gCO2eq/MJ (default: globale FOSSIL_COMPARATOR).
+
+    Returns:
+        Saving annuale in % (0-100), o `mean()` semplice in fallback se
+        l'energia totale è zero o le colonne mancano.
+    """
+    try:
+        if comparator is None:
+            comparator = FOSSIL_COMPARATOR  # noqa: F821 (definito più sotto, lazy resolve)
+        if df is None or df.empty or saving_col not in df.columns or energy_col not in df.columns:
+            return 0.0
+        sav = pd.to_numeric(df[saving_col], errors="coerce").fillna(0.0)
+        en  = pd.to_numeric(df[energy_col], errors="coerce").fillna(0.0)
+        # Considera solo mesi con energia > 0 (escludere zeri NON è una distorsione
+        # qui: i mesi senza produzione hanno peso 0, non entrano nella media pesata).
+        mask = en > 0
+        if not mask.any():
+            return 0.0
+        e_w = float(comparator) * (1.0 - sav.loc[mask] / 100.0)
+        weighted_e_w = float((e_w * en.loc[mask]).sum() / en.loc[mask].sum())
+        return float((float(comparator) - weighted_e_w) / float(comparator) * 100.0)
+    except Exception:
+        # Fallback grazioso: mean semplice (vecchio comportamento) se qualcosa rompe
+        try:
+            return float(df[saving_col].mean()) if df is not None and not df.empty else 0.0
+        except Exception:
+            return 0.0
+
+
 def parse_it(value) -> float:
     """Parse di un numero scritto all'italiana.
 
@@ -2305,12 +2352,22 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                         _all_days = _gen_days(int(_do_year), int(_do_month))
                         _data_map = {d: {} for d in _all_days}
                         _hours_reload: dict = {d: 24.0 for d in _all_days}
+                        _remi_reload: dict = {d: {"vb": 0.0, "e": 0.0, "qb_max": 0.0,
+                                                   "pci": 0.0, "rho": 0.0} for d in _all_days}
                         for _e in _loaded:
                             if _e.date in _data_map:
                                 _data_map[_e.date] = dict(_e.feedstocks)
                                 _hours_reload[_e.date] = float(_e.hours_per_day)
+                                _remi_reload[_e.date] = {
+                                    "vb": float(_e.remi_vb),
+                                    "e": float(_e.remi_e),
+                                    "qb_max": float(_e.remi_qb_max),
+                                    "pci": float(_e.remi_pci),
+                                    "rho": float(_e.remi_rho),
+                                }
                         st.session_state[_do_key] = _data_map
                         st.session_state[_hours_key] = _hours_reload
+                        st.session_state[_do_key + "::remi"] = _remi_reload
                         st.success(_t("Mese ricaricato dal database."))
                     except Exception as _exc:  # noqa: BLE001
                         _LOG.exception("Daily reload failed for %s",
@@ -3140,7 +3197,11 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                 _payload = repr([
                     (str(_e.date), float(getattr(_e, "hours_per_day", 24.0)),
                      sorted((str(k), float(v)) for k, v in (_e.feedstocks or {}).items()),
-                     float(getattr(_e, "remi_vb", 0.0)))
+                     float(getattr(_e, "remi_vb", 0.0)),
+                     float(getattr(_e, "remi_e", 0.0)),
+                     float(getattr(_e, "remi_qb_max", 0.0)),
+                     float(getattr(_e, "remi_pci", 0.0)),
+                     float(getattr(_e, "remi_rho", 0.0)))
                     for _e in _entries_list
                 ]) + f"|{_regime_lbl}|{float(ghg_threshold):.4f}|{_do_plant_safe}"
                 _payload_hash = _hashlib.md5(_payload.encode("utf-8")).hexdigest()
@@ -4046,7 +4107,7 @@ with tab_business:
                 "active_feeds": active_feeds, "FEEDSTOCK_DB": FEEDSTOCK_DB,
                 "df_res": df_res, "tot_biomasse_t": float(df_res["Totale biomasse (t)"].sum()),
                 "tot_sm3_netti": float(df_res["Sm³ netti"].sum()), "tot_mwh_netti": float(df_res["MWh netti"].sum()),
-                "saving_avg": float(df_res["Saving %"].mean()), "valid_months": int(df_res["Validità"].str.startswith("✅").sum()),
+                "saving_avg": saving_annuale_pesato(df_res, comparator=FOSSIL_COMPARATOR), "valid_months": int(df_res["Validità"].str.startswith("✅").sum()),
                 "tot_revenue": float(tot_revenue), "tariffa_media_ponderata": float(tariffa_media_ponderata),
                 "revenue_rows": pdf_revenue_rows,
             }
@@ -4700,8 +4761,10 @@ with tab_business:
               fmt_it(df_res["Sm³ netti"].sum(), 0))
     c3.metric("MWh netti (anno)",
               fmt_it(df_res["MWh netti"].sum(), 0))
-    c4.metric("Saving medio (%)",
-              fmt_it(df_res["Saving %"].mean(), 1))
+    c4.metric("Saving annuo (%)",
+              fmt_it(saving_annuale_pesato(df_res, comparator=FOSSIL_COMPARATOR), 1),
+              help=_t("Saving GHG ricalcolato sui totali annuali (RED III), "
+                      "non media aritmetica dei mesi."))
     valid_months = df_res["Validità"].str.startswith("✅").sum()
     c5.metric(_t("Mesi validi"), f"{valid_months}/12",
               delta="OK" if valid_months == 12 else f"{12-valid_months}{_t(' NON validi')}",
@@ -4722,9 +4785,11 @@ with tab_business:
                   fmt_it(df_res_db["Sm³ netti"].sum(), 0))
         d3.metric("MWh netti (anno)",
                   fmt_it(df_res_db["MWh netti"].sum(), 0))
-        _saving_db_mean = df_res_db["Saving %"].replace(0, pd.NA).mean(skipna=True)
-        d4.metric("Saving medio (%)",
-                  fmt_it(float(_saving_db_mean) if pd.notna(_saving_db_mean) else 0.0, 1))
+        _saving_db_annuo = saving_annuale_pesato(df_res_db, comparator=FOSSIL_COMPARATOR)
+        d4.metric("Saving annuo (%)",
+                  fmt_it(_saving_db_annuo, 1),
+                  help=_t("Saving GHG ricalcolato sui totali annuali (RED III), "
+                          "non media aritmetica dei mesi."))
         _valid_db = (df_res_db["Validità"].str.startswith("✅").sum()
                      if "Validità" in df_res_db.columns else 0)
         d5.metric(_t("Mesi con dati"), f"{_valid_db}/12")
@@ -5087,7 +5152,7 @@ with tab_business:
                 "tot_sm3_netti":     float(df_res["Sm³ netti"].sum()),
                 "tot_mwh_netti":     float(df_res["MWh netti"].sum()),
                 "tot_mwh":           float(tot_mwh),
-                "saving_avg":        float(df_res["Saving %"].mean()),
+                "saving_avg":        saving_annuale_pesato(df_res, comparator=FOSSIL_COMPARATOR),
                 "valid_months":      int(df_res["Validità"].str.startswith("✅").sum()),
                 "tot_revenue":       float(tot_revenue),
                 "tariffa_media_ponderata": float(tariffa_media_ponderata)
@@ -5248,7 +5313,7 @@ with tab_business:
             "tot_biomasse_t": float(df_res["Totale biomasse (t)"].sum()),
             "tot_sm3_netti": float(df_res["Sm³ netti"].sum()),
             "tot_mwh_netti": float(df_res["MWh netti"].sum()),
-            "saving_avg": float(df_res["Saving %"].mean()),
+            "saving_avg": saving_annuale_pesato(df_res, comparator=FOSSIL_COMPARATOR),
             "valid_months": int(df_res["Validità"].str.startswith("✅").sum()),
             "tot_revenue": float(tot_revenue),
             "tot_mwh_basis": float(tot_revenue_base_mwh),

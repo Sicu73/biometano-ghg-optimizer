@@ -205,15 +205,16 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
         agg.e_total = float(summary.get("e_w") or 0.0)
         # saving_pct: base normativa = LORDO (gCO2eq/MJ su MJ lordi)
         agg.saving_pct = float(summary.get("saving") or 0.0)
-        # saving_pct_net: vista informativa (biometano), stesso e_w
-        # ma riferito all'energia netta. e_w e' un'intensita': il valore
-        # puro coincide perche' il numeratore (gCO2 totali emesse per
-        # produrre il mix) e' lo stesso, mentre il denominatore in NETTO
-        # rappresenta solo l'energia immessa. La GUI mostrera' i due
-        # SAVING %: identici nella formula ma con basi energetiche diverse.
-        # Convenzione: per biometano la "vista NETTO" mantiene il saving
-        # numerico (intensita') ma cambia l'energia di riferimento.
-        agg.saving_pct_net = float(summary.get("saving") or 0.0)
+        # NOTA TECNICA — `saving_pct_net` e' ALIAS NUMERICO di `saving_pct`.
+        # Il saving GHG e' un'intensita' (gCO2eq/MJ vs comparator): il valore
+        # percentuale non cambia se si riferisce all'energia LORDA o NETTA,
+        # perche' al numeratore c'e' la stessa massa di CO2 (mix biomasse) e
+        # al denominatore lo stesso intensita' specifica. Cambia la "base"
+        # energetica nominale (MJ lordi vs MJ netti) ma non il rapporto %.
+        # Mantenuto come campo separato per compatibilita' con codice/export
+        # che lo referenzia; UI puo' usare etichette diverse ma il numero e'
+        # garantito identico. NON e' una metrica indipendente.
+        agg.saving_pct_net = agg.saving_pct  # alias esplicito (era duplicato implicito)
         agg.sustainability_basis = "LORDO"
 
     # Decomposizione media pesata su MJ (per l'audit trail)
