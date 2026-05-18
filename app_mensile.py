@@ -2843,16 +2843,23 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                     if _is_sust_mtd else
                     "linear-gradient(135deg,#DC2626 0%,#991B1B 100%)")
         _sust_icon_full = "✅ OK" if _is_sust_mtd else "❌ KO"
-        # Note sintetiche compatte
+        # Note sintetiche compatte. Usa il MSG esatto dei constraint (es. "3
+        # giorno/i sopra cap autorizzativo") invece del solo nome: il valore
+        # medio mensile può essere sotto soglia ma giorni singoli sopra → spiega.
         _saving_pct_net = _kpis.get('saving_pct_net', 0.0)
+        _failed_msgs = [
+            (c.get("msg") or c.get("name") or "")
+            for c in _kpis.get('constraints_status', [])
+            if not c.get("ok", True)
+        ]
         if _is_sust_mtd:
             _note_mtd = f"Saving {_saving_pct_net:.1f}% ≥ {_thr_pct:.0f}%"
         elif _saving_pct_net < _thr_pct:
             _note_mtd = f"Saving {_saving_pct_net:.1f}% < {_thr_pct:.0f}%"
+        elif _failed_msgs:
+            _note_mtd = "KO: " + " · ".join(_failed_msgs)
         else:
-            _failed = [c.get("name", "") for c in _kpis.get('constraints_status', [])
-                       if not c.get("ok", True)]
-            _note_mtd = "KO vincoli: " + ", ".join(_failed) if _failed else "KO"
+            _note_mtd = "KO"
 
         # Costruisco header + valori della riga totale per OGNI colonna.
         # Usiamo _compiled_hours (calcolato sopra a riga ~2636 PRIMA che la
@@ -2953,6 +2960,20 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             if _c.biomass_total_t > 0 and _c.daily_saving_estimate < _thr_pct
         )
         _n_ok = max(0, _n_days_data - _n_cap_viol - _n_save_viol)
+        # Avviso esplicativo sul cap se ci sono violazioni giornaliere ma il
+        # medio mensile è sotto soglia (caso confuso per l'utente: vede "266
+        # Sm³/h netti medio < 300 cap" ma il mese risulta KO).
+        if _n_cap_viol > 0 and _cap_smch > 0:
+            _avg_smh_net_mese = (_kpis.get('sm3_netti', 0.0) / _compiled_hours) if _compiled_hours > 0 else 0.0
+            if _avg_smh_net_mese < _cap_smch:
+                st.warning(
+                    f"⚠️ **{_n_cap_viol} {_t('giorni')}** "
+                    f"{_t('hanno la portata oraria sopra il cap autorizzativo')} "
+                    f"({_cap_smch:,.0f} Sm³/h), "
+                    f"{_t('anche se la media mensile')} "
+                    f"({_avg_smh_net_mese:,.1f} Sm³/h) {_t('è sotto soglia')}. "
+                    f"{_t('Il cap è verificato GIORNO PER GIORNO, non sulla media. Riequilibra i giorni di picco.')}"
+                )
         st.caption(
             f"✅ **{_n_ok}** {_t('giorni OK')} · "
             f"❌ **{_n_cap_viol + _n_save_viol}** {_t('giorni con violazioni')} "
