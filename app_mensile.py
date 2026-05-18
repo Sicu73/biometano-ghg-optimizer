@@ -1515,14 +1515,14 @@ with st.sidebar:
 
             # Pulsante verifica aggiornamenti
             if st.button(
-                "🔍 Verifica aggiornamenti GitHub",
+                "🔍 " + _t("Verifica aggiornamenti GitHub"),
                 use_container_width=True,
                 key="btn_check_normativa_updates",
-                help="Confronta la versione locale del registry con "
-                     "quella più recente su GitHub master. "
-                     "Cache 5 minuti.",
+                help=_t("Confronta la versione locale del registry con "
+                        "quella più recente su GitHub master. "
+                        "Cache 5 minuti."),
             ):
-                with st.spinner("Connessione a GitHub..."):
+                with st.spinner(_t("Connessione a GitHub...")):
                     _norm_remote = _fetch_normativa_remote()
 
                 if "_error" in _norm_remote:
@@ -4875,10 +4875,11 @@ with tab_business:
         )
     else:
         st.warning(
-            f"🟡 **Simulazione what-if** — DB vuoto per anno {_sim_year} / "
-            f"impianto {_sim_plant}: la tabella usa valori plausibili di default. "
-            f"Inserisci i dati reali da «Gestione Giornaliera» per attivare "
-            f"il pre-fill DB."
+            "🟡 **" + _t("Simulazione what-if") + "** — "
+            + _t("DB vuoto per anno") + f" {_sim_year} / "
+            + _t("impianto") + f" {_sim_plant}: "
+            + _t("la tabella usa valori plausibili di default. ")
+            + _t("Inserisci i dati reali da «Gestione Giornaliera» per attivare il pre-fill DB.")
         )
 
     col_tab_title, col_tab_btn_db, col_tab_btn = st.columns([3, 1.4, 1], vertical_alignment="bottom")
@@ -4886,13 +4887,14 @@ with tab_business:
         st.subheader(_t("📆 Tabella mensile – modifica le celle ✏️, il resto si ricalcola"))
     with col_tab_btn_db:
         if st.button(
-            "🔄 Ricarica dati reali dal DB",
+            "🔄 " + _t("Ricarica dati reali dal DB"),
             use_container_width=True,
             disabled=not _db_has_data,
             help=(
-                f"Sovrascrive la tabella con i valori reali aggregati dal "
-                f"database per anno {_sim_year} / impianto {_sim_plant}. "
-                f"Le modifiche correnti vengono perse."
+                _t("Sovrascrive la tabella con i valori reali aggregati dal "
+                   "database per anno") + f" {_sim_year} / "
+                + _t("impianto") + f" {_sim_plant}. "
+                + _t("Le modifiche correnti vengono perse.")
                 if _db_has_data else
                 _t("Nessun dato nel DB per anno/impianto correnti. "
                    "Inserisci i dati da «Gestione Giornaliera».")
@@ -5157,14 +5159,14 @@ with tab_business:
             "(Gestione Giornaliera). Non cambiano modificando la tabella sopra."
         ))
         d1, d2, d3, d4, d5 = st.columns(5)
-        d1.metric("Tot. biomasse (t/anno)",
+        d1.metric(_t("Tot. biomasse (t/anno)"),
                   fmt_it(df_res_db["Totale biomasse (t)"].sum(), 0))
-        d2.metric("Sm³ netti (anno)",
+        d2.metric(_t("Sm³ netti (anno)"),
                   fmt_it(df_res_db["Sm³ netti"].sum(), 0))
-        d3.metric("MWh netti (anno)",
+        d3.metric(_t("MWh netti (anno)"),
                   fmt_it(df_res_db["MWh netti"].sum(), 0))
         _saving_db_annuo = saving_annuale_pesato(df_res_db, comparator=FOSSIL_COMPARATOR)
-        d4.metric("Saving annuo (%)",
+        d4.metric(_t("Saving annuo (%)"),
                   fmt_it(_saving_db_annuo, 1),
                   help=_t("Saving GHG ricalcolato sui totali annuali (RED III), "
                           "non media aritmetica dei mesi."))

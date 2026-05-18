@@ -402,5 +402,145 @@ IT_EN: dict = {
     "Sansa vergine": "Virgin olive pomace",
     "Pastazzo di agrumi": "Citrus pulp",
     "Vinaccia (con raspi)": "Grape marc (with stalks)",
-    "Raspi d'uva": "Grape stalks"
+    "Raspi d'uva": "Grape stalks",
+    # ========================================================================
+    # Aggiunte recenti — UI, KPI REMI, banner, tab Standard/Analisi, REMI helps
+    # ========================================================================
+    # Tab principali
+    "Conduzione Giornaliera — Standard (UNI-TS / RED III)":
+        "Daily Operation — Standard (UNI-TS / RED III)",
+    "Conduzione Giornaliera — Analisi (BMT & Fattori Emissivi su misura)":
+        "Daily Operation — Analysis (BMT & Custom Emission Factors)",
+    "Risultati, Incentivi & Business Plan": "Results, Incentives & Business Plan",
+    "Risultati, Reporting & Export Annuali": "Annual Results, Reporting & Export",
+    # Confronto Standard vs Analisi
+    "Confronto Standard vs Analisi": "Standard vs Analysis Comparison",
+    "Modalità Analisi attiva": "Analysis mode active",
+    "override applicati sopra i valori tabellari standard.":
+        "overrides applied on top of standard tabular values.",
+    "Nessun override caricato: la tabella sotto calcola comunque "
+    "usando i valori **STANDARD tabellari** (UNI-TS / RED III). "
+    "Quando carichi BMT lab o Fattori Emissivi su misura nelle "
+    "sezioni qui sopra, quei valori sostituiscono i tabellari "
+    "biomassa per biomassa.":
+        "No overrides loaded: the table below still computes using the "
+        "**STANDARD tabular** values (UNI-TS / RED III). When you load lab "
+        "BMT or custom Emission Factors in the sections above, those values "
+        "replace the tabular ones feedstock by feedstock.",
+    "Dati giornalieri (biomasse, ore, REMI) indipendenti dal tab Standard. "
+    "Conformità DM 2022 verificata sul totale mensile.":
+        "Daily data (feedstocks, hours, REMI) independent from the Standard "
+        "tab. DM 2022 compliance verified on the monthly total.",
+    # Banner cap mensile
+    "giorno/i di picco sopra cap": "peak day(s) above cap",
+    "ma la portata media mensile": "but the monthly average flow",
+    "è sotto soglia": "is below threshold",
+    "conformità DM 2022 verificata sul totale mensile, mese OK.":
+        "DM 2022 compliance verified on the monthly total, month OK.",
+    # REMI labels
+    "Consolidato REMI mese (dati dal contatore fiscale)":
+        "Monthly REMI Consolidated (fiscal meter readings)",
+    "Volume biometano (Vb)": "Biomethane Volume (Vb)",
+    "Energia immessa (E)": "Injected Energy (E)",
+    "Portata media": "Average flow rate",
+    "Potenza media": "Average power",
+    "PCI medio": "Average LHV",
+    "Vb = Volume di biometano immesso in rete nel mese, "
+    "letto dal contatore REMI (Sm³ standard a 15°C, 1.01325 bar). "
+    "È il totale di tutte le letture giornaliere 'Sm³ reali giorno' "
+    "compilate nella tabella.":
+        "Vb = Volume of biomethane injected into the grid in the month, "
+        "read from the REMI meter (Sm³ standard at 15°C, 1.01325 bar). "
+        "It is the total of all daily 'Real day Sm³' readings compiled in "
+        "the table.",
+    "E = Energia termica totale immessa in rete (kWh). "
+    "Se non compili la colonna 'E (kWh)' giornaliera, viene "
+    "stimata come Vb × PCI (PCI medio compilato, oppure "
+    "9.79 kWh/Sm³ standard biometano UNI EN 16723-1).":
+        "E = Total thermal energy injected into the grid (kWh). If you do "
+        "not compile the daily 'E (kWh)' column, it is estimated as "
+        "Vb × LHV (compiled average LHV, or 9.79 kWh/Sm³ standard biomethane "
+        "UNI EN 16723-1).",
+    "Portata oraria media del biometano (Vb totale / ore di "
+    "funzionamento effettive). Da confrontare col cap "
+    "autorizzativo dell'impianto.":
+        "Average hourly flow of biomethane (total Vb / actual operating "
+        "hours). To be compared with the plant's authorized cap.",
+    "Potenza termica media (E totale / ore / 1000). "
+    "Indica la capacità effettiva di immissione.":
+        "Average thermal power (total E / hours / 1000). Indicates the "
+        "effective injection capacity.",
+    "Energia specifica = E / Vb. Per il biometano puro UNI EN "
+    "16723-1 è ~9.79 kWh/Sm³. Valori molto diversi indicano "
+    "biometano fuori specifica o errore di lettura.":
+        "Specific energy = E / Vb. For pure biomethane UNI EN 16723-1 is "
+        "~9.79 kWh/Sm³. Very different values indicate off-spec biomethane "
+        "or reading error.",
+    "Vb totale": "Total Vb",
+    "E totale": "Total E",
+    "media compilata": "compiled average",
+    "PCI standard biometano UNI EN 16723-1": "standard biomethane LHV UNI EN 16723-1",
+    "Compila la colonna **E (kWh)** giornaliera per usare la "
+    "lettura reale del contatore REMI.":
+        "Compile the daily **E (kWh)** column to use the real REMI meter reading.",
+    # Daily panel
+    "Operatività Giornaliera": "Daily Operation",
+    "Tabella giornaliera": "Daily table",
+    "Auto-salvato": "Auto-saved",
+    "Auto-save non riuscito": "Auto-save failed",
+    "Esporta report": "Export report",
+    "I bottoni si attivano dopo aver inserito almeno un giorno con biomassa > 0.":
+        "Buttons activate after entering at least one day with feedstock > 0.",
+    "Inserisci almeno un giorno di dati per salvare ed esportare.":
+        "Enter at least one day of data to save and export.",
+    "TOTALE MESE": "MONTHLY TOTAL",
+    "Totale Mensile · Riepilogo": "Monthly Total · Summary",
+    "SOSTENIBILE": "COMPLIANT",
+    "NON SOSTENIBILE": "NON-COMPLIANT",
+    "Esito ufficiale": "Official outcome",
+    # Cap & saving captions
+    "giorni OK": "OK days",
+    "giorni con violazioni": "days with violations",
+    "giorni senza dati": "days without data",
+    "cap": "cap",
+    "soglia": "threshold",
+    "la conformità ufficiale resta mensile": "official compliance remains monthly",
+    "giorni": "days",
+    "giorno/i sopra cap": "day(s) above cap",
+    # Other recent additions
+    "Verifica aggiornamenti GitHub": "Check GitHub updates",
+    "Confronta la versione locale del registry con "
+    "quella più recente su GitHub master. "
+    "Cache 5 minuti.":
+        "Compare the local registry version with the latest on GitHub master. "
+        "5 minute cache.",
+    "Connessione a GitHub...": "Connecting to GitHub...",
+    "Simulazione what-if": "What-if simulation",
+    "DB vuoto per anno": "Empty DB for year",
+    "impianto": "plant",
+    "la tabella usa valori plausibili di default. ":
+        "the table uses plausible default values. ",
+    "Inserisci i dati reali da «Gestione Giornaliera» per attivare il pre-fill DB.":
+        "Enter real data from «Daily Management» to activate the DB pre-fill.",
+    "Ricarica dati reali dal DB": "Reload real data from DB",
+    "Sovrascrive la tabella con i valori reali aggregati dal "
+    "database per anno":
+        "Overrides the table with real values aggregated from the database for year",
+    "Le modifiche correnti vengono perse.": "Current changes will be lost.",
+    "Nessun dato nel DB per anno/impianto correnti. "
+    "Inserisci i dati da «Gestione Giornaliera».":
+        "No data in DB for current year/plant. Enter data from «Daily Management».",
+    "Tot. biomasse (t/anno)": "Tot. feedstocks (t/year)",
+    "Sm³ netti (anno)": "Net Sm³ (year)",
+    "MWh netti (anno)": "Net MWh (year)",
+    "Saving annuo (%)": "Annual saving (%)",
+    "Saving GHG ricalcolato sui totali annuali (RED III), "
+    "non media aritmetica dei mesi.":
+        "GHG saving recalculated on annual totals (RED III), not arithmetic "
+        "mean of months.",
+    # Common
+    "Anno": "Year",
+    "Inserisci i dati da «Gestione Giornaliera».":
+        "Enter data from «Daily Management».",
+    "Gestione Giornaliera": "Daily Management",
 }
