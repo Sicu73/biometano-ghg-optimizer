@@ -3635,9 +3635,25 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                 st.warning(f"Excel: {_exc}")
         with _scol3:
             try:
+                # Tentativo con lang= (versione i18n-aware). Fallback alla
+                # firma vecchia se il modulo in cache non ha ancora il param
+                # (Streamlit Cloud potrebbe servire una vecchia versione
+                # mentre il deploy nuovo è in propagazione).
+                if not _disabled:
+                    try:
+                        _pdf_bytes = _build_daily_pdf(
+                            _daily_df_full, _kpis, _audit, _guidance,
+                            lang=get_lang(),
+                        )
+                    except TypeError:
+                        _pdf_bytes = _build_daily_pdf(
+                            _daily_df_full, _kpis, _audit, _guidance,
+                        )
+                else:
+                    _pdf_bytes = b""
                 st.download_button(
                     "⬇️ PDF",
-                    _build_daily_pdf(_daily_df_full, _kpis, _audit, _guidance, lang=get_lang()) if not _disabled else b"",
+                    _pdf_bytes,
                     file_name=f"{_fname_base}.pdf",
                     mime="application/pdf", key=f"{_key_prefix}do_btn_pdf",
                     use_container_width=True, disabled=_disabled,
