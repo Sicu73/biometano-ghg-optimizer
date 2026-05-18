@@ -1874,9 +1874,23 @@ st.markdown(
         border-color: rgba(245,158,11,0.4);
         box-shadow: 0 6px 16px rgba(15,23,42,0.08);
     }}
+    /* Niente ellipsis '...' sui valori (unita' lunghe come "kWh/Sm³"
+       venivano troncate in colonne strette). Permette wrap del valore
+       su 2 righe se serve. */
     div[data-testid="stMetricValue"] {{
         font-weight: 700 !important;
         font-variant-numeric: tabular-nums;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        word-break: keep-all;
+        line-height: 1.2 !important;
+        font-size: 1.4rem !important;
+    }}
+    div[data-testid="stMetricLabel"] {{
+        white-space: normal !important;
+        overflow: visible !important;
+        line-height: 1.15 !important;
     }}
 
     /* --- Alert (info/warning/success/error): bordo accent left --- */
@@ -3353,7 +3367,9 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             _e_estimated = bool(_kpis.get("remi_e_estimated", False))
             _e_marker = " *" if _e_estimated else ""
 
-            _r1, _r2, _r3, _r4, _r5 = st.columns(5)
+            # Colonne con larghezza pesata: dai più spazio a Vb (numero lungo)
+            # e a PCI (unità lunga "kWh/Sm³"). Le altre più strette.
+            _r1, _r2, _r3, _r4, _r5 = st.columns([1.15, 1.15, 1.05, 0.95, 1.20])
             _r1.metric(
                 "📉 " + _t("Volume biometano (Vb)"),
                 _fmt_compact(_kpis["remi_vb_total"], "Sm³"),
