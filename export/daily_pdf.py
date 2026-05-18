@@ -318,8 +318,8 @@ def build_daily_pdf(
                             textColor=colors.HexColor("#F8FAFC")))],
         [Paragraph(
             f'<b>{_esito_icon} {_esito_txt}</b>',
-            ParagraphStyle("e2", fontName="Helvetica-Bold", fontSize=30,
-                            leading=36, alignment=1,
+            ParagraphStyle("e2", fontName="Helvetica-Bold", fontSize=20,
+                            leading=24, alignment=1,
                             textColor=colors.HexColor(_WHITE)))],
         [Paragraph(
             f'Saving GHG mensile: <b>{_saving:.2f}%</b> · '
