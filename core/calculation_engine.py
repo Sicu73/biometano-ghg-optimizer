@@ -87,18 +87,28 @@ BP_PNRR_QUOTA_PCT_DEFAULT = 40.0
 BP_MASSIMALE_SPESA_EUR_PER_SMCH = 32817.23
 
 
-def fmt_it(value, decimals: int = 0, suffix: str = "", signed: bool = False) -> str:  # type: ignore[misc]
+def fmt_it(value, decimals: int = 0, suffix: str = "", signed: bool = False,
+           lang: str | None = None) -> str:  # type: ignore[misc]
+    """Formatta numero stile locale-aware (IT/EN). Vedi app_mensile.fmt_it."""
     if value is None:
         return "-"
     try:
         f = float(value)
     except (TypeError, ValueError):
         return str(value)
+    if lang is None:
+        try:
+            from i18n_runtime import get_lang as _gl
+            lang = _gl()
+        except Exception:
+            lang = "it"
     if signed:
         s = f"{f:+,.{decimals}f}"
     else:
         s = f"{f:,.{decimals}f}"
-    s = s.replace(",", "§").replace(".", ",").replace("§", "'")
+    if lang == "en":
+        return s + suffix
+    s = s.replace(",", "§").replace(".", ",").replace("§", ".")
     return s + suffix
 
 

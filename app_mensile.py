@@ -207,19 +207,71 @@ def apply_metaniq_theme(fig, *, dark: bool = False):
     return fig
 
 
-def fmt_it(value, decimals: int = 0, suffix: str = "", signed: bool = False) -> str:
-    """Formatta un numero in stile italiano: 1.234.567,89
+def fmt_it(value, decimals: int = 0, suffix: str = "", signed: bool = False,
+           lang: str | None = None) -> str:
+    """Formatta numero stile locale-aware.
 
-    signed=True -> prefisso '+' anche per valori positivi (utile per contributi ep).
+    - IT: 1.234.567,89  (punto migliaia, virgola decimale)
+    - EN: 1,234,567.89  (virgola migliaia, punto decimale — UK/US standard)
+
+    Nome storico mantenuto per backcompat (289 call sites). Se `lang` è None,
+    legge il valore corrente dal session_state via i18n_runtime.get_lang().
+
+    signed=True -> prefisso '+' anche per valori positivi.
     """
     if value is None or (isinstance(value, float) and (np.isnan(value) or np.isinf(value))):
         return "-"
+    # Rilevamento lang dinamico (se non passato esplicitamente).
+    if lang is None:
+        try:
+            from i18n_runtime import get_lang as _gl
+            lang = _gl()
+        except Exception:
+            lang = "it"
+    # Python f-string produce nativamente formato EN (virgola migliaia, punto
+    # decimale): 1,234,567.89. Lo usiamo direttamente per EN.
     if signed:
-        s = f"{value:+,.{decimals}f}"      # es. "+1,234.50" / "-4.00"
+        s = f"{value:+,.{decimals}f}"
     else:
-        s = f"{value:,.{decimals}f}"       # es. "1,234,567.89"
-    s = s.replace(",", "§").replace(".", ",").replace("§", "'")
+        s = f"{value:,.{decimals}f}"
+    if lang == "en":
+        return s + suffix
+    # IT: swap virgola <-> punto (placeholder § per evitare collisioni).
+    s = s.replace(",", "§").replace(".", ",").replace("§", ".")
     return s + suffix
+
+
+def fmt_date(d, lang: str | None = None) -> str:
+    """Formatta data secondo lang corrente.
+
+    - IT: 25/05/2026
+    - EN: May 25, 2026
+
+    Accetta datetime.date / datetime / pd.Timestamp / stringa ISO. Restituisce
+    stringa vuota se non parsabile.
+    """
+    if d is None:
+        return ""
+    if lang is None:
+        try:
+            from i18n_runtime import get_lang as _gl
+            lang = _gl()
+        except Exception:
+            lang = "it"
+    # Normalizza
+    if isinstance(d, str):
+        try:
+            d = pd.to_datetime(d, errors="coerce")
+            if pd.isna(d):
+                return ""
+        except Exception:
+            return ""
+    try:
+        if lang == "en":
+            return d.strftime("%b %d, %Y")  # May 25, 2026
+        return d.strftime("%d/%m/%Y")        # 25/05/2026
+    except Exception:
+        return str(d)
 
 
 def saving_annuale_pesato(df, *, saving_col: str = "Saving %",
@@ -2845,7 +2897,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         for _i, _d in enumerate(_all_days):
             _h = float(_hours_map.get(_d, 0.0))
             _bio_row = 0.0
-            _row = {"Data": _d.strftime("%d/%m/%Y"), _HOURS_COL: _h}
+            _row = {"Data": fmt_date(_d), _HOURS_COL: _h}
             for _f in _do_active_feeds:
                 _v = float((_data_map.get(_d) or {}).get(_f, 0.0))
                 _row[_f] = _v
@@ -3023,7 +3075,15 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         # I KPI sono già stati calcolati in fase di pre-render (sopra l'editor)
 
         def _it_num(value, decimals):
+            # Locale-aware: usa get_lang() per scegliere stile IT vs EN.
+            try:
+                from i18n_runtime import get_lang as _gl
+                _lang_local = _gl()
+            except Exception:
+                _lang_local = "it"
             s = f"{float(value):,.{decimals}f}"
+            if _lang_local == "en":
+                return s
             return s.replace(",", "X").replace(".", ",").replace("X", ".")
 
         # =================================================================
