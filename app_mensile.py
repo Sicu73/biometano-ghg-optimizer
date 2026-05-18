@@ -3785,8 +3785,20 @@ with tab_tech:
               fmt_it(ghg_threshold * 100, 0, "%"),
               delta=f"{_t('target solver')} {fmt_it(target_saving * 100, 0, '%')}")
 
-    st.markdown("---")
-    _render_daily_ops_panel(_key_prefix="tech_")
+    # Nota: la tabella giornaliera NON viene duplicata qui. Gli override BMT/EF
+    # configurati in questo tab vengono applicati automaticamente al pannello
+    # giornaliero del tab "📆 Conduzione Giornaliera — Standard"; lì compare la
+    # sezione "📊 Confronto Standard vs Analisi" che mostra i due scenari a
+    # confronto. Una sola fonte di dati giornalieri evita confusione e doppi
+    # input. Rimosso _render_daily_ops_panel(_key_prefix="tech_") (era duplicato).
+    st.info(
+        "ℹ️ " + _t(
+            "Gli override BMT / Fattori Emissivi configurati qui sono applicati "
+            "automaticamente al pannello giornaliero del tab "
+            "**📆 Conduzione Giornaliera — Standard**, dove vedrai la sezione "
+            "**📊 Confronto Standard vs Analisi** con i due scenari a confronto."
+        )
+    )
 
 with tab_business:
     # ============================================================
