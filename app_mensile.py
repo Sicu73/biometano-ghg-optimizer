@@ -3637,7 +3637,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             try:
                 st.download_button(
                     "⬇️ PDF",
-                    _build_daily_pdf(_daily_df_full, _kpis, _audit, _guidance) if not _disabled else b"",
+                    _build_daily_pdf(_daily_df_full, _kpis, _audit, _guidance, lang=get_lang()) if not _disabled else b"",
                     file_name=f"{_fname_base}.pdf",
                     mime="application/pdf", key=f"{_key_prefix}do_btn_pdf",
                     use_container_width=True, disabled=_disabled,

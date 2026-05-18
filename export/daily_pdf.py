@@ -43,13 +43,152 @@ def _try_reportlab():
         return False
 
 
-def _it_num(value: float, decimals: int = 2) -> str:
-    """Formatta numero stile italiano (1.234,56)."""
+# ============================================================================
+# I18N dict — label PDF (IT default, EN se lang='en')
+# ============================================================================
+_LBL = {
+    "it": {
+        "report_tag": "// REPORT MENSILE DI SOSTENIBILITÀ",
+        "tagline": "Pianificazione mensile e ottimizzazione GHG biometano",
+        "periodo": "Periodo",
+        "azienda": "Azienda",
+        "regime": "Regime",
+        "soglia_saving": "Soglia saving GHG",
+        "esito_ufficiale": "ESITO UFFICIALE",
+        "sostenibile": "SOSTENIBILE",
+        "non_conforme": "NON CONFORME",
+        "saving_mensile": "Saving GHG mensile",
+        "soglia": "Soglia",
+        "margine": "Margine",
+        "punti_pct": "punti percentuali",
+        "biomasse": "Biomasse",
+        "sm3_netti": "Sm³ netti",
+        "mwh_netti": "MWh netti",
+        "saving_ghg": "Saving GHG",
+        "riepilogo": "Riepilogo KPI mensili",
+        "kpi": "KPI",
+        "valore": "Valore",
+        "unita": "Unità",
+        "anno": "Anno",
+        "mese": "Mese",
+        "saving_pct": "Saving GHG",
+        "soglia_norm": "Soglia normativa",
+        "margine_v": "Margine",
+        "esito": "Esito conformità",
+        "vb_remi": "Vb REMI totale",
+        "e_remi": "E REMI totale",
+        "portata_media": "Portata media",
+        "potenza_media": "Potenza media",
+        "pci_medio": "PCI medio",
+        "vincoli": "Vincoli normativi",
+        "vincolo": "Vincolo",
+        "limite": "Limite",
+        "note": "Note",
+        "indicazioni": "Indicazioni operative",
+        "tabella_daily": "Tabella giornaliera — dettaglio per giorno",
+        "tabella_intro": ("Verifica di sostenibilità: il controllo ufficiale è MENSILE. "
+                         "I valori giornalieri di Saving GHG sono indicativi e non vincolanti."),
+        "anagrafica": "Anagrafica simulazione & Audit Trail",
+        "anagrafica_intro": ("Tracciabilità dei parametri usati per il calcolo di "
+                            "sostenibilità (impianto, regime, soglie, override BMT/EF, "
+                            "fattori emissivi)."),
+        "voce": "Voce",
+        "header_report": "REPORT GESTIONE GIORNALIERA",
+        "generato_il": "Generato il",
+        "report_generato": "Report generato il",
+        "footer": "© Metan.iQ — Decision Intelligence Platform per biometano DM 2022 / RED III",
+        "footer_cover": "© Metan.iQ · Decision Intelligence Platform · DM 2022 / RED III",
+        "pagina": "Pagina",
+    },
+    "en": {
+        "report_tag": "// MONTHLY SUSTAINABILITY REPORT",
+        "tagline": "Monthly planning and GHG optimization for biomethane",
+        "periodo": "Period",
+        "azienda": "Company",
+        "regime": "Regime",
+        "soglia_saving": "GHG saving threshold",
+        "esito_ufficiale": "OFFICIAL OUTCOME",
+        "sostenibile": "COMPLIANT",
+        "non_conforme": "NON-COMPLIANT",
+        "saving_mensile": "Monthly GHG saving",
+        "soglia": "Threshold",
+        "margine": "Margin",
+        "punti_pct": "percentage points",
+        "biomasse": "Feedstocks",
+        "sm3_netti": "Net Sm³",
+        "mwh_netti": "Net MWh",
+        "saving_ghg": "GHG Saving",
+        "riepilogo": "Monthly KPI Summary",
+        "kpi": "KPI",
+        "valore": "Value",
+        "unita": "Unit",
+        "anno": "Year",
+        "mese": "Month",
+        "saving_pct": "GHG Saving",
+        "soglia_norm": "Regulatory threshold",
+        "margine_v": "Margin",
+        "esito": "Compliance outcome",
+        "vb_remi": "Total REMI Vb",
+        "e_remi": "Total REMI E",
+        "portata_media": "Average flow",
+        "potenza_media": "Average power",
+        "pci_medio": "Average LHV",
+        "vincoli": "Regulatory constraints",
+        "vincolo": "Constraint",
+        "limite": "Limit",
+        "note": "Notes",
+        "indicazioni": "Operating recommendations",
+        "tabella_daily": "Daily table — detail per day",
+        "tabella_intro": ("Sustainability check: official verification is MONTHLY. "
+                         "Daily GHG Saving values are indicative and not binding."),
+        "anagrafica": "Simulation registry & Audit Trail",
+        "anagrafica_intro": ("Traceability of parameters used for the sustainability "
+                            "calculation (plant, regime, thresholds, BMT/EF overrides, "
+                            "emission factors)."),
+        "voce": "Item",
+        "header_report": "DAILY MANAGEMENT REPORT",
+        "generato_il": "Generated on",
+        "report_generato": "Report generated on",
+        "footer": "© Metan.iQ — Decision Intelligence Platform for biomethane DM 2022 / RED III",
+        "footer_cover": "© Metan.iQ · Decision Intelligence Platform · DM 2022 / RED III",
+        "pagina": "Page",
+    },
+}
+
+
+def _fmt_num(value: float, decimals: int = 2, lang: str = "it") -> str:
+    """Formatta numero locale-aware (IT 1.234,56 / EN 1,234.56)."""
     try:
         s = f"{float(value):,.{decimals}f}"
-        return s.replace(",", "X").replace(".", ",").replace("X", ".")
     except (TypeError, ValueError):
         return str(value)
+    if lang == "en":
+        return s
+    return s.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _fmt_date(d, lang: str = "it") -> str:
+    """Formatta data locale-aware (IT dd/mm/yyyy / EN Mon dd, yyyy)."""
+    if d is None:
+        return ""
+    if isinstance(d, str):
+        try:
+            d = pd.to_datetime(d, errors="coerce")
+            if pd.isna(d):
+                return ""
+        except Exception:
+            return ""
+    try:
+        if lang == "en":
+            return d.strftime("%b %d, %Y")
+        return d.strftime("%d/%m/%Y")
+    except Exception:
+        return str(d)
+
+
+# Alias backcompat (vecchio uso decimals-only IT).
+def _it_num(value: float, decimals: int = 2) -> str:
+    return _fmt_num(value, decimals, "it")
 
 
 def build_daily_pdf(
@@ -57,9 +196,29 @@ def build_daily_pdf(
     monthly_kpis: dict[str, Any],
     audit_trail: dict[str, Any] | None = None,
     guidance: list[str] | None = None,
-    title: str = "Gestione Giornaliera — Sostenibilità Mensile",
+    title: str | None = None,
+    lang: str | None = None,
 ) -> bytes:
     """Crea report PDF mensile Metan.iQ multi-pagina con styling brand."""
+    # Lang detection: parametro -> session_state -> default 'it'
+    if lang is None:
+        try:
+            from i18n_runtime import get_lang as _gl
+            lang = _gl()
+        except Exception:
+            lang = "it"
+    if lang not in _LBL:
+        lang = "it"
+    L = _LBL[lang]
+    if title is None:
+        title = ("Daily Management — Monthly Sustainability"
+                 if lang == "en" else "Gestione Giornaliera — Sostenibilità Mensile")
+
+    def num(v, dec=2):
+        return _fmt_num(v, dec, lang)
+    def date_fmt(d):
+        return _fmt_date(d, lang)
+
     if not _try_reportlab():
         # Fallback testuale
         txt = io.StringIO()
@@ -125,7 +284,7 @@ def build_daily_pdf(
     _plant_name = str(audit_trail.get("Nome impianto") or "—")
     _company = str(audit_trail.get("Nome azienda") or "—")
     _regime = str(monthly_kpis.get("regime") or audit_trail.get("Regime applicato") or "DM 2022")
-    _gen_at = datetime.now().strftime("%d/%m/%Y %H:%M")
+    _gen_at = datetime.now().strftime("%d/%m/%Y %H:%M") if lang != "en" else datetime.now().strftime("%b %d, %Y %H:%M")
 
     def _draw_page_chrome(canvas, doc):
         """Header + footer brand su tutte le pagine eccetto la cover."""
@@ -148,11 +307,11 @@ def build_daily_pdf(
         canvas.setFont("Helvetica-Bold", 8)
         canvas.setFillColor(colors.HexColor(_AMBER))
         canvas.drawRightString(PAGE_W - 15 * mm, PAGE_H - 10 * mm,
-                                "REPORT GESTIONE GIORNALIERA")
+                                L["header_report"])
         canvas.setFont("Helvetica", 7)
         canvas.setFillColor(colors.HexColor(_GREY_LIGHT))
         canvas.drawRightString(PAGE_W - 15 * mm, PAGE_H - 13.5 * mm,
-                                f"Generato il {_gen_at}")
+                                f"{L['generato_il']} {_gen_at}")
 
         # Footer
         canvas.setStrokeColor(colors.HexColor(_GREY_LIGHT))
@@ -160,10 +319,9 @@ def build_daily_pdf(
         canvas.line(15 * mm, 12 * mm, PAGE_W - 15 * mm, 12 * mm)
         canvas.setFillColor(colors.HexColor(_GREY_TXT))
         canvas.setFont("Helvetica", 7)
-        canvas.drawString(15 * mm, 8 * mm,
-                          "© Metan.iQ — Decision Intelligence Platform per biometano DM 2022 / RED III")
+        canvas.drawString(15 * mm, 8 * mm, L["footer"])
         canvas.drawRightString(PAGE_W - 15 * mm, 8 * mm,
-                                f"Pagina {canvas.getPageNumber()}")
+                                f"{L['pagina']} {canvas.getPageNumber()}")
         canvas.restoreState()
 
     def _draw_cover(canvas, doc):
@@ -179,10 +337,9 @@ def build_daily_pdf(
         # Footer cover
         canvas.setFillColor(colors.HexColor(_GREY_LIGHT))
         canvas.setFont("Helvetica", 8)
-        canvas.drawString(20 * mm, 10 * mm,
-                          "© Metan.iQ · Decision Intelligence Platform · DM 2022 / RED III")
+        canvas.drawString(20 * mm, 10 * mm, L["footer_cover"])
         canvas.drawRightString(PAGE_W - 20 * mm, 10 * mm,
-                                f"Report generato il {_gen_at}")
+                                f"{L['report_generato']} {_gen_at}")
         canvas.restoreState()
 
     # =========================================================================
@@ -225,7 +382,7 @@ def build_daily_pdf(
 
     # Tag "REPORT MENSILE"
     _tag = Table(
-        [[Paragraph("// REPORT MENSILE DI SOSTENIBILITÀ", ParagraphStyle(
+        [[Paragraph(L["report_tag"], ParagraphStyle(
             "TagS", fontName="Helvetica-Bold", fontSize=9, leading=11,
             textColor=colors.HexColor(_AMBER)))]],
         colWidths=[None], hAlign="LEFT",
@@ -247,7 +404,7 @@ def build_daily_pdf(
                         leading=54, textColor=colors.HexColor(_WHITE))))
     story.append(Spacer(1, 4))
     story.append(Paragraph(
-        "Pianificazione mensile e ottimizzazione GHG biometano",
+        L["tagline"],
         ParagraphStyle("CoverST", fontName="Helvetica", fontSize=13,
                         leading=16, textColor=colors.HexColor("#94A3B8"))))
     story.append(Spacer(1, 16))
@@ -286,9 +443,9 @@ def build_daily_pdf(
         return t
 
     _info_data = [[
-        _card_3lines("Periodo", _periodo, "", main_size=18),
-        _card_3lines("Azienda", _company, _plant_name, main_size=13),
-        _card_3lines("Regime", _regime, f"Soglia saving GHG: {_thr:.0f}%", main_size=13),
+        _card_3lines(L["periodo"], _periodo, "", main_size=18),
+        _card_3lines(L["azienda"], _company, _plant_name, main_size=13),
+        _card_3lines(L["regime"], _regime, f"{L['soglia_saving']}: {_thr:.0f}%", main_size=13),
     ]]
     _info_tbl = Table(_info_data, colWidths=[(PAGE_W - 40 * mm) / 3] * 3, hAlign="LEFT")
     _info_tbl.setStyle(TableStyle([
@@ -307,12 +464,17 @@ def build_daily_pdf(
     # fascia di font (no sovrapposizioni: il <font size> dentro singolo
     # Paragraph usa il leading del Paragraph, non quello del singolo font).
     _esito_color = _GREEN if _compliant else _RED
-    _esito_txt = "SOSTENIBILE" if _compliant else "NON CONFORME"
+    _esito_txt = L["sostenibile"] if _compliant else L["non_conforme"]
     _esito_icon = "[OK]" if _compliant else "[!]"
+
+    _saving_str = num(_saving, 2)
+    _margine_str = num(_saving - _thr, 2)
+    if not _margine_str.startswith("-"):
+        _margine_str = "+" + _margine_str
 
     _esito_cells = [
         [Paragraph(
-            f'<b>ESITO UFFICIALE — {_regime}</b>',
+            f'<b>{L["esito_ufficiale"]} — {_regime}</b>',
             ParagraphStyle("e1", fontName="Helvetica-Bold", fontSize=11,
                             leading=14, alignment=1,
                             textColor=colors.HexColor("#F8FAFC")))],
@@ -322,8 +484,8 @@ def build_daily_pdf(
                             leading=24, alignment=1,
                             textColor=colors.HexColor(_WHITE)))],
         [Paragraph(
-            f'Saving GHG mensile: <b>{_saving:.2f}%</b> · '
-            f'Soglia: {_thr:.0f}% · Margine: {_saving - _thr:+.2f} punti percentuali',
+            f'{L["saving_mensile"]}: <b>{_saving_str}%</b> · '
+            f'{L["soglia"]}: {num(_thr, 0)}% · {L["margine"]}: {_margine_str} {L["punti_pct"]}',
             ParagraphStyle("e3", fontName="Helvetica", fontSize=11,
                             leading=14, alignment=1,
                             textColor=colors.HexColor("#F1F5F9")))],
@@ -386,10 +548,10 @@ def build_daily_pdf(
 
     _kpi_row = Table(
         [[
-            _kpi_card("Biomasse", _it_num(_bio_t, 1), "t"),
-            _kpi_card("Sm³ netti", _it_num(_sm3, 0), "Sm³"),
-            _kpi_card("MWh netti", _it_num(_mwh, 1), "MWh"),
-            _kpi_card("Saving GHG", f"{_saving:.2f}", "%"),
+            _kpi_card(L["biomasse"], num(_bio_t, 1), "t"),
+            _kpi_card(L["sm3_netti"], num(_sm3, 0), "Sm³"),
+            _kpi_card(L["mwh_netti"], num(_mwh, 1), "MWh"),
+            _kpi_card(L["saving_ghg"], num(_saving, 2), "%"),
         ]],
         colWidths=[(PAGE_W - 52 * mm) / 4] * 4,
     )
@@ -408,27 +570,27 @@ def build_daily_pdf(
     story.append(NextPageTemplate("std"))
     story.append(PageBreak())
 
-    story.append(Paragraph("Riepilogo KPI mensili", s_h2))
-    _kpis_rows = [["KPI", "Valore", "Unità"]]
+    story.append(Paragraph(L["riepilogo"], s_h2))
+    _kpis_rows = [[L["kpi"], L["valore"], L["unita"]]]
     _kpi_def = [
-        ("Anno",                            monthly_kpis.get("year", "—"),                        ""),
-        ("Mese",                            monthly_kpis.get("month", "—"),                       ""),
-        ("Regime",                          monthly_kpis.get("regime", _regime),                  ""),
-        ("Biomasse mese",                   _it_num(_bio_t, 1),                                    "t"),
-        ("Sm³ netti mese",                  _it_num(_sm3, 0),                                      "Sm³"),
-        ("MWh netti mese",                  _it_num(_mwh, 1),                                      "MWh"),
-        ("Saving GHG",                      f"{_saving:.2f}",                                      "%"),
-        ("Soglia normativa",                f"{_thr:.2f}",                                         "%"),
-        ("Margine",                         f"{_saving - _thr:+.2f}",                              "pt"),
-        ("Esito conformità",                _esito_txt,                                             ""),
+        (L["anno"],                         monthly_kpis.get("year", "—"),                        ""),
+        (L["mese"],                         monthly_kpis.get("month", "—"),                       ""),
+        (L["regime"],                       monthly_kpis.get("regime", _regime),                  ""),
+        (L["biomasse"],                     num(_bio_t, 1),                                        "t"),
+        (L["sm3_netti"],                    num(_sm3, 0),                                          "Sm³"),
+        (L["mwh_netti"],                    num(_mwh, 1),                                          "MWh"),
+        (L["saving_pct"],                   num(_saving, 2),                                       "%"),
+        (L["soglia_norm"],                  num(_thr, 2),                                          "%"),
+        (L["margine_v"],                    _margine_str,                                          "pt"),
+        (L["esito"],                        _esito_txt,                                            ""),
     ]
     if monthly_kpis.get("remi_vb_total", 0) > 0:
         _kpi_def.extend([
-            ("Vb REMI totale",              _it_num(monthly_kpis.get("remi_vb_total", 0), 0),     "Sm³"),
-            ("E REMI totale",               _it_num(monthly_kpis.get("remi_e_total", 0), 0),      "kWh"),
-            ("Portata media",               _it_num(monthly_kpis.get("remi_portata_media_smch", 0), 1), "Sm³/h"),
-            ("Potenza media",               _it_num(monthly_kpis.get("remi_potenza_media_mw", 0), 3),   "MW"),
-            ("PCI medio",                   _it_num(monthly_kpis.get("remi_energia_specifica_kwh_smc", 0), 3), "kWh/Sm³"),
+            (L["vb_remi"],                  num(monthly_kpis.get("remi_vb_total", 0), 0),         "Sm³"),
+            (L["e_remi"],                   num(monthly_kpis.get("remi_e_total", 0), 0),          "kWh"),
+            (L["portata_media"],            num(monthly_kpis.get("remi_portata_media_smch", 0), 1), "Sm³/h"),
+            (L["potenza_media"],            num(monthly_kpis.get("remi_potenza_media_mw", 0), 3),  "MW"),
+            (L["pci_medio"],                num(monthly_kpis.get("remi_energia_specifica_kwh_smc", 0), 3), "kWh/Sm³"),
         ])
     for k, v, u in _kpi_def:
         _kpis_rows.append([k, str(v), u])
@@ -456,14 +618,14 @@ def build_daily_pdf(
     # Vincoli normativi
     constraints = monthly_kpis.get("constraints_status") or []
     if constraints:
-        story.append(Paragraph("Vincoli normativi", s_h2))
-        _con_rows = [["Vincolo", "Esito", "Valore", "Limite", "Note"]]
+        story.append(Paragraph(L["vincoli"], s_h2))
+        _con_rows = [[L["vincolo"], L["esito"], L["valore"], L["limite"], L["note"]]]
         for c in constraints:
             _con_rows.append([
                 str(c.get("name", "")),
                 "OK" if c.get("ok") else "KO",
-                _it_num(c.get("value", 0), 2),
-                _it_num(c.get("limit", 0), 2),
+                num(c.get("value", 0), 2),
+                num(c.get("limit", 0), 2),
                 str(c.get("msg", ""))[:90],
             ])
         _con_tbl = Table(_con_rows, colWidths=[60 * mm, 18 * mm, 28 * mm, 28 * mm, 130 * mm],
@@ -501,7 +663,7 @@ def build_daily_pdf(
 
     # Indicazioni operative
     if guidance:
-        story.append(Paragraph("Indicazioni operative", s_h2))
+        story.append(Paragraph(L["indicazioni"], s_h2))
         for g in guidance:
             story.append(Paragraph(f"• {g}", s_body))
         story.append(Spacer(1, 4))
@@ -510,15 +672,15 @@ def build_daily_pdf(
     # PAGINA 3+ — TABELLA GIORNALIERA
     # =========================================================================
     story.append(PageBreak())
-    story.append(Paragraph("Tabella giornaliera — dettaglio per giorno", s_h2))
-    story.append(Paragraph(
-        "Verifica di sostenibilità: il controllo ufficiale è MENSILE. I valori "
-        "giornalieri di Saving GHG sono indicativi e non vincolanti.", s_caption))
+    story.append(Paragraph(L["tabella_daily"], s_h2))
+    story.append(Paragraph(L["tabella_intro"], s_caption))
     story.append(Spacer(1, 6))
 
     df = daily_df.copy()
     if "Data" in df.columns:
-        df["Data"] = pd.to_datetime(df["Data"], errors="coerce").dt.strftime("%d/%m/%Y")
+        df["Data"] = pd.to_datetime(df["Data"], errors="coerce").apply(
+            lambda x: date_fmt(x) if pd.notna(x) else ""
+        )
 
     # Accorcia header lunghi per occupare meglio la larghezza
     _header_map = {
@@ -537,11 +699,11 @@ def build_daily_pdf(
             v = r[c]
             if isinstance(v, float):
                 if "%" in c or "Saving" in c:
-                    row.append(_it_num(v, 2))
+                    row.append(num(v, 2))
                 elif "Sm³" in c and "ora" in c.lower():
-                    row.append(_it_num(v, 1))
+                    row.append(num(v, 1))
                 else:
-                    row.append(_it_num(v, 2))
+                    row.append(num(v, 2))
             else:
                 row.append("" if v is None else str(v))
         body_rows.append(row)
@@ -594,13 +756,11 @@ def build_daily_pdf(
     # =========================================================================
     if audit_trail:
         story.append(PageBreak())
-        story.append(Paragraph("Anagrafica simulazione & Audit Trail", s_h2))
-        story.append(Paragraph(
-            "Tracciabilità dei parametri usati per il calcolo di sostenibilità "
-            "(impianto, regime, soglie, override BMT/EF, fattori emissivi).", s_caption))
+        story.append(Paragraph(L["anagrafica"], s_h2))
+        story.append(Paragraph(L["anagrafica_intro"], s_caption))
         story.append(Spacer(1, 6))
 
-        rows = [["Voce", "Valore"]]
+        rows = [[L["voce"], L["valore"]]]
         for k, v in audit_trail.items():
             if isinstance(v, (list, tuple)):
                 v = " | ".join(str(x) for x in v)
