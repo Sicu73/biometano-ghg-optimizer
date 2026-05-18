@@ -2310,7 +2310,10 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                 _loaded = []
             _all_days = _gen_days(int(_do_year), int(_do_month))
             _data_map: dict = {d: {} for d in _all_days}
-            _hours_init: dict = {d: 24.0 for d in _all_days}
+            # Default 0 ore: impianto spento finché non si carica biomassa.
+            # Quando l'utente inserisce biomassa > 0 in un giorno, le ore
+            # vengono auto-settate a 24 (default produzione continua, post-edit).
+            _hours_init: dict = {d: 0.0 for d in _all_days}
             _remi_init: dict = {d: {"vb": 0.0, "e": 0.0, "qb_max": 0.0, "pci": 0.0, "rho": 0.0} for d in _all_days}
             for _e in _loaded:
                 if _e.date in _data_map:
@@ -2358,7 +2361,8 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                                                plant_id=_do_plant_safe)
                         _all_days = _gen_days(int(_do_year), int(_do_month))
                         _data_map = {d: {} for d in _all_days}
-                        _hours_reload: dict = {d: 24.0 for d in _all_days}
+                        # Default 0h: impianto spento per giorni senza dati DB.
+                        _hours_reload: dict = {d: 0.0 for d in _all_days}
                         _remi_reload: dict = {d: {"vb": 0.0, "e": 0.0, "qb_max": 0.0,
                                                    "pci": 0.0, "rho": 0.0} for d in _all_days}
                         for _e in _loaded:
@@ -2385,7 +2389,8 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                              key=f"{_key_prefix}do_btn_new", use_container_width=True):
                     _all_days = _gen_days(int(_do_year), int(_do_month))
                     st.session_state[_do_key] = {d: {} for d in _all_days}
-                    st.session_state[_hours_key] = {d: 24.0 for d in _all_days}
+                    # Default 0h dopo azzeramento: impianto spento.
+                    st.session_state[_hours_key] = {d: 0.0 for d in _all_days}
                     st.session_state[_do_key + "::remi"] = {d: {"vb": 0.0, "e": 0.0, "qb_max": 0.0, "pci": 0.0, "rho": 0.0} for d in _all_days}
                     st.success(_t("Mese azzerato. Inserisci nuovi dati nella tabella."))
 
@@ -2445,10 +2450,10 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                 return None
 
         # _hours_key è già definito sopra (stesso scope) — safety net per
-        # session reinizializzazioni parziali.
+        # session reinizializzazioni parziali. Default 0h (impianto spento).
         _remi_key = _do_key + "::remi"
         if _hours_key not in st.session_state:
-            st.session_state[_hours_key] = {_d: 24.0 for _d in _all_days}
+            st.session_state[_hours_key] = {_d: 0.0 for _d in _all_days}
         if _remi_key not in st.session_state:
             st.session_state[_remi_key] = {_d: {"vb": 0.0, "e": 0.0, "qb_max": 0.0, "pci": 0.0, "rho": 0.0} for _d in _all_days}
 
@@ -2456,7 +2461,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         _remi_map = st.session_state[_remi_key]
         # Garantisce che ci sia una entry per ogni giorno (aggiunge giorni nuovi)
         for _d in _all_days:
-            _hours_map.setdefault(_d, 24.0)
+            _hours_map.setdefault(_d, 0.0)
             _remi_map.setdefault(_d, {"vb": 0.0, "e": 0.0, "qb_max": 0.0, "pci": 0.0, "rho": 0.0})
 
         # =================================================================
@@ -2491,9 +2496,12 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                     for _col, _val in (_changes or {}).items():
                         if _col == _HOURS_COL:
                             try:
-                                _hours_map[_d_edit] = max(0.0, min(24.0, float(_val or 24.0)))
+                                # Se l'utente cancella la cella ore, default 0
+                                # (impianto spento). L'auto-popolamento a 24h
+                                # avviene piu' sotto solo se c'e' biomassa > 0.
+                                _hours_map[_d_edit] = max(0.0, min(24.0, float(_val or 0.0)))
                             except (TypeError, ValueError):
-                                _hours_map[_d_edit] = 24.0
+                                _hours_map[_d_edit] = 0.0
                         elif _col == "Sm³ reali giorno":
                             _remi_map[_d_edit]["vb"] = float(_val or 0.0)
                         elif _col == "E (kWh)":
@@ -2518,13 +2526,25 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                                         _data_map.pop(_d_edit, None)
                 except (ValueError, KeyError, IndexError):
                     continue
+            # Auto-popolamento ore: per ogni giorno con biomassa > 0 ma ore == 0
+            # (utente ha caricato biomassa senza specificare le ore) default 24h
+            # (produzione continua). Per giorni senza biomassa lasciamo 0h
+            # (impianto spento).
+            for _d_auto in _all_days:
+                _bio_day = sum(float(v) for v in (_data_map.get(_d_auto) or {}).values())
+                if _bio_day > 0 and float(_hours_map.get(_d_auto, 0.0)) == 0.0:
+                    _hours_map[_d_auto] = 24.0
+                elif _bio_day == 0 and float(_hours_map.get(_d_auto, 0.0)) > 0.0:
+                    # Caso opposto: biomassa rimossa ma ore restate. Le azzero
+                    # per coerenza (impianto senza alimentazione = spento).
+                    _hours_map[_d_auto] = 0.0
             # Persisti subito gli edits in session_state
             st.session_state[_do_key] = _data_map
             st.session_state[_hours_key] = _hours_map
 
         _entries_list = [
             _DEntry(date=_d, feedstocks=dict(_data_map.get(_d) or {}),
-                    hours_per_day=float(_hours_map.get(_d, 24.0)),
+                    hours_per_day=float(_hours_map.get(_d, 0.0)),
                     remi_vb=float(_remi_map[_d]["vb"]),
                     remi_e=float(_remi_map[_d]["e"]),
                     remi_qb_max=float(_remi_map[_d]["qb_max"]),
@@ -2656,7 +2676,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
 
         _edit_rows = []
         for _i, _d in enumerate(_all_days):
-            _h = float(_hours_map.get(_d, 24.0))
+            _h = float(_hours_map.get(_d, 0.0))
             _bio_row = 0.0
             _row = {"Data": _d.strftime("%d/%m/%Y"), _HOURS_COL: _h}
             for _f in _do_active_feeds:
@@ -2690,7 +2710,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         _sust_icon = "✅ SOSTENIBILE" if _is_sust_mtd else "❌ NON SOSTENIBILE"
         _totals_row = {
             "Data": "TOTALE MESE",
-            _HOURS_COL: sum(float(_hours_map.get(_d, 24.0)) for _d in _all_days)
+            _HOURS_COL: sum(float(_hours_map.get(_d, 0.0)) for _d in _all_days)
         }
         for _f in _do_active_feeds:
             _totals_row[_f] = sum(float((_data_map.get(_d) or {}).get(_f, 0.0)) for _d in _all_days)
@@ -2873,7 +2893,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         # totals_row venga aggiunta a _edit_rows). Se calcolassimo ora su
         # _edit_rows includeremmo la totals_row stessa (HOURS=744 + BIO=80)
         # gonfiando il divisore → Sm³/h medi sbagliati (es. 6,5 invece di 208).
-        _tot_hours = sum(float(_hours_map.get(_d, 24.0)) for _d in _all_days)
+        _tot_hours = sum(float(_hours_map.get(_d, 0.0)) for _d in _all_days)
         _tot_smh_gross = (_kpis.get('sm3_gross', 0.0) / _compiled_hours) if _compiled_hours > 0 else 0.0
         _tot_smh_net = (_kpis.get('sm3_netti', 0.0) / _compiled_hours) if _compiled_hours > 0 else 0.0
         _tot_remi_flow = (_kpis.get('remi_vb_total', 0.0) / _compiled_hours) if _compiled_hours > 0 else 0.0
