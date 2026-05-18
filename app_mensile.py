@@ -1793,6 +1793,189 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# =============================================================================
+# DESIGN POLISH v4 — micro-animazioni, KPI cards, hover, tab pills attivi
+# Iniettato come blocco additivo dopo il theme principale per restyling subtile
+# senza riscrivere il design system esistente (Material 3 Outfit).
+# =============================================================================
+st.markdown(
+    f"""
+    <style>
+    /* --- Animazioni globali --- */
+    @keyframes fadeInUp {{
+        from {{ opacity: 0; transform: translateY(12px); }}
+        to {{ opacity: 1; transform: translateY(0); }}
+    }}
+    @keyframes pulseDot {{
+        0%, 100% {{ box-shadow: 0 0 0 0 rgba(245,158,11,0.7); }}
+        50%      {{ box-shadow: 0 0 0 8px rgba(245,158,11,0); }}
+    }}
+    @keyframes shimmer {{
+        0% {{ background-position: -200% center; }}
+        100% {{ background-position: 200% center; }}
+    }}
+
+    /* --- Hero header: text gradient + entrance --- */
+    .methaniq-header {{
+        animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+        position: relative;
+    }}
+    .methaniq-header h1 {{
+        background: linear-gradient(135deg, #FFFFFF 0%, #FED7AA 50%, #FFFFFF 100%);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: shimmer 6s linear infinite;
+    }}
+    .methaniq-header::after {{
+        content: "● LIVE";
+        position: absolute;
+        top: 18px; right: 22px;
+        font-size: 0.62rem;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        color: #F59E0B;
+        background: rgba(245,158,11,0.12);
+        border: 1px solid rgba(245,158,11,0.35);
+        padding: 4px 10px;
+        border-radius: 999px;
+        animation: pulseDot 2s infinite;
+    }}
+
+    /* --- Tab principali: indicator gradient sotto il tab attivo --- */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 4px;
+        border-bottom: 1px solid rgba(148,163,184,0.18);
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        border-radius: 12px 12px 0 0 !important;
+        padding: 12px 20px !important;
+        font-weight: 600 !important;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        background: transparent !important;
+    }}
+    .stTabs [data-baseweb="tab"]:hover {{
+        background: rgba(245,158,11,0.08) !important;
+    }}
+    .stTabs [aria-selected="true"] {{
+        background: linear-gradient(180deg, rgba(245,158,11,0.10) 0%, transparent 100%) !important;
+        position: relative;
+    }}
+    .stTabs [aria-selected="true"]::after {{
+        content: "";
+        position: absolute;
+        bottom: -1px; left: 12px; right: 12px;
+        height: 3px;
+        background: linear-gradient(90deg, #F59E0B 0%, #EA580C 100%);
+        border-radius: 3px 3px 0 0;
+        box-shadow: 0 0 12px rgba(245,158,11,0.45);
+    }}
+
+    /* --- st.metric: card con backdrop + hover --- */
+    div[data-testid="stMetric"] {{
+        background: linear-gradient(135deg,
+            rgba(255,255,255,0.04) 0%,
+            rgba(245,158,11,0.04) 100%);
+        border: 1px solid rgba(148,163,184,0.15);
+        border-radius: 14px;
+        padding: 16px 18px;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }}
+    div[data-testid="stMetric"]:hover {{
+        transform: translateY(-2px);
+        border-color: rgba(245,158,11,0.4);
+        box-shadow: 0 8px 24px rgba(15,23,42,0.10);
+    }}
+    div[data-testid="stMetricValue"] {{
+        font-weight: 800 !important;
+        background: linear-gradient(135deg, currentColor 0%, currentColor 100%);
+        font-variant-numeric: tabular-nums;
+    }}
+    div[data-testid="stMetricLabel"] {{
+        font-size: 0.72rem !important;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        font-weight: 600 !important;
+        opacity: 0.75;
+    }}
+
+    /* --- Alert (info/warning/success/error): bordo accent left --- */
+    div[data-testid="stAlert"] {{
+        border-radius: 12px !important;
+        border-left-width: 4px !important;
+        animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }}
+
+    /* --- Expander: smooth + hover --- */
+    .streamlit-expanderHeader {{
+        transition: all 0.2s ease;
+        border-radius: 10px !important;
+    }}
+    .streamlit-expanderHeader:hover {{
+        background: rgba(245,158,11,0.06) !important;
+    }}
+
+    /* --- Sidebar headings: brand-aware --- */
+    section[data-testid="stSidebar"] h3,
+    section[data-testid="stSidebar"] h4 {{
+        font-size: 0.7rem !important;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        font-weight: 800 !important;
+        color: #F59E0B !important;
+        padding-top: 4px;
+    }}
+
+    /* --- DataFrame: rounded + shadow leggera --- */
+    div[data-testid="stDataFrame"], div[data-testid="stDataEditor"] {{
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+    }}
+
+    /* --- Download button: accent --- */
+    div[data-testid="stDownloadButton"] button {{
+        background: linear-gradient(135deg, #F59E0B 0%, #EA580C 100%) !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        font-weight: 700 !important;
+        box-shadow: 0 4px 12px rgba(245,158,11,0.25) !important;
+    }}
+    div[data-testid="stDownloadButton"] button:hover {{
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(245,158,11,0.40) !important;
+    }}
+    div[data-testid="stDownloadButton"] button:disabled {{
+        background: rgba(148,163,184,0.20) !important;
+        color: rgba(148,163,184,0.65) !important;
+        box-shadow: none !important;
+        cursor: not-allowed;
+    }}
+
+    /* --- Footer fisso minimal --- */
+    .methaniq-fixed-footer {{
+        position: fixed;
+        bottom: 8px; right: 14px;
+        font-size: 0.65rem;
+        opacity: 0.45;
+        font-weight: 600;
+        letter-spacing: 0.8px;
+        color: #F59E0B;
+        background: rgba(0,0,0,0.04);
+        padding: 4px 10px;
+        border-radius: 999px;
+        z-index: 100;
+        pointer-events: none;
+        font-family: 'Outfit', sans-serif;
+    }}
+    </style>
+    <div class="methaniq-fixed-footer">METAN.iQ · v0.4.0</div>
+    """,
+    unsafe_allow_html=True,
+)
+
 # Solver description banner
 st.markdown(
     f"<div style='background:{BG_SURFACE}; padding:14px 18px; border-radius:16px; "
