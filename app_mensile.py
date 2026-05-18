@@ -3785,20 +3785,46 @@ with tab_tech:
               fmt_it(ghg_threshold * 100, 0, "%"),
               delta=f"{_t('target solver')} {fmt_it(target_saving * 100, 0, '%')}")
 
-    # Nota: la tabella giornaliera NON viene duplicata qui. Gli override BMT/EF
-    # configurati in questo tab vengono applicati automaticamente al pannello
-    # giornaliero del tab "📆 Conduzione Giornaliera — Standard"; lì compare la
-    # sezione "📊 Confronto Standard vs Analisi" che mostra i due scenari a
-    # confronto. Una sola fonte di dati giornalieri evita confusione e doppi
-    # input. Rimosso _render_daily_ops_panel(_key_prefix="tech_") (era duplicato).
-    st.info(
-        "ℹ️ " + _t(
-            "Gli override BMT / Fattori Emissivi configurati qui sono applicati "
-            "automaticamente al pannello giornaliero del tab "
-            "**📆 Conduzione Giornaliera — Standard**, dove vedrai la sezione "
-            "**📊 Confronto Standard vs Analisi** con i due scenari a confronto."
+    # =================================================================
+    # TABELLA GIORNALIERA — modalità ANALISI.
+    # Compare SOLO quando l'utente ha caricato almeno un override BMT (lab)
+    # o un override Fattori Emissivi (relazione tecnica). Stesso input di
+    # biomasse/ore del tab Standard (session_state condivisa), ma i KPI e
+    # la sostenibilità vengono ricalcolati con i parametri personalizzati.
+    # Senza override la tabella non è disponibile: l'impianto sceglie quale
+    # modalità usare in base ai certificati realmente disponibili.
+    # =================================================================
+    _tech_has_bmt = bool(_EFFECTIVE_YIELDS)
+    _tech_has_ef = bool(_EMISSION_OVERRIDES)
+    _tech_has_any = _tech_has_bmt or _tech_has_ef
+
+    st.markdown("---")
+    if _tech_has_any:
+        _tech_badges = []
+        if _tech_has_bmt:
+            _tech_badges.append(f"🧪 {len(_EFFECTIVE_YIELDS)} BMT lab")
+        if _tech_has_ef:
+            _tech_badges.append(f"🧬 {len(_EMISSION_OVERRIDES)} EF su misura")
+        st.success(
+            "✅ " + _t("Modalità Analisi attiva") + " · " + " · ".join(_tech_badges)
         )
-    )
+        st.caption(_t(
+            "I dati giornalieri sono condivisi col tab Standard; qui vengono "
+            "ricalcolati con i tuoi BMT lab / Fattori Emissivi personalizzati. "
+            "Conformità DM 2022 verificata sul totale mensile."
+        ))
+        _render_daily_ops_panel(_key_prefix="tech_")
+    else:
+        st.info(
+            "ℹ️ " + _t(
+                "La tabella di **modalità Analisi** si attiva quando hai a "
+                "disposizione almeno un certificato: carica un override **BMT "
+                "(laboratorio)** o un override **Fattori Emissivi (relazione "
+                "tecnica)** nelle sezioni qui sopra. Senza override usa il "
+                "tab **📆 Conduzione Giornaliera — Standard** con i valori "
+                "tabellari UNI-TS / RED III."
+            )
+        )
 
 with tab_business:
     # ============================================================
