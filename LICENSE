@@ -1,0 +1,80 @@
+PROPRIETARY LICENSE — METAN.iQ
+Biometano GHG Optimizer (DM 2022 / RED III)
+
+Copyright (c) 2026 Carlo Sicurini.
+All Rights Reserved. — Tutti i diritti riservati.
+
+================================================================================
+ITALIANO
+================================================================================
+
+Tutti i diritti di proprietà intellettuale, copyright, marchi, design e know-how
+relativi a questo software (di seguito "Software"), inclusi codice sorgente,
+algoritmi, modelli di calcolo GHG, motore di ottimizzazione, design system,
+documentazione, dataset di rese biomasse, fattori emissivi, layout UI e logo
+"Metan.iQ", sono e restano di proprietà esclusiva di Carlo Sicurini.
+
+E' VIETATO senza autorizzazione scritta esplicita del titolare:
+
+  1. Copiare, riprodurre, modificare, ridistribuire, sublicenziare o vendere
+     il Software, in tutto o in parte.
+  2. Eseguire reverse engineering, decompilare, disassemblare il Software o
+     derivarne lavori basati su di esso.
+  3. Rimuovere, alterare od occultare avvisi di copyright, marchi o altre
+     informazioni proprietarie presenti nel Software.
+  4. Utilizzare il Software per finalità commerciali, di consulenza o di
+     analisi a beneficio di terzi.
+  5. Riprodurre o riutilizzare nome, logo "Metan.iQ", o segni distintivi
+     associati al prodotto in lavori derivati o concorrenti.
+
+L'accesso al codice sorgente, ove concesso, è strettamente personale e non
+trasferibile. L'utilizzo del Software non concede alcuna licenza implicita
+o esplicita, eccetto quelle espressamente concesse per iscritto.
+
+IL SOFTWARE E' FORNITO "COSI' COM'E'", SENZA GARANZIE DI ALCUN TIPO, ESPLICITE
+O IMPLICITE, INCLUSE — A TITOLO ESEMPLIFICATIVO E NON ESAUSTIVO — LE GARANZIE
+DI COMMERCIABILITA', IDONEITA' AD UN PARTICOLARE SCOPO E NON VIOLAZIONE.
+
+L'AUTORE NON SARA' RESPONSABILE PER ALCUN DANNO, DIRETTO O INDIRETTO,
+INCIDENTALE O CONSEQUENZIALE, DERIVANTE DALL'USO O DALL'IMPOSSIBILITA' DI USO
+DEL SOFTWARE.
+
+Per richieste di licenza commerciale, partnership o collaborazione:
+    Carlo Sicurini — carlo@apros-ra.com
+
+================================================================================
+ENGLISH
+================================================================================
+
+All intellectual property rights, copyright, trademarks, design and know-how
+related to this software (hereinafter the "Software"), including source code,
+algorithms, GHG calculation models, optimization engine, design system,
+documentation, biomass yield datasets, emission factors, UI layout, and the
+"Metan.iQ" logo, are and remain the exclusive property of Carlo Sicurini.
+
+WITHOUT the prior explicit written consent of the holder, it is PROHIBITED to:
+
+  1. Copy, reproduce, modify, redistribute, sublicense, or sell the Software,
+     in whole or in part.
+  2. Perform reverse engineering, decompile, disassemble the Software, or
+     create derivative works based on it.
+  3. Remove, alter, or obscure copyright notices, trademarks, or other
+     proprietary information present in the Software.
+  4. Use the Software for commercial purposes, consulting, or analyses for
+     the benefit of third parties.
+  5. Reproduce or reuse the "Metan.iQ" name, logo, or any distinctive sign
+     associated with the product in derivative or competing works.
+
+Access to source code, if granted, is strictly personal and non-transferable.
+Use of the Software does not grant any implicit or explicit license, except
+those expressly granted in writing.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+THE AUTHOR SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR
+CONSEQUENTIAL DAMAGES ARISING FROM THE USE OR INABILITY TO USE THE SOFTWARE.
+
+For commercial licensing, partnership, or collaboration inquiries:
+    Carlo Sicurini — carlo@apros-ra.com
