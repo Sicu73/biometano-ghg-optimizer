@@ -1744,11 +1744,14 @@ st.markdown(
         position: absolute;
         top: -30%;
         right: -10%;
-        width: 400px;
-        height: 400px;
-        background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+        width: 320px;
+        height: 320px;
+        background: radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 60%);
         border-radius: 50%;
+        pointer-events: none;
+        z-index: 0;
     }}
+    .methaniq-header > * {{ position: relative; z-index: 1; }}
     .methaniq-header h1 {{
         color: white !important;
         font-size: 3.5rem !important;
@@ -1767,7 +1770,8 @@ st.markdown(
     }}
     .methaniq-header .pills {{
         display: flex;
-        gap: 12px;
+        flex-wrap: wrap;
+        gap: 10px;
         margin-top: 32px;
     }}
     .methaniq-header .pill {{
@@ -1873,7 +1877,7 @@ st.markdown(
         animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
         position: relative;
     }}
-    .methaniq-header::after {{
+    .methaniq-header::before {{
         content: "● LIVE";
         position: absolute;
         top: 18px; right: 22px;
@@ -1886,6 +1890,7 @@ st.markdown(
         padding: 4px 10px;
         border-radius: 999px;
         animation: pulseDot 2s infinite;
+        z-index: 2;
     }}
 
     /* --- Tab principali: indicator gradient sotto il tab attivo
@@ -1988,6 +1993,47 @@ st.markdown(
         color: rgba(148,163,184,0.65) !important;
         box-shadow: none !important;
         cursor: not-allowed;
+    }}
+
+    /* --- RESPONSIVE: aggiustamenti per viewport stretti (mobile/tablet) --- */
+    @media (max-width: 768px) {{
+        .methaniq-header h1 {{
+            font-size: 2.4rem !important;
+        }}
+        .methaniq-header .tagline {{
+            font-size: 1rem !important;
+        }}
+        .methaniq-header::after {{
+            width: 180px !important;
+            height: 180px !important;
+        }}
+        .methaniq-header::before {{
+            top: 10px !important;
+            right: 12px !important;
+            font-size: 0.55rem !important;
+            padding: 3px 8px !important;
+        }}
+        .methaniq-header .pill {{
+            font-size: 0.75rem !important;
+            padding: 6px 14px !important;
+        }}
+        /* Stack i metric in colonne più strette */
+        div[data-testid="stMetricValue"] {{
+            font-size: 1.1rem !important;
+        }}
+        /* Tabella riga TOTALE MESE: scroll orizzontale invece di troncare */
+        .stMarkdown table {{
+            font-size: 0.65rem !important;
+        }}
+    }}
+    @media (max-width: 480px) {{
+        .methaniq-header h1 {{
+            font-size: 2rem !important;
+        }}
+        .methaniq-header .pill {{
+            font-size: 0.7rem !important;
+            padding: 5px 12px !important;
+        }}
     }}
 
     /* --- Footer fisso minimal --- */
