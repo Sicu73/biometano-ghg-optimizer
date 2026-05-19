@@ -1,0 +1,85 @@
+[project]
+name = "metaniq"
+version = "0.4.1"
+description = "Metan.iQ — Decision Intelligence Platform per biometano DM 2022 / RED III. Pianificazione mensile, ottimizzazione GHG, business plan e reporting."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Carlo Sicurini", email = "carlo.sicurini@gmail.com" }
+]
+keywords = ["biomethane", "biometano", "GHG", "RED III", "DM 2022", "sustainability", "energy", "streamlit"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Intended Audience :: End Users/Desktop",
+    "License :: Other/Proprietary License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+]
+
+dependencies = [
+    "streamlit>=1.30.0,<2.0.0",
+    "plotly>=5.18.0,<7.0.0",
+    "pandas>=2.1.0,<3.0.0",
+    "numpy>=1.26.0,<3.0.0",
+    "scipy>=1.11.0,<2.0.0",
+    "reportlab>=4.0.0,<5.0.0",
+    "openpyxl>=3.1.0,<4.0.0",
+    "python-pptx>=0.6.21,<2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0,<9.0.0",
+    "pytest-cov>=4.1.0,<7.0.0",
+    "ruff>=0.5.0,<1.0.0",
+    "mypy>=1.8.0,<2.0.0",
+]
+monitoring = [
+    "sentry-sdk>=1.45.0,<3.0.0",
+]
+
+[project.urls]
+Homepage = "https://appco-6lmzj97bbbw8ndlwnvnocf.streamlit.app/"
+Repository = "https://github.com/Sicu73/biometano-ghg-optimizer"
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".git", "__pycache__", "build", "dist", "docs/archive"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "RUF"]
+ignore = [
+    "E501",  # line too long (codice legacy con tante f-string HTML lunghe)
+    "B008",  # function call as default arg (Streamlit pattern comune)
+    "RUF001", "RUF002", "RUF003",  # ambiguous unicode chars (servono accenti IT)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = ["B011"]  # assert in test
+"app_mensile.py" = ["E402"]  # module-level imports after non-import (Streamlit pattern)
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = false
+warn_unused_configs = true
+ignore_missing_imports = true
+strict_optional = false
+disable_error_code = ["import-untyped", "no-untyped-def"]
+exclude = ["docs/", "tests/"]

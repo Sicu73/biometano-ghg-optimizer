@@ -1,9 +1,14 @@
-streamlit>=1.30.0
-plotly>=5.18.0
-pandas>=2.1.0
-numpy>=1.26.0
-scipy>=1.11.0
-reportlab>=4.0.0
-openpyxl>=3.1.0
-python-pptx>=0.6.21
-# rebuild: bilingual switch
+# Metan.iQ — runtime dependencies.
+# Pin con range upper bound per evitare breaking changes da major release
+# inaspettati, ma permettere patch/minor updates di sicurezza.
+streamlit>=1.30.0,<2.0.0
+plotly>=5.18.0,<7.0.0
+pandas>=2.1.0,<3.0.0
+numpy>=1.26.0,<3.0.0
+scipy>=1.11.0,<2.0.0
+reportlab>=4.0.0,<5.0.0
+openpyxl>=3.1.0,<4.0.0
+python-pptx>=0.6.21,<2.0.0
+
+# Optional: error tracking (Fase 1.6). Commenta se non vuoi Sentry.
+sentry-sdk>=1.45.0,<3.0.0

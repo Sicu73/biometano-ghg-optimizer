@@ -281,8 +281,12 @@ def build_daily_pdf(
     # =========================================================================
     # HEADER / FOOTER per pagine 2+
     # =========================================================================
-    _plant_name = str(audit_trail.get("Nome impianto") or "—")
-    _company = str(audit_trail.get("Nome azienda") or "—")
+    # XSS hardening: input utente sanitizzato. ReportLab Paragraph interpreta
+    # tag XML/HTML (<b>, <font>, ...): valori non escape potrebbero rompere
+    # il rendering o iniettare stile.
+    import html as _html
+    _plant_name = _html.escape(str(audit_trail.get("Nome impianto") or "—"))
+    _company = _html.escape(str(audit_trail.get("Nome azienda") or "—"))
     _regime = str(monthly_kpis.get("regime") or audit_trail.get("Regime applicato") or "DM 2022")
     _gen_at = datetime.now().strftime("%d/%m/%Y %H:%M") if lang != "en" else datetime.now().strftime("%b %d, %Y %H:%M")
 

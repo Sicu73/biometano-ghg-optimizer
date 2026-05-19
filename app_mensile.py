@@ -16,6 +16,7 @@ Riferimenti:
 - Parametri feedstock: letteratura tecnica e valori tipici Consorzio Monviso
 """
 
+import html as _html
 import json
 import urllib.request
 from pathlib import Path
@@ -2510,14 +2511,16 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         # =================================================================
         # HEADER + selettore periodo
         # =================================================================
-        # Badge anagrafica (solo se compilata)
+        # Badge anagrafica (solo se compilata). XSS hardening: ogni stringa
+        # proveniente da input utente passa per html.escape() prima di entrare
+        # in markdown con unsafe_allow_html=True.
         _anag_badge = ""
         if COMPANY_NAME or PLANT_NAME:
             _badge_parts = []
             if COMPANY_NAME:
-                _badge_parts.append(f"🏢 <b>{COMPANY_NAME}</b>")
+                _badge_parts.append(f"🏢 <b>{_html.escape(str(COMPANY_NAME))}</b>")
             if PLANT_NAME:
-                _badge_parts.append(f"🏭 {PLANT_NAME}")
+                _badge_parts.append(f"🏭 {_html.escape(str(PLANT_NAME))}")
             _anag_badge = (
                 f"<div style='display:inline-block;background:{AMBER}15;"
                 f"color:{NAVY};padding:4px 10px;border-radius:6px;"

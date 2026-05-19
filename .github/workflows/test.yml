@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, dm2022-only]
+  pull_request:
+    branches: [main, master, dm2022-only]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Tests & Lint (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: ruff check .
+        continue-on-error: true  # avviso ma non blocca (legacy codebase, abilita strict in futuro)
+
+      - name: Type check (mypy)
+        run: mypy core/ output/ export/
+        continue-on-error: true  # idem, abilita strict in futuro
+
+      - name: Tests (pytest)
+        run: pytest tests/ -v --tb=short

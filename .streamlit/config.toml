@@ -1,0 +1,28 @@
+# Metan.iQ — Streamlit config
+# Theme brand (Navy + Amber) e impostazioni server.
+
+[theme]
+# Tema light by default (lo switcher in-app gestisce light/dark dinamicamente)
+base = "light"
+primaryColor = "#F59E0B"           # Amber (accent brand)
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F8FAFC"
+textColor = "#0F1F33"               # Navy dark
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+# Limita upload a 50 MB (override default 200 MB) — riduce abuso
+maxUploadSize = 50
+enableXsrfProtection = true
+enableCORS = false
+
+[client]
+showErrorDetails = false           # in produzione: niente stack trace visibili all'utente
+toolbarMode = "minimal"            # nasconde "Made with Streamlit" footer e menu dev
+
+[runner]
+magicEnabled = false               # disabilita print automatici da `df` standalone, evita leak debug
+fastReruns = true                  # rerun più veloci ad ogni interazione
