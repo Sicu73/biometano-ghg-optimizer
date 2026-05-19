@@ -1369,11 +1369,76 @@ ACCENT      = AMBER
 BORDER      = "#E2E8F0"
 TEXT_MUTED   = "#73777F"
 
+# =============================================================================
+# BRAND BADGE — in cima alla sidebar (identità del prodotto prima delle
+# impostazioni). Colori hardcoded perché PRIMARY/SECONDARY/ACCENT vengono
+# definite a riga 1597+ (dopo questa posizione). Hard-code coerenti col tema
+# dark navy del badge originale.
+# =============================================================================
+_BRAND_PRIMARY = "#006494"      # match PRIMARY (Material 3 navy)
+_BRAND_SECONDARY = "#4A6267"    # match SECONDARY (muted teal)
+_BRAND_ACCENT = "#F59E0B"       # match ACCENT (amber)
+_brand_badge_label = "Biometano · DM 2022"  # match _MODE['badge'] biometano
+
 with st.sidebar:
     st.markdown(
         f"""
-        <div style='font-size:0.85rem; font-weight:800; letter-spacing:1.5px; 
-             text-transform:uppercase; color:{AMBER}; margin-bottom:15px; border-bottom: 2px solid {AMBER}; padding-bottom:4px;'>
+        <div style='
+            padding: 18px 16px;
+            background: linear-gradient(135deg, {_BRAND_PRIMARY} 0%, {_BRAND_SECONDARY} 100%);
+            border-radius: 16px;
+            margin-bottom: 18px;
+            box-shadow: 0 4px 12px rgba(0,100,148,0.20);
+            border: 1px solid rgba(255,255,255,0.08);
+            overflow: hidden;
+            position: relative;
+        '>
+            <div style='
+                font-family: "Outfit", sans-serif;
+                color: {_BRAND_ACCENT};
+                font-size: 0.62em;
+                font-weight: 600;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                margin-bottom: 6px;
+            '>// PLATFORM</div>
+            <div style='
+                font-family: "Outfit", sans-serif;
+                color: #FFFFFF;
+                font-size: 1.55em;
+                font-weight: 700;
+                letter-spacing: -0.8px;
+                line-height: 1;
+            '>Metan<span style="color:{_BRAND_ACCENT};">.</span>iQ</div>
+            <div style='
+                font-size: 0.72em;
+                color: #94A3B8;
+                margin-top: 6px;
+                font-weight: 400;
+            '>by <span style='color:#E2E8F0; font-weight:600;'>Carlo Sicurini</span></div>
+            <div style='
+                margin-top: 12px;
+                padding-top: 10px;
+                border-top: 1px solid rgba(255,255,255,0.08);
+                font-size: 0.62em;
+                color: #CBD5E1;
+                font-weight: 400;
+                letter-spacing: 1px;
+                text-transform: uppercase;
+            '>{_brand_badge_label}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+# Selettore Italiano / English subito sotto il brand badge.
+_LANG = render_lang_selector()
+
+with st.sidebar:
+    st.markdown(
+        f"""
+        <div style='font-size:0.85rem; font-weight:800; letter-spacing:1.5px;
+             text-transform:uppercase; color:{AMBER}; margin-bottom:15px; border-bottom: 2px solid {AMBER}; padding-bottom:4px; margin-top:18px;'>
              ⚙️ Settings / Opzioni
         </div>
         """,
@@ -2077,66 +2142,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ------------------------- SIDEBAR BADGE -------------------------
+# Brand badge + lang selector ora sono in cima alla sidebar (vedi spostamento
+# subito prima del blocco 'Settings / Opzioni' a riga ~1372). Qui resta solo
+# la sezione successiva ('Taglia Impianto').
 _mode_label = _MODE["badge"]
-
-with st.sidebar:
-    st.markdown(
-        f"""
-        <div style='
-            padding: 18px 16px;
-            background: linear-gradient(135deg, {PRIMARY} 0%, {SECONDARY} 100%);
-            border-radius: 16px;
-            margin-bottom: 18px;
-            box-shadow: 0 4px 12px rgba(0,100,148,0.20);
-            border: 1px solid rgba(255,255,255,0.08);
-            overflow: hidden;
-            position: relative;
-        '>
-            <div style='
-                font-family: "Outfit", sans-serif;
-                color: {ACCENT};
-                font-size: 0.62em;
-                font-weight: 600;
-                letter-spacing: 2px;
-                text-transform: uppercase;
-                margin-bottom: 6px;
-            '>// PLATFORM</div>
-            <div style='
-                font-family: "Outfit", sans-serif;
-                color: #FFFFFF;
-                font-size: 1.55em;
-                font-weight: 700;
-                letter-spacing: -0.8px;
-                line-height: 1;
-            '>Metan<span style="color:{ACCENT};">.</span>iQ</div>
-            <div style='
-                font-size: 0.72em;
-                color: #94A3B8;
-                margin-top: 6px;
-                font-weight: 400;
-            '>by <span style='color:#E2E8F0; font-weight:600;'>Carlo Sicurini</span></div>
-            <div style='
-                margin-top: 12px;
-                padding-top: 10px;
-                border-top: 1px solid rgba(255,255,255,0.08);
-                font-size: 0.62em;
-                color: #CBD5E1;
-                font-weight: 400;
-                letter-spacing: 1px;
-                text-transform: uppercase;
-            '>{_mode_label}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-# Selettore Italiano / English subito SOTTO il brand badge (Carlo: "il
-# blocco Metan.iQ / by Carlo Sicurini / Biometano va in cima, sopra le
-# bandiere"). Il render avviene DOPO la chiusura del `with st.sidebar`
-# brand, ma render_lang_selector() chiama st.sidebar.* internamente,
-# quindi il widget va a finire comunque nella sidebar nell'ordine corretto.
-_LANG = render_lang_selector()
 
 with st.sidebar:
     st.markdown("---")
