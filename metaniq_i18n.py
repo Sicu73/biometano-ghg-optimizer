@@ -543,4 +543,12 @@ IT_EN: dict = {
     "Inserisci i dati da «Gestione Giornaliera».":
         "Enter data from «Daily Management».",
     "Gestione Giornaliera": "Daily Management",
+    # Footer legale sidebar
+    "Termini & Privacy": "Terms & Privacy",
+    "Privacy": "Privacy",
+    "Termini di Servizio": "Terms of Service",
+    "Licenza": "License",
+    "Documento non disponibile": "Document not available",
+    "Licenza non disponibile.": "License not available.",
+    "Tutti i diritti riservati": "All rights reserved",
 }

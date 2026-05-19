@@ -5958,3 +5958,49 @@ with tab_business:
 
 with tab_daily:
     _render_daily_ops_panel()
+
+
+# =============================================================================
+# FOOTER SIDEBAR — link legali (Privacy, Terms, License) come expander
+# Compare in fondo alla sidebar. Espandere mostra il contenuto inline.
+# =============================================================================
+def _load_legal_text(filename: str) -> str:
+    """Best-effort load di un file markdown legale; restituisce stringa
+    placeholder se non disponibile (es. deploy che non include legal/)."""
+    try:
+        p = Path(__file__).resolve().parent / "legal" / filename
+        if p.is_file():
+            return p.read_text(encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        pass
+    return f"_({_t('Documento non disponibile')} — {filename})_"
+
+
+with st.sidebar:
+    st.markdown(
+        "<div style='margin-top:24px; padding-top:14px; "
+        "border-top:1px solid rgba(148,163,184,0.18);'></div>",
+        unsafe_allow_html=True,
+    )
+    with st.expander("📜 " + _t("Termini & Privacy"), expanded=False):
+        _legal_t1, _legal_t2, _legal_t3 = st.tabs([
+            _t("Privacy"), _t("Termini di Servizio"), _t("Licenza"),
+        ])
+        with _legal_t1:
+            st.markdown(_load_legal_text("privacy.md"))
+        with _legal_t2:
+            st.markdown(_load_legal_text("terms.md"))
+        with _legal_t3:
+            try:
+                _lic_path = Path(__file__).resolve().parent / "LICENSE"
+                st.text(_lic_path.read_text(encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                st.caption(_t("Licenza non disponibile."))
+    st.markdown(
+        f"<div style='font-size:0.65rem; color:#94A3B8; margin-top:6px; "
+        f"text-align:center; opacity:0.8;'>"
+        f"© 2026 Carlo Sicurini · Metan.iQ · v{_APP_VERSION}<br/>"
+        f"<span style='font-size:0.6rem;'>{_html.escape(_t('Tutti i diritti riservati'))}</span>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
