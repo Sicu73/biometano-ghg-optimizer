@@ -1356,8 +1356,11 @@ st.set_page_config(
 if "methaniq_theme" not in st.session_state:
     st.session_state.methaniq_theme = "light"
 
-# ── LINGUA: selettore Italiano/English (prima cosa in sidebar) ──────────────
-_LANG = render_lang_selector()
+# Nota: il selettore lingua è renderizzato in sidebar SUBITO DOPO il brand
+# badge (Metan.iQ / Carlo Sicurini / Biometano), così la testata della
+# sidebar mostra prima l'identità del prodotto e poi le impostazioni utente.
+# Vedi `_LANG = render_lang_selector()` dopo `with st.sidebar:` brand block.
+_LANG = get_lang()  # bootstrap iniziale dal session_state per i moduli a valle
 MONTHS = [_t(m) for m in MONTHS]
 
 # ── Colori provvisori per sidebar (definiti prima del Design System completo) ──
@@ -2127,6 +2130,15 @@ with st.sidebar:
         """,
         unsafe_allow_html=True,
     )
+
+# Selettore Italiano / English subito SOTTO il brand badge (Carlo: "il
+# blocco Metan.iQ / by Carlo Sicurini / Biometano va in cima, sopra le
+# bandiere"). Il render avviene DOPO la chiusura del `with st.sidebar`
+# brand, ma render_lang_selector() chiama st.sidebar.* internamente,
+# quindi il widget va a finire comunque nella sidebar nell'ordine corretto.
+_LANG = render_lang_selector()
+
+with st.sidebar:
     st.markdown("---")
     st.markdown("### " + _t("🎯 Taglia Impianto"))
 
