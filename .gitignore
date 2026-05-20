@@ -17,3 +17,16 @@ data/
 # Runtime logs (core/logging_setup.py — RotatingFileHandler)
 logs/
 *.log
+
+# Tool caches (ruff, mypy, pytest)
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.egg

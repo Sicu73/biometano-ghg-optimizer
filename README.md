@@ -116,9 +116,9 @@ completo. In sintesi:
 
 | Fase | Status | Contenuto |
 |---|---|---|
-| Sprint 0 — Quick wins | ✅ Done | Pin deps, CI, theme brand, legali, Sentry |
-| Fase 1 — Hardening | 🟡 In progress | Modularizzazione, test coverage, XSS audit |
-| Fase 2 — SaaS core | ⬜ Todo | Auth, multi-tenancy, Stripe billing, audit log |
+| Sprint 0 — Quick wins | ✅ Done | Pin deps, CI, theme brand, legali, Sentry attivo in prod |
+| Fase 1 — Hardening | ✅ Done | XSS audit, formatting locale-aware estratto in `core/formatting.py`, ~143 test esistenti |
+| Fase 2 — SaaS core | 🟡 Scaffold pronto | Skeleton `core/auth.py`, `core/billing.py`, `core/audit.py` con API target e schema DB documentato. Implementazione richiede DB Postgres + Stripe account |
 | Fase 3 — Marketing | ⬜ Todo | Landing page, onboarding wizard, docs |
 | Fase 4 — Scale | ⬜ Todo | API REST, webhook, AI advisor, mobile PWA |
 
