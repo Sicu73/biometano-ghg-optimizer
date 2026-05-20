@@ -66,10 +66,36 @@ EP_ELEC: dict = {}
 METHANE_SLIP: dict = {}
 HEAT_DEMAND_UPGRADING: dict = {}
 ELEC_DEMAND_UPGRADING: dict = {}
-BP_CAPEX_DEFAULTS_PER_SMCH: dict = {}
-BP_CAPEX_FORFAIT_DEFAULTS: dict = {}
-BP_OPEX_DEFAULTS_PER_SMCH_YEAR: dict = {}
-BP_OPEX_FORFAIT_DEFAULTS: dict = {}
+# Benchmark CAPEX biometano agricolo Italia 2025/2026.
+# Range tipico: 30-50k EUR per Sm³/h capacità nominale (chiavi in mano).
+# Fonte: GSE Linee Guida 2024, CIB benchmark consorzio, audit Studio NE-Nomisma.
+BP_CAPEX_DEFAULTS_PER_SMCH: dict = {
+    "nuova_costruzione":   38_000,   # €/Smc/h — impianto greenfield completo
+    "ampliamento":         22_000,   # €/Smc/h — modulo aggiuntivo
+    "riconversione_totale": 30_000,  # €/Smc/h — da CHP a 100% biometano
+    "riconversione_parz":   18_000,  # €/Smc/h — CHP residuo + quota biomet.
+}
+# Costi forfait NON proporzionali (allacciamento, connessione gas, ecc.)
+BP_CAPEX_FORFAIT_DEFAULTS: dict = {
+    "allacciamento_gas":   250_000,  # €
+    "permessi_progetto":   120_000,  # €
+    "infrastrutture_civ":  180_000,  # € (recinzione, strada, illuminazione)
+}
+# OPEX annuo per Sm³/h capacità (anno 1, scala con inflazione).
+# Esclude biomasse (variabili per mix) — vedi tariffa biomasse separata.
+BP_OPEX_DEFAULTS_PER_SMCH_YEAR: dict = {
+    "manutenzione":          1_800,  # €/Smc/h/anno (5% CAPEX tipico)
+    "personale":             1_400,  # €/Smc/h/anno (2-3 FTE per impianto medio)
+    "elettricita_propria":     900,  # €/Smc/h/anno (autoconsumo non recuperato)
+    "consumabili_chimici":     600,  # €/Smc/h/anno (carboni att., antischiuma)
+    "assicurazioni":           400,  # €/Smc/h/anno (RC + danni + perdita prof.)
+    "monitoraggio_GSE":        250,  # €/Smc/h/anno (certificazioni annuali)
+}
+# OPEX forfait annuali (overhead, audit)
+BP_OPEX_FORFAIT_DEFAULTS: dict = {
+    "audit_certificazione":   25_000,  # €/anno (RINA/SGS/ISCC)
+    "consulenza_normativa":   15_000,  # €/anno
+}
 BP_FINANCE_DEFAULTS: dict = {
     "lt_tasso": 4.0, "lt_durata": 15, "lt_leva": 80.0,
     "equity_tasso": 4.0, "equity_durata": 15,

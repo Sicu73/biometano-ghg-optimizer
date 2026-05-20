@@ -544,6 +544,60 @@ IT_EN: dict = {
         "Enter data from «Daily Management».",
     "Gestione Giornaliera": "Daily Management",
     # Footer legale sidebar
+    # Business Plan engine (Fase 2 — sezione Risultati & BP)
+    "Business Plan Completo (15 anni)": "Complete Business Plan (15 years)",
+    "Engine finanziario multi-anno con IRR, NPV, Payback. "
+    "Personalizza CAPEX/OPEX/finanziamento per ottenere un piano economico "
+    "accurato del tuo impianto. Default basati su benchmark settore 2025.":
+        "Multi-year financial engine with IRR, NPV, Payback. Customize "
+        "CAPEX/OPEX/financing for an accurate economic plan. Defaults from "
+        "2025 sector benchmark.",
+    "Parametri CAPEX / OPEX / Finanziamento": "CAPEX / OPEX / Financing parameters",
+    "Investimento (CAPEX)": "Investment (CAPEX)",
+    "Costi operativi (OPEX)": "Operating costs (OPEX)",
+    "Finanziamento": "Financing",
+    "a fondo perduto": "non-repayable grant",
+    "Benchmark settore 2025: 30-45k €/Smc/h "
+    "per nuova costruzione chiavi in mano":
+        "Sector benchmark 2025: 30-45k €/Sm³/h for new greenfield plants",
+    "Quota CAPEX coperta da contributo PNRR. "
+    "Tipico 30-40% se selezionato":
+        "CAPEX share covered by PNRR grant. Typical 30-40% if granted",
+    "Manutenzione + personale + elettricità + "
+    "consumabili + assicurazioni + monitoraggio":
+        "Maintenance + staff + electricity + consumables + insurance + monitoring",
+    "Inflazione OPEX": "OPEX inflation",
+    "Leva debito": "Debt leverage",
+    "Tasso interesse": "Interest rate",
+    "Durata mutuo": "Loan duration",
+    "WACC discount": "WACC discount",
+    "anni": "years",
+    "Ricavi": "Revenue",
+    "OPEX": "OPEX",
+    "Interessi": "Interest",
+    "Imposte": "Taxes",
+    "CFO": "OCF",
+    "Rata capitale": "Principal payment",
+    "Debito residuo": "Outstanding debt",
+    "FCF cumulato": "Cumulative FCF",
+    "Anno": "Year",
+    "Ricavo annuo": "Annual revenue",
+    "CAPEX totale": "Total CAPEX",
+    "Equity richiesto": "Equity required",
+    "Payback": "Payback",
+    "Rendimento interno sul capitale proprio investito":
+        "Internal rate of return on invested equity",
+    "Valore Attuale Netto del progetto scontato a WACC":
+        "Net Present Value of project discounted at WACC",
+    "Anni per recuperare l'equity investito":
+        "Years to recoup invested equity",
+    "Cash Flow Equity per anno + Cumulato (break-even visivo)":
+        "Annual Equity Cash Flow + Cumulative (visual break-even)",
+    "KPI economici calcolati con CAPEX/OPEX di default. "
+    "Personalizza nella sezione **💼 Business Plan completo** in fondo al tab.":
+        "Economic KPIs computed with default CAPEX/OPEX. Customize in the "
+        "**💼 Complete Business Plan** section at the bottom of the tab.",
+    # Pre-existing
     "Termini & Privacy": "Terms & Privacy",
     "Privacy": "Privacy",
     "Termini di Servizio": "Terms of Service",

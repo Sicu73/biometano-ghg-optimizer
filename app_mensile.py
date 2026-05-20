@@ -4489,7 +4489,53 @@ with tab_business:
     bp_result = compute_revenues(plant_smch=plant_net_smch, tariffa_eur_mwh=bp_tariffa_eff)
     # Riutilizzo delle variabili calcolate nella sidebar
     # (ep_total, aux_factor, etc. sono già definiti globalmente)
-    
+
+    # =================================================================
+    # 🎯 HERO ECONOMICO — KPI principali sempre visibili in cima alla
+    # sezione Business Plan. Calcolati dal Business Plan engine
+    # `core.business_plan.build_business_plan()`.
+    # =================================================================
+    try:
+        from core.business_plan import build_business_plan as _build_bp_engine
+        from core.calculation_engine import (
+            BP_CAPEX_DEFAULTS_PER_SMCH as _BP_CAPEX,
+            BP_OPEX_DEFAULTS_PER_SMCH_YEAR as _BP_OPEX,
+        )
+        _capex_unit = float(_BP_CAPEX.get(bp_plant_type, _BP_CAPEX.get("nuova_costruzione", 38_000)))
+        _opex_unit = float(sum(_BP_OPEX.values()) if _BP_OPEX else 5_350)
+        # Stato pre-form: si usano default; user può modificare nel sub-tab BP sotto.
+        _bp_hero_state_key = "_bp_hero_overrides"
+        _overrides = st.session_state.get(_bp_hero_state_key, {})
+        _capex_unit = float(_overrides.get("capex_unit", _capex_unit))
+        _opex_unit = float(_overrides.get("opex_unit", _opex_unit))
+        _pnrr_pct = float(_overrides.get("pnrr_pct", 0.0))
+        _bp_hero = _build_bp_engine(
+            plant_smch=plant_net_smch,
+            tariffa_eur_mwh=bp_tariffa_eff,
+            capex_eur_per_smch=_capex_unit,
+            opex_eur_per_smch_year=_opex_unit,
+            pnrr_quota_pct=_pnrr_pct,
+        )
+        _hero_cols = st.columns(5)
+        _hero_cols[0].metric(_t("Ricavo annuo"),
+                              f"{fmt_it(_bp_hero.rows[1].ricavi / 1000, 0)}k €")
+        _hero_cols[1].metric(_t("CAPEX totale"),
+                              f"{fmt_it(_bp_hero.capex_total / 1_000_000, 1)}M €")
+        _hero_cols[2].metric("IRR Equity",
+                              f"{_bp_hero.irr_equity * 100:.1f}%"
+                              if -1 < _bp_hero.irr_equity < 10 else "—")
+        _hero_cols[3].metric("NPV @ 6%",
+                              f"{fmt_it(_bp_hero.npv_project / 1_000_000, 1)}M €")
+        _hero_cols[4].metric(_t("Payback"),
+                              f"{_bp_hero.payback_years:.1f} {_t('anni')}"
+                              if _bp_hero.payback_years else "—")
+        st.caption("ℹ️ " + _t(
+            "KPI economici calcolati con CAPEX/OPEX di default. "
+            "Personalizza nella sezione **💼 Business Plan completo** in fondo al tab."
+        ))
+    except Exception as _bp_exc:  # noqa: BLE001
+        _LOG.warning("Business Plan hero KPI failed: %s", _bp_exc)
+
     st.info(_t("⚙️ La configurazione tecnica e i parametri GHG sono ora gestiti nel **pannello laterale (sidebar)** per un'esperienza più intuitiva."))
     
     # Breakdown ep (mode-aware) - visualizzato qui come risultato
@@ -5972,6 +6018,190 @@ with tab_business:
                 st.text(_expl.get("regulatory_basis", ""))
         except Exception as _expl_exc:  # noqa: BLE001
             st.caption(f"(Sezione spiegazioni non disponibile: {_expl_exc})")
+
+    # =================================================================
+    # 💼 BUSINESS PLAN COMPLETO (15 anni)
+    # ------------------------------------------------------------
+    # Sezione dedicata al BP economico-finanziario multi-anno con
+    # IRR Project, IRR Equity, NPV @ WACC, Payback. Form CAPEX/OPEX
+    # customizzabile. Output: tabella + grafico cash flow cumulato.
+    # =================================================================
+    st.divider()
+    st.header("💼 " + _t("Business Plan Completo (15 anni)"))
+    st.caption(_t(
+        "Engine finanziario multi-anno con IRR, NPV, Payback. "
+        "Personalizza CAPEX/OPEX/finanziamento per ottenere un piano economico "
+        "accurato del tuo impianto. Default basati su benchmark settore 2025."
+    ))
+
+    try:
+        from core.business_plan import (
+            build_business_plan as _build_bp,
+            DEFAULT_LEVERAGE_PCT,
+            DEFAULT_INTEREST_RATE_PCT,
+            DEFAULT_TAX_RATE_PCT,
+            DEFAULT_INFLATION_PCT,
+            DEFAULT_DISCOUNT_RATE_PCT,
+            DEFAULT_LOAN_DURATION_YEARS,
+        )
+        from core.calculation_engine import (
+            BP_CAPEX_DEFAULTS_PER_SMCH as _BP_CAPEX_D,
+            BP_OPEX_DEFAULTS_PER_SMCH_YEAR as _BP_OPEX_D,
+        )
+
+        _default_capex = float(_BP_CAPEX_D.get(bp_plant_type,
+                                                _BP_CAPEX_D.get("nuova_costruzione", 38_000)))
+        _default_opex = float(sum(_BP_OPEX_D.values()) if _BP_OPEX_D else 5_350)
+
+        with st.expander("⚙️ " + _t("Parametri CAPEX / OPEX / Finanziamento"),
+                          expanded=False):
+            _bpc1, _bpc2 = st.columns(2)
+            with _bpc1:
+                st.markdown("**" + _t("Investimento (CAPEX)") + "**")
+                _bp_capex_unit = st.number_input(
+                    "CAPEX €/Smc/h", min_value=5_000.0, max_value=80_000.0,
+                    value=_default_capex, step=500.0, key="bp_input_capex",
+                    help=_t("Benchmark settore 2025: 30-45k €/Smc/h "
+                            "per nuova costruzione chiavi in mano"),
+                )
+                _bp_pnrr = st.slider(
+                    "PNRR % " + _t("a fondo perduto"),
+                    min_value=0.0, max_value=100.0, value=0.0, step=5.0,
+                    key="bp_input_pnrr",
+                    help=_t("Quota CAPEX coperta da contributo PNRR. "
+                            "Tipico 30-40% se selezionato"),
+                )
+            with _bpc2:
+                st.markdown("**" + _t("Costi operativi (OPEX)") + "**")
+                _bp_opex_unit = st.number_input(
+                    "OPEX €/Smc/h/anno",
+                    min_value=1_000.0, max_value=15_000.0,
+                    value=_default_opex, step=100.0, key="bp_input_opex",
+                    help=_t("Manutenzione + personale + elettricità + "
+                            "consumabili + assicurazioni + monitoraggio"),
+                )
+                _bp_inflation = st.slider(
+                    _t("Inflazione OPEX") + " %",
+                    min_value=0.0, max_value=8.0, value=DEFAULT_INFLATION_PCT,
+                    step=0.1, key="bp_input_inflation",
+                )
+
+            st.markdown("**" + _t("Finanziamento") + "**")
+            _bpf1, _bpf2, _bpf3, _bpf4 = st.columns(4)
+            _bp_leverage = _bpf1.slider(
+                _t("Leva debito") + " %",
+                min_value=0.0, max_value=90.0, value=DEFAULT_LEVERAGE_PCT,
+                step=5.0, key="bp_input_leverage",
+            )
+            _bp_rate = _bpf2.slider(
+                _t("Tasso interesse") + " %",
+                min_value=0.0, max_value=12.0, value=DEFAULT_INTEREST_RATE_PCT,
+                step=0.25, key="bp_input_rate",
+            )
+            _bp_loan = _bpf3.slider(
+                _t("Durata mutuo") + " (" + _t("anni") + ")",
+                min_value=5, max_value=20,
+                value=DEFAULT_LOAN_DURATION_YEARS, step=1,
+                key="bp_input_loan",
+            )
+            _bp_discount = _bpf4.slider(
+                _t("WACC discount") + " %",
+                min_value=2.0, max_value=15.0, value=DEFAULT_DISCOUNT_RATE_PCT,
+                step=0.5, key="bp_input_discount",
+            )
+
+        # Persisto override per hero KPI in cima
+        st.session_state["_bp_hero_overrides"] = {
+            "capex_unit": _bp_capex_unit,
+            "opex_unit": _bp_opex_unit,
+            "pnrr_pct": _bp_pnrr,
+        }
+
+        _bp = _build_bp(
+            plant_smch=plant_net_smch,
+            tariffa_eur_mwh=bp_tariffa_eff,
+            capex_eur_per_smch=_bp_capex_unit,
+            opex_eur_per_smch_year=_bp_opex_unit,
+            pnrr_quota_pct=_bp_pnrr,
+            leverage_pct=_bp_leverage,
+            interest_rate_pct=_bp_rate,
+            loan_duration_years=int(_bp_loan),
+            tax_rate_pct=DEFAULT_TAX_RATE_PCT,
+            inflation_pct=_bp_inflation,
+            discount_rate_pct=_bp_discount,
+        )
+
+        # KPI sintetici BP
+        _bpk1, _bpk2, _bpk3, _bpk4, _bpk5 = st.columns(5)
+        _bpk1.metric(_t("CAPEX totale"),
+                      f"{fmt_it(_bp.capex_total / 1_000_000, 2)} M€")
+        _bpk2.metric(_t("Equity richiesto"),
+                      f"{fmt_it(_bp.capex_equity / 1_000_000, 2)} M€",
+                      delta=f"PNRR: {fmt_it(_bp.pnrr_grant / 1_000_000, 2)} M€"
+                            if _bp.pnrr_grant > 0 else None)
+        _bpk3.metric("IRR Equity",
+                      f"{_bp.irr_equity * 100:.1f}%"
+                      if -1 < _bp.irr_equity < 10 else "—",
+                      help=_t("Rendimento interno sul capitale proprio investito"))
+        _bpk4.metric("NPV @ " + f"{_bp.discount_rate_pct:.1f}%",
+                      f"{fmt_it(_bp.npv_project / 1_000_000, 2)} M€",
+                      help=_t("Valore Attuale Netto del progetto scontato a WACC"))
+        _bpk5.metric(_t("Payback"),
+                      f"{_bp.payback_years:.2f} {_t('anni')}"
+                      if _bp.payback_years else "—",
+                      help=_t("Anni per recuperare l'equity investito"))
+
+        # Tabella BP 15 anni
+        import pandas as _pd_bp
+        _bp_df = _pd_bp.DataFrame([{
+            _t("Anno"): r.year,
+            _t("Ricavi"): r.ricavi,
+            _t("OPEX"): r.opex,
+            "EBITDA": r.ebitda,
+            _t("Interessi"): r.interessi,
+            _t("Imposte"): r.imposte,
+            _t("CFO"): r.cfo,
+            _t("Rata capitale"): r.rata_capitale,
+            "FCF Equity": r.fcf_equity,
+            _t("Debito residuo"): r.debito_residuo,
+            _t("FCF cumulato"): r.fcf_cumulato,
+        } for r in _bp.rows])
+        st.dataframe(_bp_df.style.format({
+            c: "{:,.0f}" for c in _bp_df.columns if c != _t("Anno")
+        }), use_container_width=True, hide_index=True)
+
+        # Grafico cash flow cumulato
+        try:
+            import plotly.graph_objects as _go_bp
+            _bp_fig = _go_bp.Figure()
+            _bp_fig.add_trace(_go_bp.Bar(
+                x=[r.year for r in _bp.rows],
+                y=[r.fcf_equity for r in _bp.rows],
+                name="FCF Equity",
+                marker_color=["#DC2626" if r.fcf_equity < 0 else "#059669"
+                              for r in _bp.rows],
+            ))
+            _bp_fig.add_trace(_go_bp.Scatter(
+                x=[r.year for r in _bp.rows],
+                y=[r.fcf_cumulato for r in _bp.rows],
+                name=_t("FCF cumulato"),
+                mode="lines+markers",
+                line=dict(color="#F59E0B", width=3),
+            ))
+            _bp_fig.add_hline(y=0, line_dash="dash", line_color="#94A3B8")
+            _bp_fig.update_layout(
+                title=_t("Cash Flow Equity per anno + Cumulato (break-even visivo)"),
+                xaxis_title=_t("Anno"),
+                yaxis_title="€",
+                height=400,
+                hovermode="x unified",
+            )
+            st.plotly_chart(_bp_fig, use_container_width=True)
+        except Exception:  # noqa: BLE001
+            pass
+    except Exception as _bp_exc:  # noqa: BLE001
+        _LOG.warning("Business Plan completo render failed: %s", _bp_exc)
+        st.warning(f"⚠️ Business Plan non disponibile: {_bp_exc}")
 
     # ============================================================
 
