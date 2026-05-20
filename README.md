@@ -117,10 +117,33 @@ completo. In sintesi:
 | Fase | Status | Contenuto |
 |---|---|---|
 | Sprint 0 — Quick wins | ✅ Done | Pin deps, CI, theme brand, legali, Sentry attivo in prod |
-| Fase 1 — Hardening | ✅ Done | XSS audit, formatting locale-aware estratto in `core/formatting.py`, ~143 test esistenti |
-| Fase 2 — SaaS core | 🟡 Scaffold pronto | Skeleton `core/auth.py`, `core/billing.py`, `core/audit.py` con API target e schema DB documentato. Implementazione richiede DB Postgres + Stripe account |
-| Fase 3 — Marketing | ⬜ Todo | Landing page, onboarding wizard, docs |
-| Fase 4 — Scale | ⬜ Todo | API REST, webhook, AI advisor, mobile PWA |
+| Fase 1 — Hardening | ✅ Done | XSS audit, formatting locale-aware (`core/formatting.py`), 143+ test |
+| **Fase 2 — SaaS core** | ✅ **Done** | Auth bcrypt+JWT (`core/auth.py`), multi-tenant DB row-level isolation (`core/persistence.py`), Stripe billing wrapper (`core/billing.py`), audit log SQLite (`core/audit.py`), UI signup/login + account panel (`core/auth_ui.py`), trial auto-downgrade. Demo mode attivo di default |
+| Fase 3 — Marketing | ⬜ Todo | Landing page, onboarding wizard, docs, casi studio |
+| Fase 4 — Scale | ⬜ Todo | API REST, webhook, AI advisor, mobile PWA, hosting dedicato |
+
+### 🚀 Per attivare la modalità SaaS commerciale
+
+L'app è in **demo mode** di default → tutti vedono tutto, niente login.
+
+Per passare in produzione SaaS:
+1. Genera un JWT secret random (es. `openssl rand -hex 32`)
+2. (Opzionale) Crea account Stripe + 4 price su Dashboard
+3. Streamlit Cloud → **Settings → Secrets**, aggiungi:
+   ```toml
+   [auth]
+   demo_mode = false
+   jwt_secret = "<32-bytes-random>"
+
+   [stripe]
+   secret_key = "sk_live_..."
+   webhook_secret = "whsec_..."
+   price_pro_monthly = "price_..."
+   price_pro_yearly = "price_..."
+   price_enterprise_monthly = "price_..."
+   price_enterprise_yearly = "price_..."
+   ```
+4. Reboot app → gate signup/login attivo, multi-tenant isolation, billing.
 
 ## 📜 Licenza
 
