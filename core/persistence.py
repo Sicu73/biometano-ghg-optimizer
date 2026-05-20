@@ -25,6 +25,33 @@ _DEFAULT_DB_DIR = os.path.normpath(
 _DEFAULT_DB_PATH = os.path.join(_DEFAULT_DB_DIR, "metaniq_daily.db")
 
 
+def _resolve_tenant(tenant_id: str | None) -> str | None:
+    """Auto-fill tenant_id da current_user se non passato. None se demo mode."""
+    if tenant_id is not None:
+        return tenant_id
+    try:
+        from core.auth import current_user, is_demo_mode
+        if is_demo_mode():
+            return None
+        u = current_user()
+        if u:
+            return u.tenant_id
+    except Exception:
+        pass
+    return None
+
+
+def _ns(plant_id: str, tenant_id: str | None) -> str:
+    """Namespace plant_id con tenant_id per multi-tenancy.
+
+    Backward compat: se tenant_id=None (demo mode o legacy chiamate),
+    restituisce plant_id invariato → dati legacy continuano a funzionare.
+    """
+    if tenant_id:
+        return f"t::{tenant_id}::{plant_id}"
+    return plant_id
+
+
 def _ensure_dir(path: str) -> None:
     d = os.path.dirname(path)
     if d and not os.path.isdir(d):
@@ -86,13 +113,20 @@ def init_db(path: str | None = None) -> str:
 
 def save_month(year: int, month: int, daily_entries: list[DailyEntry],
                plant_id: str = "default", regime: str = "",
-               threshold: float = 0.0, path: str | None = None) -> int:
+               threshold: float = 0.0, path: str | None = None,
+               tenant_id: str | None = None) -> int:
     """Salva (overwrite) tutti i giorni del mese specificato.
 
     Cancella prima i record del mese per `plant_id` e poi reinserisce
     le nuove righe (operazione idempotente). Ritorna il numero di righe
     inserite (escludendo entry con quantita' nulle).
+
+    Multi-tenancy: se `tenant_id` non passato, viene risolto automaticamente
+    da `core.auth.current_user().tenant_id`. In demo_mode, tenant_id=None →
+    legacy behavior (no namespace) per backward-compat.
     """
+    tenant_id = _resolve_tenant(tenant_id)
+    plant_id = _ns(plant_id, tenant_id)
     db_path = init_db(path)
     now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
     inserted = 0
@@ -155,8 +189,14 @@ def save_month(year: int, month: int, daily_entries: list[DailyEntry],
 
 
 def load_month(year: int, month: int, plant_id: str = "default",
-               path: str | None = None) -> list[DailyEntry]:
-    """Carica tutti i giorni del mese (anche giorni mancanti tornano vuoti)."""
+               path: str | None = None,
+               tenant_id: str | None = None) -> list[DailyEntry]:
+    """Carica tutti i giorni del mese (anche giorni mancanti tornano vuoti).
+
+    Multi-tenancy: vedi save_month.
+    """
+    tenant_id = _resolve_tenant(tenant_id)
+    plant_id = _ns(plant_id, tenant_id)
     db_path = init_db(path)
     first = f"{year:04d}-{month:02d}-01"
     last = f"{year:04d}-{month:02d}-31"
@@ -215,8 +255,14 @@ def load_month(year: int, month: int, plant_id: str = "default",
 
 
 def list_saved_months(plant_id: str = "default",
-                      path: str | None = None) -> list[tuple[int, int]]:
-    """Elenca i mesi salvati per il `plant_id` (ordine cronologico)."""
+                      path: str | None = None,
+                      tenant_id: str | None = None) -> list[tuple[int, int]]:
+    """Elenca i mesi salvati per il `plant_id` (ordine cronologico).
+
+    Multi-tenancy: vedi save_month.
+    """
+    tenant_id = _resolve_tenant(tenant_id)
+    plant_id = _ns(plant_id, tenant_id)
     db_path = init_db(path)
     out: list[tuple[int, int]] = []
     with _connect(db_path) as conn:
@@ -230,8 +276,14 @@ def list_saved_months(plant_id: str = "default",
 
 
 def delete_month(year: int, month: int, plant_id: str = "default",
-                 path: str | None = None) -> int:
-    """Elimina i dati del mese per il `plant_id`. Ritorna righe cancellate."""
+                 path: str | None = None,
+                 tenant_id: str | None = None) -> int:
+    """Elimina i dati del mese per il `plant_id`. Ritorna righe cancellate.
+
+    Multi-tenancy: vedi save_month.
+    """
+    tenant_id = _resolve_tenant(tenant_id)
+    plant_id = _ns(plant_id, tenant_id)
     db_path = init_db(path)
     first = f"{year:04d}-{month:02d}-01"
     last = f"{year:04d}-{month:02d}-31"

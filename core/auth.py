@@ -325,6 +325,37 @@ def delete_account(user_id: str, hard: bool = False) -> None:
         pass
 
 
+def check_and_downgrade_expired_trials() -> int:
+    """Job idempotente: downgrade utenti con trial scaduto a piano 'free'.
+
+    Da chiamare periodicamente (cron Fase 4 o lazy a ogni login). Restituisce
+    il numero di utenti downgradati.
+    """
+    init_db()
+    now_iso = datetime.utcnow().isoformat()
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT id, tenant_id FROM users WHERE plan = 'pro' "
+            "AND trial_ends_at IS NOT NULL "
+            "AND stripe_subscription_id IS NULL "
+            "AND trial_ends_at < ?",
+            (now_iso,)
+        ).fetchall()
+        for r in rows:
+            c.execute("UPDATE users SET plan='free', trial_ends_at=NULL WHERE id=?",
+                       (r["id"],))
+    if rows:
+        try:
+            from core.audit import log as audit_log
+            for r in rows:
+                audit_log("trial_expired_downgrade",
+                          user_id=r["id"], tenant_id=r["tenant_id"],
+                          payload={"new_plan": "free"})
+        except Exception:
+            pass
+    return len(rows)
+
+
 def list_users() -> list[User]:
     """Solo per admin / debug."""
     init_db()
@@ -371,4 +402,5 @@ __all__ = [
     "list_users",
     "is_demo_mode",
     "init_db",
+    "check_and_downgrade_expired_trials",
 ]

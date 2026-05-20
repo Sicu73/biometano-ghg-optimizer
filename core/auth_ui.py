@@ -143,11 +143,31 @@ def render_account_widget() -> None:
     """Widget account in sidebar per utente loggato. No-op in demo mode."""
     if auth.is_demo_mode():
         return
+    # Trial downgrade lazy check (idempotente, cheap)
+    try:
+        auth.check_and_downgrade_expired_trials()
+    except Exception:
+        pass
     u = auth.current_user()
     if not u:
         return
+    # Calcolo giorni trial residui
+    trial_days_left = None
+    if u.trial_ends_at and u.plan == "pro":
+        try:
+            from datetime import datetime
+            t = datetime.fromisoformat(u.trial_ends_at.replace("Z", "+00:00"))
+            delta = t - datetime.utcnow()
+            trial_days_left = max(0, delta.days)
+        except Exception:
+            pass
+
     with st.sidebar:
         st.markdown("---")
+        trial_badge = ""
+        if trial_days_left is not None:
+            trial_badge = (f"<div style='font-size:0.65rem;color:#F59E0B;"
+                            f"margin-top:2px;'>Trial: {trial_days_left} giorni residui</div>")
         st.markdown(
             f"""
             <div style='padding:12px 14px;background:rgba(245,158,11,0.06);
@@ -160,15 +180,108 @@ def render_account_widget() -> None:
                 <div style='font-size:0.75rem;color:#64748B;'>{u.email}</div>
                 <div style='font-size:0.7rem;color:#F59E0B;font-weight:700;
                      margin-top:4px;text-transform:uppercase;'>
-                     Plan: {u.plan} {('· Trial' if u.trial_ends_at and u.plan == 'pro' else '')}
+                     Plan: {u.plan}
                 </div>
+                {trial_badge}
             </div>
             """,
             unsafe_allow_html=True,
         )
+
+        with st.expander("⚙️ Gestione account", expanded=False):
+            _render_account_panel(u)
+
         if st.button("🚪 Logout", key="btn_logout", use_container_width=True):
             auth.logout()
             st.rerun()
+
+
+def _render_account_panel(u) -> None:
+    """Pannello: upgrade plan, change password, GDPR export, delete account."""
+    from core import billing
+
+    # Plan / Upgrade
+    st.markdown(f"**Piano attuale**: `{u.plan}`")
+    if u.plan == "free":
+        if billing.is_configured():
+            cycle = st.radio("Ciclo", ["monthly", "yearly"], horizontal=True,
+                              key="acc_cycle")
+            colp1, colp2 = st.columns(2)
+            with colp1:
+                if st.button("⬆️ Pro 49€", key="upgrade_pro",
+                              use_container_width=True):
+                    try:
+                        url = billing.start_checkout(u, "pro", cycle)
+                        st.link_button("Vai a Stripe", url, type="primary",
+                                        use_container_width=True)
+                    except Exception as exc:  # noqa: BLE001
+                        st.error(f"Checkout error: {exc}")
+            with colp2:
+                if st.button("🏢 Enterprise", key="upgrade_ent",
+                              use_container_width=True):
+                    try:
+                        url = billing.start_checkout(u, "enterprise", cycle)
+                        st.link_button("Vai a Stripe", url, type="primary",
+                                        use_container_width=True)
+                    except Exception as exc:  # noqa: BLE001
+                        st.error(f"Checkout error: {exc}")
+        else:
+            st.info("ℹ️ Billing non ancora attivo. Contatta il supporto.")
+    elif u.stripe_customer_id:
+        if st.button("💳 Gestisci abbonamento", use_container_width=True,
+                      key="manage_sub"):
+            try:
+                url = billing.open_customer_portal(u)
+                st.link_button("Vai a Stripe Portal", url, type="primary",
+                                use_container_width=True)
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"Portal error: {exc}")
+
+    st.markdown("---")
+    st.markdown("**Cambia password**")
+    with st.form("change_pw_form", clear_on_submit=True):
+        old_pw = st.text_input("Password attuale", type="password",
+                                key="old_pw")
+        new_pw = st.text_input("Nuova password (min 8 char)", type="password",
+                                key="new_pw")
+        if st.form_submit_button("Aggiorna password", use_container_width=True):
+            try:
+                ok = auth.change_password(u.id, old_pw, new_pw)
+                if ok:
+                    st.success("Password aggiornata ✓")
+                else:
+                    st.error("Password attuale errata")
+            except ValueError as exc:
+                st.error(str(exc))
+
+    st.markdown("---")
+    st.markdown("**Privacy / GDPR**")
+    if st.button("📥 Esporta tutti i miei dati (JSON)",
+                  use_container_width=True, key="gdpr_export"):
+        try:
+            from core.audit import export_user_log
+            data = export_user_log(u.id)
+            st.download_button("Scarica audit log",
+                                data, file_name=f"metaniq_audit_{u.email}.json",
+                                mime="application/json",
+                                use_container_width=True)
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Export error: {exc}")
+
+    with st.expander("⚠️ Cancella account (irreversibile)"):
+        st.caption("Soft-delete: l'account viene disattivato ma i dati rimangono "
+                    "30 gg per recovery. Hard delete contatta il supporto.")
+        confirm = st.text_input("Digita 'ELIMINA' per confermare",
+                                 key="del_confirm")
+        if st.button("🗑️ Cancella il mio account", type="secondary",
+                      use_container_width=True, key="del_btn"):
+            if confirm == "ELIMINA":
+                auth.delete_account(u.id, hard=False)
+                auth.logout()
+                st.success("Account disattivato. Logout effettuato.")
+                st.rerun()
+            else:
+                st.warning("Digita esattamente 'ELIMINA' per confermare.")
 
 
 __all__ = ["render_auth_gate", "render_account_widget"]
