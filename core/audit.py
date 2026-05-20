@@ -1,45 +1,49 @@
 # -*- coding: utf-8 -*-
-"""core/audit.py — Audit log immutabile (Fase 2.5 — SCAFFOLDING).
+"""core/audit.py — Audit log immutabile SQLite (Fase 2.5 IMPLEMENTATA).
 
-⚠️ NON ANCORA IMPLEMENTATO. Scheletro per Fase 2.5 del piano SaaS.
-
-Ogni azione critica viene registrata in tabella `audit_log` append-only,
-mai modificata o cancellata. Utile per:
-- GDPR (dimostrare trattamento corretto dei dati)
-- Sicurezza (forensics in caso di account compromesso)
-- Conformità (audit GSE può chiedere "chi ha modificato il dato il giorno X?")
-- Customer support (debug problemi cliente)
-
-Azioni tracciate:
-  user_signup, user_login, user_logout, password_changed, password_reset_requested,
-  email_verified, account_deleted,
-  month_saved, month_loaded, month_deleted, month_reset, daily_edited,
-  bmt_override_added, bmt_override_removed, ef_override_added, ef_override_removed,
-  plant_renamed,
-  pdf_exported, excel_exported, csv_exported, pptx_exported,
-  subscription_started, subscription_cancelled, subscription_renewed,
-  payment_succeeded, payment_failed,
-  admin_action (con sub-type), api_key_created, api_key_revoked,
-  gdpr_export_requested, gdpr_deletion_requested
-
-Schema DB `audit_log`:
-  id              UUID PK
-  tenant_id       UUID NOT NULL (FK users.tenant_id) — per filtro multi-tenant
-  user_id         UUID (FK users.id) — null per azioni di sistema
-  action          TEXT NOT NULL — uno dei valori sopra
-  resource_type   TEXT — "month", "user", "subscription", ...
-  resource_id     TEXT — "2026-05", user_id target, ecc.
-  payload         JSONB — dettagli (no PII pesanti, solo metadati)
-  ip_address      INET
-  user_agent      TEXT
-  created_at      TIMESTAMP NOT NULL DEFAULT NOW()
-
-Indici raccomandati: (tenant_id, created_at DESC), (user_id, created_at DESC),
-                     (action, created_at DESC).
+Append-only log per tracciabilità GDPR/sicurezza/compliance. Silent failure su
+errori DB (audit non deve mai bloccare le azioni utente).
 """
 from __future__ import annotations
 
+import json
+import sqlite3
+import uuid
+from pathlib import Path
 from typing import Any
+
+
+def _db_path() -> Path:
+    base = Path(__file__).resolve().parent.parent / "data"
+    base.mkdir(parents=True, exist_ok=True)
+    return base / "audit.db"
+
+
+def _conn() -> sqlite3.Connection:
+    conn = sqlite3.connect(_db_path(), isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def _init() -> None:
+    with _conn() as c:
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT,
+                user_id TEXT,
+                action TEXT NOT NULL,
+                resource_type TEXT,
+                resource_id TEXT,
+                payload TEXT,
+                ip_address TEXT,
+                user_agent TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        c.execute("CREATE INDEX IF NOT EXISTS idx_audit_tenant_time ON audit_log(tenant_id, created_at DESC)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_audit_user_time ON audit_log(user_id, created_at DESC)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action, created_at DESC)")
 
 
 def log(
@@ -51,25 +55,78 @@ def log(
     user_id: str | None = None,
     tenant_id: str | None = None,
 ) -> None:
-    """Registra un evento audit. Mai bloccante (silent failure su DB error)."""
-    raise NotImplementedError("Fase 2.5 — TODO: INSERT INTO audit_log")
+    """Registra evento. Silent failure su errori."""
+    # Auto-fill da current_user se non passato
+    if user_id is None or tenant_id is None:
+        try:
+            from core.auth import current_user
+            u = current_user()
+            if u:
+                user_id = user_id or u.id
+                tenant_id = tenant_id or u.tenant_id
+        except Exception:
+            pass
+    try:
+        _init()
+        with _conn() as c:
+            c.execute("""
+                INSERT INTO audit_log (id, tenant_id, user_id, action, resource_type,
+                                       resource_id, payload)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (str(uuid.uuid4()), tenant_id, user_id, action, resource_type,
+                  resource_id, json.dumps(payload or {}, default=str)))
+    except Exception:
+        # Audit non deve mai bloccare. Log su Sentry/stderr ma non ri-raise.
+        try:
+            from core.logging_setup import get_logger
+            get_logger("audit").exception("Audit log failed for action=%s", action)
+        except Exception:
+            pass
 
 
 def query(
-    tenant_id: str,
+    tenant_id: str | None = None,
     *,
     user_id: str | None = None,
     action: str | None = None,
     since: str | None = None,
     limit: int = 100,
 ) -> list[dict[str, Any]]:
-    """Query log filtrabile (per UI admin / GDPR export)."""
-    raise NotImplementedError("Fase 2.5 — TODO")
+    """Restituisce eventi filtrabili ordinati DESC."""
+    _init()
+    sql = "SELECT * FROM audit_log WHERE 1=1"
+    params: list[Any] = []
+    if tenant_id:
+        sql += " AND tenant_id = ?"
+        params.append(tenant_id)
+    if user_id:
+        sql += " AND user_id = ?"
+        params.append(user_id)
+    if action:
+        sql += " AND action = ?"
+        params.append(action)
+    if since:
+        sql += " AND created_at >= ?"
+        params.append(since)
+    sql += " ORDER BY created_at DESC LIMIT ?"
+    params.append(int(limit))
+    with _conn() as c:
+        rows = c.execute(sql, params).fetchall()
+    out = []
+    for r in rows:
+        d = dict(r)
+        try:
+            d["payload"] = json.loads(d["payload"] or "{}")
+        except Exception:
+            pass
+        out.append(d)
+    return out
 
 
 def export_user_log(user_id: str) -> bytes:
-    """Esporta tutto il log di un utente in JSON (per GDPR right of access)."""
-    raise NotImplementedError("Fase 2.5 — TODO")
+    """GDPR right of access: esporta tutto il log dell'utente in JSON."""
+    rows = query(user_id=user_id, limit=10_000)
+    return json.dumps(rows, indent=2, default=str).encode("utf-8")
 
 
 __all__ = ["log", "query", "export_user_log"]

@@ -1354,6 +1354,19 @@ st.set_page_config(
 # ===========================================================
 # Metan.iQ Theme Switcher (light / dark)
 # ===========================================================
+# =============================================================================
+# AUTH GATE (Fase 2.1) — bypass se demo_mode (default true). Quando l'utente
+# attiva auth in produzione (`secrets.toml` → [auth] demo_mode=false), questo
+# blocco mostra il form login/signup PRIMA del rendering del main panel.
+# =============================================================================
+try:
+    from core.auth_ui import render_auth_gate, render_account_widget
+    if not render_auth_gate():
+        st.stop()
+except ImportError:
+    # Auth module non disponibile (es. deploy senza bcrypt installato) → skip
+    pass
+
 if "methaniq_theme" not in st.session_state:
     st.session_state.methaniq_theme = "light"
 
@@ -1431,6 +1444,12 @@ with st.sidebar:
         """,
         unsafe_allow_html=True,
     )
+
+# Widget account (sidebar) per utente loggato — no-op in demo_mode.
+try:
+    render_account_widget()
+except (NameError, Exception):  # noqa: BLE001
+    pass
 
 # Selettore Italiano / English subito sotto il brand badge.
 _LANG = render_lang_selector()
