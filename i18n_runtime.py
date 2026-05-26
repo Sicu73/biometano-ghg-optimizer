@@ -15,8 +15,15 @@ from metaniq_i18n import IT_EN
 from core.design_tokens import AMBER as _ACCENT, SLATE_500 as _MUTED
 
 
+# Word-boundary lookbehind/lookahead: previene matching all'interno di parole
+# (fix typo classico: "anni" -> "years" matchato dentro "planning" = "plyearsng").
+# Usiamo `(?<!\w)` / `(?!\w)` invece di `\b` perché molte chiavi includono
+# caratteri non-word (es. "Sm³ lordi", "€/MWh", "DM 15/9/2022 art. 5") e `\b`
+# Unicode-aware in Python si comporta in modo inconsistente con simboli.
 _IT_EN_PATTERN = re.compile(
-    "|".join(re.escape(k) for k in sorted(IT_EN, key=len, reverse=True))
+    r"(?<!\w)(?:"
+    + "|".join(re.escape(k) for k in sorted(IT_EN, key=len, reverse=True))
+    + r")(?!\w)"
 )
 
 

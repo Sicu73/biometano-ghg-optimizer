@@ -789,6 +789,104 @@ def build_daily_pdf(
         ]))
         story.append(at_tbl)
 
+    # =========================================================================
+    # PAGINA FINALE — RIFERIMENTI NORMATIVI & VALIDATION WARNING
+    # Per tracciabilità audit: ogni report mostra sempre fonti + disclaimer.
+    # =========================================================================
+    try:
+        from core.version import (
+            NORMATIVE_REFERENCES,
+            VALIDATION_WARNING,
+            __version__ as _sw_version,
+        )
+        story.append(PageBreak())
+        story.append(Paragraph(
+            "📚 " + ("Riferimenti normativi & Validazione" if lang != "en"
+                     else "Regulatory references & Validation"),
+            s_h2,
+        ))
+        story.append(Paragraph(
+            ("Fonti normative usate per i calcoli, versione software, "
+             "data esportazione e disclaimer di validazione."
+             if lang != "en" else
+             "Regulatory sources used in calculations, software version, "
+             "export date, and validation disclaimer."),
+            s_caption,
+        ))
+        story.append(Spacer(1, 8))
+        # Tabella riferimenti
+        norm_rows = [
+            ["Norma / Standard" if lang != "en" else "Standard",
+             "Ambito" if lang != "en" else "Scope"]
+        ]
+        for k, v in NORMATIVE_REFERENCES.items():
+            norm_rows.append([k, v])
+        norm_tbl = Table(norm_rows, colWidths=[60 * mm, (PAGE_W - 30 * mm) - 60 * mm],
+                          hAlign="LEFT", repeatRows=1)
+        norm_tbl.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(_NAVY)),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor(_WHITE)),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, 0), 9),
+            ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 1), (-1, -1), 8),
+            ("TEXTCOLOR", (0, 1), (-1, -1), colors.HexColor(_NAVY_DARK)),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+             [colors.HexColor(_WHITE), colors.HexColor(_TINT)]),
+            ("LINEBELOW", (0, 0), (-1, 0), 1.2, colors.HexColor(_AMBER)),
+            ("BOX", (0, 0), (-1, -1), 0.4, colors.HexColor(_GREY_LIGHT)),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ]))
+        story.append(norm_tbl)
+        story.append(Spacer(1, 12))
+
+        # Metadata software + warning
+        story.append(Paragraph(
+            "🔧 " + ("Metadati software" if lang != "en" else "Software metadata"),
+            s_h3,
+        ))
+        meta_lines = [
+            f"<b>Software</b>: Metan.iQ v{_sw_version}",
+            f"<b>{'Data esportazione' if lang != 'en' else 'Export date'}</b>: {_gen_at}",
+            f"<b>{'Metodo calcolo GHG' if lang != 'en' else 'GHG calculation method'}</b>: RED III Allegato V Parte C · UNI-TS 11567:2024",
+            f"<b>{'Comparator fossile' if lang != 'en' else 'Fossil comparator'}</b>: 80 gCO₂/MJ (gas naturale) · 94 gCO₂/MJ (diesel trasporti)",
+        ]
+        for line in meta_lines:
+            story.append(Paragraph(line, s_body))
+        story.append(Spacer(1, 10))
+
+        # Validation warning box
+        warning_text = (VALIDATION_WARNING if lang != "en" else
+                        "⚠️ The values reported are the result of a calculation "
+                        "based on data entered by the operator and on standard "
+                        "parameters (UNI-TS 11567:2024, RED III, JEC WTT v5). "
+                        "For official certifications to GSE / competent "
+                        "authorities, data must be validated by a qualified "
+                        "technical consultant (RINA, SGS, ISCC) or via "
+                        "dedicated internal audit.")
+        warn_tbl = Table(
+            [[Paragraph(warning_text, ParagraphStyle(
+                "Warn", fontName="Helvetica", fontSize=9, leading=12,
+                textColor=colors.HexColor("#7C2D12"),
+            ))]],
+            colWidths=[PAGE_W - 30 * mm],
+        )
+        warn_tbl.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+            ("BOX", (0, 0), (-1, -1), 1.5, colors.HexColor(_AMBER)),
+            ("LEFTPADDING", (0, 0), (-1, -1), 12),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+            ("TOPPADDING", (0, 0), (-1, -1), 10),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+        ]))
+        story.append(warn_tbl)
+    except Exception:  # noqa: BLE001
+        # Non-blocking: se import fallisce, l'export funziona comunque
+        pass
+
     doc.build(story)
     return buf.getvalue()
 

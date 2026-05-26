@@ -1738,6 +1738,10 @@ st.markdown(
     f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+    /* Material Symbols: necessario altrimenti i glifi appaiono come testo
+       'keyboard_arrow_right', 'keyboard_double_arrow_left' (a11y issue). */
+    @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=block');
+    @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block');
     
     /* ---------- Material 3 Global Reset ---------- */
     html, body, .stApp, .stMarkdown, .stText,
@@ -2159,6 +2163,46 @@ st.markdown(
         color: rgba(148,163,184,0.65) !important;
         box-shadow: none !important;
         cursor: not-allowed;
+    }}
+
+    /* --- A11Y: icone Material non renderizzate -> hidden via accessibility.
+       Se il browser non riesce a caricare il font Material Symbols, il glifo
+       cade in testo grezzo ("keyboard_arrow_right"). Lo nascondiamo da screen
+       reader e visivamente, lasciando il bottone clickabile. --- */
+    span[data-testid="stIconMaterial"] {{
+        speak: none;
+    }}
+    /* Se font Material non disponibile (.notdef tofu), nascondi testo */
+    @supports not (font-variation-settings: "liga") {{
+        span[data-testid="stIconMaterial"]:not([data-loaded]) {{
+            color: transparent !important;
+            font-size: 0 !important;
+        }}
+    }}
+
+    /* --- DARK MODE: contrast fix per HTML inline custom.
+       I miei banner navy-on-navy (es. brand badge sidebar, banner mensile,
+       riga TOTALE MESE) hanno colori hardcoded che in dark mode (sfondo già
+       scuro) diventano illeggibili. Override forzato per dark theme. --- */
+    [data-theme="dark"] .methaniq-credit,
+    [data-theme="dark"] section[data-testid="stSidebar"] details summary,
+    .stApp[data-theme="dark"] .methaniq-credit {{
+        color: #E2E8F0 !important;
+    }}
+    [data-theme="dark"] section[data-testid="stSidebar"] [aria-expanded] {{
+        color: #CBD5E1 !important;
+    }}
+    /* Disabled/collapsed states più visibili in dark */
+    [data-theme="dark"] .stExpander[data-testid="stExpander"] details:not([open]) summary {{
+        color: #94A3B8 !important;
+        opacity: 0.95 !important;
+    }}
+    /* Button disabled in dark: più visibile (era quasi invisibile) */
+    [data-theme="dark"] button:disabled,
+    [data-theme="dark"] div[data-testid="stButton"] button:disabled {{
+        color: #64748B !important;
+        opacity: 0.7 !important;
+        border-color: #475569 !important;
     }}
 
     /* --- RESPONSIVE: aggiustamenti per viewport stretti (mobile/tablet) --- */
