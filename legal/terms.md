@@ -2,11 +2,13 @@
 
 **Ultimo aggiornamento**: 19 maggio 2026
 
-## 1. Accettazione
+## 1. Accettazione e Natura del Servizio
 
-Utilizzando il servizio Metan.iQ ("il Servizio"), l'utente accetta integralmente
-i presenti Termini. In caso di disaccordo, l'utente non deve utilizzare il
-Servizio.
+Utilizzando il servizio Metan.iQ ("il Servizio"), l'utente accetta integralmente i presenti Termini.
+
+L'utente dichiara di utilizzare il Servizio esclusivamente per scopi connessi alla propria attività imprenditoriale, commerciale, artigianale o professionale. Di conseguenza, il rapporto tra il Titolare e l'utente è un rapporto esclusivamente **B2B (Business-to-Business)**, e non si applicano le tutele previste in materia di contratti dei consumatori dal Codice del Consumo italiano (D.Lgs. 206/2005).
+
+In caso di disaccordo con i presenti Termini, l'utente deve astenersi dall'utilizzare il Servizio.
 
 ## 2. Descrizione del Servizio
 
@@ -83,14 +85,13 @@ Nei limiti consentiti dalla legge, il Titolare:
 - NON garantisce la **conformità normativa automatica** dei report generati: il
   Servizio è uno strumento di supporto, l'utente resta responsabile della
   verifica finale dei dati prima della trasmissione a GSE o autorità.
-- La responsabilità complessiva, in caso di danno diretto provato, è limitata
-  a quanto corrisposto dall'utente nei **12 mesi precedenti** all'evento.
+- Fatto salvo il caso di dolo o colpa grave del Titolare, la responsabilità complessiva, in caso di danno diretto provato, è limitata a quanto corrisposto dall'utente nei **12 mesi precedenti** all'evento.
 
 ## 9. Recesso e sospensione
 
 Il Titolare può sospendere o terminare l'account in caso di:
 
-- Violazione gravi dei presenti Termini.
+- Violazioni gravi dei presenti Termini.
 - Mancato pagamento dopo solleciti.
 - Frode o uso improprio.
 
