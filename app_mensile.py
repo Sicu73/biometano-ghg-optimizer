@@ -2911,12 +2911,12 @@ with st.sidebar:
         _f_slip = _detail.get("f_slip", 0)
         _f_marg = _detail.get("f_margin", 0)
         st.caption(
-            f"📊 **Breakdown autoconsumo** (% del lordo): "
-            f"🔥 Caldaia {fmt_it(_f_heat*100, 1, '%')} · "
-            f"⚡ Elettrico {fmt_it(_f_elec*100, 1, '%')} · "
+            f"📊 **{_t('Breakdown autoconsumo')}** ({_t('% del lordo')}): "
+            f"🔥 {_t('Caldaia')} {fmt_it(_f_heat*100, 1, '%')} · "
+            f"⚡ {_t('Elettrico')} {fmt_it(_f_elec*100, 1, '%')} · "
             f"💨 Slip {fmt_it(_f_slip*100, 1, '%')} · "
-            f"🔧 Margine {fmt_it(_f_marg*100, 1, '%')} "
-            f"→ Totale {fmt_it((_f_heat+_f_elec+_f_slip+_f_marg)*100, 1, '%')} ≡ aux {fmt_it(_aux_base, 3)}"
+            f"🔧 {_t('Margine')} {fmt_it(_f_marg*100, 1, '%')} "
+            f"→ {_t('Totale')} {fmt_it((_f_heat+_f_elec+_f_slip+_f_marg)*100, 1, '%')} ≡ aux {fmt_it(_aux_base, 3)}"
         )
     else:
         _up_eff_base = 1.0 / _aux_base if _aux_base > 0 else 0.8
