@@ -2427,19 +2427,34 @@ with st.sidebar:
             help=_t("RED III All.V Parte C: APERTO o CHIUSO con recupero gas."),
         )
 
-        upgrading_opt = st.selectbox(_t("Tecnologia upgrading"),
-                                      list(EP_UPGRADING.keys()), index=1)
-        offgas_opt = st.selectbox(_t("Combustione off-gas"),
-                                   list(EP_OFFGAS.keys()), index=0)
+        upgrading_opt = st.selectbox(
+            _t("Tecnologia upgrading"),
+            list(EP_UPGRADING.keys()), index=1,
+            help=_t("Seleziona la tecnologia di upgrading (separazione CO2). Ognuna ha consumi e perdite (slip) differenti.")
+        )
+        offgas_opt = st.selectbox(
+            _t("Combustione off-gas"),
+            list(EP_OFFGAS.keys()), index=0,
+            help=_t("Gestione delle emissioni fuggitive di metano nell'off-gas dell'upgrading. Un ossidatore termico (RTO) le azzera.")
+        )
         ep_upgrading = EP_UPGRADING[upgrading_opt]
         ep_offgas = EP_OFFGAS[offgas_opt]
         injection_opt = st.selectbox(
             _t("Iniezione in rete"),
-            list(INJECTION_PRESSURE.keys()), index=1
+            list(INJECTION_PRESSURE.keys()), index=1,
+            help=_t("Pressione della condotta per immissione in rete Snam/distributore. Incide sui consumi elettrici del booster.")
         )
 
-        heat_opt = st.selectbox(_t("Fonte calore"), list(EP_HEAT.keys()), index=0)
-        elec_opt = st.selectbox(_t("Elettricità ausiliari"), list(EP_ELEC.keys()), index=1)
+        heat_opt = st.selectbox(
+            _t("Fonte calore"),
+            list(EP_HEAT.keys()), index=0,
+            help=_t("Origine dell'energia termica per riscaldamento digestore. L'autoconsumo di biogas è neutrale ma consuma gas.")
+        )
+        elec_opt = st.selectbox(
+            _t("Elettricità ausiliari"),
+            list(EP_ELEC.keys()), index=1,
+            help=_t("Origine dell'energia elettrica per ausiliari e agitatori. L'autoproduzione cogenerativa/FV riduce le emissioni rispetto alla rete.")
+        )
 
         ep_digestate = EP_DIGESTATE[digestate_opt]
         ep_heat = EP_HEAT[heat_opt]
@@ -2688,6 +2703,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             _do_year = st.number_input(
                 _t("Anno"), min_value=2020, max_value=2100,
                 value=int(_today.year), step=1, key=f"{_key_prefix}do_year",
+                help=_t("Seleziona l'anno solare per la rendicontazione giornaliera dei dati.")
             )
         with _csel2:
             _do_month = st.selectbox(
@@ -2695,6 +2711,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                 index=_today.month - 1,
                 format_func=lambda m: _mlabel(int(_do_year), int(m), _LANG),
                 key=f"{_key_prefix}do_month",
+                help=_t("Seleziona il mese di riferimento per registrare le letture giornaliere.")
             )
         with _csel3:
             # ID impianto: se l'utente ha compilato "Nome impianto" in sidebar
@@ -2962,9 +2979,9 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             # (impianto spento).
             for _d_auto in _all_days:
                 _bio_day = sum(float(v) for v in (_data_map.get(_d_auto) or {}).values())
-                if _bio_day > 0 and float(_hours_map.get(_d_auto, 0.0)) == 0.0:
+                if _bio_day > 0 and abs(float(_hours_map.get(_d_auto, 0.0))) < 1e-9:
                     _hours_map[_d_auto] = 24.0
-                elif _bio_day == 0 and float(_hours_map.get(_d_auto, 0.0)) > 0.0:
+                elif _bio_day == 0 and abs(float(_hours_map.get(_d_auto, 0.0))) > 1e-9:
                     # Caso opposto: biomassa rimossa ma ore restate. Le azzero
                     # per coerenza (impianto senza alimentazione = spento).
                     _hours_map[_d_auto] = 0.0
@@ -3214,6 +3231,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             column_config={
                 "Data": st.column_config.TextColumn(
                     "Data", disabled=True,
+                    help=_t("Giorno del mese di rendicontazione."),
                 ),
                 _HOURS_COL: st.column_config.NumberColumn(
                     _HOURS_COL, min_value=0.0, max_value=24.0,
@@ -3265,7 +3283,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                 ),
                 _REMI_FLOW_COL: st.column_config.NumberColumn(
                     _REMI_FLOW_COL, disabled=True, format="%.1f",
-                    help=_t("Portata media REMI calcolata (Smc/h)"),
+                    help=_t("Portata media reale misurata al REMI = Sm³ reali / ore di funzionamento."),
                 ),
             },
             use_container_width=True,
