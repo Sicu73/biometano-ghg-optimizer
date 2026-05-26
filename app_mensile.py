@@ -4475,8 +4475,14 @@ with tab_business:
     # ── 5. PREMI CUMULABILI ────────────────────────────────────────────
     st.subheader("🏆 " + _t("Premi cumulabili"))
     st.caption(_t(
-        "I premi si sommano alla TR aggiudicata e aumentano il ricavo totale. "
-        "Vengono aggiunti alla tariffa effettiva usata nel Business Plan."
+        "⚠️ **Importante**: i valori €/MWh qui sotto NON sono quote fisse "
+        "previste dal DM 15/9/2022, ma **stime indicative** del beneficio "
+        "economico aggiuntivo ottenibile per due categorie di impianto: "
+        "(1) biometano **avanzato** (matrici Allegato IX RED III) con accesso "
+        "al mercato CIC, (2) upgrading con tecnologie qualificate "
+        "(maggior saving GHG → premi indiretti). "
+        "Personalizza i valori in base al tuo contratto specifico, all'andamento "
+        "del mercato CIC e ai requisiti del bando GSE di riferimento."
     ))
 
     _col_pm, _col_pu = st.columns(2)
@@ -4485,8 +4491,13 @@ with tab_business:
             f"🌿 {_t('Premio matrice avanzata')} (+{fmt_it(BP_PREMIO_MATRICE_DEFAULT, 0)} €/MWh)",
             value=True,
             help=_t(
-                "Premio per impianti con > 70% in massa di feedstock Annex IX RED II/III "
-                "(biometano avanzato). Somma +8 €/MWh alla TR aggiudicata. "
+                "Stima del beneficio economico aggiuntivo per impianti che operano "
+                "in modalità **biometano avanzato** (> 70% in massa di feedstock "
+                "Annex IX RED III: sottoprodotti agricoli, effluenti zootecnici, "
+                "FORSU, ecc.). Il beneficio reale dipende dal contratto specifico "
+                "e dal valore di mercato dei CIC (Certificati di Immissione in "
+                "Consumo) per il settore trasporti — variabile tipicamente "
+                "60-120 €/CIC. NON è una quota fissa garantita dal DM 2022. "
                 "La quota Annex IX viene verificata nel tab «🥧 Mix annuale»."
             ),
             key="bp_pm_on",
@@ -4507,9 +4518,14 @@ with tab_business:
             f"⚙️ {_t('Premio upgrading qualificato')} (+{fmt_it(BP_PREMIO_UPGRADING_DEFAULT, 0)} €/MWh)",
             value=_upg_premio_auto,
             help=_t(
-                "Premio per tecnologie di upgrading qualificate (membrane o amminico chimico): "
-                "slip CH₄ < 1%, emissioni EP_upgrading ≤ 5 gCO₂/MJ. "
-                "Rilevato automaticamente dalla configurazione upgrading in Config. Tecnica."
+                "Stima del beneficio economico INDIRETTO per impianti con "
+                "tecnologie upgrading qualificate (membrane o amminico chimico, "
+                "slip CH₄ < 1%, EP_upgrading ≤ 5 gCO₂/MJ). Il valore non è "
+                "una quota normativa del DM 2022 ma una stima del maggior "
+                "saving GHG → maggior valore del biometano sul mercato "
+                "trasporti (CIC) → premio implicito nel prezzo medio di "
+                "vendita. Rilevato automaticamente dalla configurazione "
+                "upgrading in Config. Tecnica."
             ) + (f" [{'✅ auto' if _upg_premio_auto else '⚠️ verifica in Config. Tecnica'}]",)[0],
             key="bp_pu_on",
         )
