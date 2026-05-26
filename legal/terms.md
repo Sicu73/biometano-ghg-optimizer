@@ -76,16 +76,15 @@ L'utente NON deve:
 
 Manutenzione programmata: notificata almeno 24h prima via email.
 
-## 8. Limitazione di responsabilità
+## 8. Limitazione di responsabilità ed Esclusione di Garanzia
 
 Nei limiti consentiti dalla legge, il Titolare:
 
-- NON è responsabile per **danni indiretti, consequenziali, perdita di profitto
-  o di chance**.
-- NON garantisce la **conformità normativa automatica** dei report generati: il
-  Servizio è uno strumento di supporto, l'utente resta responsabile della
-  verifica finale dei dati prima della trasmissione a GSE o autorità.
-- Fatto salvo il caso di dolo o colpa grave del Titolare, la responsabilità complessiva, in caso di danno diretto provato, è limitata a quanto corrisposto dall'utente nei **12 mesi precedenti** all'evento.
+- **Erogazione "AS IS"**: Fornisce il Servizio e tutti i calcoli, stime, simulazioni o report da esso generati "così come sono" ("AS IS") e "secondo disponibilità", senza alcuna garanzia implicita o esplicita di accuratezza, correttezza, completezza o idoneità a scopi specifici. Il Titolare non garantisce l'assenza di errori di calcolo, bug, omissioni o malfunzionamenti del software.
+- **Esclusione di responsabilità per errori del software**: NON è responsabile in alcun modo per sanzioni, perdite economiche, dinieghi o revoche di incentivi (GSE o altre autorità), perdite di ricavi, o contestazioni derivanti da calcoli errati, bug o malfunzionamenti del software. Qualsiasi decisione economica, finanziaria, operativa o normativa presa sulla base dei risultati forniti dal Servizio ricade sotto l'esclusiva responsabilità e rischio dell'utente.
+- **Conformità normativa**: NON garantisce la conformità normativa automatica dei report generati. Il Servizio è uno strumento di supporto decisionale; l'utente ha l'obbligo di verificare in modo indipendente tutti i dati e i calcoli prima di qualsiasi trasmissione ufficiale o utilizzo legale.
+- **Danni indiretti**: NON è responsabile per danni indiretti, consequenziali, perdita di profitto, di fatturato, di dati o di chance.
+- **Limite di risarcimento**: Fatto salvo il caso di dolo o colpa grave del Titolare, la responsabilità complessiva del Titolare per eventuali danni diretti accertati è limitata al minore tra l'importo effettivamente corrisposto dall'utente nei **12 mesi precedenti** all'evento dannoso e la somma di 500,00 €.
 
 ## 9. Recesso e sospensione
 
