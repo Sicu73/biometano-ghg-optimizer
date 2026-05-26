@@ -1569,7 +1569,7 @@ with st.sidebar:
     # 📋 Normativa applicata + Verifica aggiornamenti
     # ============================================================
     with st.expander(
-        "📋 Normativa & aggiornamenti",
+        "📋 " + _t("Normativa & aggiornamenti"),
         expanded=False,
     ):
         _norm_local = _load_normativa_local()
