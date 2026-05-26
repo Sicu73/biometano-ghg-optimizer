@@ -4350,9 +4350,12 @@ with tab_tech:
     target_saving = ghg_threshold + 0.01  # +1 pp margine sicurezza
     target_e_max = FOSSIL_COMPARATOR * (1 - target_saving)
     max_allowed_e = FOSSIL_COMPARATOR * (1 - ghg_threshold)
-    st.metric(_t("Soglia saving obbligatoria"),
-              fmt_it(ghg_threshold * 100, 0, "%"),
-              delta=f"{_t('target solver')} {fmt_it(target_saving * 100, 0, '%')}")
+    st.metric(
+        _t("Soglia saving obbligatoria"),
+        fmt_it(ghg_threshold * 100, 0, "%"),
+        delta=f"{_t('target solver')} {fmt_it(target_saving * 100, 0, '%')}",
+        help=_t("Soglia minima di riduzione delle emissioni GHG rispetto al comparatore fossile (RED III). Il target solver include un margine di sicurezza di +1% per evitare oscillazioni."),
+    )
 
     # =================================================================
     # TABELLA GIORNALIERA — modalità ANALISI.
@@ -4570,6 +4573,7 @@ with tab_business:
             value=BP_PREMIO_MATRICE_DEFAULT, step=0.5,
             key="bp_pm_val",
             disabled=not bp_premio_matrice_on,
+            help=_t("Inserisci il valore stimato del premio matrice avanzata (€/MWh). Questo valore si somma alla tariffa di riferimento.")
         )
 
     with _col_pu:
@@ -4597,6 +4601,7 @@ with tab_business:
             value=BP_PREMIO_UPGRADING_DEFAULT, step=0.5,
             key="bp_pu_val",
             disabled=not bp_premio_upg_on,
+            help=_t("Inserisci il valore stimato del premio upgrading qualificato (€/MWh). Questo valore si somma alla tariffa di riferimento.")
         )
 
     # Premio PNRR conto capitale
@@ -4673,18 +4678,31 @@ with tab_business:
             pnrr_quota_pct=_pnrr_pct,
         )
         _hero_cols = st.columns(5)
-        _hero_cols[0].metric(_t("Ricavo annuo"),
-                              f"{fmt_it(_bp_hero.rows[1].ricavi / 1000, 0)}k €")
-        _hero_cols[1].metric(_t("CAPEX totale"),
-                              f"{fmt_it(_bp_hero.capex_total / 1_000_000, 1)}M €")
-        _hero_cols[2].metric("IRR Equity",
-                              f"{_bp_hero.irr_equity * 100:.1f}%"
-                              if -1 < _bp_hero.irr_equity < 10 else "—")
-        _hero_cols[3].metric("NPV @ 6%",
-                              f"{fmt_it(_bp_hero.npv_project / 1_000_000, 1)}M €")
-        _hero_cols[4].metric(_t("Payback"),
-                              f"{_bp_hero.payback_years:.1f} {_t('anni')}"
-                              if _bp_hero.payback_years else "—")
+        _hero_cols[0].metric(
+            _t("Ricavo annuo"),
+            f"{fmt_it(_bp_hero.rows[1].ricavi / 1000, 0)}k €",
+            help=_t("Ricavo lordo stimato per il primo anno di esercizio commerciale, comprensivo di tariffa base e premi.")
+        )
+        _hero_cols[1].metric(
+            _t("CAPEX totale"),
+            f"{fmt_it(_bp_hero.capex_total / 1_000_000, 1)}M €",
+            help=_t("Investimento totale stimato per la realizzazione dell'impianto chiavi in mano, comprensivo di costi forfait e PNRR.")
+        )
+        _hero_cols[2].metric(
+            "IRR Equity",
+            f"{_bp_hero.irr_equity * 100:.1f}%" if -1 < _bp_hero.irr_equity < 10 else "—",
+            help=_t("Tasso Interno di Rendimento calcolato sui flussi di cassa del capitale proprio (Equity IRR).")
+        )
+        _hero_cols[3].metric(
+            "NPV @ 6%",
+            f"{fmt_it(_bp_hero.npv_project / 1_000_000, 1)}M €",
+            help=_t("Valore Attuale Netto (NPV) del progetto calcolato su base 15 anni attualizzato al tasso del 6.0%.")
+        )
+        _hero_cols[4].metric(
+            _t("Payback"),
+            f"{_bp_hero.payback_years:.1f} {_t('anni')}" if _bp_hero.payback_years else "—",
+            help=_t("Tempo di recupero (in anni) del capitale proprio investito, al netto del finanziamento e del PNRR.")
+        )
         st.caption("ℹ️ " + _t(
             "KPI economici calcolati con CAPEX/OPEX di default. "
             "Personalizza nella sezione **💼 Business Plan completo** in fondo al tab."
@@ -4735,6 +4753,7 @@ with tab_business:
     st.metric(
         "Produzione lorda richiesta",
         fmt_it(plant_net_smch * aux_factor, 1, " Sm³/h"),
+        help=_t("Produzione oraria lorda di biogas necessaria per garantire la produzione netta immessa in rete, tenuto conto dell'aux_factor.")
     )
 
     # ============================================================
