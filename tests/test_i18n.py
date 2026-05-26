@@ -13,6 +13,7 @@ from core.i18n import (
     set_language,
     t,
 )
+from i18n_runtime import t as runtime_t
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +111,17 @@ def test_t_with_no_lang_uses_get_language():
     sample_key = next(iter(TRANSLATIONS["it"].keys()))
     expected = TRANSLATIONS["it"][sample_key]
     assert t(sample_key) == expected
+
+
+def test_runtime_i18n_does_not_retranslate_english_output():
+    text = (
+        "DM 15/9/2022 · pianificazione mensile e ottimizzazione GHG per "
+        "biometano: tariffa diretta €/MWh, saving RED III/D.Lgs. 5/2026 "
+        "per uso finale."
+    )
+    translated = runtime_t(text, "en")
+    assert "monthly planning" in translated
+    assert "plyearsng" not in translated
 
 
 # ---------------------------------------------------------------------------

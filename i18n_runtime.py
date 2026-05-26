@@ -9,8 +9,15 @@ API pubblica:
   translate_df(df, lang=None)  -> DataFrame con colonne tradotte
 """
 from __future__ import annotations
+import re
+
 from metaniq_i18n import IT_EN
 from core.design_tokens import AMBER as _ACCENT, SLATE_500 as _MUTED
+
+
+_IT_EN_PATTERN = re.compile(
+    "|".join(re.escape(k) for k in sorted(IT_EN, key=len, reverse=True))
+)
 
 
 def get_lang() -> str:
@@ -22,14 +29,19 @@ def get_lang() -> str:
 
 
 def t(text: object, lang: str | None = None) -> object:
-    """Traduce text IT->EN. Se lang è None usa get_lang()."""
+    """Traduce text IT->EN. Se lang è None usa get_lang().
+
+    La sostituzione è one-pass sull'input originale: così una traduzione già
+    prodotta non viene tradotta di nuovo da chiavi più corte (es. "planning"
+    non può diventare "plyearsng" se esiste una chiave "anni" -> "years").
+    """
     if lang is None:
         lang = get_lang()
     if lang != "en" or not isinstance(text, str):
         return text
-    for k, v in sorted(IT_EN.items(), key=lambda p: -len(p[0])):
-        text = text.replace(k, v)
-    return text
+    if text in IT_EN:
+        return IT_EN[text]
+    return _IT_EN_PATTERN.sub(lambda match: IT_EN[match.group(0)], text)
 
 
 def translate_df(df, lang: str | None = None):

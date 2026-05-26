@@ -1266,6 +1266,8 @@ AMBER       = "#F59E0B"
 ACCENT      = AMBER
 BORDER      = "#E2E8F0"
 TEXT_MUTED   = "#73777F"
+_SIDEBAR_PRE_DARK = st.session_state.methaniq_theme == "dark"
+_SIDEBAR_PRE_LABEL = "#CBD5E1" if _SIDEBAR_PRE_DARK else "#64748B"
 
 with st.sidebar:
     st.markdown(
@@ -1281,7 +1283,7 @@ with st.sidebar:
     st.markdown(
         f"""
         <div style='font-size:0.7rem; font-weight:700; letter-spacing:1px; 
-             text-transform:uppercase; color:#64748B; margin-bottom:8px; margin-left:2px;'>
+             text-transform:uppercase; color:{_SIDEBAR_PRE_LABEL}; margin-bottom:8px; margin-left:2px;'>
              🎨 Tema / Appearance
         </div>
         """,
@@ -1320,7 +1322,7 @@ with st.sidebar:
     # =======================================================
     st.markdown(
         f"<div style='font-size:0.7rem; font-weight:700; letter-spacing:1px;"
-        f" text-transform:uppercase; color:#64748B; margin-bottom:6px;"
+        f" text-transform:uppercase; color:{_SIDEBAR_PRE_LABEL}; margin-bottom:6px;"
         f" margin-left:2px;'>🏢 {_t('Anagrafica simulazione')}</div>",
         unsafe_allow_html=True,
     )
@@ -1609,6 +1611,31 @@ st.markdown(
         background-color: {SIDEBAR_BG} !important;
         border-right: 1px solid {BORDER} !important;
     }}
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] small,
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {{
+        color: {TEXT_SECOND} !important;
+    }}
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3,
+    section[data-testid="stSidebar"] strong,
+    section[data-testid="stSidebar"] div[data-testid="stExpander"] summary,
+    section[data-testid="stSidebar"] div[data-testid="stExpander"] summary * {{
+        color: {TEXT_PRIMARY} !important;
+    }}
+    section[data-testid="stSidebar"] .stButton button {{
+        color: {TEXT_PRIMARY} !important;
+        background-color: {BG_SURFACE} !important;
+        border-color: {BORDER} !important;
+    }}
+    section[data-testid="stSidebar"] .stButton button[kind="primary"] {{
+        color: #FFFFFF !important;
+        background-color: {PRIMARY} !important;
+        border-color: {PRIMARY} !important;
+    }}
     
     [data-testid="stSidebarNav"] li div[aria-selected="true"] {{
         background-color: {SECTION_PILL_BG} !important;
@@ -1625,6 +1652,24 @@ st.markdown(
     button:has(div:contains("it-hidden")), 
     button:has(div:contains("uk-hidden")) {{
         display: none !important;
+    }}
+    /* Keep Streamlit Material icon glyphs as icons instead of readable fallback text. */
+    span[data-testid="stIconMaterial"],
+    .material-icons,
+    .material-symbols-rounded,
+    .material-symbols-outlined {{
+        font-family: "Material Symbols Rounded", "Material Symbols Outlined", "Material Icons" !important;
+        font-weight: normal !important;
+        font-style: normal !important;
+        font-size: 1.15rem !important;
+        line-height: 1 !important;
+        letter-spacing: normal !important;
+        text-transform: none !important;
+        white-space: nowrap !important;
+        direction: ltr !important;
+        -webkit-font-feature-settings: "liga" !important;
+        -webkit-font-smoothing: antialiased !important;
+        font-feature-settings: "liga" !important;
     }}
 
     /* ---------- Hero Header (Material You Style) ---------- */
@@ -1652,7 +1697,7 @@ st.markdown(
         color: white !important;
         font-size: 3.5rem !important;
         font-weight: 700 !important;
-        letter-spacing: -0.04em !important;
+        letter-spacing: 0 !important;
         margin: 0 !important;
         line-height: 1.1 !important;
     }}
@@ -1666,6 +1711,7 @@ st.markdown(
     }}
     .methaniq-header .pills {{
         display: flex;
+        flex-wrap: wrap;
         gap: 12px;
         margin-top: 32px;
     }}
@@ -1683,6 +1729,8 @@ st.markdown(
     .stTabs [data-baseweb="tab-list"] {{
         gap: 8px !important;
         background-color: transparent !important;
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
     }}
     .stTabs [data-baseweb="tab"] {{
         border-radius: 20px !important;
@@ -1690,6 +1738,8 @@ st.markdown(
         background-color: {BG_SURFACE} !important;
         border: 1px solid {BORDER} !important;
         transition: all 0.2s !important;
+        color: {TEXT_PRIMARY} !important;
+        min-width: max-content !important;
     }}
     .stTabs [aria-selected="true"] {{
         background-color: {PRIMARY} !important;
@@ -1721,6 +1771,35 @@ st.markdown(
         padding: 24px;
         margin: 32px 0;
         box-shadow: {SHADOW_CARD};
+    }}
+    @media (max-width: 760px) {{
+        .block-container {{
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }}
+        .methaniq-header {{
+            padding: 30px 22px;
+            border-radius: 24px;
+            margin-bottom: 24px;
+        }}
+        .methaniq-header h1 {{
+            font-size: 2.4rem !important;
+        }}
+        .methaniq-header .tagline {{
+            font-size: 1rem;
+            line-height: 1.55;
+        }}
+        .methaniq-header .pill {{
+            font-size: 0.72rem;
+            padding: 7px 12px;
+        }}
+        .methaniq-credit {{
+            padding: 18px;
+            border-radius: 18px;
+        }}
+        [data-testid="stDataFrame"] {{
+            overflow-x: auto !important;
+        }}
     }}
     </style>
     <div class="methaniq-header">
