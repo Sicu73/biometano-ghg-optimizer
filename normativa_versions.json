@@ -194,17 +194,17 @@
       "applicato_in_app": true,
       "ultima_revisione": "2026-04-25",
       "valori_chiave": {
-        "yield_mais_nm3_ch4_t": 104,
+        "yield_mais_nm3_ch4_t": 116.1,
         "yield_sorgo_nm3_ch4_t": 90,
-        "yield_triticale_nm3_ch4_t": 85,
+        "yield_triticale_nm3_ch4_t": 106.1,
         "yield_segale_nm3_ch4_t": 80,
-        "yield_liquame_suino_nm3_ch4_t": 15,
+        "yield_liquame_suino_nm3_ch4_t": 14,
         "yield_pollina_broiler_nm3_ch4_t": 105,
-        "yield_FORSU_nm3_ch4_t": 140,
+        "yield_FORSU_nm3_ch4_t": 95.2,
         "yield_polpe_barbabietola_fresche_nm3_ch4_t": 50
       },
       "fonte_url": "https://store.uni.com/uni-ts-11567-2024",
-      "note": "Database FEEDSTOCK_DB cablato su UNI/TS 11567:2024 + JEC WTT v5 per coerenza con certificazioni GSE."
+      "note": "Database FEEDSTOCK_DB cablato su UNI/TS 11567:2024 + JRC-JEC WTT v5 per coerenza con certificazioni GSE."
     },
     {
       "id": "jec_wtt_v5",

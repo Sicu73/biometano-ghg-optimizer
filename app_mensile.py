@@ -94,17 +94,13 @@ from emission_factors_override import (
 )
 
 # ============================================================
-# REGISTRO NORMATIVA — verifica aggiornamenti via GitHub
+# REGISTRO NORMATIVA
 # ============================================================
 # Il file normativa_versions.json contiene tutte le norme (RED III,
 # DM 2018, DM 2022, DM 2012, FER 2, GSE LG, UNI/TS, JEC) cablate nel
 # codice + i valori-chiave codificati. Aggiornarlo (commit) quando si
 # applica una modifica al codice o si aggiunge una nuova norma.
 NORMATIVA_LOCAL_PATH = Path(__file__).parent / "normativa_versions.json"
-NORMATIVA_REMOTE_URL = (
-    "https://raw.githubusercontent.com/Sicu73/biometano-ghg-optimizer/"
-    "master/normativa_versions.json"
-)
 
 
 def _load_normativa_local() -> dict:
@@ -114,30 +110,6 @@ def _load_normativa_local() -> dict:
             return json.load(f)
     except Exception as exc:  # noqa: BLE001
         return {"_error": f"File locale non trovato: {exc}"}
-
-
-@st.cache_data(ttl=600, show_spinner=False)
-def _fetch_normativa_remote(url: str = NORMATIVA_REMOTE_URL) -> dict:
-    """Scarica il JSON normativa dal master GitHub. Cache 10 minuti.
-
-    Audit robustezza #6: gestione differenziata degli errori per evitare
-    confusione utente quando offline o GitHub down. Ritorna dict con chiave
-    `_error` (UI mostrerà messaggio) e `_error_kind` (per filtrare warning).
-    """
-    import socket
-    try:
-        req = urllib.request.Request(
-            url, headers={"User-Agent": "Metan.iQ/1.0"}
-        )
-        with urllib.request.urlopen(req, timeout=10) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:  # 4xx/5xx GitHub
-        return {"_error": f"GitHub HTTP {exc.code}", "_error_kind": "http"}
-    except (urllib.error.URLError, socket.timeout, socket.gaierror) as exc:
-        # Rete assente / DNS / timeout → silenzio (l'utente è offline)
-        return {"_error": f"Network: {exc}", "_error_kind": "offline"}
-    except Exception as exc:  # noqa: BLE001
-        return {"_error": f"Fetch fallito: {exc}", "_error_kind": "unknown"}
 
 
 # ============================================================
@@ -505,8 +477,10 @@ def compute_revenues(
 #              Il gas recuperato NON da' un bonus negativo: semplicemente
 #              confluisce nel biogas lordo e aumenta la resa yield.
 EP_DIGESTATE = {
-    "APERTO (no copertura) - fattore IPCC/JEC":                    +15.0,
-    "CHIUSO con recupero gas residuo all'upgrading":                 0.0,
+    "CHIUSO con recupero gas residuo (minimo 60 giorni)":             0.0,
+    "CHIUSO con recupero gas residuo (minimo 30 giorni)":             1.6,
+    "BREVE TERMINE (massimo 3 giorni)":                               6.4,
+    "APERTO (senza recupero) - declassamento d'ufficio":             15.0,
 }
 EP_UPGRADING = {
     "PSA (methane slip ~1.5%)":                         +12.0,
@@ -701,59 +675,55 @@ FEEDSTOCK_DB = {
     # NB: NON sono Annex IX -> single counting CIC, no premio DM 2018
     # =========================================================
     "Trinciato di mais": {
-        "eec": 26.0, "esca": 0.0, "etd": 0.8, "yield": 104.0,
+        "eec": 26.0, "esca": 0.0, "etd": 0.8, "yield": 116.1, "dry_matter_std": 0.35,
         "color": "#F5C518", "cat": "Colture dedicate",
         "annex_ix": None,
         "src": "UNI-TS 11567:2024 / JEC v5",
     },
     "Trinciato di sorgo": {
-        "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 90.0,
+        "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 90.0, "dry_matter_std": 0.30,
         "color": "#8BC34A", "cat": "Colture dedicate",
         "annex_ix": None,
         "src": "UNI-TS 11567:2024",
     },
     "Triticale insilato": {
-        "eec": 20.0, "esca": 0.0, "etd": 0.8, "yield": 85.0,
+        "eec": 20.0, "esca": 0.0, "etd": 0.8, "yield": 106.1, "dry_matter_std": 0.35,
         "color": "#AED581", "cat": "Colture dedicate",
         "annex_ix": None,
-        "src": "JEC v5 / KTBL",
+        "src": "UNI-TS 11567:2024",
     },
     "Segale insilata": {
-        "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 80.0,
+        "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 80.0, "dry_matter_std": 0.35,
         "color": "#C5E1A5", "cat": "Colture dedicate",
         "annex_ix": None,
         "src": "JEC v5 / KTBL",
     },
     "Orzo insilato": {
-        "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 82.0,
+        "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 82.0, "dry_matter_std": 0.35,
         "color": "#DCEDC8", "cat": "Colture dedicate",
         "annex_ix": None,
         "src": "JEC v5",
     },
     "Loietto insilato (ryegrass)": {
-        "eec": 18.0, "esca": 0.0, "etd": 0.8, "yield": 75.0,
+        "eec": 18.0, "esca": 0.0, "etd": 0.8, "yield": 93.7, "dry_matter_std": 0.35,
         "color": "#9CCC65", "cat": "Colture dedicate",
         "annex_ix": None,
         "src": "UNI-TS 11567:2024",
     },
     "Erba medica insilata": {
-        "eec": 15.0, "esca": 0.0, "etd": 0.8, "yield": 70.0,
+        "eec": 15.0, "esca": 0.0, "etd": 0.8, "yield": 70.0, "dry_matter_std": 0.35,
         "color": "#7CB342", "cat": "Colture dedicate",
         "annex_ix": None,
         "src": "JEC v5 (azotofissazione)",
     },
     "Doppia coltura (2° raccolto)": {
-        "eec": 15.0, "esca": 0.0, "etd": 0.8, "yield": 95.0,
+        "eec": 15.0, "esca": 0.0, "etd": 0.8, "yield": 95.0, "dry_matter_std": 0.35,
         "color": "#689F38", "cat": "Colture dedicate",
-        # Coltivazione secondaria su stesso suolo: NON Annex IX di default
-        # ma alcune interpretazioni la includono come "intermediate crop"
-        # del par. (q) RED II All. IX. Default: NOT advanced (override
-        # manuale possibile da sidebar).
         "annex_ix": None,
         "src": "GSE LG 2024 (art. doppia coltura)",
     },
     "Barbabietola da zucchero": {
-        "eec": 12.0, "esca": 0.0, "etd": 0.8, "yield": 105.0,
+        "eec": 12.0, "esca": 0.0, "etd": 0.8, "yield": 105.0, "dry_matter_std": 0.23,
         "color": "#CE93D8", "cat": "Colture dedicate",
         "annex_ix": None,
         "src": "JEC v5",
@@ -769,55 +739,55 @@ FEEDSTOCK_DB = {
     # Ovaiole stoccaggio aerobico su nastro: 0 (no credit).
     # =========================================================
     "Liquame suino": {
-        "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 15.0,
+        "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 14.0, "dry_matter_std": 0.10,
         "color": "#8D6E63", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
-        "src": "RED III Annex VI / JEC v5",
+        "src": "UNI-TS 11567:2024 / RED III",
     },
     "Liquame bovino": {
-        "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 20.0,
+        "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 14.0, "dry_matter_std": 0.10,
         "color": "#795548", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
-        "src": "RED III Annex VI",
+        "src": "UNI-TS 11567:2024",
     },
     "Liquame bufalino": {
-        "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 22.0,
+        "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 14.0, "dry_matter_std": 0.10,
         "color": "#6D4C41", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
-        "src": "JEC v5 / prassi GSE",
+        "src": "UNI-TS 11567:2024",
     },
     "Letame bovino palabile": {
-        "eec": -30.0, "esca": 0.0, "etd": 0.8, "yield": 45.0,
+        "eec": -30.0, "esca": 0.0, "etd": 0.8, "yield": 35.0, "dry_matter_std": 0.25,
         "color": "#A1887F", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
         "src": "IPCC 2019 Vol.4 Cap.10 + GSE",
     },
     "Letame equino": {
-        "eec": -20.0, "esca": 0.0, "etd": 0.8, "yield": 35.0,
+        "eec": -20.0, "esca": 0.0, "etd": 0.8, "yield": 42.0, "dry_matter_std": 0.30,
         "color": "#BCAAA4", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
         "src": "JEC v5",
     },
     "Pollina ovaiole (aerobico)": {
-        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 90.0,
+        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 84.0, "dry_matter_std": 0.60,
         "color": "#FF9800", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
         "src": "GSE (no credit anaerobico)",
     },
     "Pollina broiler (lettiera)": {
-        "eec": -15.0, "esca": 0.0, "etd": 0.8, "yield": 105.0,
+        "eec": -15.0, "esca": 0.0, "etd": 0.8, "yield": 105.0, "dry_matter_std": 0.60,
         "color": "#FFA726", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
-        "src": "IPCC 2019 / JEC v5",
+        "src": "UNI-TS 11567:2024",
     },
     "Pollina tacchini": {
-        "eec": -10.0, "esca": 0.0, "etd": 0.8, "yield": 100.0,
+        "eec": -10.0, "esca": 0.0, "etd": 0.8, "yield": 100.0, "dry_matter_std": 0.60,
         "color": "#FFB74D", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
         "src": "IPCC 2019",
     },
     "Deiezioni conigli": {
-        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 75.0,
+        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 75.0, "dry_matter_std": 0.50,
         "color": "#FFCC80", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
@@ -830,130 +800,121 @@ FEEDSTOCK_DB = {
     # - UCO, scarti macellazione cat. 3 -> All. IX B (oli/grassi)
     # =========================================================
     "Sansa di olive umida": {
-        "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 120.0,
+        "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 120.0, "dry_matter_std": 0.30,
         "color": "#6A1B9A", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
         "src": "JEC v5 / All. IX RED III",
     },
     "Sansa vergine": {
-        "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 140.0,
+        "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 140.0, "dry_matter_std": 0.50,
         "color": "#7B1FA2", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
         "src": "JEC v5",
     },
     "Pastazzo di agrumi": {
-        "eec": 6.0, "esca": 0.0, "etd": 0.8, "yield": 100.0,
+        "eec": 6.0, "esca": 0.0, "etd": 0.8, "yield": 100.0, "dry_matter_std": 0.18,
         "color": "#FFB300", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
     },
     "Vinaccia (con raspi)": {
-        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 130.0,
+        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 130.0, "dry_matter_std": 0.30,
         "color": "#880E4F", "cat": "Sottoprodotti agroindustriali",
-        "annex_ix": "A",  # All. IX A (i): grape marcs and wine lees
+        "annex_ix": "A",
         "src": "JEC v5",
     },
     "Raspi d'uva": {
-        "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 70.0,
+        "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 70.0, "dry_matter_std": 0.35,
         "color": "#AD1457", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
     },
     "Feccia vinicola": {
-        "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 180.0,
+        "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 180.0, "dry_matter_std": 0.10,
         "color": "#C2185B", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
         "src": "JEC v5",
     },
     "Siero di latte": {
-        "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 30.0,
+        "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 30.0, "dry_matter_std": 0.06,
         "color": "#FFF9C4", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
     },
     "Scotta (siero residuo)": {
-        "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 22.0,
+        "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 22.0, "dry_matter_std": 0.06,
         "color": "#FFF59D", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
         "src": "JEC v5",
     },
     "Trebbie di birra": {
-        "eec": 4.0, "esca": 0.0, "etd": 0.8, "yield": 140.0,
+        "eec": 4.0, "esca": 0.0, "etd": 0.8, "yield": 140.0, "dry_matter_std": 0.25,
         "color": "#D4A574", "cat": "Sottoprodotti agroindustriali",
-        "annex_ix": "A",  # All. IX A (m): biomass fraction industrial waste
+        "annex_ix": "A",
         "src": "JEC v5",
     },
     "Lolla/pula di riso": {
-        "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 50.0,
+        "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 50.0, "dry_matter_std": 0.90,
         "color": "#F5DEB3", "cat": "Sottoprodotti agroindustriali",
-        "annex_ix": "A",  # All. IX A (k): husks
+        "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
     },
     "Melasso": {
-        "eec": 8.0, "esca": 0.0, "etd": 0.8, "yield": 180.0,
+        "eec": 8.0, "esca": 0.0, "etd": 0.8, "yield": 180.0, "dry_matter_std": 0.75,
         "color": "#5D4037", "cat": "Sottoprodotti agroindustriali",
-        "annex_ix": "A",  # sugar industry residue (canna)
+        "annex_ix": "A",
         "src": "JEC v5",
     },
     "Scarti panificazione/pasticceria": {
-        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 280.0,
+        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 280.0, "dry_matter_std": 0.80,
         "color": "#D7CCC8", "cat": "Sottoprodotti agroindustriali",
-        "annex_ix": "A",  # All. IX A (c): bio-waste
+        "annex_ix": "A",
         "src": "UNI-TS 11567:2024 (alta resa zuccheri)",
     },
     "Grassi esausti / UCO": {
-        "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 700.0,
+        "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 700.0, "dry_matter_std": 0.99,
         "color": "#FFE082", "cat": "Sottoprodotti agroindustriali",
-        "annex_ix": "B",  # All. IX B (a): used cooking oil
+        "annex_ix": "B",
         "src": "JEC v5 (lipidi, All. IX parte B)",
     },
     "Scarti macellazione (cat. 3)": {
-        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 180.0,
+        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 180.0, "dry_matter_std": 0.30,
         "color": "#EF5350", "cat": "Sottoprodotti agroindustriali",
-        "annex_ix": "B",  # All. IX B (b): cat 1/2 animal fats; cat 3
-                            # comunemente trattato come avanzato in DM 2018
+        "annex_ix": "B",
         "src": "JEC v5 / Reg. 1069/2009",
     },
     "Sottoprodotti ortofrutticoli": {
-        "eec": 7.0, "esca": 0.0, "etd": 0.8, "yield": 100.0,
+        "eec": 7.0, "esca": 0.0, "etd": 0.8, "yield": 100.0, "dry_matter_std": 0.15,
         "color": "#66BB6A", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
     },
     "Scarti caseari vari": {
-        "eec": 4.0, "esca": 0.0, "etd": 0.8, "yield": 40.0,
+        "eec": 4.0, "esca": 0.0, "etd": 0.8, "yield": 40.0, "dry_matter_std": 0.15,
         "color": "#E1BEE7", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
         "src": "JEC v5",
     },
     "Fanghi agro-industriali": {
-        "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 55.0,
+        "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 55.0, "dry_matter_std": 0.10,
         "color": "#90A4AE", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
     },
     "Polpe di barbabietola fresche": {
-        # Sottoprodotto dello zuccherificio (residuo dopo estrazione saccarosio).
-        # Come residuo di lavorazione: eec=0 (no oneri coltivazione allocati),
-        # esca=0 (no LUC). Solo etd per trasporto/condizionamento.
-        # Resa: ~50 Nm3/t FM (DM ~22-25%, biogas ~700 Nm3/t SV, 55% CH4).
-        "eec": 0.0, "esca": 0.0, "etd": 2.0, "yield": 50.0,
+        "eec": 0.0, "esca": 0.0, "etd": 2.0, "yield": 50.0, "dry_matter_std": 0.22,
         "color": "#F48FB1", "cat": "Sottoprodotti agroindustriali",
-        "annex_ix": "A",  # sugar industry residue, analogo bagasse (h)
+        "annex_ix": "A",
         "src": "UNI-TS 11567:2024 / JEC WTT v5 (by-product allocation)",
     },
     "Polpe di barbabietola insilate": {
-        # Polpe surpressate insilate (DM ~28-30%): piu' dense delle fresche,
-        # resa piu' alta per t FM. Sottoprodotto -> eec=0, esca=0.
-        "eec": 0.0, "esca": 0.0, "etd": 2.5, "yield": 75.0,
+        "eec": 0.0, "esca": 0.0, "etd": 2.5, "yield": 75.0, "dry_matter_std": 0.28,
         "color": "#EC407A", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
         "src": "UNI-TS 11567:2024 / JEC WTT v5",
     },
     "Melasso di barbabietola": {
-        # Gia' presente come "Melasso" (canna); qui variante barbabietola.
-        # Sottoprodotto liquido zuccherificio: resa alta, DM ~75-80%.
-        "eec": 0.0, "esca": 0.0, "etd": 1.5, "yield": 280.0,
+        "eec": 0.0, "esca": 0.0, "etd": 1.5, "yield": 280.0, "dry_matter_std": 0.75,
         "color": "#C2185B", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
         "src": "JEC WTT v5 / UNI-TS 11567:2024",
@@ -964,13 +925,13 @@ FEEDSTOCK_DB = {
     # Tutti -> AVANZATI con double counting CIC.
     # =========================================================
     "FORSU selezionata": {
-        "eec": 8.0, "esca": 0.0, "etd": 0.8, "yield": 140.0,
+        "eec": 8.0, "esca": 0.0, "etd": 0.8, "yield": 95.2, "dry_matter_std": 0.24,
         "color": "#546E7A", "cat": "FORSU / Rifiuti",
         "annex_ix": "A",
-        "src": "All. IX RED III / GSE LG 2024",
+        "src": "UNI-TS 11567:2024",
     },
     "Fanghi depurazione": {
-        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 60.0,
+        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 8.0, "dry_matter_std": 0.06,
         "color": "#78909C", "cat": "FORSU / Rifiuti",
         "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
@@ -1003,20 +964,24 @@ FEEDSTOCK_CATEGORIES = _feeds_by_category()
 # mai modificata: l'override e' solo un "sovrascrittura runtime"
 # tracciabile per la singola biomassa.
 _EFFECTIVE_YIELDS: dict[str, float] = {}
+_EFFECTIVE_DRY_MATTERS: dict[str, float] = {}
 
 
 def _yield_of(name: str) -> float:
-    """Resa effettiva [Nm3 CH4/t] = override BMT se attivo, altrimenti tabella.
-
-    NB: il valore restituito ha la stessa unità della resa standard
-    (Nm3 CH4/t) per coerenza con tutto il pipeline di calcolo a valle.
-    L'unità BMT (Sm3 biometano/t) e' assimilabile per impianti Italia
-    (gas a 97% CH4); la differenza ~5% Nm3-vs-Sm3 e' coerente con il
-    resto del modello (vedi WARN-11 nell'audit normativo).
+    """Resa effettiva [Nm3 CH4/t] = (override BMT se attivo, altrimenti tabella)
+    normalizzata in base al rapporto tra sostanza secca reale e standard.
     """
     if name in _EFFECTIVE_YIELDS:
-        return float(_EFFECTIVE_YIELDS[name])
-    return float(FEEDSTOCK_DB[name]["yield"])
+        base_yield = float(_EFFECTIVE_YIELDS[name])
+    else:
+        base_yield = float(FEEDSTOCK_DB[name]["yield"])
+
+    sts = float(FEEDSTOCK_DB[name].get("dry_matter_std", 1.0))
+    sta = float(_EFFECTIVE_DRY_MATTERS[name]) if name in _EFFECTIVE_DRY_MATTERS else sts
+
+    if sts > 0:
+        return base_yield * (sta / sts)
+    return base_yield
 
 
 # Default biomasse attive: mix iniziale diversificato (colture + effluenti).
@@ -1597,61 +1562,6 @@ with st.sidebar:
                     f"</span></div>",
                     unsafe_allow_html=True,
                 )
-
-            st.markdown(
-                "<div style='margin-top:10px;'></div>",
-                unsafe_allow_html=True,
-            )
-
-            # Pulsante verifica aggiornamenti
-            if st.button(
-                "🔍 " + _t("Verifica aggiornamenti GitHub"),
-                use_container_width=True,
-                key="btn_check_normativa_updates",
-                help=_t("Confronta la versione locale del registry con "
-                        "quella più recente su GitHub master. "
-                        "Cache 5 minuti."),
-            ):
-                with st.spinner(_t("Connessione a GitHub...")):
-                    _norm_remote = _fetch_normativa_remote()
-
-                if "_error" in _norm_remote:
-                    st.error(f"❌ {_norm_remote['_error']}")
-                else:
-                    _local_v  = _norm_local.get("version", "")
-                    _remote_v = _norm_remote.get("version", "")
-                    _local_d  = _norm_local.get("last_review", "")
-                    _remote_d = _norm_remote.get("last_review", "")
-
-                    if _local_v == _remote_v and _local_d == _remote_d:
-                        st.success(
-                            f"✅ **Allineato**. Versione registry "
-                            f"**{_local_v}** del {_local_d}: "
-                            f"locale = produzione GitHub."
-                        )
-                    else:
-                        st.warning(
-                            f"⚠️ Disallineato: GitHub master ha versione "
-                            f"**{_remote_v}** del {_remote_d}, "
-                            f"tu vedi {_local_v} del {_local_d}. "
-                            f"Forza Ctrl+F5 per aggiornare la cache "
-                            f"del browser."
-                        )
-
-                    # Eventuali aggiornamenti pendenti pubblicati nel registry
-                    _pendenti = _norm_remote.get("aggiornamenti_pendenti", [])
-                    if _pendenti:
-                        st.markdown("**🕐 Note normative pendenti:**")
-                        for p in _pendenti:
-                            st.markdown(
-                                f"- **{p.get('norma', '?')}** "
-                                f"({p.get('stato', 'in_review')})  "
-                                f"\n  {p.get('descrizione', '')}"
-                                + (f"  \n  🔗 [{p.get('link', '')}]"
-                                   f"({p.get('link', '')})"
-                                   if p.get("link") else "")
-                            )
-
             st.caption(
                 "ℹ️ Software fornito **«così com'è»**. Le norme cablate "
                 "rispecchiano il rilascio corrente. Aggiornamenti "
@@ -4041,6 +3951,52 @@ with tab_tech:
 
                 st.markdown("---")
 
+    if "dry_matter_overrides" not in st.session_state:
+        st.session_state["dry_matter_overrides"] = {}
+
+    with st.expander(
+        "🌾 " + _t("Ponderazione Umidità / Sostanza Secca (UNI/TS 11567:2024)"),
+        expanded=False,
+    ):
+        st.caption(_t(
+            "La specifica tecnica UNI/TS 11567:2024 richiede di normalizzare il peso delle "
+            "biomasse in ingresso in base alla sostanza secca reale rispetto al valore standard "
+            "(Prospetto A.1). Abilita questa opzione se disponi di misure di laboratorio reali "
+            "per calcolare correttamente il coefficiente Wn per la codigestione."
+        ))
+
+        # Cleanup: rimuovi override per biomasse non piu' attive
+        for _stale in list(st.session_state["dry_matter_overrides"].keys()):
+            if _stale not in active_feeds:
+                st.session_state["dry_matter_overrides"].pop(_stale, None)
+
+        for _dm_name in active_feeds:
+            _std_dm = float(FEEDSTOCK_DB[_dm_name].get("dry_matter_std", 1.0))
+            _key_dm_active = f"dm_active__{_dm_name}"
+            _key_dm_value  = f"dm_value__{_dm_name}"
+
+            _dm_active = st.checkbox(
+                f"🌾 {_dm_name}  ·  {_t('inserisci sostanza secca reale')} "
+                f"({_t('standard')} {fmt_it(_std_dm * 100, 1)}% ST)",
+                key=_key_dm_active,
+                value=st.session_state.get(_key_dm_active, False),
+                help=_t("Se attiva, normalizza la biomassa immessa usando il rapporto tra sostanza secca reale e standard."),
+            )
+
+            if _dm_active:
+                _dm_val = st.number_input(
+                    f"{_t('Sostanza Secca Reale (ST %)')} - {_dm_name}",
+                    min_value=1.0, max_value=100.0,
+                    value=float(st.session_state.get(_key_dm_value, _std_dm * 100.0)),
+                    step=0.5, key=_key_dm_value,
+                    help=_t("Inserisci la percentuale di sostanza secca reale. La resa verrà moltiplicata per ST_reale / ST_standard."),
+                )
+                st.session_state["dry_matter_overrides"][_dm_name] = _dm_val / 100.0
+            else:
+                st.session_state["dry_matter_overrides"].pop(_dm_name, None)
+
+            st.markdown("---")
+
     # ============================================================
     # Popola _EFFECTIVE_YIELDS in base agli override validati
     # ============================================================
@@ -4055,6 +4011,16 @@ with tab_tech:
         if _resolved["override_active"]:
             _EFFECTIVE_YIELDS[_bn] = float(_resolved["yield_used"])
         _yield_audit_rows.append(build_yield_audit_row(_resolved))
+
+    # ============================================================
+    # Popola _EFFECTIVE_DRY_MATTERS in base alla sostanza secca reale
+    # ============================================================
+    _EFFECTIVE_DRY_MATTERS.clear()
+    for _bn in active_feeds:
+        if st.session_state.get(f"dm_active__{_bn}", False):
+            _val = st.session_state.get(f"dm_value__{_bn}")
+            if _val is not None:
+                _EFFECTIVE_DRY_MATTERS[_bn] = float(_val) / 100.0
 
     # Mini-banner riepilogo override attivi
     _n_active = sum(1 for r in _yield_audit_rows if r["Origine resa"] == SOURCE_BMT)
@@ -4814,6 +4780,10 @@ with tab_business:
                 "saving_avg": saving_annuale_pesato(df_res, comparator=FOSSIL_COMPARATOR), "valid_months": int(df_res["Validità"].str.startswith("✅").sum()),
                 "tot_revenue": float(tot_revenue), "tariffa_media_ponderata": float(tariffa_media_ponderata),
                 "revenue_rows": pdf_revenue_rows,
+                "actual_yields": {_f: _yield_of(_f) for _f in active_feeds},
+                "actual_emissions": {_f: _emission_factors_of(_f) for _f in active_feeds},
+                "yield_audit_rows": list(_yield_audit_rows),
+                "emission_audit_rows": list(_emission_audit_rows),
             }
             
             # --- EXPORT BUTTONS ---
@@ -4837,6 +4807,8 @@ with tab_business:
                 "NM3_TO_MWH": NM3_TO_MWH, "lang": _LANG,
                 "yield_audit_rows": list(_yield_audit_rows), "effective_yields": dict(_EFFECTIVE_YIELDS),
                 "emission_audit_rows": list(_emission_audit_rows), "emission_overrides": dict(_EMISSION_OVERRIDES),
+                "actual_yields": {_f: _yield_of(_f) for _f in active_feeds},
+                "actual_emissions": {_f: _emission_factors_of(_f) for _f in active_feeds},
             }
 
             with _dl_col1:
@@ -5869,6 +5841,8 @@ with tab_business:
                 "yield_audit_rows":     list(_yield_audit_rows),
                 "emission_audit_rows":  list(_emission_audit_rows),
                 "emission_overrides":   dict(_EMISSION_OVERRIDES),
+                "actual_yields": {_f: _yield_of(_f) for _f in active_feeds},
+                "actual_emissions": {_f: _emission_factors_of(_f) for _f in active_feeds},
             }
             output_model = _build_output_model(_om_ctx)
         except Exception as _om_exc:  # noqa: BLE001
@@ -5961,6 +5935,9 @@ with tab_business:
                 # === Audit fattori emissivi reali (relazione tecnica) ===
                 "emission_audit_rows":       list(_emission_audit_rows),
                 "emission_overrides":        dict(_EMISSION_OVERRIDES),
+                # === Rese e fattori emissivi correnti ponderati/normalizzati ===
+                "actual_yields":             {_f: _yield_of(_f) for _f in active_feeds},
+                "actual_emissions":          {_f: _emission_factors_of(_f) for _f in active_feeds},
             })
             _xlsx_buf = build_metaniq_xlsx(_xlsx_ctx)
             _xlsx_data = _xlsx_buf.getvalue()

@@ -58,6 +58,15 @@ LHV_BIOMETHANE_MJ_NM3 = 35.9          # MJ/Nm³ CH4 (RED III default)
 NM3_TO_MWH = 0.00997                  # PCI biometano 97% CH4
 METHANE_PURITY_PCT = 97.0             # purezza biometano default (%)
 
+# ---------------------------------------------------------------------------
+# Stoccaggio digestato - Emissioni fuggitive (gCO2eq/MJ biometano)
+# UNI/TS 11567:2024 e Linee Guida GSE 2024.
+# ---------------------------------------------------------------------------
+EP_DIGESTATE_CHIUSO_60D = 0.0
+EP_DIGESTATE_CHIUSO_30D = 1.6
+EP_DIGESTATE_BREVE_TERMINE = 6.4
+EP_DIGESTATE_APERTO = 15.0
+
 
 # ---------------------------------------------------------------------------
 # Comparator fossili (gCO2eq/MJ) e soglie saving (frazione 0..1)
@@ -108,4 +117,9 @@ __all__ = [
     "MANURE_CREDIT_LETAME_PALABILE",
     "MANURE_CREDIT_POLLINA_BROILER",
     "MANURE_CREDIT_POLLINA_OVAIOLE",
+    # digestate storage
+    "EP_DIGESTATE_CHIUSO_60D",
+    "EP_DIGESTATE_CHIUSO_30D",
+    "EP_DIGESTATE_BREVE_TERMINE",
+    "EP_DIGESTATE_APERTO",
 ]

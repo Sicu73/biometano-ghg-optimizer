@@ -143,8 +143,10 @@ def _output_model_to_xlsx_ctx(output_model: dict, snapshot: bool = False) -> dic
         # Audit
         "yield_audit_rows":  output_model.get("audit_trail", []),
         "emission_audit_rows": [],
-        "effective_yields":  {},
-        "emission_overrides": {},
+        "effective_yields":  output_model.get("effective_yields", {}),
+        "emission_overrides": output_model.get("emission_overrides", {}),
+        "actual_yields":     output_model.get("actual_yields", {}),
+        "actual_emissions":  output_model.get("actual_emissions", {}),
         # BP defaults (non disponibili nel ctx minimale, uso defaults)
         "bp_tariffa_eff_mwh": 131.0,
         "bp_ore_anno":        8500.0,

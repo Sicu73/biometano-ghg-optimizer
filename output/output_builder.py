@@ -275,6 +275,10 @@ def build_output_model(ctx: dict) -> dict:
         "warnings": warnings,
         "errors": errors,
         "explanations": explanations,
+        "actual_yields": ctx.get("actual_yields", {}),
+        "actual_emissions": ctx.get("actual_emissions", {}),
+        "effective_yields": ctx.get("effective_yields", {}),
+        "emission_overrides": ctx.get("emission_overrides", {}),
     }
     return output_model
 

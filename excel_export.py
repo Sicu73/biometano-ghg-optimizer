@@ -1,4 +1,4 @@
-﻿"""Metan.iQ — Generatore XLSX editabile con formule live.
+"""Metan.iQ — Generatore XLSX editabile con formule live.
 
 Crea un workbook Excel autocalcolante: l'utente modifica solo le celle
 gialle (Ore + Biomasse) e tutti gli altri valori (produzione, saving GHG,
@@ -216,10 +216,10 @@ def _build_database(ws, ctx, lang='it'):
     # === Righe parametri (label sx + valori a destra) ===
     rows_def = [
         # (row, label, getter, fmt, style_amber)
-        (2, "Resa Nm3/t",  lambda d: float(d["yield"]), "0",     False),
-        (3, "eec",         lambda d: float(d["eec"]),   "0.00",  False),
-        (4, "esca",        lambda d: float(d["esca"]),  "0.00",  False),
-        (5, "etd",         lambda d: float(d["etd"]),   "0.00",  False),
+        (2, "Resa Nm3/t",  lambda d, name: ctx.get("actual_yields", {}).get(name, float(d["yield"])), "0.0",     False),
+        (3, "eec",         lambda d, name: ctx.get("actual_emissions", {}).get(name, {}).get("eec", float(d["eec"])),   "0.00",  False),
+        (4, "esca",        lambda d, name: ctx.get("actual_emissions", {}).get(name, {}).get("esca", float(d["esca"])),  "0.00",  False),
+        (5, "etd",         lambda d, name: ctx.get("actual_emissions", {}).get(name, {}).get("etd", float(d["etd"])),   "0.00",  False),
     ]
     for r, label, getter, fmt, _ in rows_def:
         # Label
@@ -231,7 +231,7 @@ def _build_database(ws, ctx, lang='it'):
         # Valori
         for j, name in enumerate(feeds):
             d = fdb[name]
-            c_val = ws.cell(row=r, column=2 + j, value=getter(d))
+            c_val = ws.cell(row=r, column=2 + j, value=getter(d, name))
             c_val.number_format = fmt
             c_val.fill = PatternFill("solid", fgColor=SLATE_50)
             c_val.alignment = Alignment(horizontal="right")
