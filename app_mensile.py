@@ -1529,48 +1529,7 @@ if APP_MODE != "biometano":
         "versione multi-mode storica."
     )
 
-with st.sidebar:
-    # ============================================================
-    # 📋 Normativa applicata + Verifica aggiornamenti
-    # ============================================================
-    with st.expander(
-        "📋 " + _t("Normativa & aggiornamenti"),
-        expanded=False,
-    ):
-        _norm_local = _load_normativa_local()
-        if "_error" in _norm_local:
-            st.error(f"❌ {_norm_local['_error']}")
-        else:
-            st.caption(
-                f"**Versione registry: {_norm_local.get('version', '?')}**  ·  "
-                f"Ultima revisione: {_norm_local.get('last_review', 'n/d')}  ·  "
-                f"Reviewer: {_norm_local.get('reviewer', 'n/d')}"
-            )
 
-            # Lista compatta delle norme applicate
-            _norme = _norm_local.get("norme", [])
-            st.markdown(f"**🟢 {len(_norme)} norme cablate nel codice:**")
-            for n in _norme:
-                _badge = "✅" if n.get("applicato_in_app") else "⚪"
-                st.markdown(
-                    f"<div style='font-size:0.78rem; padding:3px 0; "
-                    f"border-bottom:1px solid {BORDER};'>"
-                    f"{_badge} <b>{n.get('titolo', 'n/d')}</b><br/>"
-                    f"<span style='color:{TEXT_MUTED}; font-size:0.72rem;'>"
-                    f"📍 {n.get('ambito', '')} · "
-                    f"rev {n.get('ultima_revisione', 'n/d')}"
-                    f"</span></div>",
-                    unsafe_allow_html=True,
-                )
-            st.caption(
-                "ℹ️ Software fornito **«così com'è»**. Le norme cablate "
-                "rispecchiano il rilascio corrente. Aggiornamenti "
-                "successivi al rilascio non sono garantiti né inclusi. "
-                "L'utente verifica autonomamente la coerenza con la "
-                "normativa vigente prima di usare i risultati per "
-                "certificazioni o adempimenti."
-            )
-    st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
 # Stringhe mode-specific (tagline/pill/badge/label) per header, sidebar, export.
 # App mono-mode (DM 15/09/2022, RED III): mantengo il dict _MODE per i lettori
 # esistenti (_MODE["tagline"], _MODE["badge"], ecc.) senza ulteriori refactor.
