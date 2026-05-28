@@ -340,20 +340,40 @@ def calculate_emission_total(
     etd: float,
     ep: float,
     extra_credits: float = 0.0,
+    e_l: float = 0.0,
 ) -> float:
-    """Calcola e_total con convenzione coerente in tutto il software:
+    """Calcola e_total con convenzione coerente in tutto il software.
 
-        e_total = eec + etd + ep − esca − extra_credits
+    Formula RED III All. V Parte C (componenti applicate):
+
+        e_total = eec + e_l + etd + ep − esca − extra_credits
 
     Note:
       - eec puo' essere negativo (manure credit gia' incorporato).
+      - e_l (annualised emissions from Land Use Change): per RED III
+        e UNI/TS 11567:2024 vale 0 per residui, sottoprodotti e rifiuti
+        (Annex IX). Per colture dedicate (mais, sorgo, food/feed) e'
+        obbligatorio dichiararlo esplicitamente con dichiarazione
+        no-LUC NUTS-2; default 0.0 ma con warning UI per food/feed.
       - esca e' un credito positivo SOTTRATTO una sola volta.
       - extra_credits sono crediti emissivi AGGIUNTIVI (non gia' in
         esca) dichiarati esplicitamente a parte nella relazione.
         Tipicamente 0 per i feedstock standard. Mai sottrarre due
         volte la stessa voce.
+      - e_u (use phase) e' assunto 0 per biocombustibili gassosi
+        (biometano), come da prassi RED III.
+      - e_ccs / e_ccr (carbon capture/replacement): non gestiti in
+        questo MVP, default 0.
+
+    Backward-compat: il parametro e_l ha default 0.0, quindi le
+    chiamate esistenti che non lo passano restano corrette per
+    le filiere con materie prime Annex IX (~ tutto il portafoglio
+    standard del software).
     """
-    return float(eec) + float(etd) + float(ep) - float(esca) - float(extra_credits)
+    return (
+        float(eec) + float(e_l) + float(etd) + float(ep)
+        - float(esca) - float(extra_credits)
+    )
 
 
 # ============================================================

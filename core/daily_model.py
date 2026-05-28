@@ -73,6 +73,7 @@ class DailyComputed:
     sm3_netti_ora: float = 0.0
     mwh: float = 0.0                # Energia netta MWh
     eec: float = 0.0                # gCO2eq/MJ ponderato
+    e_l: float = 0.0                # Land Use Change (RED III)
     esca: float = 0.0
     etd: float = 0.0
     ep: float = 0.0
@@ -137,7 +138,7 @@ def compute_daily(entry: DailyEntry, ctx: dict[str, Any] | None = None) -> Daily
 
     # Decomposizione delle componenti emissive (medie pesate sulla MJ)
     total_mj = 0.0
-    eec_w = esca_w = etd_w = ep_w = 0.0
+    eec_w = e_l_w = esca_w = etd_w = ep_w = 0.0
     for name, m in masses.items():
         try:
             y = _yield_of(name)
@@ -145,6 +146,7 @@ def compute_daily(entry: DailyEntry, ctx: dict[str, Any] | None = None) -> Daily
             ef = _emission_factors_of(name, ep_default=ep) or {}
             total_mj += mj
             eec_w += float(ef.get("eec") or 0.0) * mj
+            e_l_w += float(ef.get("e_l") or 0.0) * mj
             esca_w += float(ef.get("esca") or 0.0) * mj
             etd_w += float(ef.get("etd") or 0.0) * mj
             ep_w += float(ef.get("ep") or ep) * mj
@@ -153,11 +155,12 @@ def compute_daily(entry: DailyEntry, ctx: dict[str, Any] | None = None) -> Daily
 
     if total_mj > 0:
         eec_v = eec_w / total_mj
+        e_l_v = e_l_w / total_mj
         esca_v = esca_w / total_mj
         etd_v = etd_w / total_mj
         ep_v = ep_w / total_mj
     else:
-        eec_v = esca_v = etd_v = ep_v = 0.0
+        eec_v = e_l_v = esca_v = etd_v = ep_v = 0.0
 
     sm3_gross = float(summary.get("nm3_gross") or 0.0)
     
@@ -192,6 +195,7 @@ def compute_daily(entry: DailyEntry, ctx: dict[str, Any] | None = None) -> Daily
         sm3_netti_ora=sm3_net_ora,
         mwh=mwh,
         eec=eec_v,
+        e_l=e_l_v,
         esca=esca_v,
         etd=etd_v,
         ep=ep_v,

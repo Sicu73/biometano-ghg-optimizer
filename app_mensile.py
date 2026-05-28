@@ -674,58 +674,72 @@ FEEDSTOCK_DB = {
     # Valori eec: UNI/TS 11567:2024 + JEC WTT v5 (cat. "energy crops")
     # NB: NON sono Annex IX -> single counting CIC, no premio DM 2018
     # =========================================================
+    # NB: per le colture dedicate il campo `e_l` (Land Use Change) ha
+    # default 0.0 ma RICHIEDE dichiarazione no-LUC NUTS-2 del fornitore
+    # per essere effettivamente assumibile come zero (RED III All. V,
+    # UNI/TS 11567:2024). In assenza, l'OdC puo' imputare valori
+    # punitivi tabellari. La UI mostra warning quando si selezionano.
     "Trinciato di mais": {
         "eec": 26.0, "esca": 0.0, "etd": 0.8, "yield": 116.1, "dry_matter_std": 0.35,
         "color": "#F5C518", "cat": "Colture dedicate",
-        "annex_ix": None,
+        "annex_ix": None, "e_l": 0.0,
+        "requires_no_luc_declaration": True,
         "src": "UNI-TS 11567:2024 / JEC v5",
     },
     "Trinciato di sorgo": {
         "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 90.0, "dry_matter_std": 0.30,
         "color": "#8BC34A", "cat": "Colture dedicate",
-        "annex_ix": None,
+        "annex_ix": None, "e_l": 0.0,
+        "requires_no_luc_declaration": True,
         "src": "UNI-TS 11567:2024",
     },
     "Triticale insilato": {
         "eec": 20.0, "esca": 0.0, "etd": 0.8, "yield": 106.1, "dry_matter_std": 0.35,
         "color": "#AED581", "cat": "Colture dedicate",
-        "annex_ix": None,
+        "annex_ix": None, "e_l": 0.0,
+        "requires_no_luc_declaration": True,
         "src": "UNI-TS 11567:2024",
     },
     "Segale insilata": {
         "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 80.0, "dry_matter_std": 0.35,
         "color": "#C5E1A5", "cat": "Colture dedicate",
-        "annex_ix": None,
+        "annex_ix": None, "e_l": 0.0,
+        "requires_no_luc_declaration": True,
         "src": "JEC v5 / KTBL",
     },
     "Orzo insilato": {
         "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 82.0, "dry_matter_std": 0.35,
         "color": "#DCEDC8", "cat": "Colture dedicate",
-        "annex_ix": None,
+        "annex_ix": None, "e_l": 0.0,
+        "requires_no_luc_declaration": True,
         "src": "JEC v5",
     },
     "Loietto insilato (ryegrass)": {
         "eec": 18.0, "esca": 0.0, "etd": 0.8, "yield": 93.7, "dry_matter_std": 0.35,
         "color": "#9CCC65", "cat": "Colture dedicate",
-        "annex_ix": None,
+        "annex_ix": None, "e_l": 0.0,
+        "requires_no_luc_declaration": True,
         "src": "UNI-TS 11567:2024",
     },
     "Erba medica insilata": {
         "eec": 15.0, "esca": 0.0, "etd": 0.8, "yield": 70.0, "dry_matter_std": 0.35,
         "color": "#7CB342", "cat": "Colture dedicate",
-        "annex_ix": None,
+        "annex_ix": None, "e_l": 0.0,
+        "requires_no_luc_declaration": True,
         "src": "JEC v5 (azotofissazione)",
     },
     "Doppia coltura (2° raccolto)": {
         "eec": 15.0, "esca": 0.0, "etd": 0.8, "yield": 95.0, "dry_matter_std": 0.35,
         "color": "#689F38", "cat": "Colture dedicate",
-        "annex_ix": None,
+        "annex_ix": None, "e_l": 0.0,
+        "requires_no_luc_declaration": True,
         "src": "GSE LG 2024 (art. doppia coltura)",
     },
     "Barbabietola da zucchero": {
         "eec": 12.0, "esca": 0.0, "etd": 0.8, "yield": 105.0, "dry_matter_std": 0.23,
         "color": "#CE93D8", "cat": "Colture dedicate",
-        "annex_ix": None,
+        "annex_ix": None, "e_l": 0.0,
+        "requires_no_luc_declaration": True,
         "src": "JEC v5",
     },
     # =========================================================
@@ -743,54 +757,81 @@ FEEDSTOCK_DB = {
         "color": "#8D6E63", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
         "src": "UNI-TS 11567:2024 / RED III",
+        "baseline_assumption": "stoccaggio in vasca/lagone aperto (decomposizione anaerobica spontanea)",
+        "baseline_warning": "Se il fornitore ha vasca coperta con captazione/N-stripping, il credit -45 va ridotto o annullato (richiede dichiarazione fornitore).",
+        "e_l": 0.0,
     },
     "Liquame bovino": {
         "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 14.0, "dry_matter_std": 0.10,
         "color": "#795548", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
+        "baseline_assumption": "stoccaggio in vasca/lagone aperto",
+        "baseline_warning": "Verificare assenza vasca coperta in stalla per validare il credit.",
+        "e_l": 0.0,
     },
     "Liquame bufalino": {
         "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 14.0, "dry_matter_std": 0.10,
         "color": "#6D4C41", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
+        "baseline_assumption": "stoccaggio in vasca/lagone aperto",
+        "baseline_warning": "Verificare assenza vasca coperta in stalla per validare il credit.",
+        "e_l": 0.0,
     },
     "Letame bovino palabile": {
         "eec": -30.0, "esca": 0.0, "etd": 0.8, "yield": 35.0, "dry_matter_std": 0.25,
         "color": "#A1887F", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
         "src": "IPCC 2019 Vol.4 Cap.10 + GSE",
+        "baseline_assumption": "cumulo solido in stoccaggio (decomposizione parzialmente anaerobica)",
+        "baseline_warning": "Se il fornitore usa compostaggio aerobico controllato, il credit va ridotto.",
+        "e_l": 0.0,
     },
     "Letame equino": {
         "eec": -20.0, "esca": 0.0, "etd": 0.8, "yield": 42.0, "dry_matter_std": 0.30,
         "color": "#BCAAA4", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
         "src": "JEC v5",
+        "baseline_assumption": "cumulo solido in scuderia/box",
+        "baseline_warning": "Verificare modalità stoccaggio per validare il credit.",
+        "e_l": 0.0,
     },
     "Pollina ovaiole (aerobico)": {
         "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 84.0, "dry_matter_std": 0.60,
         "color": "#FF9800", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
         "src": "GSE (no credit anaerobico)",
+        "baseline_assumption": "essiccatore aerobico su nastro (gabbie arricchite moderne)",
+        "baseline_warning": "Se il fornitore stocca in fossa anaerobica sotto le gabbie, il valore +5 va rivisto verso negativo (credit) come per pollina broiler (-15).",
+        "e_l": 0.0,
     },
     "Pollina broiler (lettiera)": {
         "eec": -15.0, "esca": 0.0, "etd": 0.8, "yield": 105.0, "dry_matter_std": 0.60,
         "color": "#FFA726", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
+        "baseline_assumption": "lettiera in capannone (decomposizione parzialmente anaerobica)",
+        "baseline_warning": "Verificare frequenza rimozione lettiera per validare il credit.",
+        "e_l": 0.0,
     },
     "Pollina tacchini": {
         "eec": -10.0, "esca": 0.0, "etd": 0.8, "yield": 100.0, "dry_matter_std": 0.60,
         "color": "#FFB74D", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
         "src": "IPCC 2019",
+        "baseline_assumption": "lettiera in capannone",
+        "baseline_warning": "Verificare modalità stoccaggio per validare il credit.",
+        "e_l": 0.0,
     },
     "Deiezioni conigli": {
         "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 75.0, "dry_matter_std": 0.50,
         "color": "#FFCC80", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
         "src": "UNI-TS 11567:2024",
+        "baseline_assumption": "fossa di stoccaggio in conigliera",
+        "baseline_warning": "Verificare modalità stoccaggio per validare l'eec.",
+        "e_l": 0.0,
     },
     # =========================================================
     # SOTTOPRODOTTI AGROINDUSTRIALI (All. IX RED II/III)
@@ -1027,7 +1068,10 @@ def _emission_factors_of(name: str, ep_default: float = 0.0) -> dict:
     mutata da chiamanti esterni). Altrimenti ritorna i fattori
     standard tabellari (FEEDSTOCK_DB) + ep impianto-wide.
 
-    Output dict: eec, esca, etd, ep, extra, source.
+    Output dict: eec, e_l, esca, etd, ep, extra, source.
+    NB: e_l (Land Use Change) default 0 per Annex IX/sottoprodotti;
+    per food/feed crops va dichiarato dal fornitore (no-LUC NUTS-2)
+    altrimenti puo' essere imputato come default punitivo dall'OdC.
     """
     if name in _EMISSION_OVERRIDES:
         # Defensive shallow copy: previene che eventuali mutazioni nei
@@ -1036,22 +1080,26 @@ def _emission_factors_of(name: str, ep_default: float = 0.0) -> dict:
     d = FEEDSTOCK_DB[name]
     return {
         "eec":   float(d["eec"]),
+        "e_l":   float(d.get("e_l", 0.0)),
         "esca":  float(d["esca"]),
         "etd":   float(d["etd"]),
         "ep":    float(ep_default),
         "extra": 0.0,
         "source": EF_SOURCE_STD,
+        "requires_no_luc_declaration": bool(d.get("requires_no_luc_declaration", False)),
     }
 
 
 def e_total_feedstock(name: str, ep: float = 0.0) -> float:
     """Emissioni totali gCO2eq/MJ per singolo feedstock.
 
-    Formula coerente in tutto il software:
-        e_total = eec + etd + ep - esca - crediti_extra
+    Formula RED III All. V Parte C (componenti applicate):
+        e_total = eec + e_l + etd + ep - esca - crediti_extra
 
     Convenzione segno:
       - eec puo' essere negativo (manure credit gia' incorporato)
+      - e_l (Land Use Change): 0 per residui/sottoprodotti Annex IX;
+        per food/feed richiede dichiarazione no-LUC NUTS-2 fornitore
       - esca e' un credito positivo SOTTRATTO una sola volta
       - crediti_extra: crediti AGGIUNTIVI dichiarati nella relazione
         tecnica (default 0); MAI doppia sottrazione di voci gia' in esca
@@ -1062,7 +1110,8 @@ def e_total_feedstock(name: str, ep: float = 0.0) -> float:
     """
     f = _emission_factors_of(name, ep)
     return calculate_emission_total(
-        f["eec"], f["esca"], f["etd"], f["ep"], f.get("extra", 0.0)
+        f["eec"], f["esca"], f["etd"], f["ep"], f.get("extra", 0.0),
+        e_l=f.get("e_l", 0.0),
     )
 
 
@@ -1535,6 +1584,153 @@ with st.sidebar:
                        "Responsabile sono richiesti per la conformità "
                        "UNI/TS 11567:2024 in fase di audit OdC.")
         )
+
+    # =======================================================
+    # REGISTRO FORNITORI BIOMASSA (UNI/TS 11567:2024 cap. 2-3)
+    # ----------------------------------------------------------
+    # Distinta dei produttori di biomassa da cui il Lotto di
+    # Sostenibilita' attinge nel periodo di rendicontazione.
+    # Obbligatorio per audit OdC: ragione sociale, P.IVA, tipo
+    # biomassa, t/mese, riferimento DDT o contratto, sistema di
+    # stoccaggio baseline (rilevante per validare manure credit).
+    # =======================================================
+    with st.expander("🚜 " + _t("Registro fornitori biomassa (audit OdC)"), expanded=False):
+        import pandas as _pd
+        st.caption("ℹ️ " + _t(
+            "Compila una riga per ogni fornitore attivo nel periodo. I dati "
+            "alimentano la sezione 'Tracciabilità LS' del PDF di export. "
+            "Lasciare vuoto se ancora in fase preliminare; comparirà un "
+            "warning nel PDF per ricordare la compilazione pre-audit."
+        ))
+        _suppliers_default = st.session_state.get("suppliers_registry", [])
+        if not isinstance(_suppliers_default, list):
+            _suppliers_default = []
+        _sup_df_in = _pd.DataFrame(
+            _suppliers_default,
+            columns=["name", "vat", "feedstock", "tons_per_month",
+                     "contract_ref", "ddt_ref", "baseline_storage"],
+        ) if _suppliers_default else _pd.DataFrame(
+            columns=["name", "vat", "feedstock", "tons_per_month",
+                     "contract_ref", "ddt_ref", "baseline_storage"],
+        )
+        _sup_df_in = _sup_df_in.reindex(
+            columns=["name", "vat", "feedstock", "tons_per_month",
+                     "contract_ref", "ddt_ref", "baseline_storage"],
+            fill_value="",
+        )
+        _sup_df_edited = st.data_editor(
+            _sup_df_in,
+            num_rows="dynamic",
+            use_container_width=True,
+            key="suppliers_editor",
+            column_config={
+                "name": st.column_config.TextColumn(
+                    _t("Ragione sociale fornitore"), required=False,
+                    help=_t("Es. Az. Agr. Verdi Soc. Agr."),
+                ),
+                "vat": st.column_config.TextColumn(
+                    "P.IVA", required=False,
+                    help=_t("P.IVA o Codice Fiscale del fornitore."),
+                ),
+                "feedstock": st.column_config.SelectboxColumn(
+                    _t("Biomassa"),
+                    options=[""] + list(FEED_NAMES),
+                    required=False,
+                    help=_t("Tipologia di biomassa fornita (dal database biomasse)."),
+                ),
+                "tons_per_month": st.column_config.NumberColumn(
+                    _t("t/mese"),
+                    min_value=0.0, step=0.1, format="%.1f",
+                    help=_t("Tonnellate fornite nel periodo di rendicontazione."),
+                ),
+                "contract_ref": st.column_config.TextColumn(
+                    _t("Rif. contratto filiera"),
+                    help=_t("Es. CF-2026-007 / data stipula."),
+                ),
+                "ddt_ref": st.column_config.TextColumn(
+                    _t("Rif. DDT (range numeri)"),
+                    help=_t("Es. DDT n. 120-145 del periodo."),
+                ),
+                "baseline_storage": st.column_config.TextColumn(
+                    _t("Sistema stoccaggio baseline"),
+                    help=_t(
+                        "OBBLIGATORIO per liquami/letami: dichiarazione fornitore "
+                        "sul sistema di stoccaggio pre-digestione (lagone aperto, "
+                        "vasca coperta, nastro aerobico, ecc.). Valida il "
+                        "manure credit RED III."
+                    ),
+                ),
+            },
+        )
+        # Persisti nel session_state e converti in list[dict] per il PDF
+        try:
+            _sup_records = _sup_df_edited.fillna("").to_dict(orient="records")
+        except Exception:
+            _sup_records = []
+        # Filtra righe completamente vuote
+        _sup_records = [
+            {k: (v if not (isinstance(v, float) and v != v) else "") for k, v in r.items()}
+            for r in _sup_records
+            if any(str(r.get(k, "")).strip() for k in r.keys())
+        ]
+        st.session_state["suppliers_registry"] = _sup_records
+        if _sup_records:
+            _tot_sup = sum(float(r.get("tons_per_month") or 0.0) for r in _sup_records)
+            st.caption(
+                f"✅ {len(_sup_records)} {_t('fornitori registrati')} · "
+                f"{_t('totale dichiarato')}: {fmt_it(_tot_sup, 1)} t/mese"
+            )
+        else:
+            st.caption(
+                "⚠️ " + _t("Nessun fornitore registrato. "
+                          "Aggiungere prima dell'audit OdC.")
+            )
+
+    # =======================================================
+    # PERSISTENZA DATI LS (Backup/Restore JSON locale)
+    # ----------------------------------------------------------
+    # Streamlit Cloud ha filesystem EPHEMERAL: i dati salvati durano
+    # solo fino al prossimo rebuild container. Per persistenza vera
+    # offriamo download del dossier come JSON da scaricare in locale.
+    # =======================================================
+    from core.ls_persistence import (
+        build_dossier_from_session as _build_dossier,
+        dossier_to_json_bytes as _dossier_to_bytes,
+        json_bytes_to_dossier as _bytes_to_dossier,
+        apply_dossier_to_session as _apply_dossier,
+    )
+    with st.expander("💾 " + _t("Backup & Restore dati LS"), expanded=False):
+        st.caption("ℹ️ " + _t(
+            "Su Streamlit Cloud i dati non sono persistenti tra sessioni. "
+            "Scarica un dossier JSON di backup e ricaricalo al prossimo accesso. "
+            "I dati restano sul tuo PC (no upload terzi)."
+        ))
+        _dossier_now = _build_dossier(dict(st.session_state))
+        _dl_col, _ul_col = st.columns(2)
+        with _dl_col:
+            st.download_button(
+                "⬇️ " + _t("Scarica dossier JSON"),
+                data=_dossier_to_bytes(_dossier_now),
+                file_name=f"metaniq_dossier_{(st.session_state.get('plant_cui') or 'no-cui').replace('/', '_')}.json",
+                mime="application/json",
+                use_container_width=True,
+            )
+        with _ul_col:
+            _up = st.file_uploader(
+                _t("Carica dossier JSON"),
+                type=["json"],
+                key="dossier_upload",
+                accept_multiple_files=False,
+            )
+            if _up is not None:
+                try:
+                    _parsed = _bytes_to_dossier(_up.getvalue())
+                    _flat = _apply_dossier(_parsed)
+                    for k, v in _flat.items():
+                        st.session_state[k] = v
+                    st.success("✅ " + _t("Dossier caricato. Ricarica i widget per vedere i valori."))
+                except Exception as _exc:
+                    st.error(f"❌ {_t('Errore caricamento dossier')}: {_exc}")
     st.markdown("<div style='margin-bottom:15px;'></div>", unsafe_allow_html=True)
 
 # Espone le variabili a livello modulo (anche se non compilate sono "")
@@ -6088,6 +6284,8 @@ with tab_business:
             "sm3_netti":                 st.session_state.get("monthly_sm3_netti", 0.0),
             "saving_threshold_pct":      float(ghg_threshold) * 100.0 if ghg_threshold else 80.0,
             "sustainability_basis":      "LORDO (RED III All. V Parte C)",
+            # Registro fornitori biomassa (UNI/TS 11567 cap. 2-3)
+            "suppliers_registry":        st.session_state.get("suppliers_registry", []),
         }
         try:
             _pdf_buf = build_metaniq_pdf(_pdf_ctx)

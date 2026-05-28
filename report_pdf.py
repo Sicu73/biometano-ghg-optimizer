@@ -1,4 +1,4 @@
-﻿"""Metan.iQ — Generatore report PDF (consulting-grade, palette Navy + Amber).
+"""Metan.iQ — Generatore report PDF (consulting-grade, palette Navy + Amber).
 
 Punto d'ingresso: build_metaniq_pdf(ctx) -> BytesIO
 
@@ -1772,8 +1772,15 @@ def _build_ls_traceability(ctx: dict, s) -> list:
                  "Annex IX",
                  "Categoria" if not is_en else "Category"]]
     fdb = ctx.get("FEEDSTOCK_DB") or {}
+    _has_food_feed = False
+    _baseline_warnings: list[str] = []
     for fname, qty in feed_tot.items():
         meta = fdb.get(fname, {}) if isinstance(fdb, dict) else {}
+        if meta.get("annex_ix") is None and meta.get("cat") == "Colture dedicate":
+            _has_food_feed = True
+        bw = meta.get("baseline_warning")
+        if bw and qty and qty > 0:
+            _baseline_warnings.append(f"{fname}: {bw}")
         _rows_bm.append([
             fname,
             _fmt_it(qty, 1),
@@ -1797,6 +1804,31 @@ def _build_ls_traceability(ctx: dict, s) -> list:
         _fmt_it(ctx.get("sm3_netti") or ctx.get("nm3_net") or 0.0, 0),
         "", "",
     ])
+    # Warning food/feed crops senza dichiarazione no-LUC
+    if _has_food_feed:
+        flow.append(Paragraph(
+            "⚠️ Sono presenti colture dedicate (food/feed crop). Per audit OdC è "
+            "obbligatorio allegare per ciascuna la <b>dichiarazione no-LUC NUTS-2</b> "
+            "del fornitore (Reg. (UE) 2022/996 e UNI/TS 11567:2024 § Carbonio Suolo). "
+            "In assenza, l'OdC può imputare valori e_l punitivi tabellari."
+            if not is_en else
+            "⚠️ Food/feed crops are present. For OdC audit, attach the supplier's "
+            "<b>no-LUC NUTS-2 declaration</b> for each (Reg. (EU) 2022/996 and "
+            "UNI/TS 11567:2024 § Soil Carbon). Otherwise OdC may impute punitive "
+            "default e_l values.",
+            s["body"],
+        ))
+        flow.append(Spacer(1, 3 * mm))
+    # Warning baseline stoccaggio per manure credit
+    if _baseline_warnings:
+        bw_title = ("⚠️ Verifica baseline stoccaggio (manure credit RED III):"
+                    if not is_en else
+                    "⚠️ Storage baseline verification (RED III manure credit):")
+        flow.append(Paragraph(bw_title, s["h3"]))
+        for w in _baseline_warnings:
+            flow.append(Paragraph(f"• {w}", s["body"]))
+        flow.append(Spacer(1, 3 * mm))
+
     tbl_bm = Table(_rows_bm, colWidths=[CONTENT_W * 0.42, CONTENT_W * 0.20,
                                          CONTENT_W * 0.13, CONTENT_W * 0.25])
     tbl_bm.setStyle(TableStyle([
@@ -1821,30 +1853,43 @@ def _build_ls_traceability(ctx: dict, s) -> list:
         _rows_sup = [["Fornitore" if not is_en else "Supplier",
                       "P.IVA" if not is_en else "VAT",
                       "Biomassa" if not is_en else "Feedstock",
-                      "Tonnellate"]]
+                      "t/mese" if not is_en else "t/month",
+                      "Contratto / DDT" if not is_en else "Contract / DDT",
+                      "Baseline stoccaggio" if not is_en else "Baseline storage"]]
         for sup in suppliers:
             _rows_sup.append([
-                sup.get("name", "—"), sup.get("vat", "—"),
-                sup.get("feedstock", "—"), _fmt_it(sup.get("tons", 0.0), 1),
+                sup.get("name") or "—",
+                sup.get("vat") or "—",
+                sup.get("feedstock") or "—",
+                _fmt_it(sup.get("tons_per_month") or sup.get("tons") or 0.0, 1),
+                f"{sup.get('contract_ref') or '—'} · {sup.get('ddt_ref') or '—'}",
+                sup.get("baseline_storage") or "—",
             ])
-        tbl_sup = Table(_rows_sup, colWidths=[CONTENT_W * 0.38, CONTENT_W * 0.20,
-                                               CONTENT_W * 0.27, CONTENT_W * 0.15])
+        tbl_sup = Table(_rows_sup, colWidths=[CONTENT_W * 0.20, CONTENT_W * 0.14,
+                                               CONTENT_W * 0.16, CONTENT_W * 0.08,
+                                               CONTENT_W * 0.20, CONTENT_W * 0.22])
         tbl_sup.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), NAVY),
             ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+            ("FONTSIZE", (0, 0), (-1, -1), 7.5),
             ("GRID", (0, 0), (-1, -1), 0.4, SLATE_200),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (3, 1), (3, -1), "RIGHT"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
         ]))
         flow.append(tbl_sup)
     else:
         flow.append(Paragraph(
             "⚠️ Registro fornitori non popolato in app. "
-            "Per audit OdC è obbligatorio allegare distinta con: ragione sociale, "
-            "P.IVA, tipologia biomassa, t/LS, contratto/DDT."
+            "Per audit OdC compilare la sezione 'Registro fornitori biomassa' "
+            "nella sidebar dell'app con: ragione sociale, P.IVA, tipologia "
+            "biomassa, t/mese, contratto/DDT, sistema di stoccaggio baseline."
             if not is_en else
-            "⚠️ Suppliers registry not populated. For OdC audit, attach a list with: "
-            "company, VAT, feedstock type, tons/LS, contract/DDT.",
+            "⚠️ Suppliers registry not populated. For OdC audit, fill the "
+            "'Suppliers registry' section in the app sidebar with: company, "
+            "VAT, feedstock type, tons/month, contract/DDT, baseline storage.",
             s["body"],
         ))
     flow.append(Spacer(1, 8 * mm))

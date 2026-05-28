@@ -54,6 +54,7 @@ class MonthlyAggregate:
     saving_pct_net: float = 0.0   # % saving su NETTO (informativo - biometano)
     sustainability_basis: str = "LORDO"  # base normativa applicata
     eec_w: float = 0.0
+    e_l_w: float = 0.0           # Land Use Change ponderato (RED III)
     esca_w: float = 0.0
     etd_w: float = 0.0
     ep_w: float = 0.0
@@ -233,7 +234,7 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
     # Decomposizione media pesata su MJ (per l'audit trail)
     from core.calculation_engine import _emission_factors_of, _yield_of
     total_mj = 0.0
-    eec_n = esca_n = etd_n = ep_n = 0.0
+    eec_n = e_l_n = esca_n = etd_n = ep_n = 0.0
     for name, q in feed_totals.items():
         try:
             y = _yield_of(name)
@@ -241,6 +242,7 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
             ef = _emission_factors_of(name, ep_default=ep) or {}
             total_mj += mj
             eec_n += float(ef.get("eec") or 0.0) * mj
+            e_l_n += float(ef.get("e_l") or 0.0) * mj
             esca_n += float(ef.get("esca") or 0.0) * mj
             etd_n += float(ef.get("etd") or 0.0) * mj
             ep_n += float(ef.get("ep") or ep) * mj
@@ -248,6 +250,7 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
             continue
     if total_mj > 0:
         agg.eec_w = eec_n / total_mj
+        agg.e_l_w = e_l_n / total_mj
         agg.esca_w = esca_n / total_mj
         agg.etd_w = etd_n / total_mj
         agg.ep_w = ep_n / total_mj
