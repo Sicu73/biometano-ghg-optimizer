@@ -22,6 +22,7 @@ from reportlab.platypus import (
 )
 
 from i18n_runtime import t as _t
+from core.ls_identifier import build_ls_id
 
 
 # ============================================================
@@ -1686,7 +1687,205 @@ def build_metaniq_pdf(ctx: dict) -> BytesIO:
         flow.append(PageBreak())
     # Methodology
     flow.extend(_build_methodology(ctx, s))
+    flow.append(PageBreak())
+    # Tracciabilità Lotto di Sostenibilità (UNI/TS 11567:2024)
+    flow.extend(_build_ls_traceability(ctx, s))
 
     doc.build(flow)
     buf.seek(0)
     return buf
+
+
+# ============================================================
+# Sezione Tracciabilità LS — UNI/TS 11567:2024
+# ============================================================
+def _build_ls_traceability(ctx: dict, s) -> list:
+    """Sezione obbligatoria per audit OdC: ID LS, anagrafica, firma."""
+    is_en = ctx.get("_lang") == "en"
+    flow: list = []
+
+    # Genera LS-ID deterministico se manca
+    _year = int(ctx.get("year") or ctx.get("anno") or datetime.now().year)
+    _month = int(ctx.get("month") or ctx.get("mese") or datetime.now().month)
+    _cui = (ctx.get("plant_cui") or "").strip()
+    _plant_name = (ctx.get("plant_name") or "").strip()
+    try:
+        ls_id = build_ls_id(year=_year, month=_month, plant_cui=_cui, plant_name=_plant_name)
+    except Exception:
+        ls_id = f"LS-{_year}-{_month:02d}-PENDING"
+
+    title = "Sustainability Lot Traceability (UNI/TS 11567:2024)" if is_en else \
+            "Tracciabilità Lotto di Sostenibilità (UNI/TS 11567:2024)"
+    flow.append(Paragraph(title, s["h2"]))
+    flow.append(Spacer(1, 3 * mm))
+
+    # Tabella metadati LS
+    _rows = [
+        ["ID Lotto di Sostenibilità (LS)" if not is_en else "Sustainability Lot ID", ls_id],
+        ["Periodo di rendicontazione" if not is_en else "Reporting period",
+         f"{_month:02d}/{_year}"],
+        ["Ragione sociale" if not is_en else "Legal entity",
+         ctx.get("company_name") or "— ⚠️ DA COMPILARE"],
+        ["P.IVA / Codice Fiscale" if not is_en else "VAT / Tax ID",
+         ctx.get("company_vat") or "— ⚠️ DA COMPILARE"],
+        ["Sede legale" if not is_en else "Registered address",
+         ctx.get("company_legal_address") or "—"],
+        ["Nome impianto" if not is_en else "Plant name",
+         ctx.get("plant_name") or "— ⚠️ DA COMPILARE"],
+        ["Sede operativa" if not is_en else "Operational address",
+         ctx.get("plant_operational_address") or "—"],
+        ["CUI / Codice GSE" if not is_en else "Plant Unique Code (GSE)",
+         ctx.get("plant_cui") or "— ⚠️ DA COMPILARE"],
+        ["Comparator fossile applicato" if not is_en else "Fossil comparator",
+         f"{_fmt_it(ctx.get('fossil_comparator', 80.0), 0, ' gCO₂eq/MJ')} "
+         f"({ctx.get('end_use', '—')})"],
+        ["Soglia saving applicata" if not is_en else "Saving threshold",
+         f"{_fmt_it(ctx.get('saving_threshold_pct', 80.0), 1, '%')}"],
+        ["Base sostenibilità" if not is_en else "Sustainability basis",
+         ctx.get("sustainability_basis", "LORDO (RED III All.V Parte C)")],
+        ["Norma riferimento" if not is_en else "Reference standard",
+         "UNI/TS 11567:2024 · RED III · D.Lgs. 9 gennaio 2026, n. 5"],
+    ]
+    tbl = Table(_rows, colWidths=[CONTENT_W * 0.42, CONTENT_W * 0.58])
+    tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, -1), SLATE_50),
+        ("TEXTCOLOR", (0, 0), (0, -1), NAVY),
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTNAME", (1, 0), (1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("GRID", (0, 0), (-1, -1), 0.4, SLATE_200),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    flow.append(tbl)
+    flow.append(Spacer(1, 6 * mm))
+
+    # Bilancio di massa (in/out) — sintesi
+    bm_title = "Mass balance (input/output)" if is_en else "Bilancio di massa (input/output)"
+    flow.append(Paragraph(bm_title, s["h3"]))
+    feed_tot = ctx.get("feedstock_totals_t") or {}
+    _rows_bm = [["Biomassa" if not is_en else "Feedstock",
+                 "Tonnellate" if not is_en else "Tonnes",
+                 "Annex IX",
+                 "Categoria" if not is_en else "Category"]]
+    fdb = ctx.get("FEEDSTOCK_DB") or {}
+    for fname, qty in feed_tot.items():
+        meta = fdb.get(fname, {}) if isinstance(fdb, dict) else {}
+        _rows_bm.append([
+            fname,
+            _fmt_it(qty, 1),
+            (meta.get("annex_ix") or "—"),
+            meta.get("cat", "—"),
+        ])
+    if len(_rows_bm) == 1:
+        _rows_bm.append(["— nessun dato giornaliero —", "—", "—", "—"])
+    _rows_bm.append([
+        "TOTALE INPUT" if not is_en else "TOTAL INPUT",
+        _fmt_it(sum(feed_tot.values()) if feed_tot else 0.0, 1),
+        "", "",
+    ])
+    _rows_bm.append([
+        "OUTPUT — Sm³ biometano (lordo)" if not is_en else "OUTPUT — Sm³ biomethane (gross)",
+        _fmt_it(ctx.get("sm3_gross") or ctx.get("nm3_gross") or 0.0, 0),
+        "", "",
+    ])
+    _rows_bm.append([
+        "OUTPUT — Sm³ biometano (netto, immesso)" if not is_en else "OUTPUT — Sm³ biomethane (net, grid)",
+        _fmt_it(ctx.get("sm3_netti") or ctx.get("nm3_net") or 0.0, 0),
+        "", "",
+    ])
+    tbl_bm = Table(_rows_bm, colWidths=[CONTENT_W * 0.42, CONTENT_W * 0.20,
+                                         CONTENT_W * 0.13, CONTENT_W * 0.25])
+    tbl_bm.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+        ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+        ("GRID", (0, 0), (-1, -1), 0.4, SLATE_200),
+        ("BACKGROUND", (0, -3), (-1, -3), AMBER_BG),
+        ("BACKGROUND", (0, -2), (-1, -1), SLATE_50),
+        ("FONTNAME", (0, -3), (-1, -1), "Helvetica-Bold"),
+        ("ALIGN", (1, 1), (1, -1), "RIGHT"),
+    ]))
+    flow.append(tbl_bm)
+    flow.append(Spacer(1, 6 * mm))
+
+    # Note tracciabilità fornitori
+    suppliers = ctx.get("suppliers_registry") or []
+    if suppliers:
+        sup_title = "Suppliers registry" if is_en else "Registro fornitori biomasse"
+        flow.append(Paragraph(sup_title, s["h3"]))
+        _rows_sup = [["Fornitore" if not is_en else "Supplier",
+                      "P.IVA" if not is_en else "VAT",
+                      "Biomassa" if not is_en else "Feedstock",
+                      "Tonnellate"]]
+        for sup in suppliers:
+            _rows_sup.append([
+                sup.get("name", "—"), sup.get("vat", "—"),
+                sup.get("feedstock", "—"), _fmt_it(sup.get("tons", 0.0), 1),
+            ])
+        tbl_sup = Table(_rows_sup, colWidths=[CONTENT_W * 0.38, CONTENT_W * 0.20,
+                                               CONTENT_W * 0.27, CONTENT_W * 0.15])
+        tbl_sup.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+            ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+            ("GRID", (0, 0), (-1, -1), 0.4, SLATE_200),
+        ]))
+        flow.append(tbl_sup)
+    else:
+        flow.append(Paragraph(
+            "⚠️ Registro fornitori non popolato in app. "
+            "Per audit OdC è obbligatorio allegare distinta con: ragione sociale, "
+            "P.IVA, tipologia biomassa, t/LS, contratto/DDT."
+            if not is_en else
+            "⚠️ Suppliers registry not populated. For OdC audit, attach a list with: "
+            "company, VAT, feedstock type, tons/LS, contract/DDT.",
+            s["body"],
+        ))
+    flow.append(Spacer(1, 8 * mm))
+
+    # Disclaimer + blocco firma
+    flow.append(Paragraph(
+        "Il sottoscritto, in qualità di Responsabile della Sostenibilità, "
+        "dichiara che i dati riportati nel presente Lotto sono veritieri, "
+        "conformi al sistema di bilancio di massa adottato e tracciabili "
+        "ai documenti di trasporto (DDT) e ai contratti di filiera "
+        "in archivio aziendale, ai sensi di UNI/TS 11567:2024 e "
+        "D.Lgs. 199/2021 (come integrato dal D.Lgs. 9 gennaio 2026, n. 5)."
+        if not is_en else
+        "The undersigned, as Sustainability Officer, declares that the data "
+        "reported in this Lot are truthful, compliant with the mass balance "
+        "system in use, and traceable to delivery notes (DDT) and supply "
+        "contracts archived on site, in accordance with UNI/TS 11567:2024 and "
+        "Italian Legislative Decree 199/2021 (as updated by Legislative Decree "
+        "no. 5 of January 9, 2026).",
+        s["body"],
+    ))
+    flow.append(Spacer(1, 14 * mm))
+    sig_rows = [
+        [Paragraph("Data" if not is_en else "Date", s["muted"]),
+         Paragraph("Responsabile Sostenibilità" if not is_en else "Sustainability Officer",
+                   s["muted"])],
+        [Paragraph(ctx.get("report_date_short", ""), s["body"]),
+         Paragraph(ctx.get("responsible_name") or "_________________________", s["body"])],
+        [Paragraph("", s["muted"]),
+         Paragraph("Firma" if not is_en else "Signature", s["muted"])],
+        [Paragraph("", s["body"]),
+         Paragraph("_________________________", s["body"])],
+    ]
+    tbl_sig = Table(sig_rows, colWidths=[CONTENT_W * 0.4, CONTENT_W * 0.6])
+    tbl_sig.setStyle(TableStyle([
+        ("LINEABOVE", (0, 1), (-1, 1), 0.4, SLATE_400),
+        ("LINEABOVE", (0, 3), (-1, 3), 0.4, SLATE_400),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]))
+    flow.append(tbl_sig)
+    return flow
