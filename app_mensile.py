@@ -1842,6 +1842,39 @@ st.markdown(
         margin: 4px 8px !important;
     }}
 
+    /* ---------- Sidebar toggle (chevron) — forza visibilita' ----------
+       Streamlit di default rende il toggle con colore che a volte
+       diventa invisibile sui temi custom (bianco su bianco). Forziamo
+       background contrastante + colore SVG visibile. */
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="collapsedControl"],
+    button[kind="header"][aria-label*="sidebar" i],
+    button[kind="headerNoPadding"][aria-label*="sidebar" i] {{
+        background-color: {PRIMARY} !important;
+        color: #FFFFFF !important;
+        border: 1px solid {BORDER} !important;
+        border-radius: 8px !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        z-index: 999 !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.18) !important;
+    }}
+    [data-testid="stSidebarCollapseButton"] svg,
+    [data-testid="stSidebarCollapsedControl"] svg,
+    [data-testid="collapsedControl"] svg,
+    button[kind="header"][aria-label*="sidebar" i] svg,
+    button[kind="headerNoPadding"][aria-label*="sidebar" i] svg {{
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
+        stroke: #FFFFFF !important;
+        opacity: 1 !important;
+    }}
+    [data-testid="stSidebarCollapseButton"]:hover,
+    [data-testid="stSidebarCollapsedControl"]:hover {{
+        background-color: {ACCENT} !important;
+    }}
+
     /* Hiding utility language buttons */
     div[data-testid="stColumn"] button[id*="it-hidden"], 
     div[data-testid="stColumn"] button[id*="uk-hidden"] {{
