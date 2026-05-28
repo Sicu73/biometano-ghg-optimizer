@@ -1109,10 +1109,20 @@ def e_total_feedstock(name: str, ep: float = 0.0) -> float:
     valori standard FEEDSTOCK_DB[name] e ep impianto-wide passato.
     """
     f = _emission_factors_of(name, ep)
-    return calculate_emission_total(
-        f["eec"], f["esca"], f["etd"], f["ep"], f.get("extra", 0.0),
-        e_l=f.get("e_l", 0.0),
-    )
+    # Compatibilità deploy: se Streamlit Cloud serve ancora una versione
+    # cached di emission_factors_override senza il parametro e_l (Patch 8),
+    # ricadiamo sulla firma legacy. e_l e' addizionato manualmente al
+    # totale per preservare la correttezza RED III All. V Parte C.
+    _e_l = float(f.get("e_l") or 0.0)
+    try:
+        return calculate_emission_total(
+            f["eec"], f["esca"], f["etd"], f["ep"], f.get("extra", 0.0),
+            e_l=_e_l,
+        )
+    except TypeError:
+        return calculate_emission_total(
+            f["eec"], f["esca"], f["etd"], f["ep"], f.get("extra", 0.0),
+        ) + _e_l
 
 
 def ghg_summary(masses: dict, aux: float, ep: float = 0.0,
