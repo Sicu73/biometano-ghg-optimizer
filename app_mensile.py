@@ -1691,18 +1691,48 @@ with st.sidebar:
             key="plant_operational_address",
             placeholder=_t("Indirizzo dell'impianto"),
         )
+        # === Identificativi obbligatori per audit OdC UNI/TS 11567:2024 ===
+        _col_id1, _col_id2 = st.columns(2)
+        with _col_id1:
+            company_vat = st.text_input(
+                "P.IVA / " + _t("Codice Fiscale"),
+                value=st.session_state.get("company_vat", ""),
+                key="company_vat",
+                placeholder="IT01234567890",
+                help=_t("Obbligatorio per dichiarazione di sostenibilità."),
+            )
+        with _col_id2:
+            plant_cui = st.text_input(
+                "CUI / " + _t("Codice GSE"),
+                value=st.session_state.get("plant_cui", ""),
+                key="plant_cui",
+                placeholder="IT00X-YYYY-NNNN",
+                help=_t("Codice Unico Impianto (Portale GSE)."),
+            )
+        responsible_name = st.text_input(
+            _t("Responsabile sostenibilità (nome e qualifica)"),
+            value=st.session_state.get("responsible_name", ""),
+            key="responsible_name",
+            placeholder=_t("Es. Mario Rossi — Resp. Sostenibilità"),
+            help=_t("Firma del Lotto di Sostenibilità per audit OdC."),
+        )
         st.caption(
             "ℹ️ " + _t("Questi dati appaiono nell'intestazione dei report "
                        "esportati (PDF/Excel/CSV) e identificano l'impianto "
-                       "nel database della Gestione Giornaliera.")
+                       "nel database della Gestione Giornaliera. P.IVA, CUI e "
+                       "Responsabile sono richiesti per la conformità "
+                       "UNI/TS 11567:2024 in fase di audit OdC.")
         )
     st.markdown("<div style='margin-bottom:15px;'></div>", unsafe_allow_html=True)
 
-# Espone le 4 variabili a livello modulo (anche se non compilate sono "")
+# Espone le variabili a livello modulo (anche se non compilate sono "")
 COMPANY_NAME              = st.session_state.get("company_name", "")
 COMPANY_LEGAL_ADDRESS     = st.session_state.get("company_legal_address", "")
 PLANT_NAME                = st.session_state.get("plant_name", "")
 PLANT_OPERATIONAL_ADDRESS = st.session_state.get("plant_operational_address", "")
+COMPANY_VAT               = st.session_state.get("company_vat", "")
+PLANT_CUI                 = st.session_state.get("plant_cui", "")
+RESPONSIBLE_NAME          = st.session_state.get("responsible_name", "")
 
 # ===========================================================
 # Metan.iQ Mode Selector (4 modalita' in griglia 2x2)
@@ -2537,14 +2567,42 @@ with st.sidebar:
         _t("Scegli biomasse"),
         options=FEED_NAMES,
         default=[f for f in st.session_state.get('active_feeds', DEFAULT_ACTIVE_FEEDS) if f in FEED_NAMES],
-        format_func=lambda x: f"{_t(x)} (eec={fmt_it(FEEDSTOCK_DB[x]['eec'], 1, signed=True)})",
-        help=_t("Spunta quelle presenti nel tuo impianto.")
+        format_func=lambda x: (
+            f"{_t(x)} · eec={fmt_it(FEEDSTOCK_DB[x]['eec'], 1, signed=True)} · "
+            + ('🌽 cap30%' if FEEDSTOCK_DB[x].get('annex_ix') is None
+               else f"IX-{FEEDSTOCK_DB[x].get('annex_ix')} ✓avanzato")
+        ),
+        help=_t(
+            "Spunta quelle presenti nel tuo impianto. Legenda: "
+            "IX-A/IX-B = Annex IX RED III (avanzato, double counting CIC). "
+            "🌽 cap30% = food/feed crop (cap RED III, single counting)."
+        )
     )
     st.session_state.active_feeds = active_feeds_sel
     active_feeds = st.session_state.active_feeds
     if not active_feeds:
         st.warning(_t("⚠️ Seleziona almeno 1 biomassa per procedere."))
         st.stop()
+
+    # ── Trasparenza audit OdC: fonti normative dei valori eec mostrati ──
+    with st.expander(_t("📚 Fonti normative biomasse attive (audit OdC)"), expanded=False):
+        import pandas as _pd
+        _rows_src = [
+            {
+                _t("Biomassa"): _t(_n),
+                "eec [gCO₂eq/MJ]": fmt_it(FEEDSTOCK_DB[_n]["eec"], 1, signed=True),
+                _t("Categoria"): FEEDSTOCK_DB[_n].get("cat", "—"),
+                "Annex IX": FEEDSTOCK_DB[_n].get("annex_ix") or "—",
+                _t("Fonte"): FEEDSTOCK_DB[_n].get("src", "—"),
+            }
+            for _n in active_feeds
+        ]
+        st.dataframe(_pd.DataFrame(_rows_src), use_container_width=True, hide_index=True)
+        st.caption(_t(
+            "Annex IX = RED III Allegato IX: A (sottoprodotti/effluenti, avanzato) o "
+            "B (oli/grassi, avanzato). '—' = food/feed crop (cap colture dedicate, "
+            "no double counting CIC, no premio avanzato DM 15/9/2022)."
+        ))
 # ============================================================
 # DEFAULT GLOBALI per tab-globals (audit robustezza #1)
 # ------------------------------------------------------------
@@ -5526,6 +5584,27 @@ with tab_solver:
             # === Audit fattori emissivi reali (relazione tecnica) ===
             "emission_audit_rows": list(_emission_audit_rows),
             "emission_overrides":  dict(_EMISSION_OVERRIDES),
+            # === Anagrafica UNI/TS 11567:2024 (audit OdC) ===
+            "company_name":             COMPANY_NAME,
+            "company_legal_address":    COMPANY_LEGAL_ADDRESS,
+            "plant_name":                PLANT_NAME,
+            "plant_operational_address": PLANT_OPERATIONAL_ADDRESS,
+            "company_vat":               COMPANY_VAT,
+            "plant_cui":                 PLANT_CUI,
+            "responsible_name":          RESPONSIBLE_NAME,
+            # Periodo di rendicontazione (usato per ID Lotto di Sostenibilità).
+            # Default: data corrente. La tab "Gestione Giornaliera" sovrascrive
+            # con anno/mese reali del periodo selezionato dall'utente.
+            "year":  st.session_state.get("daily_year")  or __import__("datetime").datetime.now().year,
+            "month": st.session_state.get("daily_month") or __import__("datetime").datetime.now().month,
+            # Espone FEEDSTOCK_DB al PDF per popolare la sezione mass balance
+            # (Annex IX / categoria per ciascuna biomassa attiva).
+            "FEEDSTOCK_DB":              FEEDSTOCK_DB,
+            "feedstock_totals_t":        st.session_state.get("monthly_feed_totals", {}),
+            "sm3_gross":                 st.session_state.get("monthly_sm3_gross", 0.0),
+            "sm3_netti":                 st.session_state.get("monthly_sm3_netti", 0.0),
+            "saving_threshold_pct":      float(ghg_threshold) * 100.0 if ghg_threshold else 80.0,
+            "sustainability_basis":      "LORDO (RED III All. V Parte C)",
         }
         try:
             _pdf_buf = build_metaniq_pdf(_pdf_ctx)

@@ -99,12 +99,19 @@ FER2_CAP_COLTURE_DEDICATE = 0.20
 # ---------------------------------------------------------------------------
 # Manure credit (gCO2eq/MJ) — GSE LG 2024 / IPCC 2019 Vol.4 Cap.10
 # ---------------------------------------------------------------------------
+# NOTA AUDIT: questi sono i valori del "manure credit" puro (esca, beneficio
+# da stoccaggio anaerobico). Il database operativo `FEEDSTOCK_DB` in
+# app_mensile.py espone l'`eec` AGGREGATO (eec_baseline + esca + handling)
+# secondo la prassi GSE LG 2024 di incorporarli nell'eec di filiera. Per la
+# pollina ovaiole in stoccaggio aerobico l'`eec` operativo (+5.0) include le
+# emissioni residue di gestione che il puro manure credit (=0.0) non copre.
+# Allineare i due moduli quando si rifattorizza il calcolo eec.
 
 MANURE_CREDIT_LIQUAME_SUINO = -45.0
 MANURE_CREDIT_LIQUAME_BOVINO = -45.0
 MANURE_CREDIT_LETAME_PALABILE = -30.0
 MANURE_CREDIT_POLLINA_BROILER = -15.0
-MANURE_CREDIT_POLLINA_OVAIOLE = 0.0
+MANURE_CREDIT_POLLINA_OVAIOLE = 0.0  # vs FEEDSTOCK_DB eec=+5.0 (handling aerobico)
 
 
 __all__ = [
