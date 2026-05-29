@@ -3,7 +3,7 @@
 BioMethane Monthly Planner - Dual-Constraint Solver
 ---------------------------------------------------
 Impianto 300 Sm3/h NETTI (DM 15/09/2022, PNRR).
-Biomasse: Trinciato di mais, Trinciato di sorgo, Pollina ovaiole, Liquame suino.
+Biomasse: Trinciato di mais, Trinciato di sorgo da foraggio, Pollina ovaiole, Liquame suino.
 
 Due modalita':
   A) 2 biomasse fisse + 2 calcolate -> soddisfa SIA produzione SIA saving 81%
@@ -687,12 +687,29 @@ FEEDSTOCK_DB = {
         "requires_no_luc_declaration": True,
         "src": "UNI-TS 11567:2024 / JEC v5",
     },
-    "Trinciato di sorgo": {
-        "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 90.0, "dry_matter_std": 0.30,
-        "color": "#8BC34A", "cat": "Colture dedicate",
+    # SORGO — la UNI/TS 11567:2024 (Prosp. A.1) tabula un'unica voce "Sorgo"
+    # (580 Nm3 biogas/t ST · 52% CH4 -> 301,6 Nm3 CH4/t ST) ed eec standard 26
+    # (Prosp. A.5). La norma NON differenzia i tipi: la distinzione e' agronomica
+    # sulla sostanza secca, che riscala la resa per t tal quale via la
+    # normalizzazione A.1 (resa = 301,6 × ST_std). Manteniamo la resa specifica
+    # normativa come ancora e differenziamo solo ST e la destinazione d'uso.
+    "Trinciato di sorgo da foraggio": {
+        # Sorgo zuccherino/da foraggio: ST piu' bassa (raccolta lattea-cerosa).
+        "eec": 26.0, "esca": 0.0, "etd": 0.8, "yield": 81.4, "dry_matter_std": 0.27,
+        "color": "#9CCC65", "cat": "Colture dedicate",
         "annex_ix": None, "e_l": 0.0,
         "requires_no_luc_declaration": True,
-        "src": "UNI-TS 11567:2024",
+        "src": "UNI-TS 11567:2024 (Prosp. A.1/A.5); ST agronomica foraggio (CRPA/KTBL)",
+    },
+    "Trinciato di sorgo uso energetico (biodigestori)": {
+        # Sorgo da biomassa/fibra dedicato a digestione anaerobica: ST piu' alta,
+        # ibridi ad alta produzione di sostanza secca per ettaro. Resa specifica
+        # mantenuta sul valore normativo UNI/TS (la norma non differenzia).
+        "eec": 26.0, "esca": 0.0, "etd": 0.8, "yield": 90.5, "dry_matter_std": 0.30,
+        "color": "#689F38", "cat": "Colture dedicate",
+        "annex_ix": None, "e_l": 0.0,
+        "requires_no_luc_declaration": True,
+        "src": "UNI-TS 11567:2024 (Prosp. A.1/A.5); ST agronomica sorgo da biomassa (CRPA/KTBL)",
     },
     "Triticale insilato": {
         "eec": 20.0, "esca": 0.0, "etd": 0.8, "yield": 106.1, "dry_matter_std": 0.35,
@@ -1029,7 +1046,7 @@ def _yield_of(name: str) -> float:
 # Default biomasse attive: mix iniziale diversificato (colture + effluenti).
 DEFAULT_ACTIVE_FEEDS = [
     "Trinciato di mais",
-    "Trinciato di sorgo",
+    "Trinciato di sorgo da foraggio",
     "Pollina ovaiole (aerobico)",
     "Liquame suino",
 ]
@@ -5566,7 +5583,8 @@ with tab_business:
     # (il cliente li riaggiusta a mano in tabella mensile)
     defaults_all = {
         "Trinciato di mais": 1800.0,
-        "Trinciato di sorgo": 400.0,
+        "Trinciato di sorgo da foraggio": 400.0,
+        "Trinciato di sorgo uso energetico (biodigestori)": 400.0,
         "Pollina ovaiole (aerobico)": 300.0,
         "Pollina broiler (lettiera)": 250.0,
         "Pollina tacchini": 200.0,
