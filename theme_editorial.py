@@ -32,11 +32,9 @@ html, body, .stApp, [class*="css"] {{ font-family:'Outfit', system-ui, sans-seri
 .stApp {{ background:{t['PAPER']} !important; color:{t['INK']} !important; }}
 .block-container {{ padding-top:2rem !important; max-width:1220px !important; }}
 header[data-testid="stHeader"] {{ background:transparent !important; height:0 !important; }}
-.stApp h1, .stApp h2, .stApp h3, .stApp h4 {{ font-family:'Spectral', Georgia, serif !important; font-weight:600 !important; letter-spacing:-.01em !important; color:{t['INK']} !important; }}
-.stMarkdown p, label, .stApp p, li {{ color:{t['INK']} !important; }}
+.stApp h1, .stApp h2, .stApp h3, .stApp h4 {{ font-family:'Spectral', Georgia, serif !important; font-weight:600 !important; letter-spacing:-.01em !important; }}
 section[data-testid="stSidebar"] {{ background:{t['PAPER2']} !important; border-right:1px solid {t['LINE']} !important; }}
-section[data-testid="stSidebar"] * {{ color:{t['INK']} !important; }}
-section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 {{ font-family:'Spectral', serif !important; color:{t['INK']} !important; }}
+section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 {{ font-family:'Spectral', serif !important; }}
 section[data-testid="stSidebar"] [data-baseweb="select"] > div, section[data-testid="stSidebar"] input, section[data-testid="stSidebar"] textarea {{ background:{t['SURFACE']} !important; border:1px solid {t['LINE']} !important; border-radius:8px !important; color:{t['INK']} !important; }}
 .methaniq-header, .metaniq-header, div[class*="header"][style*="gradient"] {{ background:{t['NAVY']} !important; background-image:none !important; border:1px solid #243743 !important; border-radius:10px !important; box-shadow:none !important; position:relative !important; overflow:hidden !important; padding:38px 42px !important; }}
 .methaniq-header::before {{ content:"" !important; position:absolute !important; top:0 !important; left:0 !important; right:0 !important; height:2px !important; background:linear-gradient(90deg, {t['BRASS']}, {t['BRASS2']}) !important; }}
