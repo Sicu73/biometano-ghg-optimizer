@@ -1452,7 +1452,7 @@ _brand_badge_label = "Biometano · DM 2022"  # match _MODE['badge'] biometano
 with st.sidebar:
     st.markdown(
         f"""
-        <div style='
+        <div class="metaniq-brandcard" style='
             padding: 20px 18px;
             background: {_BRAND_PRIMARY};
             border-radius: 10px;
@@ -6400,7 +6400,7 @@ with tab_business:
     # ============================================================
     if bp_result is not None:
         with tab5:
-            st.markdown("<div style='font-family:\"JetBrains Mono\", monospace; font-size:0.7rem; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:#94A3B8; margin-bottom:8px;'>// PRO FORMA · DM 2022</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-family:\"JetBrains Mono\", monospace; font-size:0.7rem; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:#726C5E; margin-bottom:8px;'>// PRO FORMA · DM 2022</div>", unsafe_allow_html=True)
             st.subheader(_t("💼 Ricavi Annui"))
             st.caption("Calcolo dei ricavi sulla base della tariffa incentivante (o premio) DM 2022 e della produzione di biometano.")
 

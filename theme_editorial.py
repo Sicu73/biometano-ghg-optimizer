@@ -66,12 +66,36 @@ div[data-testid="stExpander"] {{ background:{t['SURFACE']} !important; border:1p
 .methaniq-header .pill {{ background:rgba(255,255,255,.04) !important; border:1px solid rgba(201,169,104,.32) !important; color:#E5DFCF !important; border-radius:6px !important; letter-spacing:.04em !important; font-family:'IBM Plex Mono', monospace !important; font-size:.68rem !important; padding:4px 10px !important; }}
 .methaniq-header .pill.accent {{ background:rgba(201,169,104,.18) !important; border-color:rgba(201,169,104,.55) !important; color:#F1E7CF !important; }}
 div[data-baseweb="input"]:focus-within, div[data-baseweb="select"]:focus-within > div {{ border-color:{t['BRASS']} !important; box-shadow:0 0 0 1px {t['BRASS']} !important; }}
-div[data-testid="stExpander"] summary {{ font-family:'Outfit', sans-serif !important; font-weight:600 !important; }}
-div[data-testid="stExpander"] summary:hover {{ color:{t['BRASS']} !important; }}
+div[data-testid="stExpander"] summary {{ font-family:'Outfit', sans-serif !important; font-weight:600 !important; background:{t['SURFACE']} !important; color:{t['INK']} !important; }}
+div[data-testid="stExpander"] summary p, div[data-testid="stExpander"] summary span {{ color:{t['INK']} !important; }}
+div[data-testid="stExpander"] summary:hover, div[data-testid="stExpander"] summary:hover * {{ color:{t['BRASS']} !important; }}
 .stApp a {{ color:{t['BRASS']} !important; text-decoration-color:rgba(154,123,60,.4) !important; }}
 .stApp code {{ font-family:'IBM Plex Mono', monospace !important; }}
 hr {{ border-color:{t['LINE']} !important; opacity:1 !important; }}
-</style>
+/* --- Fix contrasto: testo chiaro su superfici scure --- */
+/* Brand card navy in sidebar: ripristina i colori chiari inline (la regola
+   sidebar span/p {{color:TEXT_SECOND}} li sovrascriveva -> scuro su navy). */
+section[data-testid="stSidebar"] .metaniq-brandcard,
+section[data-testid="stSidebar"] .metaniq-brandcard div,
+section[data-testid="stSidebar"] .metaniq-brandcard span,
+section[data-testid="stSidebar"] .metaniq-brandcard small {{ color:#E5DFCF !important; }}
+section[data-testid="stSidebar"] .metaniq-brandcard span[style*="9A7B3C"],
+section[data-testid="stSidebar"] .metaniq-brandcard span[style*="B59450"] {{ color:{t['BRASS2']} !important; }}
+/* Bottoni primary / form-submit nel CONTENUTO PRINCIPALE: testo chiaro su navy
+   (anche sul <p> interno). Esclusa la sidebar, dove i toggle primary lingua/tema
+   hanno sfondo chiaro e necessitano testo scuro. */
+[data-testid="stMain"] .stButton button[kind^="primary"],
+[data-testid="stMain"] .stButton button[kind^="primary"] *,
+[data-testid="stMain"] .stDownloadButton button[kind^="primary"],
+[data-testid="stMain"] .stDownloadButton button[kind^="primary"] *,
+[data-testid="stMain"] .stFormSubmitButton button[kind^="primary"],
+[data-testid="stMain"] .stFormSubmitButton button[kind^="primary"] * {{ color:#F4F1E8 !important; }}
+/* st.text(): lo span interno usa un colore Streamlit di default non tematizzato
+   (navy scuro) -> illeggibile in dark. Forziamo il token INK (corretto per tema). */
+.stText, .stText * {{ color:{t['INK']} !important; }}
+/* Placeholder multiselect (baseweb) leggibile in entrambi i temi */
+div[data-baseweb="select"] [class*="placeholder"] {{ color:{t['MUTED']} !important; }}
+div[data-baseweb="select"] [data-baseweb="tag"] span {{ color:{t['INK']} !important; }}
 """, unsafe_allow_html=True)
 
 
