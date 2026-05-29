@@ -1877,36 +1877,60 @@ st.markdown(
     }}
 
     /* ---------- Sidebar toggle (chevron) — forza visibilita' ----------
-       Streamlit di default rende il toggle con colore che a volte
-       diventa invisibile sui temi custom (bianco su bianco). Forziamo
-       background contrastante + colore SVG visibile. */
+       Streamlit moderno rende il toggle come GLIFO font Material Symbols
+       (span[data-testid="stIconMaterial"]), non SVG. Una regola globale
+       a valle rende quello span trasparente se il font non carica -> la
+       freccia "spariva". Forziamo qui un pill ottone con glifo scuro
+       SEMPRE visibile (span + svg), piu' un fallback testuale a chevron. */
     [data-testid="stSidebarCollapseButton"],
     [data-testid="stSidebarCollapsedControl"],
     [data-testid="collapsedControl"],
+    [data-testid="stExpandSidebarButton"],
     button[kind="header"][aria-label*="sidebar" i],
-    button[kind="headerNoPadding"][aria-label*="sidebar" i] {{
-        background-color: {PRIMARY} !important;
-        color: #FFFFFF !important;
-        border: 1px solid {BORDER} !important;
-        border-radius: 8px !important;
+    button[kind="headerNoPadding"][aria-label*="sidebar" i],
+    button[aria-label*="sidebar" i],
+    button[aria-label*="navigation" i] {{
+        background-color: {ACCENT} !important;
+        color: #15242E !important;
+        border: 1px solid #7A6230 !important;
+        border-radius: 6px !important;
         opacity: 1 !important;
         visibility: visible !important;
-        z-index: 999 !important;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.18) !important;
+        z-index: 1000 !important;
+        box-shadow: none !important;
+    }}
+    /* Glifo interno (span Material) + eventuale SVG: colore scuro forte,
+       NON trasparente, dimensione garantita (annulla il reset a font-size:0). */
+    [data-testid="stSidebarCollapseButton"] span[data-testid="stIconMaterial"],
+    [data-testid="stSidebarCollapsedControl"] span[data-testid="stIconMaterial"],
+    [data-testid="collapsedControl"] span[data-testid="stIconMaterial"],
+    button[aria-label*="sidebar" i] span[data-testid="stIconMaterial"],
+    button[aria-label*="navigation" i] span[data-testid="stIconMaterial"] {{
+        color: #15242E !important;
+        fill: #15242E !important;
+        opacity: 1 !important;
+        font-size: 1.35rem !important;
+        line-height: 1 !important;
+        visibility: visible !important;
     }}
     [data-testid="stSidebarCollapseButton"] svg,
     [data-testid="stSidebarCollapsedControl"] svg,
     [data-testid="collapsedControl"] svg,
-    button[kind="header"][aria-label*="sidebar" i] svg,
-    button[kind="headerNoPadding"][aria-label*="sidebar" i] svg {{
-        fill: #FFFFFF !important;
-        color: #FFFFFF !important;
-        stroke: #FFFFFF !important;
+    button[aria-label*="sidebar" i] svg,
+    button[aria-label*="navigation" i] svg {{
+        fill: #15242E !important;
+        color: #15242E !important;
+        stroke: #15242E !important;
         opacity: 1 !important;
+        width: 1.25rem !important;
+        height: 1.25rem !important;
     }}
     [data-testid="stSidebarCollapseButton"]:hover,
-    [data-testid="stSidebarCollapsedControl"]:hover {{
-        background-color: {ACCENT} !important;
+    [data-testid="stSidebarCollapsedControl"]:hover,
+    [data-testid="collapsedControl"]:hover,
+    button[aria-label*="sidebar" i]:hover {{
+        background-color: #B59450 !important;
+        border-color: #9A7B3C !important;
     }}
 
     /* Hiding utility language buttons */
@@ -2358,6 +2382,150 @@ st.markdown(
     }}
     </style>
     <div class="methaniq-fixed-footer">METAN.iQ · v0.4.0</div>
+    """,
+    unsafe_allow_html=True,
+)
+
+# =============================================================================
+# DESIGN POLISH v5 — rifinitura editoriale "consulting report"
+# Blocco additivo: tipografia editoriale, righelli ottone, didascalie maiuscole,
+# intestazioni tabelle navy, scrollbar e divider raffinati. Solo estetica.
+# =============================================================================
+st.markdown(
+    f"""
+    <style>
+    /* --- Impaginazione "documento": respiro e larghezza da report --- */
+    .block-container {{
+        max-width: 1180px !important;
+        padding-top: 2.4rem !important;
+        padding-bottom: 4rem !important;
+    }}
+
+    /* --- Gerarchia titoli editoriale + righello ottone sui h2 --- */
+    .stApp h2 {{
+        font-size: 1.55rem !important;
+        font-weight: 600 !important;
+        margin-top: 0.4rem !important;
+        padding-bottom: 0.45rem !important;
+        border-bottom: 1px solid {BORDER} !important;
+        position: relative;
+    }}
+    .stApp h2::after {{
+        content: "";
+        position: absolute;
+        left: 0; bottom: -1px;
+        width: 46px; height: 2px;
+        background: {ACCENT};
+    }}
+    .stApp h3 {{
+        font-size: 1.22rem !important;
+        font-weight: 600 !important;
+        color: {TEXT_PRIMARY} !important;
+    }}
+    .stApp h4 {{
+        font-size: 1.02rem !important;
+        font-weight: 600 !important;
+        color: {TEXT_SECOND} !important;
+    }}
+
+    /* --- Didascalia metrica: maiuscoletto spaziato (caption editoriale) --- */
+    div[data-testid="stMetricLabel"] p,
+    div[data-testid="stMetricLabel"] {{
+        text-transform: uppercase !important;
+        letter-spacing: 0.08em !important;
+        font-size: 0.68rem !important;
+        font-weight: 600 !important;
+        color: {TEXT_MUTED} !important;
+    }}
+    div[data-testid="stMetricDelta"] {{
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.8rem !important;
+    }}
+
+    /* --- Divider / hr: filo sottile su carta --- */
+    hr, .stApp hr {{
+        border: none !important;
+        border-top: 1px solid {BORDER} !important;
+        margin: 1.6rem 0 !important;
+    }}
+
+    /* --- Intestazioni tabelle/dataframe: banda navy, testo avorio --- */
+    [data-testid="stDataFrame"] [role="columnheader"],
+    .stApp thead th {{
+        background-color: {PRIMARY} !important;
+        color: #F7F4EC !important;
+        font-family: 'Outfit', sans-serif !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.03em !important;
+        border-bottom: 2px solid {ACCENT} !important;
+    }}
+    /* Celle numeriche in mono per allineamento da tabella finanziaria */
+    [data-testid="stDataFrame"] [role="gridcell"],
+    .stApp tbody td {{
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-variant-numeric: tabular-nums;
+    }}
+
+    /* --- Alert semantici con barra sinistra coerente alla palette --- */
+    div[data-testid="stAlert"] {{
+        background-color: {BG_SURFACE} !important;
+        border: 1px solid {BORDER} !important;
+        border-left: 3px solid {ACCENT} !important;
+        border-radius: 8px !important;
+    }}
+
+    /* --- Caption Streamlit: corsivo serif discreto --- */
+    div[data-testid="stCaptionContainer"], .stCaption {{
+        font-family: 'Spectral', Georgia, serif !important;
+        font-style: italic !important;
+        color: {TEXT_MUTED} !important;
+    }}
+
+    /* --- Sidebar: intestazioni di sezione raffinate --- */
+    section[data-testid="stSidebar"] .block-container {{
+        padding-top: 1.2rem !important;
+    }}
+
+    /* --- Code/tag inline: pillola carta con bordo --- */
+    .stApp code {{
+        background-color: {CODE_BG} !important;
+        color: {CODE_COLOR} !important;
+        border: 1px solid {BORDER} !important;
+        border-radius: 5px !important;
+        padding: 1px 6px !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.85em !important;
+    }}
+
+    /* --- Scrollbar discreta in tinta carta/ottone --- */
+    ::-webkit-scrollbar {{ width: 11px; height: 11px; }}
+    ::-webkit-scrollbar-track {{ background: {BG_APP}; }}
+    ::-webkit-scrollbar-thumb {{
+        background: {BORDER};
+        border-radius: 6px;
+        border: 2px solid {BG_APP};
+    }}
+    ::-webkit-scrollbar-thumb:hover {{ background: {ACCENT}; }}
+
+    /* --- Link in tinta ottone, sottolineatura discreta --- */
+    .stApp a {{
+        color: {ACCENT} !important;
+        text-decoration-color: {BORDER} !important;
+        text-underline-offset: 2px;
+    }}
+    .stApp a:hover {{ text-decoration-color: {ACCENT} !important; }}
+
+    /* --- Expander summary: titolo serif --- */
+    div[data-testid="stExpander"] summary p,
+    div[data-testid="stExpander"] summary span {{
+        font-family: 'Spectral', Georgia, serif !important;
+        font-weight: 600 !important;
+        font-size: 1.02rem !important;
+    }}
+
+    /* --- Selezione testo in tinta ottone tenue --- */
+    ::selection {{ background: rgba(154,123,60,0.22); }}
+    </style>
     """,
     unsafe_allow_html=True,
 )
