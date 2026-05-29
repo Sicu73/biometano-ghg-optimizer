@@ -2525,6 +2525,79 @@ st.markdown(
 
     /* --- Selezione testo in tinta ottone tenue --- */
     ::selection {{ background: rgba(154,123,60,0.22); }}
+
+    /* =====================================================================
+       FIX LEGGIBILITA' MENU A TENDINA (selectbox / multiselect / dropdown)
+       BaseWeb monta il popover in un portal a livello <body>, fuori da
+       .stApp: il tema scuro lasciava testo scuro su fondo scuro -> parole
+       invisibili. Forziamo colori theme-aware su popover, listbox e opzioni.
+       ===================================================================== */
+    div[data-baseweb="popover"],
+    div[data-baseweb="popover"] > div,
+    div[data-baseweb="menu"],
+    ul[role="listbox"],
+    div[data-baseweb="popover"] ul {{
+        background-color: {BG_SURFACE} !important;
+        color: {TEXT_PRIMARY} !important;
+        border: 1px solid {BORDER} !important;
+        border-radius: 8px !important;
+    }}
+    li[role="option"],
+    ul[role="listbox"] li,
+    div[data-baseweb="menu"] li,
+    div[data-baseweb="popover"] li {{
+        background-color: {BG_SURFACE} !important;
+        color: {TEXT_PRIMARY} !important;
+    }}
+    /* Testo annidato dentro l'opzione (BaseWeb avvolge in <div>/<span>) */
+    li[role="option"] *,
+    ul[role="listbox"] li *,
+    div[data-baseweb="menu"] li * {{
+        color: {TEXT_PRIMARY} !important;
+    }}
+    /* Hover / opzione evidenziata */
+    li[role="option"]:hover,
+    li[role="option"][aria-selected="true"],
+    ul[role="listbox"] li:hover {{
+        background-color: {BG_SURFACE_2} !important;
+        color: {TEXT_PRIMARY} !important;
+    }}
+    li[role="option"][aria-selected="true"] {{
+        box-shadow: inset 3px 0 0 {ACCENT} !important;
+    }}
+    /* Valore selezionato mostrato nel box select (single + multi) */
+    div[data-baseweb="select"] div[data-baseweb="select"],
+    div[data-baseweb="select"] [class*="ValueContainer"],
+    div[data-baseweb="select"] span,
+    div[data-baseweb="select"] input {{
+        color: {TEXT_PRIMARY} !important;
+        -webkit-text-fill-color: {TEXT_PRIMARY} !important;
+    }}
+    /* Tag del multiselect: pillola carta leggibile */
+    div[data-baseweb="select"] span[data-baseweb="tag"],
+    span[data-baseweb="tag"] {{
+        background-color: {SECTION_PILL_BG} !important;
+        color: {SECTION_PILL_COLOR} !important;
+        border-radius: 6px !important;
+    }}
+    span[data-baseweb="tag"] span, span[data-baseweb="tag"] svg {{
+        color: {SECTION_PILL_COLOR} !important;
+        fill: {SECTION_PILL_COLOR} !important;
+    }}
+    /* Placeholder e testo di input dei widget (dark: spesso troppo scuro) */
+    div[data-baseweb="input"] input,
+    div[data-baseweb="input"] input::placeholder,
+    div[data-baseweb="select"] input::placeholder {{
+        color: {TEXT_PRIMARY} !important;
+        -webkit-text-fill-color: {TEXT_PRIMARY} !important;
+        opacity: 0.9;
+    }}
+    div[data-baseweb="input"] input::placeholder,
+    div[data-baseweb="select"] input::placeholder {{
+        color: {TEXT_MUTED} !important;
+        -webkit-text-fill-color: {TEXT_MUTED} !important;
+        opacity: 1;
+    }}
     </style>
     """,
     unsafe_allow_html=True,
