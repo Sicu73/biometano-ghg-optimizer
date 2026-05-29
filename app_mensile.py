@@ -2922,21 +2922,88 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("### " + _t("🌾 Biomasse attive"))
-    active_feeds_sel = st.multiselect(
-        _t("Scegli biomasse"),
-        options=FEED_NAMES,
-        default=[f for f in st.session_state.get('active_feeds', DEFAULT_ACTIVE_FEEDS) if f in FEED_NAMES],
-        format_func=lambda x: (
-            f"{_t(x)} · eec={fmt_it(FEEDSTOCK_DB[x]['eec'], 1, signed=True)} · "
-            + ('🌽 cap30%' if FEEDSTOCK_DB[x].get('annex_ix') is None
-               else f"IX-{FEEDSTOCK_DB[x].get('annex_ix')} ✓avanzato")
-        ),
+
+    # Origine del fattore emissivo eec (per tag inline ⓘ e cerchietto ?).
+    def _eec_origin(_name):
+        _src = (FEEDSTOCK_DB.get(_name, {}) or {}).get("src", "") or ""
+        _s = _src.lower()
+        if _src.startswith("UNI-TS"):
+            return "UNI/TS A.5"
+        if "manure credit red iii" in _s:
+            return "RED III"
+        if "jec" in _s or "ktbl" in _s:
+            return "JEC/KTBL"
+        if "gse" in _s:
+            return "GSE"
+        if "ipcc" in _s:
+            return "IPCC"
+        return _t("altro")
+
+    def _fmt_feed(_x):
+        _d = FEEDSTOCK_DB[_x]
+        _adv = ('🌽 cap30%' if _d.get('annex_ix') is None
+                else f"IX-{_d.get('annex_ix')} ✓avanzato")
+        return (f"{_t(_x)} · eec={fmt_it(_d['eec'], 1, signed=True)} · "
+                f"{_adv} · ⓘ {_eec_origin(_x)}")
+
+    # 🔍 Lente di ricerca rapida (filtra i blocchi per nome IT/EN).
+    _feed_query = st.text_input(
+        "🔍 " + _t("Cerca biomassa"),
+        value="",
+        placeholder=_t("Digita per filtrare (mais, sorgo, pollina, sansa…)"),
         help=_t(
-            "Spunta quelle presenti nel tuo impianto. Legenda: "
-            "IX-A/IX-B = Annex IX RED III (avanzato, double counting CIC). "
-            "🌽 cap30% = food/feed crop (cap RED III, single counting)."
-        )
+            "Filtra le biomasse per nome; lascia vuoto per vedere tutti i blocchi. "
+            "Il tag ⓘ accanto a ogni voce indica l'origine del fattore emissivo eec: "
+            "UNI/TS A.5 = valore tabellato nella norma · JEC/KTBL = banca dati LCA europea · "
+            "RED III = credito effluenti (manure credit) · GSE/IPCC = altre fonti."
+        ),
+        key="feed_search_query",
     )
+    _q = (_feed_query or "").strip().lower()
+
+    # Blocchi per categoria, in ordine fisso (colture con mais/sorgo/erbaio in cima).
+    _CAT_ORDER = [
+        "Colture dedicate", "Effluenti zootecnici",
+        "Sottoprodotti agroindustriali", "FORSU / Rifiuti",
+    ]
+    _ordered_cats = [c for c in _CAT_ORDER if c in FEEDSTOCK_CATEGORIES]
+    _ordered_cats += [c for c in FEEDSTOCK_CATEGORIES if c not in _ordered_cats]
+
+    _prev_sel = [f for f in st.session_state.get('active_feeds', DEFAULT_ACTIVE_FEEDS)
+                 if f in FEED_NAMES]
+
+    for _cat in _ordered_cats:
+        _kb = f"feeds_block_{_cat}"
+        if _kb not in st.session_state:
+            st.session_state[_kb] = [n for n in FEEDSTOCK_CATEGORIES[_cat] if n in _prev_sel]
+        _all_names = FEEDSTOCK_CATEGORIES[_cat]
+        _cur = st.session_state.get(_kb, [])
+        if _q:
+            _visible = [n for n in _all_names if _q in n.lower() or _q in _t(n).lower()]
+            # Mantieni le voci gia' selezionate tra le opzioni: evita crash di stato.
+            _opts = [n for n in _all_names if n in _visible or n in _cur]
+        else:
+            _opts = _all_names
+        if not _opts:
+            continue
+        st.multiselect(
+            f"**{_t(_cat)}**",
+            options=_opts,
+            format_func=_fmt_feed,
+            key=_kb,
+            help=_t(
+                "ⓘ origine eec: UNI/TS A.5 = valore di norma · JEC/KTBL = banca dati LCA · "
+                "RED III = credito effluenti. '🌽 cap30%' = food/feed (single counting CIC); "
+                "IX-A/IX-B = Annex IX avanzato (double counting CIC)."
+            ),
+        )
+
+    # Ricompone active_feeds dai blocchi, preservando l'ordine del DB.
+    active_feeds_sel = []
+    for _cat in _ordered_cats:
+        _sel_cat = st.session_state.get(f"feeds_block_{_cat}", [])
+        active_feeds_sel += [n for n in FEEDSTOCK_CATEGORIES[_cat] if n in _sel_cat]
+
     st.session_state.active_feeds = active_feeds_sel
     active_feeds = st.session_state.active_feeds
     if not active_feeds:
