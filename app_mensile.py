@@ -995,16 +995,18 @@ FEEDSTOCK_DB = {
     # Tutti -> AVANZATI con double counting CIC.
     # =========================================================
     "FORSU selezionata": {
-        "eec": 0.0, "esca": 0.0, "etd": 0.8, "yield": 95.2, "dry_matter_std": 0.24,
+        # Resa da UNI/TS A.3: 450 Nm3 biogas/t ST x 60% CH4 x 0,24 ST = 64,8 Nm3 CH4/t t.q.
+        "eec": 0.0, "esca": 0.0, "etd": 0.8, "yield": 64.8, "dry_matter_std": 0.24,
         "color": "#546E7A", "cat": "FORSU / Rifiuti",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024 (Prosp. A.5, rifiuto eec=0)",
+        "src": "UNI-TS 11567:2024 (Prosp. A.5 eec=0; resa A.3: 450x60%x0,24)",
     },
     "Fanghi depurazione": {
-        "eec": 0.0, "esca": 0.0, "etd": 0.8, "yield": 8.0, "dry_matter_std": 0.06,
+        # Resa da UNI/TS A.3: 350 Nm3 biogas/t ST x 62% CH4 x 0,06 ST = 13,0 Nm3 CH4/t t.q.
+        "eec": 0.0, "esca": 0.0, "etd": 0.8, "yield": 13.0, "dry_matter_std": 0.06,
         "color": "#78909C", "cat": "FORSU / Rifiuti",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024 (Prosp. A.5, rifiuto eec=0)",
+        "src": "UNI-TS 11567:2024 (Prosp. A.5 eec=0; resa A.3: 350x62%x0,06)",
     },
 }
 
