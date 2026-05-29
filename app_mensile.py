@@ -1987,7 +1987,7 @@ st.markdown(
     .methaniq-header > * {{ position: relative; z-index: 1; }}
     .methaniq-header .eyebrow {{
         font-family: 'Outfit', sans-serif;
-        color: {ACCENT};
+        color: #B59450 !important;
         font-size: 0.72rem;
         font-weight: 600;
         letter-spacing: 3px;
@@ -2005,7 +2005,7 @@ st.markdown(
         line-height: 1.05 !important;
     }}
     .methaniq-header .tagline {{
-        color: rgba(247, 244, 236, 0.82);
+        color: rgba(247, 244, 236, 0.82) !important;
         font-size: 1.18rem;
         margin-top: 16px;
         max-width: 720px;
@@ -2027,11 +2027,12 @@ st.markdown(
         font-weight: 500;
         letter-spacing: 0.02em;
         border: 1px solid rgba(247, 244, 236, 0.14);
+        color: #E4DDCD !important;
     }}
     .methaniq-header .pill.accent {{
         background: rgba(154, 123, 60, 0.18);
         border-color: rgba(181, 148, 80, 0.45);
-        color: #E4DDCD;
+        color: #EFE7D4 !important;
     }}
     
     /* ---------- Tabs (Editorial underline, niente pill) ---------- */
@@ -2598,6 +2599,72 @@ st.markdown(
         -webkit-text-fill-color: {TEXT_MUTED} !important;
         opacity: 1;
     }}
+
+    /* =====================================================================
+       FIX CONTRASTO GLOBALE TEMA SCURO
+       Quando l'utente passa a "Dark" cambiano solo le NOSTRE variabili CSS,
+       ma il tema NATIVO di Streamlit resta chiaro: molti widget mantengono
+       testo scuro -> invisibile sul nostro fondo scuro. Forziamo i colori
+       testo theme-aware su TUTTI i widget dell'area principale. Token gia'
+       theme-aware -> sicuro anche in light.
+       ===================================================================== */
+    /* NB: scoped a markdown/testo dei widget — NON un generico `.stApp span`
+       (romperebbe i colori inline di hero/pill/banner). */
+    .stApp,
+    [data-testid="stMarkdownContainer"],
+    [data-testid="stMarkdownContainer"] p,
+    [data-testid="stMarkdownContainer"] li,
+    [data-testid="stMarkdownContainer"] span:not([style*="color"]),
+    [data-testid="stText"] {{
+        color: {TEXT_PRIMARY};
+    }}
+    /* Etichette widget (label sopra input/select/slider/radio/checkbox...) */
+    .stApp label,
+    [data-testid="stWidgetLabel"],
+    [data-testid="stWidgetLabel"] *,
+    .stApp .stRadio label, .stApp .stCheckbox label,
+    .stApp .stSelectbox label, .stApp .stMultiSelect label,
+    .stApp .stNumberInput label, .stApp .stTextInput label,
+    .stApp .stTextArea label, .stApp .stSlider label,
+    .stApp .stDateInput label, .stApp .stTimeInput label {{
+        color: {TEXT_SECOND} !important;
+    }}
+    /* Testo digitato negli input numerici/testo/area + date/time */
+    .stApp .stNumberInput input, .stApp .stTextInput input,
+    .stApp .stTextArea textarea, .stApp .stDateInput input,
+    .stApp .stTimeInput input {{
+        color: {TEXT_PRIMARY} !important;
+        -webkit-text-fill-color: {TEXT_PRIMARY} !important;
+    }}
+    /* Opzioni radio/checkbox: testo accanto al pallino/quadratino */
+    .stApp .stRadio div[role="radiogroup"] label p,
+    .stApp .stCheckbox label p,
+    .stApp .stRadio label span, .stApp .stCheckbox label span {{
+        color: {TEXT_PRIMARY} !important;
+    }}
+    /* Slider: valore sopra il thumb + estremi della barra */
+    [data-testid="stThumbValue"],
+    [data-testid="stTickBarMin"], [data-testid="stTickBarMax"],
+    .stApp .stSlider [data-baseweb] div {{
+        color: {TEXT_PRIMARY} !important;
+    }}
+    /* Radio/checkbox/expander: testo help e contenuto */
+    div[data-testid="stExpander"] [data-testid="stMarkdownContainer"],
+    div[data-testid="stExpander"] [data-testid="stMarkdownContainer"] * {{
+        color: {TEXT_PRIMARY};
+    }}
+    /* st.dataframe / st.table corpo: testo theme-aware (header resta navy) */
+    [data-testid="stTable"] tbody td,
+    [data-testid="stDataFrame"] [role="gridcell"] {{
+        color: {TEXT_PRIMARY} !important;
+    }}
+    /* st.code / blocchi pre in area principale */
+    .stApp pre, .stApp pre code {{
+        color: {TEXT_PRIMARY} !important;
+        background-color: {CODE_BG} !important;
+    }}
+    /* Toggle (st.toggle) e relative etichette */
+    .stApp [data-testid="stWidgetLabel"] p {{ color: {TEXT_SECOND} !important; }}
     </style>
     """,
     unsafe_allow_html=True,
