@@ -2698,6 +2698,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# === Override estetico editoriale — iniettato DOPO il design system ===
+# Vince per ordine di iniezione + !important. Solo aspetto, nessuna logica.
+from theme_editorial import inject_editorial_theme
+inject_editorial_theme(is_dark=IS_DARK)
+
 # Solver description banner
 st.markdown(
     f"<div style='background:{BG_SURFACE}; padding:14px 18px; border-radius:16px; "
