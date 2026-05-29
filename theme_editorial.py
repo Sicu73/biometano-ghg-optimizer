@@ -60,6 +60,17 @@ div[data-testid="stExpander"] {{ background:{t['SURFACE']} !important; border:1p
 [data-testid="stTable"] tbody td, [data-testid="stDataFrame"] td {{ font-family:'IBM Plex Mono', monospace !important; color:{t['INK2']} !important; border-bottom:1px solid {t['LINE_SOFT']} !important; }}
 [data-testid="stDataFrame"] {{ border:1px solid {t['LINE']} !important; border-radius:10px !important; }}
 [data-testid="stAlert"] {{ border-radius:8px !important; }}
+/* --- Polish editoriale rifinito --- */
+.methaniq-header .eyebrow {{ font-family:'IBM Plex Mono', monospace !important; color:{t['BRASS2']} !important; letter-spacing:.22em !important; font-size:.7rem !important; font-weight:600 !important; text-transform:uppercase !important; }}
+.methaniq-header .pills {{ gap:8px !important; }}
+.methaniq-header .pill {{ background:rgba(255,255,255,.04) !important; border:1px solid rgba(201,169,104,.32) !important; color:#E5DFCF !important; border-radius:6px !important; letter-spacing:.04em !important; font-family:'IBM Plex Mono', monospace !important; font-size:.68rem !important; padding:4px 10px !important; }}
+.methaniq-header .pill.accent {{ background:rgba(201,169,104,.18) !important; border-color:rgba(201,169,104,.55) !important; color:#F1E7CF !important; }}
+div[data-baseweb="input"]:focus-within, div[data-baseweb="select"]:focus-within > div {{ border-color:{t['BRASS']} !important; box-shadow:0 0 0 1px {t['BRASS']} !important; }}
+div[data-testid="stExpander"] summary {{ font-family:'Outfit', sans-serif !important; font-weight:600 !important; }}
+div[data-testid="stExpander"] summary:hover {{ color:{t['BRASS']} !important; }}
+.stApp a {{ color:{t['BRASS']} !important; text-decoration-color:rgba(154,123,60,.4) !important; }}
+.stApp code {{ font-family:'IBM Plex Mono', monospace !important; }}
+hr {{ border-color:{t['LINE']} !important; opacity:1 !important; }}
 </style>
 """, unsafe_allow_html=True)
 
