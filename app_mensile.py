@@ -119,61 +119,62 @@ def _load_normativa_local() -> dict:
 # Metan.iQ chart theme — palette consulting-grade Navy/Amber
 # Applicato a tutti i Plotly figs via apply_metaniq_theme(fig)
 # ============================================================
+# Palette editoriale "consulting report": navy/ottone/foresta, monocromatica.
 METANIQ_PALETTE = [
-    "#0F172A",  # navy 900 (primary)
-    "#F59E0B",  # amber 500 (accent)
-    "#0E9384",  # teal 600
-    "#1E40AF",  # blue 800
-    "#B45309",  # amber 700
-    "#065F46",  # emerald 800
-    "#7C3AED",  # violet 600
-    "#475569",  # slate 600
-    "#0891B2",  # cyan 600
-    "#9F1239",  # rose 800
+    "#15242E",  # navy (primary ink)
+    "#9A7B3C",  # brass (accent)
+    "#3C6A52",  # forest
+    "#1F343F",  # navy 2
+    "#B59450",  # brass 2 (light)
+    "#5C5849",  # taupe / muted ink
+    "#2E5141",  # forest deep
+    "#7A6230",  # brass deep
+    "#3A4A55",  # slate navy
+    "#8C8470",  # warm grey
 ]
 
 def apply_metaniq_theme(fig, *, dark: bool = False):
-    """Applica palette + tipografia Metan.iQ a una figure Plotly."""
-    text_color = "#F1F5F9" if dark else "#0F172A"
-    grid_color = "rgba(148, 163, 184, 0.18)" if dark else "rgba(15, 23, 42, 0.08)"
-    axis_color = "#475569" if dark else "#64748B"
+    """Applica palette + tipografia editoriale Metan.iQ a una figure Plotly."""
+    text_color = "#E8E3D5" if dark else "#1C1B16"
+    grid_color = "rgba(232, 227, 213, 0.10)" if dark else "rgba(28, 27, 22, 0.07)"
+    axis_color = "#A49D8C" if dark else "#726C5E"
     fig.update_layout(
-        font=dict(family="Inter, -apple-system, sans-serif",
+        font=dict(family="Outfit, -apple-system, sans-serif",
                   color=text_color, size=12),
-        title_font=dict(family="Space Grotesk, Inter, sans-serif",
-                        size=15, color=text_color),
+        title_font=dict(family="Spectral, Georgia, serif",
+                        size=16, color=text_color),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         colorway=METANIQ_PALETTE,
         margin=dict(l=50, r=20, t=60, b=40),
         legend=dict(
-            font=dict(family="Inter, sans-serif", size=11, color=text_color),
+            font=dict(family="Outfit, sans-serif", size=11, color=text_color),
             bgcolor="rgba(0,0,0,0)",
             bordercolor="rgba(0,0,0,0)",
         ),
         hoverlabel=dict(
-            font=dict(family="JetBrains Mono, monospace", size=11),
-            bgcolor="#0F172A",
-            bordercolor="#F59E0B",
-            font_color="#F1F5F9",
+            font=dict(family="IBM Plex Mono, monospace", size=11),
+            bgcolor="#15242E",
+            bordercolor="#9A7B3C",
+            font_color="#F7F4EC",
         ),
         separators=",.",
     )
     fig.update_xaxes(
         gridcolor=grid_color, gridwidth=1,
         zerolinecolor=grid_color,
-        tickfont=dict(family="JetBrains Mono, monospace",
+        tickfont=dict(family="IBM Plex Mono, monospace",
                       size=10, color=axis_color),
-        title_font=dict(family="Inter, sans-serif",
+        title_font=dict(family="Outfit, sans-serif",
                         size=11, color=axis_color),
         showline=True, linewidth=1, linecolor=grid_color,
     )
     fig.update_yaxes(
         gridcolor=grid_color, gridwidth=1,
         zerolinecolor=grid_color,
-        tickfont=dict(family="JetBrains Mono, monospace",
+        tickfont=dict(family="IBM Plex Mono, monospace",
                       size=10, color=axis_color),
-        title_font=dict(family="Inter, sans-serif",
+        title_font=dict(family="Outfit, sans-serif",
                         size=11, color=axis_color),
         showline=False,
     )
@@ -1402,10 +1403,10 @@ _LANG = get_lang()  # bootstrap iniziale dal session_state per i moduli a valle
 MONTHS = [_t(m) for m in MONTHS]
 
 # ── Colori provvisori per sidebar (definiti prima del Design System completo) ──
-AMBER       = "#F59E0B"
+AMBER       = "#9A7B3C"   # provvisorio -> BRASS editoriale
 ACCENT      = AMBER
-BORDER      = "#E2E8F0"
-TEXT_MUTED   = "#73777F"
+BORDER      = "#E4DDCD"
+TEXT_MUTED   = "#726C5E"
 _SIDEBAR_PRE_DARK = st.session_state.methaniq_theme == "dark"
 _SIDEBAR_PRE_LABEL = "#CBD5E1" if _SIDEBAR_PRE_DARK else "#64748B"
 
@@ -1415,21 +1416,21 @@ _SIDEBAR_PRE_LABEL = "#CBD5E1" if _SIDEBAR_PRE_DARK else "#64748B"
 # definite a riga 1597+ (dopo questa posizione). Hard-code coerenti col tema
 # dark navy del badge originale.
 # =============================================================================
-_BRAND_PRIMARY = "#006494"      # match PRIMARY (Material 3 navy)
-_BRAND_SECONDARY = "#4A6267"    # match SECONDARY (muted teal)
-_BRAND_ACCENT = "#F59E0B"       # match ACCENT (amber)
+_BRAND_PRIMARY = "#15242E"      # editorial NAVY (flat)
+_BRAND_SECONDARY = "#1F343F"    # NAVY 2
+_BRAND_ACCENT = "#B59450"       # BRASS 2 (su fondo scuro)
 _brand_badge_label = "Biometano · DM 2022"  # match _MODE['badge'] biometano
 
 with st.sidebar:
     st.markdown(
         f"""
         <div style='
-            padding: 18px 16px;
-            background: linear-gradient(135deg, {_BRAND_PRIMARY} 0%, {_BRAND_SECONDARY} 100%);
-            border-radius: 16px;
+            padding: 20px 18px;
+            background: {_BRAND_PRIMARY};
+            border-radius: 10px;
             margin-bottom: 18px;
-            box-shadow: 0 4px 12px rgba(0,100,148,0.20);
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid rgba(181,148,80,0.22);
+            border-top: 3px solid {_BRAND_ACCENT};
             overflow: hidden;
             position: relative;
         '>
@@ -1438,32 +1439,32 @@ with st.sidebar:
                 color: {_BRAND_ACCENT};
                 font-size: 0.62em;
                 font-weight: 600;
-                letter-spacing: 2px;
+                letter-spacing: 2.5px;
                 text-transform: uppercase;
-                margin-bottom: 6px;
-            '>// PLATFORM</div>
+                margin-bottom: 8px;
+            '>PLATFORM</div>
             <div style='
                 font-family: "Outfit", sans-serif;
-                color: #FFFFFF;
+                color: #F7F4EC;
                 font-size: 1.55em;
                 font-weight: 700;
-                letter-spacing: -0.8px;
+                letter-spacing: -0.6px;
                 line-height: 1;
             '>Metan<span style="color:{_BRAND_ACCENT};">.</span>iQ</div>
             <div style='
                 font-size: 0.72em;
-                color: #94A3B8;
-                margin-top: 6px;
+                color: #A49D8C;
+                margin-top: 7px;
                 font-weight: 400;
-            '>by <span style='color:#E2E8F0; font-weight:600;'>Carlo Sicurini</span></div>
+            '>by <span style='color:#E4DDCD; font-weight:600;'>Carlo Sicurini</span></div>
             <div style='
-                margin-top: 12px;
-                padding-top: 10px;
-                border-top: 1px solid rgba(255,255,255,0.08);
+                margin-top: 13px;
+                padding-top: 11px;
+                border-top: 1px solid rgba(181,148,80,0.18);
                 font-size: 0.62em;
-                color: #CBD5E1;
-                font-weight: 400;
-                letter-spacing: 1px;
+                color: #C9C3B2;
+                font-weight: 500;
+                letter-spacing: 1.5px;
                 text-transform: uppercase;
             '>{_brand_badge_label}</div>
         </div>
@@ -1690,114 +1691,147 @@ from core.design_tokens import (
     EMERALD     as SUCCESS,
 )
 
-PRIMARY     = "#006494"  # Material 3 Primary (Web only)
-SECONDARY   = "#4A6267"  # Muted Teal (Web only)
-TERTIARY    = "#625B71"  # Muted Purple (Web only)
+PRIMARY     = "#15242E"  # Editorial NAVY (ink primario)
+SECONDARY   = "#1F343F"  # NAVY 2 (navy soft)
+TERTIARY    = "#3C6A52"  # FOREST (verde istituzionale)
 
-# Aliases per compatibilita' legacy
-AMBER       = ACCENT
+# Accento editoriale: ottone (brass). Override dell'import AMBER del design
+# system, mantenendo i nomi token cosi' i call-site a valle non cambiano.
+ACCENT      = "#9A7B3C"   # BRASS
+AMBER       = ACCENT      # alias legacy -> brass
 NAVY        = PRIMARY
 NAVY_2      = SECONDARY
-BRAND       = SUCCESS
-BRAND_2     = SUCCESS
+BRAND       = TERTIARY
+BRAND_2     = TERTIARY
 
 if IS_DARK:
-    BG_APP        = "#1A1C1E"
-    BG_SURFACE    = "#212427"
-    BG_SURFACE_2  = "#2A2D31"
-    TEXT_PRIMARY  = "#E2E2E6"
-    TEXT_SECOND   = "#C2C6CF"
-    TEXT_MUTED    = "#8E9199"
-    BORDER        = "#43474E"
-    BORDER_HOVER  = "#D1E4FF"
-    INPUT_BG      = "#212427"
-    SIDEBAR_BG    = "#1A1C1E"
-    HEADING_COLOR = "#E2E2E6"
-    CODE_BG       = "#2A2D31"
-    CODE_COLOR    = "#D1E4FF"
-    SHADOW_CARD   = "0 1px 2px rgba(0,0,0,0.3)"
-    SHADOW_HOVER  = "0 4px 8px rgba(0,0,0,0.4)"
-    CREDIT_BG     = "#212427"
-    SECTION_PILL_BG = "rgba(0, 100, 148, 0.2)"
-    SECTION_PILL_COLOR = "#D1E4FF"
+    # Editorial DARK — carta scura calda, inchiostro avorio, ottone caldo.
+    BG_APP        = "#15140F"   # PAPER dark
+    BG_SURFACE    = "#1E1C16"   # SURFACE dark
+    BG_SURFACE_2  = "#26241C"   # PAPER 2 dark
+    TEXT_PRIMARY  = "#E8E3D5"   # INK dark
+    TEXT_SECOND   = "#C9C3B2"   # INK 2 dark
+    TEXT_MUTED    = "#A49D8C"   # MUTED dark
+    BORDER        = "#33302A"   # LINE dark
+    BORDER_HOVER  = "#C9A968"   # BRASS 2 dark
+    INPUT_BG      = "#1E1C16"
+    SIDEBAR_BG    = "#15140F"
+    HEADING_COLOR = "#E8E3D5"
+    CODE_BG       = "#26241C"
+    CODE_COLOR    = "#C9A968"
+    SHADOW_CARD   = "none"
+    SHADOW_HOVER  = "none"
+    CREDIT_BG     = "#1E1C16"
+    SECTION_PILL_BG = "rgba(201, 169, 104, 0.16)"
+    SECTION_PILL_COLOR = "#E8E3D5"
+    ACCENT        = "#C9A968"   # brass piu' chiaro su fondo scuro
+    AMBER         = ACCENT
 else:
-    BG_APP        = "#FDFBFF"
-    BG_SURFACE    = "#F1F4F9"
-    BG_SURFACE_2  = "#E1E2E9"
-    TEXT_PRIMARY  = "#1A1C1E"
-    TEXT_SECOND   = "#43474E"
-    TEXT_MUTED    = "#73777F"
-    BORDER        = "#DDE2EA"
-    BORDER_HOVER  = PRIMARY
-    INPUT_BG      = "#FDFBFF"
-    SIDEBAR_BG    = "#F8F9FF"
-    HEADING_COLOR = "#1A1C1E"
-    CODE_BG       = "#E1E2E9"
-    CODE_COLOR    = PRIMARY
-    SHADOW_CARD   = "0 1px 3px rgba(0,0,0,0.05)"
-    SHADOW_HOVER  = "0 8px 16px rgba(0,0,0,0.08)"
+    # Editorial LIGHT — carta avorio, inchiostro caldo, ottone.
+    BG_APP        = "#F7F4EC"   # PAPER
+    BG_SURFACE    = "#FFFFFF"   # SURFACE
+    BG_SURFACE_2  = "#FBF9F3"   # PAPER 2
+    TEXT_PRIMARY  = "#1C1B16"   # INK
+    TEXT_SECOND   = "#3A382F"   # INK 2
+    TEXT_MUTED    = "#726C5E"   # MUTED
+    BORDER        = "#E4DDCD"   # LINE
+    BORDER_HOVER  = "#9A7B3C"   # BRASS
+    INPUT_BG      = "#FFFFFF"
+    SIDEBAR_BG    = "#FBF9F3"
+    HEADING_COLOR = "#1C1B16"
+    CODE_BG       = "#EEE9DC"   # LINE SOFT
+    CODE_COLOR    = "#9A7B3C"
+    SHADOW_CARD   = "none"
+    SHADOW_HOVER  = "none"
     CREDIT_BG     = "#FFFFFF"
-    SECTION_PILL_BG = "#D1E4FF"
-    SECTION_PILL_COLOR = "#001D34"
+    SECTION_PILL_BG = "#EFE7D4"   # BRASS SOFT
+    SECTION_PILL_COLOR = "#15242E"
 
 st.markdown(
     f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+    /* Editorial type system: Spectral (serif display), Outfit (UI/sans),
+       IBM Plex Mono (numeri tabellari). */
+    @import url('https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
     /* Material Symbols: necessario altrimenti i glifi appaiono come testo
        'keyboard_arrow_right', 'keyboard_double_arrow_left' (a11y issue). */
     @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=block');
     @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block');
-    
-    /* ---------- Material 3 Global Reset ---------- */
+
+    /* ---------- Editorial Global Reset ---------- */
     html, body, .stApp, .stMarkdown, .stText,
     .stButton button, .stSelectbox label, .stNumberInput label,
     .stSlider label, .stCheckbox label, .stRadio label,
     .stExpander, .stDataFrame, .stTabs, .stAlert,
-    p, h1, h2, h3, h4, h5, h6 {{
+    p {{
         font-family: 'Outfit', 'Inter', -apple-system, sans-serif !important;
         -webkit-font-smoothing: antialiased;
     }}
-    
+    /* Titoli e display: serif editoriale Spectral. */
+    h1, h2, h3, h4 {{
+        font-family: 'Spectral', Georgia, 'Times New Roman', serif !important;
+        letter-spacing: -0.01em;
+        -webkit-font-smoothing: antialiased;
+    }}
+    h5, h6 {{
+        font-family: 'Outfit', sans-serif !important;
+    }}
+    /* Numeri tabellari (metriche, tabelle, codice) in mono. */
+    [data-testid="stMetricValue"], code, pre,
+    [data-testid="stDataFrame"], [data-testid="stTable"] {{
+        font-feature-settings: "tnum" 1;
+    }}
+
     .stApp {{ background-color: {BG_APP}; color: {TEXT_PRIMARY}; }}
 
-    /* ---------- Pill Buttons ---------- */
+    /* ---------- Editorial Buttons (squadrati, hairline, niente ombre) ---------- */
     .stButton button {{
-        border-radius: 28px !important;
-        padding: 10px 24px !important;
+        border-radius: 6px !important;
+        padding: 9px 22px !important;
         font-weight: 600 !important;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        letter-spacing: 0.01em !important;
+        transition: all 0.18s ease !important;
         border: 1px solid {BORDER} !important;
         background-color: {BG_SURFACE} !important;
         color: {TEXT_PRIMARY} !important;
+        box-shadow: none !important;
     }}
     .stButton button:hover {{
         background-color: {BG_SURFACE_2} !important;
-        border-color: {PRIMARY} !important;
-        box-shadow: {SHADOW_HOVER} !important;
-        transform: translateY(-1px);
+        border-color: {ACCENT} !important;
+        box-shadow: none !important;
+        transform: none;
     }}
     .stButton button[kind="primary"] {{
         background-color: {PRIMARY} !important;
-        color: white !important;
-        border: none !important;
+        color: #F7F4EC !important;
+        border: 1px solid {PRIMARY} !important;
+    }}
+    .stButton button[kind="primary"]:hover {{
+        background-color: {SECONDARY} !important;
+        border-color: {ACCENT} !important;
     }}
 
-    /* ---------- Material Inputs ---------- */
+    /* ---------- Editorial Inputs ---------- */
     div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {{
-        border-radius: 12px !important;
+        border-radius: 8px !important;
         background-color: {BG_SURFACE} !important;
         border: 1px solid {BORDER} !important;
         color: {TEXT_PRIMARY} !important;
+        box-shadow: none !important;
     }}
-    
-    /* ---------- Cards & Expanders ---------- */
+    div[data-baseweb="select"] > div:focus-within,
+    div[data-baseweb="input"] > div:focus-within {{
+        border-color: {ACCENT} !important;
+    }}
+
+    /* ---------- Cards & Expanders (hairline, niente ombre) ---------- */
     div[data-testid="stExpander"] {{
         background-color: {BG_SURFACE} !important;
-        border-radius: 20px !important;
+        border-radius: 10px !important;
         border: 1px solid {BORDER} !important;
-        box-shadow: {SHADOW_CARD} !important;
-        margin-bottom: 1.2rem !important;
+        box-shadow: none !important;
+        margin-bottom: 1.1rem !important;
         padding: 4px !important;
     }}
     div[data-testid="stExpander"] > div:first-child {{
@@ -1904,108 +1938,134 @@ st.markdown(
         font-feature-settings: "liga" !important;
     }}
 
-    /* ---------- Hero Header (Material You Style) ---------- */
+    /* ---------- Hero Header (Editorial / Institutional) ---------- */
     .methaniq-header {{
-        background: linear-gradient(135deg, {PRIMARY} 0%, {SECONDARY} 100%);
-        padding: 56px;
-        border-radius: 32px;
-        color: white;
-        margin-bottom: 32px;
+        background: {PRIMARY};
+        padding: 48px 52px;
+        border-radius: 12px;
+        color: #F7F4EC;
+        margin-bottom: 30px;
         position: relative;
         overflow: hidden;
-        box-shadow: 0 12px 40px rgba(0, 100, 148, 0.2);
+        box-shadow: none;
+        border: 1px solid rgba(154, 123, 60, 0.30);
+        border-top: 4px solid {ACCENT};
     }}
     .methaniq-header::after {{
         content: "";
         position: absolute;
-        top: -30%;
-        right: -10%;
-        width: 320px;
-        height: 320px;
-        background: radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 60%);
-        border-radius: 50%;
+        top: 0; bottom: 0; right: 0;
+        width: 1px;
+        background: rgba(154,123,60,0.18);
         pointer-events: none;
         z-index: 0;
     }}
     .methaniq-header > * {{ position: relative; z-index: 1; }}
+    .methaniq-header .eyebrow {{
+        font-family: 'Outfit', sans-serif;
+        color: {ACCENT};
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        display: block;
+        margin-bottom: 14px;
+    }}
     .methaniq-header h1 {{
-        color: white !important;
-        font-size: 3.5rem !important;
-        font-weight: 700 !important;
-        letter-spacing: 0 !important;
+        font-family: 'Spectral', Georgia, serif !important;
+        color: #F7F4EC !important;
+        font-size: 3.4rem !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.01em !important;
         margin: 0 !important;
-        line-height: 1.1 !important;
+        line-height: 1.05 !important;
     }}
     .methaniq-header .tagline {{
-        color: rgba(255, 255, 255, 0.95);
-        font-size: 1.25rem;
+        color: rgba(247, 244, 236, 0.82);
+        font-size: 1.18rem;
         margin-top: 16px;
-        max-width: 700px;
+        max-width: 720px;
         font-weight: 400;
-        line-height: 1.5;
+        line-height: 1.55;
     }}
     .methaniq-header .pills {{
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 32px;
+        gap: 8px;
+        margin-top: 28px;
     }}
     .methaniq-header .pill {{
-        background: rgba(255, 255, 255, 0.18);
-        padding: 8px 20px;
-        border-radius: 24px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(247, 244, 236, 0.06);
+        padding: 7px 16px;
+        border-radius: 6px;
+        font-family: 'Outfit', sans-serif;
+        font-size: 0.78rem;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+        border: 1px solid rgba(247, 244, 236, 0.14);
+    }}
+    .methaniq-header .pill.accent {{
+        background: rgba(154, 123, 60, 0.18);
+        border-color: rgba(181, 148, 80, 0.45);
+        color: #E4DDCD;
     }}
     
-    /* ---------- Tabs ---------- */
+    /* ---------- Tabs (Editorial underline, niente pill) ---------- */
     .stTabs [data-baseweb="tab-list"] {{
-        gap: 8px !important;
+        gap: 4px !important;
         background-color: transparent !important;
         overflow-x: auto !important;
         flex-wrap: nowrap !important;
+        border-bottom: 1px solid {BORDER} !important;
     }}
     .stTabs [data-baseweb="tab"] {{
-        border-radius: 20px !important;
-        padding: 8px 20px !important;
-        background-color: {BG_SURFACE} !important;
-        border: 1px solid {BORDER} !important;
-        transition: all 0.2s !important;
-        color: {TEXT_PRIMARY} !important;
+        border-radius: 0 !important;
+        padding: 9px 18px !important;
+        background-color: transparent !important;
+        border: none !important;
+        border-bottom: 2px solid transparent !important;
+        transition: all 0.18s ease !important;
+        color: {TEXT_MUTED} !important;
+        font-weight: 500 !important;
         min-width: max-content !important;
     }}
-    .stTabs [aria-selected="true"] {{
-        background-color: {PRIMARY} !important;
-        color: white !important;
-        border-color: {PRIMARY} !important;
+    .stTabs [data-baseweb="tab"]:hover {{
+        color: {TEXT_PRIMARY} !important;
     }}
-    
+    .stTabs [aria-selected="true"] {{
+        background-color: transparent !important;
+        color: {TEXT_PRIMARY} !important;
+        border-bottom: 2px solid {ACCENT} !important;
+        font-weight: 600 !important;
+    }}
+
     /* ---------- DataFrames & Tables ---------- */
     [data-testid="stDataFrame"] {{
-        border-radius: 16px !important;
+        border-radius: 8px !important;
         overflow: hidden !important;
         border: 1px solid {BORDER} !important;
     }}
-    
+
     /* ---------- Metrics ---------- */
     [data-testid="stMetric"] {{
         background-color: {BG_SURFACE} !important;
-        padding: 20px !important;
-        border-radius: 24px !important;
+        padding: 18px 20px !important;
+        border-radius: 8px !important;
         border: 1px solid {BORDER} !important;
-        box-shadow: {SHADOW_CARD} !important;
+        box-shadow: none !important;
     }}
-    
+
     /* ---------- Credit Box ---------- */
     .methaniq-credit {{
         background: {BG_SURFACE};
-        border-radius: 24px;
-        border-left: 8px solid {ACCENT};
-        padding: 24px;
-        margin: 32px 0;
-        box-shadow: {SHADOW_CARD};
+        border-radius: 8px;
+        border: 1px solid {BORDER};
+        border-left: 3px solid {ACCENT};
+        padding: 20px 24px;
+        margin: 28px 0;
+        box-shadow: none;
+        font-size: 0.92rem;
+        color: {TEXT_SECOND};
     }}
     @media (max-width: 760px) {{
         .block-container {{
@@ -2072,8 +2132,8 @@ st.markdown(
         to {{ opacity: 1; transform: translateY(0); }}
     }}
     @keyframes pulseDot {{
-        0%, 100% {{ box-shadow: 0 0 0 0 rgba(245,158,11,0.7); }}
-        50%      {{ box-shadow: 0 0 0 8px rgba(245,158,11,0); }}
+        0%, 100% {{ box-shadow: 0 0 0 0 rgba(154,123,60,0.6); }}
+        50%      {{ box-shadow: 0 0 0 7px rgba(154,123,60,0); }}
     }}
     @keyframes shimmer {{
         0% {{ background-position: -200% center; }}
@@ -2091,11 +2151,11 @@ st.markdown(
         position: absolute;
         top: 18px; right: 22px;
         font-size: 0.62rem;
-        font-weight: 800;
+        font-weight: 700;
         letter-spacing: 1.5px;
-        color: #F59E0B;
-        background: rgba(245,158,11,0.12);
-        border: 1px solid rgba(245,158,11,0.35);
+        color: #B59450;
+        background: rgba(181,148,80,0.12);
+        border: 1px solid rgba(181,148,80,0.40);
         padding: 4px 10px;
         border-radius: 999px;
         animation: pulseDot 2s infinite;
@@ -2108,50 +2168,41 @@ st.markdown(
         gap: 4px;
     }}
     .stTabs [data-baseweb="tab"] {{
-        border-radius: 10px 10px 0 0 !important;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        transition: all 0.2s ease !important;
     }}
     .stTabs [data-baseweb="tab"]:hover {{
-        background: rgba(245,158,11,0.06) !important;
+        background: transparent !important;
     }}
-    .stTabs [aria-selected="true"] {{
-        position: relative;
-    }}
-    .stTabs [aria-selected="true"]::after {{
-        content: "";
-        position: absolute;
-        bottom: -1px; left: 12px; right: 12px;
-        height: 3px;
-        background: linear-gradient(90deg, #F59E0B 0%, #EA580C 100%);
-        border-radius: 3px 3px 0 0;
-        box-shadow: 0 0 12px rgba(245,158,11,0.45);
-    }}
+    /* Underline editoriale gia' gestito dal blocco principale (border-bottom
+       brass su [aria-selected]); qui nessun overlay decorativo per non
+       sovrapporre due indicatori. */
 
     /* --- st.metric: solo border + hover sottile (NIENTE override colori) --- */
     div[data-testid="stMetric"] {{
-        border: 1px solid rgba(148,163,184,0.18);
-        border-radius: 14px;
-        padding: 14px 16px;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid {BORDER};
+        border-radius: 8px;
+        padding: 16px 18px;
+        transition: border-color 0.2s ease;
         animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
     }}
     div[data-testid="stMetric"]:hover {{
-        transform: translateY(-2px);
-        border-color: rgba(245,158,11,0.4);
-        box-shadow: 0 6px 16px rgba(15,23,42,0.08);
+        transform: none;
+        border-color: {ACCENT};
+        box-shadow: none;
     }}
     /* Niente ellipsis '...' sui valori (unita' lunghe come "kWh/Sm³"
        venivano troncate in colonne strette). Permette wrap del valore
        su 2 righe se serve. */
     div[data-testid="stMetricValue"] {{
-        font-weight: 700 !important;
+        font-family: 'Spectral', Georgia, serif !important;
+        font-weight: 600 !important;
         font-variant-numeric: tabular-nums;
         white-space: normal !important;
         overflow: visible !important;
         text-overflow: clip !important;
         word-break: keep-all;
-        line-height: 1.2 !important;
-        font-size: 1.4rem !important;
+        line-height: 1.15 !important;
+        font-size: 1.7rem !important;
     }}
     div[data-testid="stMetricLabel"] {{
         white-space: normal !important;
@@ -2172,7 +2223,7 @@ st.markdown(
         border-radius: 10px !important;
     }}
     .streamlit-expanderHeader:hover {{
-        background: rgba(245,158,11,0.06) !important;
+        background: rgba(154,123,60,0.05) !important;
     }}
 
     /* --- Sidebar headings: NIENTE override colore (rompeva leggibilità in
@@ -2180,26 +2231,30 @@ st.markdown(
 
     /* --- DataFrame: rounded + shadow leggera --- */
     div[data-testid="stDataFrame"], div[data-testid="stDataEditor"] {{
-        border-radius: 12px;
+        border-radius: 8px;
         overflow: hidden;
-        box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+        box-shadow: none;
     }}
 
-    /* --- Download button: accent --- */
+    /* --- Download button: ottone pieno, squadrato, niente glow --- */
     div[data-testid="stDownloadButton"] button {{
-        background: linear-gradient(135deg, #F59E0B 0%, #EA580C 100%) !important;
-        color: #FFFFFF !important;
-        border: none !important;
-        font-weight: 700 !important;
-        box-shadow: 0 4px 12px rgba(245,158,11,0.25) !important;
+        background: {ACCENT} !important;
+        color: #1C1B16 !important;
+        border: 1px solid {ACCENT} !important;
+        font-weight: 600 !important;
+        border-radius: 6px !important;
+        box-shadow: none !important;
     }}
     div[data-testid="stDownloadButton"] button:hover {{
-        transform: translateY(-1px);
-        box-shadow: 0 6px 18px rgba(245,158,11,0.40) !important;
+        transform: none;
+        background: #B59450 !important;
+        border-color: #B59450 !important;
+        box-shadow: none !important;
     }}
     div[data-testid="stDownloadButton"] button:disabled {{
-        background: rgba(148,163,184,0.20) !important;
-        color: rgba(148,163,184,0.65) !important;
+        background: {BG_SURFACE_2} !important;
+        color: {TEXT_MUTED} !important;
+        border-color: {BORDER} !important;
         box-shadow: none !important;
         cursor: not-allowed;
     }}
@@ -2293,7 +2348,7 @@ st.markdown(
         opacity: 0.45;
         font-weight: 600;
         letter-spacing: 0.8px;
-        color: #F59E0B;
+        color: #9A7B3C;
         background: rgba(0,0,0,0.04);
         padding: 4px 10px;
         border-radius: 999px;
@@ -3262,23 +3317,23 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             div[data-testid="stDataFrame"] div[role="row"][aria-rowindex="{_total_aria_idx}"],
             div[data-testid="stDataEditor"] div[role="row"][aria-rowindex="{_total_aria_idx}"] {{
                 background: linear-gradient(90deg,
-                    rgba(245,158,11,0.32) 0%,
-                    rgba(254,243,199,0.55) 50%,
-                    rgba(245,158,11,0.32) 100%) !important;
-                box-shadow: inset 0 3px 0 #F59E0B, inset 0 -3px 0 #F59E0B !important;
+                    rgba(154,123,60,0.20) 0%,
+                    rgba(239,231,212,0.55) 50%,
+                    rgba(154,123,60,0.20) 100%) !important;
+                box-shadow: inset 0 2px 0 #9A7B3C, inset 0 -2px 0 #9A7B3C !important;
             }}
             div[data-testid="stDataFrame"] div[role="row"][aria-rowindex="{_total_aria_idx}"] [role="gridcell"],
             div[data-testid="stDataEditor"] div[role="row"][aria-rowindex="{_total_aria_idx}"] [role="gridcell"] {{
-                font-weight: 900 !important;
-                font-size: 1.05rem !important;
-                color: #0F172A !important;
+                font-weight: 700 !important;
+                font-size: 1.02rem !important;
+                color: #15242E !important;
                 background-color: transparent !important;
-                border-color: #F59E0B !important;
+                border-color: #9A7B3C !important;
             }}
             /* Prima cella (Data = "TOTALE MESE") extra-evidente */
             div[data-testid="stDataFrame"] div[role="row"][aria-rowindex="{_total_aria_idx}"] [role="gridcell"]:first-of-type,
             div[data-testid="stDataEditor"] div[role="row"][aria-rowindex="{_total_aria_idx}"] [role="gridcell"]:first-of-type {{
-                color: #B45309 !important;
+                color: #7A6230 !important;
                 text-transform: uppercase;
                 letter-spacing: 1px;
             }}
@@ -3444,7 +3499,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         _hdr_html = "".join(
             f"<th title='{full}' style='padding:3px 5px;font-size:0.58rem;"
             f"font-weight:700;text-transform:uppercase;letter-spacing:0.2px;"
-            f"color:#F59E0B;text-align:{align};border-bottom:1px solid #F59E0B;"
+            f"color:#B59450;text-align:{align};border-bottom:1px solid #9A7B3C;"
             f"white-space:nowrap;line-height:1;'>{short}</th>"
             for short, full, _val, align in _cells
         )
@@ -3467,7 +3522,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             elif short == "TOTALE":
                 cell = (
                     f"<td title='{full}' style='padding:4px 6px;text-align:{align};"
-                    f"font-weight:800;font-size:0.78rem;color:#F59E0B;"
+                    f"font-weight:800;font-size:0.78rem;color:#B59450;"
                     f"vertical-align:middle;white-space:nowrap;'>{val}</td>"
                 )
             else:
@@ -3482,10 +3537,10 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         st.markdown(
             f"""
             <div style='margin-top:-0.5rem;margin-bottom:0.6rem;
-                background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);
-                border-top:2px solid #F59E0B;
+                background:#15242E;
+                border-top:2px solid #9A7B3C;
                 border-radius:0 0 6px 6px;
-                box-shadow:0 3px 8px rgba(15,23,42,0.22);'>
+                box-shadow:none;'>
               <table style='width:100%;border-collapse:collapse;table-layout:auto;'>
                 <thead><tr>{_hdr_html}</tr></thead>
                 <tbody><tr>{_row_html}</tr></tbody>
@@ -6517,9 +6572,9 @@ with tab_business:
                 y=[r.fcf_cumulato for r in _bp.rows],
                 name=_t("FCF cumulato"),
                 mode="lines+markers",
-                line=dict(color="#F59E0B", width=3),
+                line=dict(color="#9A7B3C", width=3),
             ))
-            _bp_fig.add_hline(y=0, line_dash="dash", line_color="#94A3B8")
+            _bp_fig.add_hline(y=0, line_dash="dash", line_color="#A49D8C")
             _bp_fig.update_layout(
                 title=_t("Cash Flow Equity per anno + Cumulato (break-even visivo)"),
                 xaxis_title=_t("Anno"),
