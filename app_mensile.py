@@ -737,7 +737,7 @@ FEEDSTOCK_DB = {
         "color": "#9CCC65", "cat": "Colture dedicate",
         "annex_ix": None, "e_l": 0.0,
         "requires_no_luc_declaration": True,
-        "src": "UNI-TS 11567:2024",
+        "src": "eec JEC v5/KTBL (non in Prosp. A.5); ST agronomica (CRPA/KTBL)",
     },
     "Erba medica insilata": {
         "eec": 15.0, "esca": 0.0, "etd": 0.8, "yield": 70.0, "dry_matter_std": 0.35,
@@ -774,7 +774,7 @@ FEEDSTOCK_DB = {
         "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 14.0, "dry_matter_std": 0.10,
         "color": "#8D6E63", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024 / RED III",
+        "src": "manure credit RED III All. V/VI (std A.5=0); richiede dichiar. baseline fornitore",
         "baseline_assumption": "stoccaggio in vasca/lagone aperto (decomposizione anaerobica spontanea)",
         "baseline_warning": "Se il fornitore ha vasca coperta con captazione/N-stripping, il credit -45 va ridotto o annullato (richiede dichiarazione fornitore).",
         "e_l": 0.0,
@@ -783,7 +783,7 @@ FEEDSTOCK_DB = {
         "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 14.0, "dry_matter_std": 0.10,
         "color": "#795548", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024",
+        "src": "manure credit RED III All. V/VI (std A.5=0); richiede dichiar. baseline fornitore",
         "baseline_assumption": "stoccaggio in vasca/lagone aperto",
         "baseline_warning": "Verificare assenza vasca coperta in stalla per validare il credit.",
         "e_l": 0.0,
@@ -792,7 +792,7 @@ FEEDSTOCK_DB = {
         "eec": -45.0, "esca": 0.0, "etd": 0.8, "yield": 14.0, "dry_matter_std": 0.10,
         "color": "#6D4C41", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024",
+        "src": "manure credit RED III All. V/VI (std A.5=0); richiede dichiar. baseline fornitore",
         "baseline_assumption": "stoccaggio in vasca/lagone aperto",
         "baseline_warning": "Verificare assenza vasca coperta in stalla per validare il credit.",
         "e_l": 0.0,
@@ -828,7 +828,7 @@ FEEDSTOCK_DB = {
         "eec": -15.0, "esca": 0.0, "etd": 0.8, "yield": 105.0, "dry_matter_std": 0.60,
         "color": "#FFA726", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024",
+        "src": "manure credit RED III All. V/VI (std A.5=0); richiede dichiar. baseline fornitore",
         "baseline_assumption": "lettiera in capannone (decomposizione parzialmente anaerobica)",
         "baseline_warning": "Verificare frequenza rimozione lettiera per validare il credit.",
         "e_l": 0.0,
@@ -846,7 +846,7 @@ FEEDSTOCK_DB = {
         "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 75.0, "dry_matter_std": 0.50,
         "color": "#FFCC80", "cat": "Effluenti zootecnici",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024",
+        "src": "eec JEC v5 (std A.5=0); All. IX RED III parte A",
         "baseline_assumption": "fossa di stoccaggio in conigliera",
         "baseline_warning": "Verificare modalità stoccaggio per validare l'eec.",
         "e_l": 0.0,
@@ -874,7 +874,7 @@ FEEDSTOCK_DB = {
         "eec": 6.0, "esca": 0.0, "etd": 0.8, "yield": 100.0, "dry_matter_std": 0.18,
         "color": "#FFB300", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024",
+        "src": "All. IX RED III (residuo); eec JEC v5 (non in Prosp. A.5)",
     },
     "Vinaccia (con raspi)": {
         "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 130.0, "dry_matter_std": 0.30,
@@ -886,7 +886,7 @@ FEEDSTOCK_DB = {
         "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 70.0, "dry_matter_std": 0.35,
         "color": "#AD1457", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024",
+        "src": "All. IX RED III (residuo); eec JEC v5 (non in Prosp. A.5)",
     },
     "Feccia vinicola": {
         "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 180.0, "dry_matter_std": 0.10,
@@ -898,7 +898,7 @@ FEEDSTOCK_DB = {
         "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 30.0, "dry_matter_std": 0.06,
         "color": "#FFF9C4", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024",
+        "src": "All. IX RED III (residuo); eec JEC v5 (non in Prosp. A.5)",
     },
     "Scotta (siero residuo)": {
         "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 22.0, "dry_matter_std": 0.06,
@@ -916,7 +916,7 @@ FEEDSTOCK_DB = {
         "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 50.0, "dry_matter_std": 0.90,
         "color": "#F5DEB3", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024",
+        "src": "All. IX RED III (residuo); eec JEC v5 (non in Prosp. A.5)",
     },
     "Melasso": {
         "eec": 8.0, "esca": 0.0, "etd": 0.8, "yield": 180.0, "dry_matter_std": 0.75,
@@ -928,7 +928,7 @@ FEEDSTOCK_DB = {
         "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 280.0, "dry_matter_std": 0.80,
         "color": "#D7CCC8", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024 (alta resa zuccheri)",
+        "src": "All. IX RED III (residuo); eec JEC v5, alta resa zuccheri (non in Prosp. A.5)",
     },
     "Grassi esausti / UCO": {
         "eec": 2.0, "esca": 0.0, "etd": 0.8, "yield": 700.0, "dry_matter_std": 0.99,
@@ -946,7 +946,7 @@ FEEDSTOCK_DB = {
         "eec": 7.0, "esca": 0.0, "etd": 0.8, "yield": 100.0, "dry_matter_std": 0.15,
         "color": "#66BB6A", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024",
+        "src": "All. IX RED III (residuo); eec JEC v5 (non in Prosp. A.5)",
     },
     "Scarti caseari vari": {
         "eec": 4.0, "esca": 0.0, "etd": 0.8, "yield": 40.0, "dry_matter_std": 0.15,
@@ -958,25 +958,25 @@ FEEDSTOCK_DB = {
         "eec": 3.0, "esca": 0.0, "etd": 0.8, "yield": 55.0, "dry_matter_std": 0.10,
         "color": "#90A4AE", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024",
+        "src": "All. IX RED III (residuo); eec JEC v5 (non in Prosp. A.5)",
     },
     "Polpe di barbabietola fresche": {
         "eec": 0.0, "esca": 0.0, "etd": 2.0, "yield": 50.0, "dry_matter_std": 0.22,
         "color": "#F48FB1", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024 / JEC WTT v5 (by-product allocation)",
+        "src": "All. IX RED III (residuo); eec JEC WTT v5 by-product allocation (non in Prosp. A.5)",
     },
     "Polpe di barbabietola insilate": {
         "eec": 0.0, "esca": 0.0, "etd": 2.5, "yield": 75.0, "dry_matter_std": 0.28,
         "color": "#EC407A", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024 / JEC WTT v5",
+        "src": "All. IX RED III (residuo); eec JEC WTT v5 (non in Prosp. A.5)",
     },
     "Melasso di barbabietola": {
         "eec": 0.0, "esca": 0.0, "etd": 1.5, "yield": 280.0, "dry_matter_std": 0.75,
         "color": "#C2185B", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
-        "src": "JEC WTT v5 / UNI-TS 11567:2024",
+        "src": "All. IX RED III (residuo); eec JEC WTT v5 (non in Prosp. A.5)",
     },
     # =========================================================
     # FORSU / RIFIUTI (All. IX RED II/III, parte A)
@@ -984,16 +984,16 @@ FEEDSTOCK_DB = {
     # Tutti -> AVANZATI con double counting CIC.
     # =========================================================
     "FORSU selezionata": {
-        "eec": 8.0, "esca": 0.0, "etd": 0.8, "yield": 95.2, "dry_matter_std": 0.24,
+        "eec": 0.0, "esca": 0.0, "etd": 0.8, "yield": 95.2, "dry_matter_std": 0.24,
         "color": "#546E7A", "cat": "FORSU / Rifiuti",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024",
+        "src": "UNI-TS 11567:2024 (Prosp. A.5, rifiuto eec=0)",
     },
     "Fanghi depurazione": {
-        "eec": 5.0, "esca": 0.0, "etd": 0.8, "yield": 8.0, "dry_matter_std": 0.06,
+        "eec": 0.0, "esca": 0.0, "etd": 0.8, "yield": 8.0, "dry_matter_std": 0.06,
         "color": "#78909C", "cat": "FORSU / Rifiuti",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024",
+        "src": "UNI-TS 11567:2024 (Prosp. A.5, rifiuto eec=0)",
     },
 }
 
