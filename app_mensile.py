@@ -753,6 +753,17 @@ FEEDSTOCK_DB = {
         "requires_no_luc_declaration": True,
         "src": "GSE LG 2024 (art. doppia coltura)",
     },
+    "Erbaio misto insilato": {
+        # Miscuglio graminacee+leguminose (es. loiessa/orzo + veccia/trifoglio)
+        # insilato a raccolta lattea-cerosa. L'azotofissazione delle leguminose
+        # abbassa il concime azotato -> eec tra loietto (18) ed erba medica (15).
+        # Resa: 560 Nm3 biogas/t ST x 52% CH4 x 0,22 ST ~= 64 Nm3 CH4/t t.q.
+        "eec": 16.0, "esca": 0.0, "etd": 0.8, "yield": 64.0, "dry_matter_std": 0.22,
+        "color": "#8BC34A", "cat": "Colture dedicate",
+        "annex_ix": None, "e_l": 0.0,
+        "requires_no_luc_declaration": True,
+        "src": "eec JEC v5/KTBL (non in Prosp. A.5); ST agronomica erbaio misto (CRPA/KTBL)",
+    },
     "Barbabietola da zucchero": {
         "eec": 12.0, "esca": 0.0, "etd": 0.8, "yield": 105.0, "dry_matter_std": 0.23,
         "color": "#CE93D8", "cat": "Colture dedicate",
@@ -5600,6 +5611,7 @@ with tab_business:
         "Loietto insilato (ryegrass)": 300.0,
         "Erba medica insilata": 250.0,
         "Doppia coltura (2° raccolto)": 500.0,
+        "Erbaio misto insilato": 300.0,
         "Barbabietola da zucchero": 300.0,
         "Sansa di olive umida": 300.0,
         "Sansa vergine": 200.0,

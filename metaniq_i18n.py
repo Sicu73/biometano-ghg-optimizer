@@ -398,6 +398,7 @@ IT_EN: dict = {
     "Loietto insilato (ryegrass)": "Ryegrass silage",
     "Erba medica insilata": "Alfalfa silage",
     "Doppia coltura (2° raccolto)": "Double crop (2nd harvest)",
+    "Erbaio misto insilato": "Mixed forage silage",
     "Barbabietola da zucchero": "Sugar beet",
     "Sansa di olive umida": "Wet olive pomace",
     "Sansa vergine": "Virgin olive pomace",
