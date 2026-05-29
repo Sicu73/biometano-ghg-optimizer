@@ -681,11 +681,11 @@ FEEDSTOCK_DB = {
     # UNI/TS 11567:2024). In assenza, l'OdC puo' imputare valori
     # punitivi tabellari. La UI mostra warning quando si selezionano.
     "Trinciato di mais": {
-        "eec": 26.0, "esca": 0.0, "etd": 0.8, "yield": 116.1, "dry_matter_std": 0.35,
+        "eec": 29.0, "esca": 0.0, "etd": 0.8, "yield": 116.1, "dry_matter_std": 0.35,
         "color": "#F5C518", "cat": "Colture dedicate",
         "annex_ix": None, "e_l": 0.0,
         "requires_no_luc_declaration": True,
-        "src": "UNI-TS 11567:2024 / JEC v5",
+        "src": "UNI-TS 11567:2024 (Prosp. A.5, eec=29); ST agronomica (CRPA/KTBL)",
     },
     # SORGO — la UNI/TS 11567:2024 (Prosp. A.1) tabula un'unica voce "Sorgo"
     # (580 Nm3 biogas/t ST · 52% CH4 -> 301,6 Nm3 CH4/t ST) ed eec standard 26
@@ -716,7 +716,7 @@ FEEDSTOCK_DB = {
         "color": "#AED581", "cat": "Colture dedicate",
         "annex_ix": None, "e_l": 0.0,
         "requires_no_luc_declaration": True,
-        "src": "UNI-TS 11567:2024",
+        "src": "eec da JEC v5/KTBL (non in Prosp. A.5); ST agronomica (CRPA/KTBL)",
     },
     "Segale insilata": {
         "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 80.0, "dry_matter_std": 0.35,
