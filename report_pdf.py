@@ -1767,10 +1767,27 @@ def _build_ls_traceability(ctx: dict, s) -> list:
     bm_title = "Mass balance (input/output)" if is_en else "Bilancio di massa (input/output)"
     flow.append(Paragraph(bm_title, s["h3"]))
     feed_tot = ctx.get("feedstock_totals_t") or {}
+    # Origine del fattore emissivo eec (UNI/TS A.5 / JEC-KTBL / RED III / ...).
+    def _eec_origin_tag(_src):
+        _s = _src or ""
+        _sl = _s.lower()
+        if _s.startswith("UNI-TS"):
+            return "UNI/TS A.5"
+        if "manure credit red iii" in _sl:
+            return "RED III"
+        if "jec" in _sl or "ktbl" in _sl:
+            return "JEC/KTBL"
+        if "gse" in _sl:
+            return "GSE"
+        if "ipcc" in _sl:
+            return "IPCC"
+        return "—"
+
     _rows_bm = [["Biomassa" if not is_en else "Feedstock",
                  "Tonnellate" if not is_en else "Tonnes",
                  "Annex IX",
-                 "Categoria" if not is_en else "Category"]]
+                 "Categoria" if not is_en else "Category",
+                 "Fonte eec" if not is_en else "eec source"]]
     fdb = ctx.get("FEEDSTOCK_DB") or {}
     _has_food_feed = False
     _baseline_warnings: list[str] = []
@@ -1786,23 +1803,24 @@ def _build_ls_traceability(ctx: dict, s) -> list:
             _fmt_it(qty, 1),
             (meta.get("annex_ix") or "—"),
             meta.get("cat", "—"),
+            _eec_origin_tag(meta.get("src", "")),
         ])
     if len(_rows_bm) == 1:
-        _rows_bm.append(["— nessun dato giornaliero —", "—", "—", "—"])
+        _rows_bm.append(["— nessun dato giornaliero —", "—", "—", "—", "—"])
     _rows_bm.append([
         "TOTALE INPUT" if not is_en else "TOTAL INPUT",
         _fmt_it(sum(feed_tot.values()) if feed_tot else 0.0, 1),
-        "", "",
+        "", "", "",
     ])
     _rows_bm.append([
         "OUTPUT — Sm³ biometano (lordo)" if not is_en else "OUTPUT — Sm³ biomethane (gross)",
         _fmt_it(ctx.get("sm3_gross") or ctx.get("nm3_gross") or 0.0, 0),
-        "", "",
+        "", "", "",
     ])
     _rows_bm.append([
         "OUTPUT — Sm³ biometano (netto, immesso)" if not is_en else "OUTPUT — Sm³ biomethane (net, grid)",
         _fmt_it(ctx.get("sm3_netti") or ctx.get("nm3_net") or 0.0, 0),
-        "", "",
+        "", "", "",
     ])
     # Warning food/feed crops senza dichiarazione no-LUC
     if _has_food_feed:
@@ -1829,8 +1847,9 @@ def _build_ls_traceability(ctx: dict, s) -> list:
             flow.append(Paragraph(f"• {w}", s["body"]))
         flow.append(Spacer(1, 3 * mm))
 
-    tbl_bm = Table(_rows_bm, colWidths=[CONTENT_W * 0.42, CONTENT_W * 0.20,
-                                         CONTENT_W * 0.13, CONTENT_W * 0.25])
+    tbl_bm = Table(_rows_bm, colWidths=[CONTENT_W * 0.34, CONTENT_W * 0.14,
+                                         CONTENT_W * 0.10, CONTENT_W * 0.20,
+                                         CONTENT_W * 0.22])
     tbl_bm.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), NAVY),
         ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),

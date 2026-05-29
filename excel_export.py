@@ -267,8 +267,38 @@ def _build_database(ws, ctx, lang='it'):
         c_val.font = Font(bold=True, color=AMBER_DK)
         c_val.border = _border_thin()
 
+    # === Riga 8: Fonte del fattore emissivo eec (audit-trail UNI/TS) ===
+    def _eec_origin_tag(_src):
+        _s = _src or ""
+        _sl = _s.lower()
+        if _s.startswith("UNI-TS"):
+            return "UNI/TS A.5"
+        if "manure credit red iii" in _sl:
+            return "RED III"
+        if "jec" in _sl or "ktbl" in _sl:
+            return "JEC/KTBL"
+        if "gse" in _sl:
+            return "GSE"
+        if "ipcc" in _sl:
+            return "IPCC"
+        return "—"
+
+    c_lbl = ws.cell(row=8, column=1, value=_t("Fonte fattore eec", lang))
+    c_lbl.font = Font(bold=True, color=NAVY)
+    c_lbl.fill = PatternFill("solid", fgColor=SLATE_50)
+    c_lbl.alignment = Alignment(horizontal="left", indent=1)
+    c_lbl.border = _border_thin()
+    for j, name in enumerate(feeds):
+        d = fdb[name]
+        c_val = ws.cell(row=8, column=2 + j,
+                        value=_eec_origin_tag(d.get("src", "")))
+        c_val.fill = PatternFill("solid", fgColor=SLATE_50)
+        c_val.alignment = Alignment(horizontal="center")
+        c_val.font = Font(size=9, color=SLATE_500)
+        c_val.border = _border_thin()
+
     # === Caption finale ===
-    last_r = 9
+    last_r = 10
     end_col = 1 + n
     end_letter = get_column_letter(end_col)
     ws.merge_cells(start_row=last_r, start_column=1,

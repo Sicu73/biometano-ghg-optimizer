@@ -23,6 +23,7 @@ IT_EN: dict = {
     "Resa (Nm³/t)":"Yield (Nm³/t)","All. IX":"Ann. IX",
     # KPI / sintesi
     "Parametro":"Parameter","Valore":"Value","Unità":"Unit","Totale":"Total",
+    "Fonte fattore eec":"eec source",
     "Media":"Average","Minimo":"Minimum","Massimo":"Maximum",
     "Mesi validi":"Valid months","Soglia GHG":"GHG threshold","Esito":"Outcome",
     "Conforme":"Compliant","Non conforme":"Non-compliant",
