@@ -1013,6 +1013,51 @@ FEEDSTOCK_DB = {
 # Tutti i feedstock disponibili (per retrocompatibilita' solver).
 FEED_NAMES = list(FEEDSTOCK_DB.keys())
 
+
+# =============================================================================
+# Classificazione "tier" difendibilita' valore eec (audit-ready, non attaccabile)
+# -----------------------------------------------------------------------------
+# Unica sorgente di verita' usata da UI + export PDF/Excel/dossier.
+# Un certificatore (RINA/OdC) contesta solo i valori FAVOREVOLI e non provati.
+# Ogni eec ricade in uno di questi stati, tutti difendibili per costruzione:
+#   A  Default normativo   -> UNI/TS A.5 / RED III All. V-VI (mais, sorgo, =0 rifiuti)
+#   B  Zero da regola      -> residuo/rifiuto Annex IX: eec=0 fino a raccolta (RED III)
+#   C  Conservativo (lett.) -> JEC v5/KTBL, eec>=0 = stima a SFAVORE -> non contestabile
+#   D  Credito da provare  -> manure credit negativo: richiede dichiarazione baseline
+# Solo il tier D necessita documento esterno; tutti gli altri sono auto-difesi.
+# =============================================================================
+def eec_tier(meta: dict) -> dict:
+    """Ritorna {code, label, defendable, note} per una voce FEEDSTOCK_DB."""
+    src = (meta.get("src") or "").strip()
+    sl = src.lower()
+    eec = float(meta.get("eec", 0.0) or 0.0)
+    if src.startswith("UNI-TS"):
+        if eec == 0.0:
+            return {"code": "A", "label": "Default normativo (A.5, rifiuto eec=0)",
+                    "defendable": True,
+                    "note": "Valore tabellato UNI/TS 11567:2024 Prosp. A.5."}
+        return {"code": "A", "label": "Default normativo (A.5)",
+                "defendable": True,
+                "note": "Valore tabellato UNI/TS 11567:2024 Prosp. A.5."}
+    if "manure credit red iii" in sl or (eec < 0 and "manure" in sl):
+        return {"code": "D", "label": "Credito stoccaggio (da dichiarazione)",
+                "defendable": False,
+                "note": "Manure credit RED III All. VI: applicabile SOLO con "
+                        "dichiarazione baseline di stoccaggio del fornitore."}
+    if eec < 0:
+        return {"code": "D", "label": "Credito negativo (da documentare)",
+                "defendable": False,
+                "note": "eec negativo: richiede giustificazione documentale."}
+    if eec == 0.0:
+        return {"code": "B", "label": "Zero da regola (residuo/rifiuto)",
+                "defendable": True,
+                "note": "Annex IX RED III: residui/rifiuti = 0 emissioni a monte "
+                        "fino alla raccolta. Difendibile per regola."}
+    return {"code": "C", "label": "Stima conservativa (letteratura)",
+            "defendable": True,
+            "note": "Valore JEC v5/KTBL con eec>0: stima a sfavore dell'operatore "
+                    "(riduce il saving) -> nessun incentivo alla contestazione."}
+
 # Raggruppamento per categoria (per UI multiselect strutturato).
 def _feeds_by_category():
     cats = {}
