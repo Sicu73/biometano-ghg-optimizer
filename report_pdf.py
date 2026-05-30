@@ -1783,11 +1783,28 @@ def _build_ls_traceability(ctx: dict, s) -> list:
             return "IPCC"
         return "—"
 
+    # Tier difendibilita' (A=default norm., B=zero da regola, C=conservativo,
+    # D=credito da dichiarazione). Allineato a app_mensile.eec_tier.
+    def _eec_tier_code(_src, _eec):
+        _s = (_src or "").strip()
+        _sl = _s.lower()
+        try:
+            _e = float(_eec or 0.0)
+        except (TypeError, ValueError):
+            _e = 0.0
+        if _s.startswith("UNI-TS"):
+            return "A"
+        if "manure credit red iii" in _sl or _e < 0:
+            return "D"
+        if _e == 0.0:
+            return "B"
+        return "C"
+
     _rows_bm = [["Biomassa" if not is_en else "Feedstock",
                  "Tonnellate" if not is_en else "Tonnes",
                  "Annex IX",
                  "Categoria" if not is_en else "Category",
-                 "Fonte eec" if not is_en else "eec source"]]
+                 "Tier · Fonte eec" if not is_en else "Tier · eec source"]]
     fdb = ctx.get("FEEDSTOCK_DB") or {}
     _has_food_feed = False
     _baseline_warnings: list[str] = []
@@ -1803,7 +1820,8 @@ def _build_ls_traceability(ctx: dict, s) -> list:
             _fmt_it(qty, 1),
             (meta.get("annex_ix") or "—"),
             meta.get("cat", "—"),
-            _eec_origin_tag(meta.get("src", "")),
+            _eec_tier_code(meta.get("src", ""), meta.get("eec", 0.0))
+            + " · " + _eec_origin_tag(meta.get("src", "")),
         ])
     if len(_rows_bm) == 1:
         _rows_bm.append(["— nessun dato giornaliero —", "—", "—", "—", "—"])

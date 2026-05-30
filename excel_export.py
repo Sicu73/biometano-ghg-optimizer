@@ -297,8 +297,38 @@ def _build_database(ws, ctx, lang='it'):
         c_val.font = Font(size=9, color=SLATE_500)
         c_val.border = _border_thin()
 
+    # === Riga 9: Tier difendibilita' eec (A/B/C/D) ===
+    def _eec_tier_code(_src, _eec):
+        _s = (_src or "").strip()
+        _sl = _s.lower()
+        try:
+            _e = float(_eec or 0.0)
+        except (TypeError, ValueError):
+            _e = 0.0
+        if _s.startswith("UNI-TS"):
+            return "A"
+        if "manure credit red iii" in _sl or _e < 0:
+            return "D"
+        if _e == 0.0:
+            return "B"
+        return "C"
+
+    c_lbl = ws.cell(row=9, column=1, value=_t("Tier difendibilità", lang))
+    c_lbl.font = Font(bold=True, color=NAVY)
+    c_lbl.fill = PatternFill("solid", fgColor=SLATE_50)
+    c_lbl.alignment = Alignment(horizontal="left", indent=1)
+    c_lbl.border = _border_thin()
+    for j, name in enumerate(feeds):
+        d = fdb[name]
+        c_val = ws.cell(row=9, column=2 + j,
+                        value=_eec_tier_code(d.get("src", ""), d.get("eec", 0.0)))
+        c_val.fill = PatternFill("solid", fgColor=SLATE_50)
+        c_val.alignment = Alignment(horizontal="center")
+        c_val.font = Font(bold=True, size=9, color=NAVY)
+        c_val.border = _border_thin()
+
     # === Caption finale ===
-    last_r = 10
+    last_r = 11
     end_col = 1 + n
     end_letter = get_column_letter(end_col)
     ws.merge_cells(start_row=last_r, start_column=1,
@@ -307,7 +337,11 @@ def _build_database(ws, ctx, lang='it'):
                 value=("Read-only · Layout orizzontale: ogni biomassa = una "
                        "colonna. e_total = eec - esca + etd + ep. "
                        "Modifica «ep» in «Piano mensile» cella B9 per "
-                       "ricalcolare automaticamente la sostenibilita'."))
+                       "ricalcolare automaticamente la sostenibilita'. "
+                       "Tier difendibilità eec: A=default normativo · "
+                       "B=zero da regola (residuo/rifiuto) · "
+                       "C=stima conservativa (letteratura, a sfavore) · "
+                       "D=credito da dichiarazione fornitore."))
     c.font = Font(italic=True, size=9, color=SLATE_500)
     c.alignment = Alignment(horizontal="center", wrap_text=True)
     ws.row_dimensions[last_r].height = 30
