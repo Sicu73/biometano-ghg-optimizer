@@ -3069,6 +3069,7 @@ with st.sidebar:
             {
                 _t("Biomassa"): _t(_n),
                 "eec [gCO₂eq/MJ]": fmt_it(FEEDSTOCK_DB[_n]["eec"], 1, signed=True),
+                "Tier": eec_tier(FEEDSTOCK_DB[_n])["code"],
                 _t("Categoria"): FEEDSTOCK_DB[_n].get("cat", "—"),
                 "Annex IX": FEEDSTOCK_DB[_n].get("annex_ix") or "—",
                 _t("Fonte"): FEEDSTOCK_DB[_n].get("src", "—"),
@@ -3076,6 +3077,20 @@ with st.sidebar:
             for _n in active_feeds
         ]
         st.dataframe(_pd.DataFrame(_rows_src), use_container_width=True, hide_index=True)
+        st.caption(_t(
+            "Tier difendibilità eec: A = default normativo (UNI/TS A.5 / RED III) · "
+            "B = zero da regola (residuo/rifiuto Annex IX) · C = stima conservativa "
+            "(letteratura JEC/KTBL, a sfavore dell'operatore) · D = credito da "
+            "dichiarazione fornitore (manure credit RED III All. VI). Solo il tier D "
+            "richiede un documento esterno; A/B/C sono difendibili per costruzione."
+        ))
+        _n_tier_d = sum(1 for _n in active_feeds
+                        if eec_tier(FEEDSTOCK_DB[_n])["code"] == "D")
+        if _n_tier_d:
+            st.caption("⚠️ " + _t(
+                "Sono attive {n} biomasse in tier D: per l'audit OdC allega la "
+                "dichiarazione baseline di stoccaggio del fornitore."
+            ).format(n=_n_tier_d))
         st.caption(_t(
             "Annex IX = RED III Allegato IX: A (sottoprodotti/effluenti, avanzato) o "
             "B (oli/grassi, avanzato). '—' = food/feed crop (cap colture dedicate, "
