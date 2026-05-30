@@ -1136,6 +1136,19 @@ MONTH_HOURS = [744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]
 _EMISSION_OVERRIDES: dict[str, dict] = {}
 
 
+def _manure_credit_allowed() -> bool:
+    """True se l'utente ha attestato di possedere le dichiarazioni baseline
+    di stoccaggio dei fornitori (requisito RED III All. VI per il manure
+    credit). Default False = credito NON applicato sui valori standard
+    (posizione conservativa, inattaccabile in audit). Difensivo fuori dal
+    contesto Streamlit (test): ritorna False.
+    """
+    try:
+        return bool(st.session_state.get("manure_credit_declared", False))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _emission_factors_of(name: str, ep_default: float = 0.0) -> dict:
     """Fattori emissivi effettivi per una biomassa.
 
@@ -1154,14 +1167,27 @@ def _emission_factors_of(name: str, ep_default: float = 0.0) -> dict:
         # consumer (display, audit, etc.) corrompano la cache runtime.
         return dict(_EMISSION_OVERRIDES[name])
     d = FEEDSTOCK_DB[name]
+    eec_val = float(d["eec"])
+    # Gating manure credit (tier D) sui SOLI valori standard.
+    # Un eec negativo (credito da stoccaggio anaerobico evitato) e'
+    # contestabile dall'OdC se non c'e' la dichiarazione baseline del
+    # fornitore. Senza attestazione -> azzerato a 0 (residuo Annex IX,
+    # conservativo e inattaccabile per costruzione). Con valori CERTIFICATI
+    # (override relazione tecnica) il ramo sopra ritorna prima: il credito
+    # resta perche' gia' coperto dalla certificazione delle emissioni.
+    _gated = False
+    if eec_val < 0 and not _manure_credit_allowed():
+        eec_val = 0.0
+        _gated = True
     return {
-        "eec":   float(d["eec"]),
+        "eec":   eec_val,
         "e_l":   float(d.get("e_l", 0.0)),
         "esca":  float(d["esca"]),
         "etd":   float(d["etd"]),
         "ep":    float(ep_default),
         "extra": 0.0,
         "source": EF_SOURCE_STD,
+        "manure_credit_gated": _gated,
         "requires_no_luc_declaration": bool(d.get("requires_no_luc_declaration", False)),
     }
 
@@ -3065,11 +3091,31 @@ with st.sidebar:
     # ── Trasparenza audit OdC: fonti normative dei valori eec mostrati ──
     with st.expander(_t("📚 Fonti normative biomasse attive (audit OdC)"), expanded=False):
         import pandas as _pd
+        # Attestazione manure credit: gate sui valori STANDARD.
+        st.checkbox(
+            _t("Possiedo le dichiarazioni baseline di stoccaggio dei fornitori "
+               "(abilita il manure credit RED III All. VI)"),
+            key="manure_credit_declared",
+            help=_t("Se DISATTIVO, sui valori STANDARD il credito negativo "
+                    "(eec<0) viene azzerato a 0 — posizione conservativa e "
+                    "inattaccabile in audit. Con valori CERTIFICATI da relazione "
+                    "tecnica il credito resta sempre attivo (sei coperto dalla "
+                    "certificazione)."),
+        )
+
+        def _eff_eec(_n):
+            return _emission_factors_of(_n).get("eec", FEEDSTOCK_DB[_n]["eec"])
+
+        def _eff_tier(_n):
+            _m = dict(FEEDSTOCK_DB[_n])
+            _m["eec"] = _eff_eec(_n)
+            return eec_tier(_m)["code"]
+
         _rows_src = [
             {
                 _t("Biomassa"): _t(_n),
-                "eec [gCO₂eq/MJ]": fmt_it(FEEDSTOCK_DB[_n]["eec"], 1, signed=True),
-                "Tier": eec_tier(FEEDSTOCK_DB[_n])["code"],
+                "eec [gCO₂eq/MJ]": fmt_it(_eff_eec(_n), 1, signed=True),
+                "Tier": _eff_tier(_n),
                 _t("Categoria"): FEEDSTOCK_DB[_n].get("cat", "—"),
                 "Annex IX": FEEDSTOCK_DB[_n].get("annex_ix") or "—",
                 _t("Fonte"): FEEDSTOCK_DB[_n].get("src", "—"),
@@ -3084,8 +3130,14 @@ with st.sidebar:
             "dichiarazione fornitore (manure credit RED III All. VI). Solo il tier D "
             "richiede un documento esterno; A/B/C sono difendibili per costruzione."
         ))
-        _n_tier_d = sum(1 for _n in active_feeds
-                        if eec_tier(FEEDSTOCK_DB[_n])["code"] == "D")
+        _n_tier_d = sum(1 for _n in active_feeds if _eff_tier(_n) == "D")
+        _n_gated = sum(1 for _n in active_feeds
+                       if _emission_factors_of(_n).get("manure_credit_gated"))
+        if _n_gated:
+            st.success(_t(
+                "✅ {n} crediti manure azzerati (nessuna dichiarazione baseline): "
+                "valori standard conservativi e inattaccabili in audit."
+            ).format(n=_n_gated))
         if _n_tier_d:
             st.caption("⚠️ " + _t(
                 "Sono attive {n} biomasse in tier D: per l'audit OdC allega la "

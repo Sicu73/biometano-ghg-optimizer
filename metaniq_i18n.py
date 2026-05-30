@@ -24,6 +24,10 @@ IT_EN: dict = {
     # KPI / sintesi
     "Parametro":"Parameter","Valore":"Value","Unità":"Unit","Totale":"Total",
     "Fonte fattore eec":"eec source","Tier difendibilità":"Defendability tier",
+    "Possiedo le dichiarazioni baseline di stoccaggio dei fornitori (abilita il manure credit RED III All. VI)":
+        "I hold the suppliers' storage baseline declarations (enable RED III Annex VI manure credit)",
+    "✅ {n} crediti manure azzerati (nessuna dichiarazione baseline): valori standard conservativi e inattaccabili in audit.":
+        "✅ {n} manure credits zeroed (no baseline declaration): conservative standard values, audit-proof by construction.",
     "Media":"Average","Minimo":"Minimum","Massimo":"Maximum",
     "Mesi validi":"Valid months","Soglia GHG":"GHG threshold","Esito":"Outcome",
     "Conforme":"Compliant","Non conforme":"Non-compliant",
