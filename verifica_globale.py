@@ -76,12 +76,16 @@ rec("A7", v == (10+4+1+5-3-2), f"e_total(10,esca3,etd1,ep5,extra2,e_l4)={v} att.
 
 # A8 tier classification
 if eec_tier:
+    # A=default normativo (src UNI-TS, incl. rifiuti eec=0 tabulati in A.5)
+    # B=zero da regola (eec=0 ma NON tabulato in A.5: residuo JEC/All.IX)
+    # C=conservativo (eec>0 da letteratura)  D=credito negativo (manure)
     t_mais = eec_tier(FEEDSTOCK_DB["Trinciato di mais"])["code"]
-    t_forsu = eec_tier(FEEDSTOCK_DB["FORSU selezionata"])["code"]
+    t_forsu = eec_tier(FEEDSTOCK_DB["FORSU selezionata"])["code"]   # A: eec=0 in A.5
+    t_polpe = eec_tier(FEEDSTOCK_DB["Polpe di barbabietola fresche"])["code"]  # B
     t_liq = eec_tier(FEEDSTOCK_DB["Liquame suino"])["code"]
     t_sansa = eec_tier(FEEDSTOCK_DB["Sansa di olive umida"])["code"]
-    rec("A8", t_mais=="A" and t_forsu=="B" and t_liq=="D" and t_sansa=="C",
-        f"mais={t_mais}(A) FORSU={t_forsu}(B) liquame={t_liq}(D) sansa={t_sansa}(C)")
+    rec("A8", t_mais=="A" and t_forsu=="A" and t_polpe=="B" and t_liq=="D" and t_sansa=="C",
+        f"mais={t_mais}(A) FORSU={t_forsu}(A,in A.5) polpe={t_polpe}(B) liquame={t_liq}(D) sansa={t_sansa}(C)")
 else:
     rec("A8", False, "eec_tier non estraibile")
 
