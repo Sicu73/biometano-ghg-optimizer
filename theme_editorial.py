@@ -104,6 +104,14 @@ hr {{ border-color:{t['LINE']} !important; opacity:1 !important; }}
 div[data-baseweb="select"] div, div[data-baseweb="select"] span {{ color:{t['INK']} !important; }}
 div[data-baseweb="select"] svg {{ color:{t['MUTED']} !important; fill:currentColor !important; }}
 [data-baseweb="popover"] li, [data-baseweb="popover"] li * {{ color:{t['INK']} !important; }}
+/* Tag biomassa (multiselect): pillola brass piena, testo scuro leggibile, e
+   NESSUN riquadro chiaro sopra il nome. Alcune build di Streamlit inseriscono un
+   handle/icona di riordino a sinistra del tag con sfondo chiaro che copriva le
+   prime lettere: azzeriamo lo sfondo di ogni figlio e fissiamo il padding sx. */
+span[data-baseweb="tag"][role="button"] {{ background:{t['BRASS']} !important; color:#1C1B16 !important; padding-left:10px !important; overflow:visible !important; }}
+span[data-baseweb="tag"][role="button"] > span, span[data-baseweb="tag"][role="button"] > span * {{ color:#1C1B16 !important; background:transparent !important; margin-left:0 !important; }}
+span[data-baseweb="tag"][role="button"] [aria-hidden="true"], span[data-baseweb="tag"][role="button"] [role="presentation"] {{ background:transparent !important; }}
+span[data-baseweb="tag"][role="button"] svg {{ fill:#1C1B16 !important; color:#1C1B16 !important; background:transparent !important; }}
 </style>
 """, unsafe_allow_html=True)
 
