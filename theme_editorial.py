@@ -24,6 +24,9 @@ def _tokens(is_dark: bool) -> dict:
 
 def inject_editorial_theme(is_dark: bool = False):
     t = _tokens(is_dark)
+    # Testo ad alto contrasto su fondo ottone (download): crema in light
+    # (ottone scuro), navy in dark (ottone chiaro).
+    on_acc = "#15242E" if is_dark else "#F7F4EC"
     st.markdown(f"""
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -86,15 +89,23 @@ section[data-testid="stSidebar"] .metaniq-brandcard span[style*="B59450"] {{ col
    hanno sfondo chiaro e necessitano testo scuro. */
 [data-testid="stMain"] .stButton button[kind^="primary"],
 [data-testid="stMain"] .stButton button[kind^="primary"] *,
-[data-testid="stMain"] .stDownloadButton button[kind^="primary"],
-[data-testid="stMain"] .stDownloadButton button[kind^="primary"] *,
 [data-testid="stMain"] .stFormSubmitButton button[kind^="primary"],
 [data-testid="stMain"] .stFormSubmitButton button[kind^="primary"] * {{ color:#F4F1E8 !important; }}
+/* Download button: uniformati a ottone con testo ad alto contrasto per tema
+   (crema in light su ottone scuro, navy in dark su ottone chiaro). Selettore con
+   [kind] per specificità sufficiente a battere le regole primary/secondary. */
+.stDownloadButton button[kind] {{ background:{t['BRASS']} !important; border-color:{t['BRASS']} !important; }}
+.stDownloadButton button[kind],
+.stDownloadButton button[kind] * {{ color:{on_acc} !important; }}
 /* st.text(): lo span interno usa un colore Streamlit di default non tematizzato
    (navy scuro) -> illeggibile in dark. Forziamo il token INK (corretto per tema). */
 .stText, .stText * {{ color:{t['INK']} !important; }}
-/* Placeholder multiselect (baseweb) leggibile in entrambi i temi */
-div[data-baseweb="select"] [class*="placeholder"] {{ color:{t['MUTED']} !important; }}
+/* Multiselect/select baseweb: placeholder ("Choose options"), clear ("Clear all")
+   e testo interno usano classi st-* con colore Streamlit di default non
+   tematizzato -> illeggibili in dark. Forziamo INK (corretto per tema). */
+div[data-baseweb="select"] div, div[data-baseweb="select"] span {{ color:{t['INK']} !important; }}
+div[data-baseweb="select"] svg {{ color:{t['MUTED']} !important; fill:currentColor !important; }}
+[data-baseweb="popover"] li, [data-baseweb="popover"] li * {{ color:{t['INK']} !important; }}
 div[data-baseweb="select"] [data-baseweb="tag"] span {{ color:{t['INK']} !important; }}
 """, unsafe_allow_html=True)
 
