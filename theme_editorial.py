@@ -24,8 +24,8 @@ def _tokens(is_dark: bool) -> dict:
 
 def inject_editorial_theme(is_dark: bool = False):
     t = _tokens(is_dark)
-    # Testo ad alto contrasto su fondo ottone (download): crema in light
-    # (ottone scuro), navy in dark (ottone chiaro).
+    # Testo ad alto contrasto su fondo ottone (non piu' usato per i download, che
+    # ora sono navy; mantenuto per eventuali superfici ottone).
     on_acc = "#15242E" if is_dark else "#F7F4EC"
     st.markdown(f"""
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -44,6 +44,16 @@ section[data-testid="stSidebar"] [data-baseweb="select"] > div, section[data-tes
 .methaniq-header::after {{ display:none !important; }}
 .methaniq-header h1 {{ font-family:'Outfit', sans-serif !important; font-size:2.9rem !important; font-weight:700 !important; letter-spacing:-.035em !important; color:#F7F4EC !important; }}
 .methaniq-header p, .methaniq-header .tagline {{ font-family:'Spectral', serif !important; color:rgba(244,241,232,.80) !important; font-size:1.1rem !important; font-weight:400 !important; }}
+/* Brand card navy in sidebar: SEMPRE navy -> testo chiaro in entrambi i temi.
+   La regola sidebar che forza il testo a TEXT_SECOND la sovrascriveva (scuro
+   su navy). Ripristino esplicito dei colori chiari; l'accento ottone resta. */
+section[data-testid="stSidebar"] .metaniq-brandcard,
+section[data-testid="stSidebar"] .metaniq-brandcard div,
+section[data-testid="stSidebar"] .metaniq-brandcard span,
+section[data-testid="stSidebar"] .metaniq-brandcard small,
+section[data-testid="stSidebar"] .metaniq-brandcard b {{ color:#E5DFCF !important; }}
+section[data-testid="stSidebar"] .metaniq-brandcard span[style*="9A7B3C"],
+section[data-testid="stSidebar"] .metaniq-brandcard span[style*="B59450"] {{ color:#C9A968 !important; }}
 [data-testid="stMetric"] {{ background:{t['SURFACE']} !important; border:1px solid {t['LINE']} !important; border-radius:10px !important; padding:18px 20px !important; box-shadow:none !important; position:relative !important; overflow:hidden !important; }}
 [data-testid="stMetric"]::before {{ content:"" !important; position:absolute !important; left:20px !important; top:16px !important; width:12px !important; height:2px !important; background:{t['BRASS']} !important; }}
 [data-testid="stMetricLabel"] p {{ text-transform:uppercase !important; letter-spacing:.12em !important; font-size:.7rem !important; font-weight:600 !important; color:{t['MUTED']} !important; padding-top:10px !important; }}
@@ -75,39 +85,26 @@ div[data-testid="stExpander"] summary:hover, div[data-testid="stExpander"] summa
 .stApp a {{ color:{t['BRASS']} !important; text-decoration-color:rgba(154,123,60,.4) !important; }}
 .stApp code {{ font-family:'IBM Plex Mono', monospace !important; }}
 hr {{ border-color:{t['LINE']} !important; opacity:1 !important; }}
-/* --- Fix contrasto: testo chiaro su superfici scure --- */
-/* Brand card navy in sidebar: ripristina i colori chiari inline (la regola
-   sidebar span/p {{color:TEXT_SECOND}} li sovrascriveva -> scuro su navy). */
-section[data-testid="stSidebar"] .metaniq-brandcard,
-section[data-testid="stSidebar"] .metaniq-brandcard div,
-section[data-testid="stSidebar"] .metaniq-brandcard span,
-section[data-testid="stSidebar"] .metaniq-brandcard small {{ color:#E5DFCF !important; }}
-section[data-testid="stSidebar"] .metaniq-brandcard span[style*="9A7B3C"],
-section[data-testid="stSidebar"] .metaniq-brandcard span[style*="B59450"] {{ color:{t['BRASS2']} !important; }}
-/* Bottoni primary / form-submit nel CONTENUTO PRINCIPALE: testo chiaro su navy
-   (anche sul <p> interno). Esclusa la sidebar, dove i toggle primary lingua/tema
-   hanno sfondo chiaro e necessitano testo scuro. */
+/* --- Fix contrasto componenti --- */
+/* Bottoni primary / form-submit nel CONTENUTO PRINCIPALE: testo chiaro su navy.
+   Escluso il sidebar, dove i toggle primary lingua/tema hanno sfondo chiaro. */
 [data-testid="stMain"] .stButton button[kind^="primary"],
 [data-testid="stMain"] .stButton button[kind^="primary"] *,
 [data-testid="stMain"] .stFormSubmitButton button[kind^="primary"],
 [data-testid="stMain"] .stFormSubmitButton button[kind^="primary"] * {{ color:#F4F1E8 !important; }}
 /* Download button: TUTTI navy + crema (sfondo scuro in entrambi i temi -> testo
-   crema sempre ad alto contrasto). Risolve le due famiglie (ottone vs chiaro)
-   con un'unica regola. Specificità (0,4,2): .stApp + data-testid + class + [kind]
-   per battere le regole esistenti dei download compatti. */
+   sempre ad alto contrasto). Specificita' alta per battere le regole esistenti. */
 .stApp div[data-testid="stDownloadButton"].stDownloadButton button[kind] {{ background:#15242E !important; border-color:#15242E !important; }}
 .stApp div[data-testid="stDownloadButton"].stDownloadButton button[kind],
 .stApp div[data-testid="stDownloadButton"].stDownloadButton button[kind] * {{ color:#F4F1E8 !important; }}
 /* st.text(): lo span interno usa un colore Streamlit di default non tematizzato
-   (navy scuro) -> illeggibile in dark. Forziamo il token INK (corretto per tema). */
+   -> forziamo il token INK (corretto per tema). */
 .stText, .stText * {{ color:{t['INK']} !important; }}
-/* Multiselect/select baseweb: placeholder ("Choose options"), clear ("Clear all")
-   e testo interno usano classi st-* con colore Streamlit di default non
-   tematizzato -> illeggibili in dark. Forziamo INK (corretto per tema). */
+/* Multiselect/select baseweb: placeholder, "Clear all", icone -> token leggibili. */
 div[data-baseweb="select"] div, div[data-baseweb="select"] span {{ color:{t['INK']} !important; }}
 div[data-baseweb="select"] svg {{ color:{t['MUTED']} !important; fill:currentColor !important; }}
 [data-baseweb="popover"] li, [data-baseweb="popover"] li * {{ color:{t['INK']} !important; }}
-div[data-baseweb="select"] [data-baseweb="tag"] span {{ color:{t['INK']} !important; }}
+</style>
 """, unsafe_allow_html=True)
 
 
