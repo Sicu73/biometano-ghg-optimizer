@@ -91,12 +91,13 @@ section[data-testid="stSidebar"] .metaniq-brandcard span[style*="B59450"] {{ col
 [data-testid="stMain"] .stButton button[kind^="primary"] *,
 [data-testid="stMain"] .stFormSubmitButton button[kind^="primary"],
 [data-testid="stMain"] .stFormSubmitButton button[kind^="primary"] * {{ color:#F4F1E8 !important; }}
-/* Download button: uniformati a ottone con testo ad alto contrasto per tema
-   (crema in light su ottone scuro, navy in dark su ottone chiaro). Selettore con
-   [kind] per specificità sufficiente a battere le regole primary/secondary. */
-.stDownloadButton button[kind] {{ background:{t['BRASS']} !important; border-color:{t['BRASS']} !important; }}
-.stDownloadButton button[kind],
-.stDownloadButton button[kind] * {{ color:{on_acc} !important; }}
+/* Download button: TUTTI navy + crema (sfondo scuro in entrambi i temi -> testo
+   crema sempre ad alto contrasto). Risolve le due famiglie (ottone vs chiaro)
+   con un'unica regola. Specificità (0,4,2): .stApp + data-testid + class + [kind]
+   per battere le regole esistenti dei download compatti. */
+.stApp div[data-testid="stDownloadButton"].stDownloadButton button[kind] {{ background:#15242E !important; border-color:#15242E !important; }}
+.stApp div[data-testid="stDownloadButton"].stDownloadButton button[kind],
+.stApp div[data-testid="stDownloadButton"].stDownloadButton button[kind] * {{ color:#F4F1E8 !important; }}
 /* st.text(): lo span interno usa un colore Streamlit di default non tematizzato
    (navy scuro) -> illeggibile in dark. Forziamo il token INK (corretto per tema). */
 .stText, .stText * {{ color:{t['INK']} !important; }}
