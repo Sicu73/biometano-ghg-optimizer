@@ -3148,6 +3148,31 @@ with st.sidebar:
             "B (oli/grassi, avanzato). '—' = food/feed crop (cap colture dedicate, "
             "no double counting CIC, no premio avanzato DM 15/9/2022)."
         ))
+        # Dossier di conformità OdC (PDF) — catalogo completo eec/tier/fonti.
+        try:
+            from datetime import date as _date
+            from dossier_conformita import build_conformity_dossier as _bcd
+            _dossier_bytes = _bcd(
+                FEEDSTOCK_DB, lang=_LANG,
+                company=COMPANY_NAME, plant=PLANT_NAME, cui=PLANT_CUI,
+                manure_credit_declared=bool(
+                    st.session_state.get("manure_credit_declared", False)),
+            )
+            st.download_button(
+                "📋 " + _t("Scarica dossier di conformità (OdC)"),
+                data=_dossier_bytes,
+                file_name=f"dossier_conformita_metaniq_{_date.today().isoformat()}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                key="dl_dossier_conformita",
+            )
+            st.caption(_t(
+                "Documento completo (33 biomasse) con eec, tier difendibilità, "
+                "resa, Annex IX e fonte normativa per ogni voce: da consegnare "
+                "all'Organismo di Certificazione."
+            ))
+        except Exception as _e_dossier:  # noqa: BLE001
+            st.caption("⚠️ " + _t("Dossier non generabile") + f": {_e_dossier}")
 # ============================================================
 # DEFAULT GLOBALI per tab-globals (audit robustezza #1)
 # ------------------------------------------------------------

@@ -24,6 +24,10 @@ IT_EN: dict = {
     # KPI / sintesi
     "Parametro":"Parameter","Valore":"Value","Unità":"Unit","Totale":"Total",
     "Fonte fattore eec":"eec source","Tier difendibilità":"Defendability tier",
+    "Scarica dossier di conformità (OdC)":"Download conformity dossier (CB)",
+    "Dossier non generabile":"Dossier cannot be generated",
+    "Documento completo (33 biomasse) con eec, tier difendibilità, resa, Annex IX e fonte normativa per ogni voce: da consegnare all'Organismo di Certificazione.":
+        "Complete document (33 feedstocks) with eec, defendability tier, yield, Annex IX and regulatory source for each item: to be handed to the Certification Body.",
     "Possiedo le dichiarazioni baseline di stoccaggio dei fornitori (abilita il manure credit RED III All. VI)":
         "I hold the suppliers' storage baseline declarations (enable RED III Annex VI manure credit)",
     "✅ {n} crediti manure azzerati (nessuna dichiarazione baseline): valori standard conservativi e inattaccabili in audit.":
