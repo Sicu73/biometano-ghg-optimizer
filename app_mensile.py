@@ -1827,6 +1827,11 @@ if IS_DARK:
     SECTION_PILL_COLOR = "#E8E3D5"
     ACCENT        = "#C9A968"   # brass piu' chiaro su fondo scuro
     AMBER         = ACCENT
+    HERO_BG       = "#15242E"
+    HERO_TEXT     = "#FFFFFF"
+    HERO_TAGLINE  = "#F7F4EC"
+    HERO_EYEBROW  = "#FFFFFF"
+    HERO_DOT      = "#F2C76B"
 else:
     # Editorial LIGHT — carta avorio, inchiostro caldo, ottone.
     BG_APP        = "#F7F4EC"   # PAPER
@@ -1847,6 +1852,11 @@ else:
     CREDIT_BG     = "#FFFFFF"
     SECTION_PILL_BG = "#EFE7D4"   # BRASS SOFT
     SECTION_PILL_COLOR = "#15242E"
+    HERO_BG       = "#102A36"
+    HERO_TEXT     = "#FFFFFF"
+    HERO_TAGLINE  = "#FFFFFF"
+    HERO_EYEBROW  = "#FFFFFF"
+    HERO_DOT      = "#F2C76B"
 
 st.markdown(
     f"""
@@ -2065,10 +2075,10 @@ st.markdown(
 
     /* ---------- Hero Header (Editorial / Institutional) ---------- */
     .methaniq-header {{
-        background: {PRIMARY};
+        background: {HERO_BG};
         padding: 48px 52px;
         border-radius: 12px;
-        color: #F7F4EC;
+        color: {HERO_TEXT};
         margin-bottom: 30px;
         position: relative;
         overflow: hidden;
@@ -2088,30 +2098,33 @@ st.markdown(
     .methaniq-header > * {{ position: relative; z-index: 1; }}
     .methaniq-header .eyebrow {{
         font-family: 'Outfit', sans-serif;
-        color: #B59450 !important;
+        color: {HERO_EYEBROW} !important;
         font-size: 0.72rem;
         font-weight: 600;
         letter-spacing: 3px;
         text-transform: uppercase;
         display: block;
         margin-bottom: 14px;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.35);
     }}
     .methaniq-header h1 {{
         font-family: 'Spectral', Georgia, serif !important;
-        color: #F7F4EC !important;
+        color: {HERO_TEXT} !important;
         font-size: 3.4rem !important;
         font-weight: 600 !important;
         letter-spacing: -0.01em !important;
         margin: 0 !important;
         line-height: 1.05 !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.38);
     }}
     .methaniq-header .tagline {{
-        color: rgba(247, 244, 236, 0.82) !important;
+        color: {HERO_TAGLINE} !important;
         font-size: 1.18rem;
         margin-top: 16px;
         max-width: 720px;
         font-weight: 400;
         line-height: 1.55;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.35);
     }}
     .methaniq-header .pills {{
         display: flex;
@@ -2225,7 +2238,7 @@ st.markdown(
     </style>
     <div class="methaniq-header">
         <span class="eyebrow">// Decision Intelligence Platform</span>
-        <h1>Metan<span style="color:""" + AMBER + """; font-weight:700;">.</span>iQ</h1>
+        <h1>Metan<span style="color:""" + HERO_DOT + """; font-weight:700;">.</span>iQ</h1>
         <div class="tagline">""" + _t(_MODE["tagline"]) + """</div>
         <div class="pills">
             <span class="pill accent">""" + _MODE["pill_main"] + """</span>
