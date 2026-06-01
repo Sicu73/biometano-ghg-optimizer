@@ -1137,16 +1137,21 @@ _EMISSION_OVERRIDES: dict[str, dict] = {}
 
 
 def _manure_credit_allowed() -> bool:
-    """True se l'utente ha attestato di possedere le dichiarazioni baseline
-    di stoccaggio dei fornitori (requisito RED III All. VI per il manure
-    credit). Default False = credito NON applicato sui valori standard
-    (posizione conservativa, inattaccabile in audit). Difensivo fuori dal
-    contesto Streamlit (test): ritorna False.
+    """True = manure credit (eec<0) applicato sui valori standard.
+
+    Default True: il credito da stoccaggio anaerobico evitato e' la prassi
+    GSE/RED III All. VI standard per gli effluenti zootecnici, ed e' il
+    comportamento atteso del calcolo GHG. La dichiarazione baseline del
+    fornitore e' un requisito DOCUMENTALE per l'audit, non un interruttore
+    del calcolo: la sua assenza non deve azzerare il credito (renderebbe il
+    saving artificiosamente penalizzante). L'utente puo' comunque disattivarlo
+    esplicitamente (es. per uno scenario ultra-conservativo) togliendo la
+    spunta. Difensivo fuori dal contesto Streamlit (test): ritorna True.
     """
     try:
-        return bool(st.session_state.get("manure_credit_declared", False))
+        return bool(st.session_state.get("manure_credit_declared", True))
     except Exception:  # noqa: BLE001
-        return False
+        return True
 
 
 def _emission_factors_of(name: str, ep_default: float = 0.0) -> dict:
@@ -3124,16 +3129,18 @@ with st.sidebar:
     # ── Trasparenza audit OdC: fonti normative dei valori eec mostrati ──
     with st.expander(_t("📚 Fonti normative biomasse attive (audit OdC)"), expanded=False):
         import pandas as _pd
-        # Attestazione manure credit: gate sui valori STANDARD.
+        # Manure credit (eec<0 effluenti): ATTIVO di default (prassi GSE/RED III).
         st.checkbox(
-            _t("Possiedo le dichiarazioni baseline di stoccaggio dei fornitori "
-               "(abilita il manure credit RED III All. VI)"),
+            _t("Applica il manure credit agli effluenti zootecnici "
+               "(RED III All. VI — attivo di default)"),
+            value=True,
             key="manure_credit_declared",
-            help=_t("Se DISATTIVO, sui valori STANDARD il credito negativo "
-                    "(eec<0) viene azzerato a 0 — posizione conservativa e "
-                    "inattaccabile in audit. Con valori CERTIFICATI da relazione "
-                    "tecnica il credito resta sempre attivo (sei coperto dalla "
-                    "certificazione)."),
+            help=_t("ATTIVO (default): il credito da stoccaggio anaerobico evitato "
+                    "(eec negativo) viene applicato ai reflui, come da prassi "
+                    "GSE/RED III. Ricorda di conservare la dichiarazione baseline di "
+                    "stoccaggio del fornitore per l'audit OdC. Disattivalo solo per "
+                    "uno scenario ultra-conservativo (azzera il credito → saving più "
+                    "basso)."),
         )
 
         def _eff_eec(_n):
@@ -3167,14 +3174,15 @@ with st.sidebar:
         _n_gated = sum(1 for _n in active_feeds
                        if _emission_factors_of(_n).get("manure_credit_gated"))
         if _n_gated:
-            st.success(_t(
-                "✅ {n} crediti manure azzerati (nessuna dichiarazione baseline): "
-                "valori standard conservativi e inattaccabili in audit."
+            st.warning(_t(
+                "⚠️ Manure credit DISATTIVATO: {n} crediti effluenti azzerati "
+                "(scenario ultra-conservativo). Il saving risulta più basso del "
+                "reale. Riattiva la spunta sopra per il calcolo standard GSE/RED III."
             ).format(n=_n_gated))
         if _n_tier_d:
-            st.caption("⚠️ " + _t(
-                "Sono attive {n} biomasse in tier D: per l'audit OdC allega la "
-                "dichiarazione baseline di stoccaggio del fornitore."
+            st.caption("ℹ️ " + _t(
+                "Sono attive {n} biomasse con manure credit (tier D): per l'audit OdC "
+                "conserva la dichiarazione baseline di stoccaggio del fornitore."
             ).format(n=_n_tier_d))
         st.caption(_t(
             "Annex IX = RED III Allegato IX: A (sottoprodotti/effluenti, avanzato) o "
@@ -3189,7 +3197,7 @@ with st.sidebar:
                 FEEDSTOCK_DB, lang=_LANG,
                 company=COMPANY_NAME, plant=PLANT_NAME, cui=PLANT_CUI,
                 manure_credit_declared=bool(
-                    st.session_state.get("manure_credit_declared", False)),
+                    st.session_state.get("manure_credit_declared", True)),
             )
             st.download_button(
                 "📋 " + _t("Scarica dossier di conformità (OdC)"),
