@@ -117,6 +117,7 @@ div[data-baseweb="select"] svg {{ color:{t['MUTED']} !important; fill:currentCol
    NESSUN riquadro chiaro sopra il nome. Alcune build di Streamlit inseriscono un
    handle/icona di riordino a sinistra del tag con sfondo chiaro che copriva le
    prime lettere: azzeriamo lo sfondo di ogni figlio e fissiamo il padding sx. */
+.stApp span[data-baseweb="tag"][role="button"], section[data-testid="stSidebar"] span[data-baseweb="tag"][role="button"] {{ background-color:{t['BRASS']} !important; background-image:none !important; color:#1C1B16 !important; padding-left:10px !important; overflow:visible !important; }}
 span[data-baseweb="tag"][role="button"] {{ background:{t['BRASS']} !important; color:#1C1B16 !important; padding-left:10px !important; overflow:visible !important; }}
 span[data-baseweb="tag"][role="button"] > span, span[data-baseweb="tag"][role="button"] > span * {{ color:#1C1B16 !important; background:transparent !important; margin-left:0 !important; }}
 /* Nome biomassa nel tag: niente troncamento con ellipsi -> mostra il nome intero
