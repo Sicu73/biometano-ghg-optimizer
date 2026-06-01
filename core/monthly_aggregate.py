@@ -180,8 +180,8 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
     # Auto-derivazione E totale quando l'utente ha compilato Vb ma non E.
     # Caso tipico: legge il volume dal contatore REMI ma non l'energia
     # totalizzata. Usa PCI medio compilato; se assente, PCI standard biometano
-    # 9.79 kWh/Smc (UNI EN 16723-1, valore tipico rete italiana).
-    PCI_BIOMETANO_STD = 9.79
+    # da NM3_TO_MWH (single source of truth, UNI EN 16723-1).
+    PCI_BIOMETANO_STD = NM3_TO_MWH * 1000.0  # kWh/Sm³
     if tot_e == 0 and tot_vb > 0:
         _pci_use = (pci_sum / remi_days) if remi_days > 0 and pci_sum > 0 else PCI_BIOMETANO_STD
         tot_e = tot_vb * _pci_use

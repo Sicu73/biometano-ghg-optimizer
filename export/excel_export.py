@@ -130,7 +130,7 @@ def _output_model_to_xlsx_ctx(output_model: dict, snapshot: bool = False) -> dic
         "fossil_comparator": plant.get("fossil_comparator", 80.0),
         "ghg_threshold":     plant.get("ghg_threshold", 0.80),
         "plant_net_smch":    plant.get("plant_net_smch", 300.0),
-        "NM3_TO_MWH":        0.00997,
+        "NM3_TO_MWH":        0.00979,
         "MONTHS": [
             "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
             "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre",

@@ -464,7 +464,7 @@ def _build_piano(ws, ctx, db_sheet_name, snapshot: bool = False, lang='it'):
     ghg_threshold    = float(ctx.get("ghg_threshold", 0.65)) * 100
     plant_max_smch   = float(ctx.get("plant_net_smch", 300.0))
     ep_total         = float(ctx.get("ep_total", 0.0))
-    nm3_to_mwh       = float(ctx.get("NM3_TO_MWH", 0.00997))
+    nm3_to_mwh       = float(ctx.get("NM3_TO_MWH", 0.00979))
     # CHP-specific
     plant_kwe        = float(ctx.get("plant_kwe", 999.0))
     eta_el           = float(ctx.get("eta_el", 0.40))
@@ -1187,7 +1187,7 @@ def _build_business_plan(ws, ctx, snapshot: bool = False, lang='it'):
     aux_el_pct    = float(ctx.get("aux_el_pct", 0.0))
     eta_el        = float(ctx.get("eta_el", 0.40))
     aux_factor    = float(ctx.get("aux_factor", 1.29))
-    nm3_to_mwh    = float(ctx.get("NM3_TO_MWH", 0.00997))
+    nm3_to_mwh    = float(ctx.get("NM3_TO_MWH", 0.00979))
     tariffa_eur_mwh = float(ctx.get("bp_tariffa_eff_mwh",
                                      ctx.get("bp_tariffa_eff", 131.0)))
 
@@ -1198,7 +1198,7 @@ def _build_business_plan(ws, ctx, snapshot: bool = False, lang='it'):
         # Fallback se non passato (genera valori tipici per la taglia)
         # Per biometano: scala con plant_smch.
         # Per CHP: scala con plant_kwe.
-        norm_size = plant_size if not is_chp else (plant_size / (eta_el * 9.97))
+        norm_size = plant_size if not is_chp else (plant_size / (eta_el * 9.79))
         # norm_size in Sm3/h equivalenti per scalare CAPEX intensity
         capex_def = {
             "Movimenti terra":     3105.0 * norm_size,
@@ -1217,7 +1217,7 @@ def _build_business_plan(ws, ctx, snapshot: bool = False, lang='it'):
         }
     else:
         # Se passato, le voci capex_breakdown sono €/(Smc/h) -> moltiplica
-        norm_size = plant_size if not is_chp else (plant_size / (eta_el * 9.97))
+        norm_size = plant_size if not is_chp else (plant_size / (eta_el * 9.79))
         capex_def = {k: v * norm_size for k, v in capex_def.items()}
         # Aggiungi voce CHP-specifica se mode CHP
         if is_chp and "Sezione cogenerazione" not in capex_def:
@@ -1230,7 +1230,7 @@ def _build_business_plan(ws, ctx, snapshot: bool = False, lang='it'):
     opex_def = ctx.get("bp_opex_breakdown", {}) or {}
     opex_forfait = ctx.get("bp_opex_forfait", {}) or {}
     if not opex_def:
-        norm_size = plant_size if not is_chp else (plant_size / (eta_el * 9.97))
+        norm_size = plant_size if not is_chp else (plant_size / (eta_el * 9.79))
         opex_def = {
             "O&M digestione":           210.0 * norm_size,
             "O&M upgrading/CHP":        428.0 * norm_size,
@@ -1245,7 +1245,7 @@ def _build_business_plan(ws, ctx, snapshot: bool = False, lang='it'):
         }
         opex_forfait = {"Assicurazioni": 26000.0, "Tasse fisse": 10000.0}
     else:
-        norm_size = plant_size if not is_chp else (plant_size / (eta_el * 9.97))
+        norm_size = plant_size if not is_chp else (plant_size / (eta_el * 9.79))
         opex_def = {k: v * norm_size for k, v in opex_def.items()}
 
     # Finance + economics defaults
@@ -1448,7 +1448,7 @@ def _build_business_plan(ws, ctx, snapshot: bool = False, lang='it'):
     # Per CHP: usiamo norm_size (Sm3/h equivalente) per applicare massimale GSE
     # Per biometano: usiamo plant_size direttamente
     if is_chp:
-        massimale_basis_formula = f"$B$6/(B8*9.97)"  # plant_kwe / (eta_el * 9.97)
+        massimale_basis_formula = f"$B$6/(B8*9.79)"  # plant_kwe / (eta_el * 9.79)
     else:
         massimale_basis_formula = f"$B$6"  # Sm3/h netti
     ws.cell(row=contributo_row, column=1, value="Contributo PNRR [€]")

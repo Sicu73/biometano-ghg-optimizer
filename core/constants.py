@@ -54,9 +54,9 @@ JEC_WTT_V5 = "JEC Well-to-Tank v5 (JRC-CONCAWE-EUCAR)"
 # Fattori energetici
 # ---------------------------------------------------------------------------
 
-LHV_BIOMETHANE_MJ_NM3 = 35.9          # MJ/Nm³ CH4 (RED III default)
-NM3_TO_MWH = 0.00997                  # PCI biometano 97% CH4
-METHANE_PURITY_PCT = 97.0             # purezza biometano default (%)
+LHV_BIOMETHANE_MJ_NM3 = 35.24         # MJ/Nm³ biometano spec rete (UNI EN 16723-1, ~98% CH4)
+NM3_TO_MWH = 0.00979                  # PCI biometano spec rete = 9.79 kWh/Sm³ (UNI EN 16723-1)
+METHANE_PURITY_PCT = 98.0             # purezza biometano default (%) — spec rete
 
 # ---------------------------------------------------------------------------
 # Stoccaggio digestato - Emissioni fuggitive (gCO2eq/MJ biometano)

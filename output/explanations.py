@@ -101,7 +101,7 @@ _GHG_METHOD_IT = (
 _GHG_METHOD_EN = (
     "GHG calculation method (RED III, Annex V Part C):\n"
     "1. For each feedstock the energy contribution is calculated: Eᵢ = Mᵢ × Yᵢ × LHV_CH4 (MJ)\n"
-    "   where M = mass in tonnes, Y = yield Nm³ CH4/t, LHV = 35.9 MJ/Nm³.\n"
+    "   where M = mass in tonnes, Y = yield Nm³ CH4/t, LHV = 35.24 MJ/Nm³ (UNI EN 16723-1).\n"
     "2. Weighted emissions: e_w = Σ(eᵢ × Eᵢ) / ΣEᵢ (gCO₂eq/MJ)\n"
     "   where eᵢ = eecᵢ + etdᵢ + ep - escaᵢ per feedstock.\n"
     "3. GHG Saving = (fossil_comparator - e_w) / fossil_comparator × 100 (%)\n"

@@ -30,7 +30,7 @@ import math
 # Costanti default
 DEFAULT_DURATA_TARIFFA = 15        # anni
 DEFAULT_ORE_ANNO = 8500.0          # ore funzionamento (~97% disponibilità)
-DEFAULT_PCI_KWH_SMC = 9.97         # PCI biometano standard
+DEFAULT_PCI_KWH_SMC = 9.79         # PCI biometano standard (UNI EN 16723-1, ~98% CH4)
 DEFAULT_INFLATION_PCT = 2.5        # % annua OPEX
 DEFAULT_LEVERAGE_PCT = 70.0        # % CAPEX finanziato
 DEFAULT_INTEREST_RATE_PCT = 5.0    # % annuo finanziamento LT

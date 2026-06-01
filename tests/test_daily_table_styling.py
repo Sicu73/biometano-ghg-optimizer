@@ -26,7 +26,7 @@ def _make_entries_and_computed(rows):
             biomass_total_t=float(bm),
             sm3_gross=float(sm3_n) * 1.29,
             sm3_netti=float(sm3_n),
-            mwh=float(sm3_n) * 0.00997,
+            mwh=float(sm3_n) * 0.00979,
             eec=10.0, esca=2.0, etd=1.0, ep=3.0,
             e_total=12.0,
             daily_saving_estimate=float(sav),

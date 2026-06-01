@@ -442,7 +442,7 @@ def compute_revenues(
     tariffa_eur_mwh: float,
     durata_tariffa: int = BP_DURATA_TARIFFA_ANNI,
     ore_anno: float = 8500.0,
-    pci_kwh_per_smc: float = 9.97,
+    pci_kwh_per_smc: float = 9.79,
     ch4_in_biogas_pct: float = 54.25,         # % CH4 nel biogas (tipico)
 ) -> dict:
     """Calcolo Ricavi biometano DM 2022 (15 anni standard)."""
@@ -565,7 +565,7 @@ METHANE_SLIP = {
 ETA_BOILER_BIOGAS = 0.88     # caldaia a biogas/biometano
 ETA_CHP_ELEC      = 0.40     # cogeneratore - efficienza elettrica
 ETA_CHP_THERM     = 0.45     # cogeneratore - efficienza termica (calore recuperato)
-LHV_BIOMETHANE_KWH = LHV_BIOMETHANE / 3.6   # 35.9 MJ/Sm3 = 9.972 kWh/Sm3
+LHV_BIOMETHANE_KWH = LHV_BIOMETHANE / 3.6   # 35.24 MJ/Sm3 = 9.79 kWh/Sm3 (UNI EN 16723-1)
 
 HEAT_IS_INTERNAL = "Autoconsumo biogas/biometano"
 ELEC_IS_INTERNAL = "Autoproduzione FV/cogenerazione"
@@ -1272,7 +1272,7 @@ def ghg_summary(masses: dict, aux: float, ep: float = 0.0,
         if m is None or m <= 0:
             continue
         nm3 = m * _yield_of(name)  # Sm³ biogas lordo da questa biomassa
-        mj  = nm3 * LHV_BIOMETHANE  # MJ sul lordo (PCI biometano ~97% CH4 equiv.)
+        mj  = nm3 * LHV_BIOMETHANE  # MJ sul lordo (PCI biometano spec rete UNI EN 16723-1)
         e   = e_total_feedstock(name, ep)
         total_mj   += mj
         total_e_mj += e * mj
