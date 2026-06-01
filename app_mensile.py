@@ -2732,6 +2732,26 @@ st.markdown(
     [data-testid="stText"] {{
         color: {TEXT_PRIMARY};
     }}
+    /* LAST-WORD FIX: la hero e' HTML dentro stMarkdownContainer; alcuni
+       override globali Streamlit/Markdown arrivano dopo il primo render e
+       possono far diventare scuri eyebrow, titolo e tagline in Light mode. */
+    .stApp [data-testid="stMarkdownContainer"] .methaniq-header,
+    .stApp [data-testid="stMarkdownContainer"] .methaniq-header .eyebrow,
+    .stApp [data-testid="stMarkdownContainer"] .methaniq-header h1,
+    .stApp [data-testid="stMarkdownContainer"] .methaniq-header .tagline,
+    .stApp [data-testid="stMarkdownContainer"] .methaniq-header .tagline * {{
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }}
+    .stApp [data-testid="stMarkdownContainer"] .methaniq-header {{
+        background: {HERO_BG} !important;
+    }}
+    .stApp [data-testid="stMarkdownContainer"] .methaniq-header h1 span {{
+        color: {HERO_DOT} !important;
+        -webkit-text-fill-color: {HERO_DOT} !important;
+    }}
     /* Etichette widget (label sopra input/select/slider/radio/checkbox...) */
     .stApp label,
     [data-testid="stWidgetLabel"],
