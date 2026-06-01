@@ -31,17 +31,17 @@ OUTPUT_PATH = r"C:\Users\CarloSicurini\Downloads\Metan.iQ_Manuale_Utente.pdf"
 # Styles
 styles = getSampleStyleSheet()
 H1 = ParagraphStyle("H1", parent=styles["Heading1"], fontName="Helvetica-Bold",
-                    fontSize=20, textColor=NAVY, spaceAfter=14, spaceBefore=4,
-                    leading=24)
+                    fontSize=20, textColor=NAVY, spaceAfter=16, spaceBefore=0,
+                    leading=24, keepWithNext=1)
 H2 = ParagraphStyle("H2", parent=styles["Heading2"], fontName="Helvetica-Bold",
-                    fontSize=14, textColor=NAVY, spaceAfter=8, spaceBefore=12,
-                    leading=18, borderPadding=0)
+                    fontSize=14, textColor=NAVY, spaceAfter=8, spaceBefore=18,
+                    leading=18, borderPadding=0, keepWithNext=1)
 H3 = ParagraphStyle("H3", parent=styles["Heading3"], fontName="Helvetica-Bold",
-                    fontSize=11, textColor=NAVY_DARK, spaceAfter=4, spaceBefore=8,
-                    leading=14)
+                    fontSize=11, textColor=NAVY_DARK, spaceAfter=4, spaceBefore=10,
+                    leading=14, keepWithNext=1)
 BODY = ParagraphStyle("Body", parent=styles["BodyText"], fontName="Helvetica",
                       fontSize=9.5, textColor=NAVY_DARK, leading=13,
-                      alignment=TA_JUSTIFY, spaceAfter=4)
+                      alignment=TA_JUSTIFY, spaceAfter=6)
 BODY_TIGHT = ParagraphStyle("BodyTight", parent=BODY, spaceAfter=2)
 CODE = ParagraphStyle("Code", parent=styles["Code"], fontName="Courier",
                       fontSize=8.5, textColor=NAVY_DARK, leading=11,
@@ -158,6 +158,31 @@ def bullet_list(items):
         bulletType="bullet", start="-", leftIndent=14,
         bulletFontName="Helvetica-Bold", bulletFontSize=9,
     )
+
+
+def intro_list(intro_text, items, h2_title=None):
+    """Paragrafo intro + lista bullet, tenuti insieme. Opz. include H2 prima."""
+    blocks = []
+    if h2_title:
+        blocks.append(subsec(h2_title))
+    blocks.append(p(intro_text))
+    blocks.append(bullet_list(items))
+    return KeepTogether(blocks)
+
+
+def intro_table(intro_text, header, rows, col_widths=None, h2_title=None):
+    """Paragrafo intro + tabella, tenuti insieme. Opz. include H2 prima."""
+    blocks = []
+    if h2_title:
+        blocks.append(subsec(h2_title))
+    blocks.append(p(intro_text))
+    blocks.append(data_table(header, rows, col_widths))
+    return KeepTogether(blocks)
+
+
+def h2_block(h2_title, *flowables):
+    """H2 + N flowable tenuti insieme nella stessa pagina."""
+    return KeepTogether([subsec(h2_title), *flowables])
 
 
 def kv_table(rows, col_widths=(70*mm, 100*mm)):
@@ -467,8 +492,9 @@ def build():
         "(28-31 a seconda del mese, anno bisestile gestito). Colonne dinamiche "
         "in base alle biomasse selezionate in sidebar."
     ))
-    story.append(p("<b>Colonne tipiche:</b>"))
-    story.append(bullet_list([
+    story.append(intro_list(
+        "<b>Colonne tipiche:</b>",
+        [
         "<b>Data</b> - generata automaticamente.",
         "<b>Trinciato di mais, Liquame suino, ...</b> - una colonna per ogni "
         "biomassa attiva. Input in <b>tonnellate / giorno</b>.",
@@ -486,7 +512,8 @@ def build():
         "Solo informativo, non vincolante.",
         "<b>Cap OK</b> - True se Sm3/h netti <= 300 (o cap autorizzativo).",
         "<b>Cumulato Sm3 / MWh / t</b> - progressivi mese.",
-    ]))
+        ]
+    ))
 
     story.append(subsec("4.2 Workflow giornaliero passo-passo"))
     story.append(data_table(
@@ -512,16 +539,18 @@ def build():
         col_widths=[12*mm, 75*mm, 83*mm]
     ))
 
-    story.append(subsec("4.3 KPI mensili"))
-    story.append(p("Sotto la tabella appaiono 4 metriche principali:"))
-    story.append(bullet_list([
-        "<b>Biomassa mese (t)</b> - totale tonnellate caricate.",
-        "<b>Sm3 netti mese</b> - totale REMI immesso in rete.",
-        "<b>MWh netti mese</b> - energia netta (= Sm3 netti x 0.00979).",
-        "<b>Saving GHG (%)</b> - calcolato sull'aggregato mensile, "
-        "con badge <b>COMPLIANT</b> (verde) o <b>NON COMPLIANT</b> (rosso) "
-        "e indicazione del margine vs soglia.",
-    ]))
+    story.append(intro_list(
+        "Sotto la tabella appaiono 4 metriche principali:",
+        [
+            "<b>Biomassa mese (t)</b> - totale tonnellate caricate.",
+            "<b>Sm3 netti mese</b> - totale REMI immesso in rete.",
+            "<b>MWh netti mese</b> - energia netta (= Sm3 netti x 0.00979).",
+            "<b>Saving GHG (%)</b> - calcolato sull'aggregato mensile, "
+            "con badge <b>COMPLIANT</b> (verde) o <b>NON COMPLIANT</b> (rosso) "
+            "e indicazione del margine vs soglia.",
+        ],
+        h2_title="4.3 KPI mensili",
+    ))
 
     story.append(subsec("4.4 Pulsanti operativi"))
     story.append(data_table(
