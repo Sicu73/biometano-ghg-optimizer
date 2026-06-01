@@ -3005,9 +3005,23 @@ with st.sidebar:
         ep_digestate = EP_DIGESTATE[digestate_opt]
         ep_heat = EP_HEAT[heat_opt]
         ep_elec = EP_ELEC[elec_opt]
-        ep_total = ep_digestate + ep_upgrading + ep_offgas + ep_heat + ep_elec
+        _ep_raw = ep_digestate + ep_upgrading + ep_offgas + ep_heat + ep_elec
+        # RED III All. V Parte C: ep = emissioni da LAVORAZIONE, sempre >= 0.
+        # Le mitigazioni (es. RTO off-gas che riduce il metano slip) possono
+        # AZZERARE il contributo ma NON renderlo un credito negativo: un ep<0
+        # gonfierebbe il saving in modo non difendibile in audit OdC. Floor a 0.
+        ep_total = max(0.0, _ep_raw)
+        _ep_floored = _ep_raw < 0.0
 
-        st.markdown(f"**ep totale: {fmt_it(ep_total, 1, signed=True)} gCO₂/MJ**")
+        if _ep_floored:
+            st.markdown(
+                f"**ep totale: +0,0 gCO₂/MJ** "
+                f"<span style='color:#9A7B3C;'>(grezzo {fmt_it(_ep_raw, 1, signed=True)} "
+                f"→ vincolato a 0: RED III non ammette ep negativo)</span>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(f"**ep totale: {fmt_it(ep_total, 1, signed=True)} gCO₂/MJ**")
 
         # aux_factor
         st.markdown("---")
@@ -5489,8 +5503,13 @@ with tab_business:
             f"- Off-gas: **{fmt_it(ep_offgas, 1, signed=True)}**",
             f"- Calore: **{fmt_it(ep_heat, 1, signed=True)}**",
             f"- Elettricità: **{fmt_it(ep_elec, 1, signed=True)}**",
-            f"- **Totale ep: {fmt_it(ep_total, 1, signed=True)} gCO₂/MJ**",
         ]
+        if globals().get("_ep_floored") or (ep_digestate+ep_upgrading+ep_offgas+ep_heat+ep_elec) < 0:
+            _ep_lines.append(
+                f"- _Somma grezza: {fmt_it(ep_digestate+ep_upgrading+ep_offgas+ep_heat+ep_elec, 1, signed=True)} "
+                f"→ vincolata a 0 (RED III: ep ≥ 0)_"
+            )
+        _ep_lines.append(f"- **Totale ep: {fmt_it(ep_total, 1, signed=True)} gCO₂/MJ**")
         st.markdown("\n".join(_ep_lines))
 
     st.divider()
