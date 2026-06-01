@@ -614,6 +614,12 @@ IT_EN: dict = {
         "Economic KPIs computed with default CAPEX/OPEX. Customize in the "
         "**💼 Complete Business Plan** section at the bottom of the tab.",
     # Pre-existing
+    "Manuale Utente": "User Manual",
+    "Scarica Manuale (PDF)": "Download Manual (PDF)",
+    "Guida operativa completa: funzioni, calcoli GHG, workflow, vincoli normativi, FAQ. 12 capitoli + 3 appendici.":
+        "Complete operating guide: features, GHG calculations, workflow, regulatory constraints, FAQ. 12 chapters + 3 appendices.",
+    "Manuale non disponibile.": "Manual not available.",
+    "Manuale non disponibile": "Manual not available",
     "Termini & Privacy": "Terms & Privacy",
     "Privacy": "Privacy",
     "Termini di Servizio": "Terms of Service",

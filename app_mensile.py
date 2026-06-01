@@ -7226,6 +7226,31 @@ with st.sidebar:
         "border-top:1px solid rgba(148,163,184,0.18);'></div>",
         unsafe_allow_html=True,
     )
+    # Manuale Utente — download PDF brand Metan.iQ
+    with st.expander("📖 " + _t("Manuale Utente"), expanded=False):
+        _manual_path = (
+            Path(__file__).resolve().parent
+            / "docs" / "user_manual" / "Metan.iQ_Manuale_Utente.pdf"
+        )
+        if _manual_path.is_file():
+            st.caption(_t(
+                "Guida operativa completa: funzioni, calcoli GHG, workflow, "
+                "vincoli normativi, FAQ. 12 capitoli + 3 appendici."
+            ))
+            try:
+                _manual_bytes = _manual_path.read_bytes()
+                st.download_button(
+                    "⬇️ " + _t("Scarica Manuale (PDF)"),
+                    data=_manual_bytes,
+                    file_name="Metan.iQ_Manuale_Utente.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="dl_user_manual_sidebar",
+                )
+            except Exception as _man_exc:  # noqa: BLE001
+                st.caption(_t("Manuale non disponibile") + f" ({_man_exc})")
+        else:
+            st.caption(_t("Manuale non disponibile."))
     with st.expander("📜 " + _t("Termini & Privacy"), expanded=False):
         _legal_t1, _legal_t2, _legal_t3 = st.tabs([
             _t("Privacy"), _t("Termini di Servizio"), _t("Licenza"),
