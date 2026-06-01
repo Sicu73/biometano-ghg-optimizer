@@ -2256,7 +2256,7 @@ st.markdown(
     </div>
     <div class="methaniq-credit">
         """ + _t("Ideato e sviluppato da") + """ <b>Carlo Sicurini</b> &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp;
-        """ + _t("Pianificazione mensile e ottimizzazione GHG per impianti di biometano e biogas cogenerativo.") + """
+        """ + _t("Pianificazione mensile e ottimizzazione GHG per impianti di biometano da digestione anaerobica con immissione in rete (DM 2022 / RED III).") + """
     </div>
     """,
     unsafe_allow_html=True,

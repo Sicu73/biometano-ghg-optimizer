@@ -281,10 +281,18 @@ def build():
     story.append(p(
         "<b>Metan.iQ</b> e' una <b>Decision Intelligence Platform</b> "
         "(piattaforma di intelligenza decisionale) progettata per gli "
-        "operatori di impianti di biometano e biogas cogenerativo "
-        "che operano sotto il regime <b>DM 15 settembre 2022</b> "
-        "(incentivazione del biometano immesso in rete) e le direttive "
+        "operatori di <b>impianti di biometano da digestione anaerobica "
+        "con immissione in rete</b>, regolati dal <b>DM 15 settembre 2022</b> "
+        "(incentivazione del biometano immesso in rete) e dalle direttive "
         "europee <b>RED II (2018/2001)</b> e <b>RED III (2023/2413)</b>."
+    ))
+    story.append(p(
+        "Il software opera in modalita' <b>biometano-only</b> "
+        "(APP_MODE = 'biometano' hardcoded nel runtime). Eventuali sezioni "
+        "di autoconsumo CHP modellate dall'app si riferiscono al "
+        "<b>recupero termico/elettrico interno dall'autoconsumo di una "
+        "quota di biometano prodotto</b>, non a un impianto biogas-CHP "
+        "standalone che produce direttamente elettricita' in rete."
     ))
     story.append(p(
         "Lo strumento copre l'intero ciclo operativo dell'impianto a livello "

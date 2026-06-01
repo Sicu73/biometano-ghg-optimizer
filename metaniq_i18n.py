@@ -134,6 +134,8 @@ IT_EN: dict = {
     "Pianificazione e business case per impianti biogas cogenerativi (DM 6/7/2012, ≤1 MW). Bilancio elettrico-termico, tariffa T.O. e saving RED III.": "Planning and business case for biogas CHP plants (DM 6/7/2012, ≤1 MW). Electric-thermal balance, all-inclusive tariff and RED III savings.",
     "DM 2/3/2018 · sistema CIC con double counting per matrici Annex IX (biometano avanzato). Pianificazione mensile, sostenibilità RED II/III e simulazione CIC.": "DM 2/3/2018 · CIC system with double counting for Annex IX feedstocks (advanced biomethane). Monthly planning, RED II/III sustainability and CIC simulation.",
     "Ideato e sviluppato da": "Designed and developed by",
+    "Pianificazione mensile e ottimizzazione GHG per impianti di biometano da digestione anaerobica con immissione in rete (DM 2022 / RED III).":
+        "Monthly planning and GHG optimization for biomethane plants from anaerobic digestion with grid injection (DM 2022 / RED III).",
     "Pianificazione mensile e ottimizzazione GHG per impianti di biometano e biogas cogenerativo.": "Decision intelligence platform for monthly planning and GHG optimization of biomethane and biogas CHP plants.",
     "Tutti i diritti riservati": "All rights reserved",
     "Software fornito «così com'è», senza garanzie né assistenza": "Software provided \"as-is\", without warranty or support",

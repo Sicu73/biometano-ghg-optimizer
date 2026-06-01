@@ -2,7 +2,8 @@
 
 > **Decision Intelligence Platform per biometano DM 2022 / RED III** —
 > Pianificazione mensile, ottimizzazione GHG, business plan e reporting
-> di sostenibilità per impianti di biometano e biogas cogenerativo.
+> di sostenibilità per impianti di biometano da digestione anaerobica
+> con immissione in rete.
 
 [![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)
