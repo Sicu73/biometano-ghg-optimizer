@@ -64,8 +64,8 @@ section[data-testid="stSidebar"] .metaniq-brandcard span[style*="B59450"] {{ col
 [data-testid="stMetricLabel"] p {{ text-transform:uppercase !important; letter-spacing:.12em !important; font-size:.7rem !important; font-weight:600 !important; color:{t['MUTED']} !important; padding-top:10px !important; }}
 /* Label metriche: Streamlit le tronca con ellipsi (nowrap+overflow:hidden) quando
    la colonna è stretta -> testo "non si vede". Forziamo il wrap su più righe. */
-[data-testid="stMetricLabel"], [data-testid="stMetricLabel"] p, [data-testid="stMetricLabel"] > div {{ white-space:normal !important; overflow:visible !important; text-overflow:clip !important; }}
-[data-testid="stMetricValue"] {{ overflow:visible !important; }}
+[data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * {{ white-space:normal !important; overflow:visible !important; text-overflow:clip !important; }}
+[data-testid="stMetricValue"], [data-testid="stMetricValue"] * {{ overflow:visible !important; text-overflow:clip !important; }}
 [data-testid="stMetricValue"] {{ font-family:'Spectral', serif !important; font-weight:500 !important; font-size:2rem !important; letter-spacing:-.02em !important; color:{t['INK']} !important; }}
 [data-testid="stMetricDelta"] {{ color:{t['FOREST']} !important; }}
 .stTabs [data-baseweb="tab-list"] {{ gap:28px !important; border-bottom:1px solid {t['LINE']} !important; }}
@@ -119,6 +119,9 @@ div[data-baseweb="select"] svg {{ color:{t['MUTED']} !important; fill:currentCol
    prime lettere: azzeriamo lo sfondo di ogni figlio e fissiamo il padding sx. */
 span[data-baseweb="tag"][role="button"] {{ background:{t['BRASS']} !important; color:#1C1B16 !important; padding-left:10px !important; overflow:visible !important; }}
 span[data-baseweb="tag"][role="button"] > span, span[data-baseweb="tag"][role="button"] > span * {{ color:#1C1B16 !important; background:transparent !important; margin-left:0 !important; }}
+/* Nome biomassa nel tag: niente troncamento con ellipsi -> mostra il nome intero
+   (il tag si allarga / va a capo). */
+span[data-baseweb="tag"][role="button"] span[title], span[data-baseweb="tag"][role="button"] span[title] * {{ white-space:normal !important; overflow:visible !important; text-overflow:clip !important; max-width:none !important; }}
 span[data-baseweb="tag"][role="button"] [aria-hidden="true"], span[data-baseweb="tag"][role="button"] [role="presentation"] {{ background:transparent !important; }}
 span[data-baseweb="tag"][role="button"] svg {{ fill:#1C1B16 !important; color:#1C1B16 !important; background:transparent !important; }}
 </style>
