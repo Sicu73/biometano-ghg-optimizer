@@ -62,6 +62,10 @@ section[data-testid="stSidebar"] .metaniq-brandcard span[style*="B59450"] {{ col
 [data-testid="stMetric"] {{ background:{t['SURFACE']} !important; border:1px solid {t['LINE']} !important; border-radius:10px !important; padding:18px 20px !important; box-shadow:none !important; position:relative !important; overflow:hidden !important; }}
 [data-testid="stMetric"]::before {{ content:"" !important; position:absolute !important; left:20px !important; top:16px !important; width:12px !important; height:2px !important; background:{t['BRASS']} !important; }}
 [data-testid="stMetricLabel"] p {{ text-transform:uppercase !important; letter-spacing:.12em !important; font-size:.7rem !important; font-weight:600 !important; color:{t['MUTED']} !important; padding-top:10px !important; }}
+/* Label metriche: Streamlit le tronca con ellipsi (nowrap+overflow:hidden) quando
+   la colonna è stretta -> testo "non si vede". Forziamo il wrap su più righe. */
+[data-testid="stMetricLabel"], [data-testid="stMetricLabel"] p, [data-testid="stMetricLabel"] > div {{ white-space:normal !important; overflow:visible !important; text-overflow:clip !important; }}
+[data-testid="stMetricValue"] {{ overflow:visible !important; }}
 [data-testid="stMetricValue"] {{ font-family:'Spectral', serif !important; font-weight:500 !important; font-size:2rem !important; letter-spacing:-.02em !important; color:{t['INK']} !important; }}
 [data-testid="stMetricDelta"] {{ color:{t['FOREST']} !important; }}
 .stTabs [data-baseweb="tab-list"] {{ gap:28px !important; border-bottom:1px solid {t['LINE']} !important; }}
