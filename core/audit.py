@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# Copyright (c) 2026 Carlo Sicurini. All Rights Reserved.
+# Metan.iQ - Biometano GHG Optimizer (DM 2022 / RED III)
+# Proprietary and confidential. See LICENSE for terms.
+# Commercial licensing: carlo@apros-ra.com
 """core/audit.py — Audit log immutabile SQLite (Fase 2.5 IMPLEMENTATA).
 
 Append-only log per tracciabilità GDPR/sicurezza/compliance. Silent failure su
