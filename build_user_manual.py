@@ -43,6 +43,11 @@ BODY = ParagraphStyle("Body", parent=styles["BodyText"], fontName="Helvetica",
                       fontSize=9.5, textColor=NAVY_DARK, leading=13,
                       alignment=TA_JUSTIFY, spaceAfter=6)
 BODY_TIGHT = ParagraphStyle("BodyTight", parent=BODY, spaceAfter=2)
+# Stile per CELLE HEADER tabella (testo bianco su sfondo NAVY).
+# Necessario perche' i Paragraph dentro Table ignorano TEXTCOLOR del TableStyle.
+HEADER_CELL = ParagraphStyle("HeaderCell", parent=BODY_TIGHT, fontName="Helvetica-Bold",
+                              textColor=WHITE, fontSize=9.5, leading=12,
+                              alignment=TA_LEFT)
 CODE = ParagraphStyle("Code", parent=styles["Code"], fontName="Courier",
                       fontSize=8.5, textColor=NAVY_DARK, leading=11,
                       leftIndent=10, backColor=TINT)
@@ -203,7 +208,8 @@ def kv_table(rows, col_widths=(70*mm, 100*mm)):
 def data_table(header, rows, col_widths=None):
     if col_widths is None:
         col_widths = [170*mm / (len(header))] * len(header)
-    data = [[p(f"<b>{c}</b>", BODY_TIGHT) for c in header]] + \
+    # Header row: usa HEADER_CELL (testo bianco) perche' lo sfondo e' NAVY.
+    data = [[p(str(c), HEADER_CELL) for c in header]] + \
            [[p(str(c), BODY_TIGHT) for c in r] for r in rows]
     t = Table(data, colWidths=col_widths, hAlign="LEFT", repeatRows=1)
     t.setStyle(TableStyle([
@@ -1014,38 +1020,83 @@ def build():
     ))
 
     # ---------------- APPENDICE C ----------------
-    story.extend(section("Appendice C - Database biomasse (estratto)"))
+    story.extend(section("Appendice C - Database biomasse completo (42 voci)"))
     story.append(p(
-        "Estratto del FEEDSTOCK_DB del software (42 biomasse totali). "
-        "Mostriamo le piu' comuni; il DB completo e' in app_mensile.py."
+        "Elenco completo delle <b>42 biomasse</b> nel FEEDSTOCK_DB del software, "
+        "estratto direttamente dal codice sorgente "
+        "(<i>app_mensile.py</i>). Valori normativi UNI/TS 11567:2024 Prospetto A.5 "
+        "salvo override BMT / Relazione Tecnica."
     ))
+    # Tutte le 42 biomasse, raggruppate per categoria, estratte da FEEDSTOCK_DB.
+    # Tier: A=default normativo, C=stima conservativa, D=manure credit, A/B=eec=0
+    BIOMASSE_42 = [
+        # === COLTURE DEDICATE (11) ===
+        ["Trinciato di mais",                        "Colture dedicate",            "+29", "0.8", "116.1", "A"],
+        ["Trinciato di sorgo da foraggio",           "Colture dedicate",            "+26", "0.8",  "81.4", "A"],
+        ["Trinciato di sorgo (energetico)",          "Colture dedicate",            "+26", "0.8",  "90.5", "A"],
+        ["Triticale insilato",                       "Colture dedicate",            "+20", "0.8", "106.1", "A"],
+        ["Segale insilata",                          "Colture dedicate",            "+22", "0.8",  "80.0", "A"],
+        ["Orzo insilato",                            "Colture dedicate",            "+22", "0.8",  "82.0", "A"],
+        ["Loietto insilato (ryegrass)",              "Colture dedicate",            "+18", "0.8",  "93.7", "A"],
+        ["Erba medica insilata",                     "Colture dedicate",            "+15", "0.8",  "70.0", "A"],
+        ["Doppia coltura (2° raccolto)",             "Colture dedicate",            "+15", "0.8",  "95.0", "A"],
+        ["Erbaio misto insilato",                    "Colture dedicate",            "+16", "0.8",  "64.0", "A"],
+        ["Barbabietola da zucchero",                 "Colture dedicate",            "+12", "0.8", "105.0", "A"],
+        # === EFFLUENTI ZOOTECNICI (9) ===
+        ["Liquame suino",                            "Effluenti zootecnici",        "-45", "0.8",  "14.0", "D"],
+        ["Liquame bovino",                           "Effluenti zootecnici",        "-45", "0.8",  "14.0", "D"],
+        ["Liquame bufalino",                         "Effluenti zootecnici",        "-45", "0.8",  "14.0", "D"],
+        ["Letame bovino palabile",                   "Effluenti zootecnici",        "-30", "0.8",  "35.0", "D"],
+        ["Letame equino",                            "Effluenti zootecnici",        "-20", "0.8",  "42.0", "D"],
+        ["Pollina ovaiole (aerobico)",               "Effluenti zootecnici",        "+5",  "0.8",  "84.0", "C"],
+        ["Pollina broiler (lettiera)",               "Effluenti zootecnici",        "-15", "0.8", "105.0", "D"],
+        ["Pollina tacchini",                         "Effluenti zootecnici",        "-10", "0.8", "100.0", "D"],
+        ["Deiezioni conigli",                        "Effluenti zootecnici",        "+5",  "0.8",  "75.0", "C"],
+        # === SOTTOPRODOTTI AGROINDUSTRIALI (20) ===
+        ["Sansa di olive umida",                     "Sottoprod. agroindustriali",  "+3",  "0.8", "120.0", "C"],
+        ["Sansa vergine",                            "Sottoprod. agroindustriali",  "+2",  "0.8", "140.0", "C"],
+        ["Pastazzo di agrumi",                       "Sottoprod. agroindustriali",  "+6",  "0.8", "100.0", "C"],
+        ["Vinaccia (con raspi)",                     "Sottoprod. agroindustriali",  "+5",  "0.8", "130.0", "C"],
+        ["Raspi d'uva",                              "Sottoprod. agroindustriali",  "+3",  "0.8",  "70.0", "C"],
+        ["Feccia vinicola",                          "Sottoprod. agroindustriali",  "+3",  "0.8", "180.0", "C"],
+        ["Siero di latte",                           "Sottoprod. agroindustriali",  "+3",  "0.8",  "30.0", "C"],
+        ["Scotta (siero residuo)",                   "Sottoprod. agroindustriali",  "+2",  "0.8",  "22.0", "C"],
+        ["Trebbie di birra",                         "Sottoprod. agroindustriali",  "+4",  "0.8", "140.0", "C"],
+        ["Lolla/pula di riso",                       "Sottoprod. agroindustriali",  "+2",  "0.8",  "50.0", "C"],
+        ["Melasso",                                  "Sottoprod. agroindustriali",  "+8",  "0.8", "180.0", "A"],
+        ["Scarti panificazione/pasticceria",         "Sottoprod. agroindustriali",  "+5",  "0.8", "280.0", "C"],
+        ["Grassi esausti / UCO",                     "Sottoprod. agroindustriali",  "+2",  "0.8", "700.0", "C"],
+        ["Scarti macellazione (cat. 3)",             "Sottoprod. agroindustriali",  "+5",  "0.8", "180.0", "C"],
+        ["Sottoprodotti ortofrutticoli",             "Sottoprod. agroindustriali",  "+7",  "0.8", "100.0", "A"],
+        ["Scarti caseari vari",                      "Sottoprod. agroindustriali",  "+4",  "0.8",  "40.0", "C"],
+        ["Fanghi agro-industriali",                  "Sottoprod. agroindustriali",  "+3",  "0.8",  "55.0", "C"],
+        ["Polpe di barbabietola fresche",            "Sottoprod. agroindustriali",   "0",  "2.0",  "50.0", "A/B"],
+        ["Polpe di barbabietola insilate",           "Sottoprod. agroindustriali",   "0",  "2.5",  "75.0", "A/B"],
+        ["Melasso di barbabietola",                  "Sottoprod. agroindustriali",   "0",  "1.5", "280.0", "A/B"],
+        # === FORSU / RIFIUTI (2) ===
+        ["FORSU selezionata",                        "FORSU / Rifiuti",              "0",  "0.8",  "64.8", "A/B"],
+        ["Fanghi depurazione",                       "FORSU / Rifiuti",              "0",  "0.8",  "13.0", "A/B"],
+    ]
     story.append(data_table(
-        ["Biomassa", "Categoria", "eec", "etd", "Resa Nm3CH4/t", "Tier"],
-        [
-            ["Trinciato di mais", "Colture dedicate", "29.0", "0.8", "116.1", "A"],
-            ["Trinciato di sorgo da foraggio", "Colture dedicate", "26.0", "0.8", "81.4", "A"],
-            ["Triticale insilato", "Colture dedicate", "29.0", "0.8", "100", "A"],
-            ["FORSU", "Rifiuto", "0.0", "0.8", "64.8", "A"],
-            ["Fanghi depurazione", "Rifiuto", "0.0", "0.8", "13.0", "A"],
-            ["Liquame suino", "Reflui zootecnici", "-45.0", "0.8", "14.0", "D"],
-            ["Liquame bovino", "Reflui zootecnici", "-45.0", "0.8", "14.0", "D"],
-            ["Liquame bufalino", "Reflui zootecnici", "-45.0", "0.8", "13.0", "D"],
-            ["Letame bovino palabile", "Reflui zootecnici", "-45.0", "0.8", "35.0", "D"],
-            ["Pollina broiler (lettiera)", "Reflui zootecnici", "-15.0", "0.8", "105.0", "D"],
-            ["Pollina ovaiole (aerobico)", "Reflui zootecnici", "+5.0", "0.8", "84.0", "C"],
-            ["Pollina tacchini", "Reflui zootecnici", "-15.0", "0.8", "95.0", "D"],
-            ["Paglia cereali", "Residuo colturale", "0.0", "0.8", "60.0", "A"],
-            ["Polpe sorpressate bietola", "Sottoprodotto industria", "0.0", "0.8", "57.0", "A"],
-            ["Sansa olive umida", "Sottoprodotto industria", "0.0", "0.8", "44.0", "A"],
-        ],
-        col_widths=[50*mm, 35*mm, 15*mm, 14*mm, 32*mm, 14*mm]
+        ["#", "Biomassa", "Categoria", "eec", "etd", "Resa Nm3CH4/t", "Tier"],
+        [[str(i)] + row for i, row in enumerate(BIOMASSE_42, 1)],
+        col_widths=[8*mm, 55*mm, 45*mm, 14*mm, 12*mm, 24*mm, 12*mm]
     ))
     story.append(callout(
-        "<b>Legenda Tier:</b><br/>"
-        "<b>A</b> = Default normativo (Prospetto A.5 UNI/TS 11567:2024)<br/>"
-        "<b>B</b> = Zero da regola (Annex IX non tabulato)<br/>"
-        "<b>C</b> = Stima conservativa (no manure credit, es. pollina aerobica)<br/>"
-        "<b>D</b> = Manure credit (richiede dichiarazione baseline fornitore)"
+        "<b>Legenda Tier (livello difendibilita' eec in audit OdC):</b><br/>"
+        "<b>A</b> = Default normativo tabulato (Prospetto A.5 UNI/TS 11567:2024).<br/>"
+        "<b>A/B</b> = eec = 0 da regola (rifiuti, sottoprodotti, residui colturali).<br/>"
+        "<b>C</b> = Stima conservativa positiva (no manure credit, es. pollina ovaiole aerobica). "
+        "Valore non tabulato A.5, ma a sfavore dell'operatore --> non contestabile in audit.<br/>"
+        "<b>D</b> = Manure credit (eec negativo). Richiede <b>dichiarazione baseline fornitore</b> "
+        "(stoccaggio in vasca/lagone aperto). Se fornitore ha vasca coperta con captazione, "
+        "il credit va ridotto/annullato."
+    ))
+    story.append(Spacer(1, 6))
+    story.append(p(
+        "<b>Distribuzione delle 42 voci:</b> Colture dedicate 11 | Effluenti zootecnici 9 "
+        "| Sottoprodotti agroindustriali 20 | FORSU/Rifiuti 2.",
+        NOTE
     ))
 
     story.append(Spacer(1, 20))
