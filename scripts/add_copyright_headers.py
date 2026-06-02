@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Inserisce header di copyright proprietario nei moduli Python principali.
 
 Idempotente: se l'header e' gia' presente, salta il file.
@@ -13,7 +13,7 @@ HEADER = (
     "# Copyright (c) 2026 Carlo Sicurini. All Rights Reserved.\n"
     "# Metan.iQ - Biometano GHG Optimizer (DM 2022 / RED III)\n"
     "# Proprietary and confidential. See LICENSE for terms.\n"
-    "# Commercial licensing: carlo@apros-ra.com\n"
+    "# Commercial licensing: carlo.sicurini@gmail.com\n"
 )
 
 MARKER = "Copyright (c) 2026 Carlo Sicurini"

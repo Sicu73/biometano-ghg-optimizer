@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 # Copyright (c) 2026 Carlo Sicurini. All Rights Reserved.
 # Metan.iQ - Biometano GHG Optimizer (DM 2022 / RED III)
 # Proprietary and confidential. See LICENSE for terms.
-# Commercial licensing: carlo@apros-ra.com
+# Commercial licensing: carlo.sicurini@gmail.com
 """core/ls_identifier.py — Generatore ID Lotto di Sostenibilità (LS).
 
 Conforme a UNI/TS 11567:2024 § Tracciabilità: ogni LS deve essere

@@ -1,4 +1,4 @@
-# Metan.iQ
+﻿# Metan.iQ
 
 > **Decision Intelligence Platform per biometano DM 2022 / RED III** —
 > Pianificazione mensile, ottimizzazione GHG, business plan e reporting
@@ -192,7 +192,7 @@ ai sensi del diritto d'autore italiano (L. 633/1941) e internazionale
 Per **licenze commerciali**, **partnership**, **white-label**, **integrazioni
 API** o uso in **audit di terzi**:
 
-**Carlo Sicurini** — [carlo@apros-ra.com](mailto:carlo@apros-ra.com)
+**Carlo Sicurini** — [carlo.sicurini@gmail.com](mailto:carlo.sicurini@gmail.com)
 
 ## 🔒 Privacy
 

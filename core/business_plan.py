@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 # Copyright (c) 2026 Carlo Sicurini. All Rights Reserved.
 # Metan.iQ - Biometano GHG Optimizer (DM 2022 / RED III)
 # Proprietary and confidential. See LICENSE for terms.
-# Commercial licensing: carlo@apros-ra.com
+# Commercial licensing: carlo.sicurini@gmail.com
 """core/business_plan.py — Business Plan multi-anno con IRR / NPV / Payback.
 
 Engine finanziario per la valutazione di un impianto biometano DM 2022.
