@@ -1,8 +1,18 @@
 """
-Generatore del Manuale Utente PDF per Metan.iQ.
-Uso: python build_user_manual.py
-Output: C:/Users/CarloSicurini/Downloads/Metan.iQ_Manuale_Utente.pdf
+Generatore Manuale Utente PDF per Metan.iQ — versione bilingue IT / EN.
+
+Uso:
+    python build_user_manual.py            # genera entrambi IT + EN
+    python build_user_manual.py it         # solo IT
+    python build_user_manual.py en         # solo EN
+
+Output:
+    C:/Users/CarloSicurini/Downloads/Metan.iQ_Manuale_Utente_IT.pdf
+    C:/Users/CarloSicurini/Downloads/Metan.iQ_Manuale_Utente_EN.pdf
 """
+import sys
+from datetime import date
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
@@ -12,11 +22,10 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle,
     KeepTogether, ListFlowable, ListItem
 )
-from reportlab.platypus.doctemplate import PageTemplate, BaseDocTemplate
+from reportlab.platypus.doctemplate import PageTemplate, BaseDocTemplate, NextPageTemplate
 from reportlab.platypus.frames import Frame
-from datetime import date
 
-# Brand colors Metan.iQ
+# --- Brand colors -----------------------------------------------------------
 NAVY = colors.HexColor("#0B1E3A")
 NAVY_DARK = colors.HexColor("#061327")
 AMBER = colors.HexColor("#F5B100")
@@ -26,9 +35,91 @@ GREY_LIGHT = colors.HexColor("#CCCCCC")
 TINT = colors.HexColor("#F2F4F8")
 WHITE = colors.white
 
-OUTPUT_PATH = r"C:\Users\CarloSicurini\Downloads\Metan.iQ_Manuale_Utente.pdf"
+# --- Output paths -----------------------------------------------------------
+OUTPUT_PATHS = {
+    "it": r"C:\Users\CarloSicurini\Downloads\Metan.iQ_Manuale_Utente_IT.pdf",
+    "en": r"C:\Users\CarloSicurini\Downloads\Metan.iQ_Manuale_Utente_EN.pdf",
+}
 
-# Styles
+# ============================================================
+# STRINGHE TESTUALI - IT / EN
+# ============================================================
+S = {
+    # Cover
+    "doc_title_pdf":    {"it": "Metan.iQ - Manuale Utente",
+                         "en": "Metan.iQ - User Manual"},
+    "doc_subject":      {"it": "Manuale operativo software Metan.iQ",
+                         "en": "Metan.iQ software operating manual"},
+    "cover_subtitle1":  {"it": "Decision Intelligence Platform",
+                         "en": "Decision Intelligence Platform"},
+    "cover_subtitle2":  {"it": "per biometano DM 2022 / RED III",
+                         "en": "for biomethane DM 2022 / RED III"},
+    "cover_title":      {"it": "MANUALE UTENTE",
+                         "en": "USER MANUAL"},
+    "cover_tagline":    {"it": "Guida operativa completa - funzioni, calcoli, workflow",
+                         "en": "Complete operating guide - features, calculations, workflow"},
+    "cover_version":    {"it": "Versione documento: 1.0",
+                         "en": "Document version: 1.0"},
+    "cover_date":       {"it": "Data emissione: ",
+                         "en": "Issue date: "},
+    "cover_software":   {"it": "Software: Metan.iQ v0.5.0 - branch dm2022-only",
+                         "en": "Software: Metan.iQ v0.5.0 - branch dm2022-only"},
+    "cover_copyright":  {"it": "(c) Carlo Sicurini - Tutti i diritti riservati",
+                         "en": "(c) Carlo Sicurini - All rights reserved"},
+    # Header / footer
+    "header_doc":       {"it": "Manuale Utente",
+                         "en": "User Manual"},
+    "footer_company":   {"it": "(c) Metan.iQ - Decision Intelligence Platform per biometano DM 2022 / RED III",
+                         "en": "(c) Metan.iQ - Decision Intelligence Platform for biomethane DM 2022 / RED III"},
+    "footer_page":      {"it": "Pag. ",
+                         "en": "Page "},
+    # TOC
+    "toc_title":        {"it": "Indice",
+                         "en": "Table of contents"},
+    # Sezioni capitoli
+    "ch1":   {"it": "1. Scopo del software e contesto normativo",
+              "en": "1. Software scope and regulatory context"},
+    "ch2":   {"it": "2. Architettura e tecnologie",
+              "en": "2. Architecture and technologies"},
+    "ch3":   {"it": "3. Avvio dell'app: prima schermata e sidebar",
+              "en": "3. Launching the app: first screen and sidebar"},
+    "ch4":   {"it": "4. Tab 1 - Conduzione Giornaliera Standard (UNI-TS / RED III)",
+              "en": "4. Tab 1 - Daily Operations Standard (UNI-TS / RED III)"},
+    "ch5":   {"it": "5. Tab 2 - Conduzione Giornaliera Analisi (BMT / Override EF)",
+              "en": "5. Tab 2 - Daily Operations Analysis (BMT / EF Override)"},
+    "ch6":   {"it": "6. Tab 3 - Risultati, Incentivi e Business Plan",
+              "en": "6. Tab 3 - Results, Incentives and Business Plan"},
+    "ch7":   {"it": "7. Logica di calcolo GHG (RED III All.V Parte C)",
+              "en": "7. GHG calculation logic (RED III Annex V Part C)"},
+    "ch8":   {"it": "8. Calcolo aux_factor e bilancio energetico",
+              "en": "8. aux_factor calculation and energy balance"},
+    "ch9":   {"it": "9. Vincoli normativi e verifica compliance mensile",
+              "en": "9. Regulatory constraints and monthly compliance check"},
+    "ch10":  {"it": "10. Export: PDF, Excel, CSV",
+              "en": "10. Export: PDF, Excel, CSV"},
+    "ch11":  {"it": "11. Anagrafica impianto e audit trail",
+              "en": "11. Plant registry and audit trail"},
+    "ch12":  {"it": "12. FAQ e troubleshooting",
+              "en": "12. FAQ and troubleshooting"},
+    "appA":  {"it": "Appendice A - Formule normative complete",
+              "en": "Appendix A - Complete regulatory formulas"},
+    "appB":  {"it": "Appendice B - Costanti fisiche e fattori emissivi",
+              "en": "Appendix B - Physical constants and emission factors"},
+    "appC":  {"it": "Appendice C - Database biomasse completo (42 voci)",
+              "en": "Appendix C - Complete feedstock database (42 entries)"},
+}
+
+
+def t(key, lang):
+    """Restituisce la stringa nel linguaggio richiesto, fallback IT."""
+    if key not in S:
+        return f"[{key}]"
+    return S[key].get(lang) or S[key].get("it") or f"[{key}]"
+
+
+# ============================================================
+# STYLES
+# ============================================================
 styles = getSampleStyleSheet()
 H1 = ParagraphStyle("H1", parent=styles["Heading1"], fontName="Helvetica-Bold",
                     fontSize=20, textColor=NAVY, spaceAfter=16, spaceBefore=0,
@@ -43,8 +134,6 @@ BODY = ParagraphStyle("Body", parent=styles["BodyText"], fontName="Helvetica",
                       fontSize=9.5, textColor=NAVY_DARK, leading=13,
                       alignment=TA_JUSTIFY, spaceAfter=6)
 BODY_TIGHT = ParagraphStyle("BodyTight", parent=BODY, spaceAfter=2)
-# Stile per CELLE HEADER tabella (testo bianco su sfondo NAVY).
-# Necessario perche' i Paragraph dentro Table ignorano TEXTCOLOR del TableStyle.
 HEADER_CELL = ParagraphStyle("HeaderCell", parent=BODY_TIGHT, fontName="Helvetica-Bold",
                               textColor=WHITE, fontSize=9.5, leading=12,
                               alignment=TA_LEFT)
@@ -53,88 +142,70 @@ CODE = ParagraphStyle("Code", parent=styles["Code"], fontName="Courier",
                       leftIndent=10, backColor=TINT)
 NOTE = ParagraphStyle("Note", parent=BODY, fontSize=8.5, textColor=GREY,
                       leftIndent=8, leading=11, alignment=TA_LEFT)
-COVER_TITLE = ParagraphStyle("CoverTitle", parent=H1, fontSize=42,
-                             leading=46, alignment=TA_LEFT, textColor=WHITE,
-                             spaceAfter=8)
-COVER_SUB = ParagraphStyle("CoverSub", parent=BODY, fontSize=14,
-                           leading=18, alignment=TA_LEFT, textColor=AMBER,
-                           spaceAfter=20)
-COVER_META = ParagraphStyle("CoverMeta", parent=BODY, fontSize=10,
-                            leading=13, alignment=TA_LEFT, textColor=CREAM)
 
 # ============================================================
-# PAGE TEMPLATES
+# COVER + PAGE TEMPLATES (bilingue via closure)
 # ============================================================
 
-def cover_page(canvas, doc):
-    canvas.saveState()
-    # Sfondo navy
-    canvas.setFillColor(NAVY)
-    canvas.rect(0, 0, A4[0], A4[1], fill=1, stroke=0)
-    # Banda amber bottom
-    canvas.setFillColor(AMBER)
-    canvas.rect(0, 0, A4[0], 8*mm, fill=1, stroke=0)
-    canvas.setFillColor(AMBER)
-    canvas.rect(0, A4[1]-4*mm, A4[0], 4*mm, fill=1, stroke=0)
-    # Logo testo
-    canvas.setFillColor(WHITE)
-    canvas.setFont("Helvetica-Bold", 56)
-    canvas.drawString(25*mm, A4[1]-80*mm, "Metan.")
-    canvas.setFillColor(AMBER)
-    canvas.drawString(25*mm + canvas.stringWidth("Metan.", "Helvetica-Bold", 56),
-                      A4[1]-80*mm, "iQ")
-    # Sottotitolo
-    canvas.setFillColor(CREAM)
-    canvas.setFont("Helvetica", 14)
-    canvas.drawString(25*mm, A4[1]-92*mm, "Decision Intelligence Platform")
-    canvas.drawString(25*mm, A4[1]-99*mm, "per biometano DM 2022 / RED III")
-    # Box titolo manuale
-    canvas.setStrokeColor(AMBER)
-    canvas.setLineWidth(2)
-    canvas.line(25*mm, A4[1]-115*mm, A4[0]-25*mm, A4[1]-115*mm)
-    canvas.setFillColor(WHITE)
-    canvas.setFont("Helvetica-Bold", 28)
-    canvas.drawString(25*mm, A4[1]-135*mm, "MANUALE UTENTE")
-    canvas.setFillColor(AMBER)
-    canvas.setFont("Helvetica", 12)
-    canvas.drawString(25*mm, A4[1]-145*mm,
-                      "Guida operativa completa - funzioni, calcoli, workflow")
-    # Footer cover
-    canvas.setFillColor(CREAM)
-    canvas.setFont("Helvetica", 9)
-    canvas.drawString(25*mm, 20*mm, "Versione documento: 1.0")
-    canvas.drawString(25*mm, 16*mm,
-                      f"Data emissione: {date.today().strftime('%d/%m/%Y')}")
-    canvas.drawString(25*mm, 12*mm,
-                      "Software: Metan.iQ v0.5.0 - branch dm2022-only")
-    canvas.drawRightString(A4[0]-25*mm, 12*mm,
-                           "(c) Carlo Sicurini - Tutti i diritti riservati")
-    canvas.restoreState()
+def make_cover_page(lang):
+    def cover_page(canvas, doc):
+        canvas.saveState()
+        canvas.setFillColor(NAVY)
+        canvas.rect(0, 0, A4[0], A4[1], fill=1, stroke=0)
+        canvas.setFillColor(AMBER)
+        canvas.rect(0, 0, A4[0], 8*mm, fill=1, stroke=0)
+        canvas.rect(0, A4[1]-4*mm, A4[0], 4*mm, fill=1, stroke=0)
+        canvas.setFillColor(WHITE)
+        canvas.setFont("Helvetica-Bold", 56)
+        canvas.drawString(25*mm, A4[1]-80*mm, "Metan.")
+        canvas.setFillColor(AMBER)
+        canvas.drawString(25*mm + canvas.stringWidth("Metan.", "Helvetica-Bold", 56),
+                          A4[1]-80*mm, "iQ")
+        canvas.setFillColor(CREAM)
+        canvas.setFont("Helvetica", 14)
+        canvas.drawString(25*mm, A4[1]-92*mm, t("cover_subtitle1", lang))
+        canvas.drawString(25*mm, A4[1]-99*mm, t("cover_subtitle2", lang))
+        canvas.setStrokeColor(AMBER)
+        canvas.setLineWidth(2)
+        canvas.line(25*mm, A4[1]-115*mm, A4[0]-25*mm, A4[1]-115*mm)
+        canvas.setFillColor(WHITE)
+        canvas.setFont("Helvetica-Bold", 28)
+        canvas.drawString(25*mm, A4[1]-135*mm, t("cover_title", lang))
+        canvas.setFillColor(AMBER)
+        canvas.setFont("Helvetica", 12)
+        canvas.drawString(25*mm, A4[1]-145*mm, t("cover_tagline", lang))
+        canvas.setFillColor(CREAM)
+        canvas.setFont("Helvetica", 9)
+        canvas.drawString(25*mm, 20*mm, t("cover_version", lang))
+        canvas.drawString(25*mm, 16*mm,
+                          t("cover_date", lang) + date.today().strftime("%d/%m/%Y"))
+        canvas.drawString(25*mm, 12*mm, t("cover_software", lang))
+        canvas.drawRightString(A4[0]-25*mm, 12*mm, t("cover_copyright", lang))
+        canvas.restoreState()
+    return cover_page
 
 
-def std_page(canvas, doc):
-    canvas.saveState()
-    # Header
-    canvas.setFillColor(NAVY)
-    canvas.rect(0, A4[1]-18*mm, A4[0], 18*mm, fill=1, stroke=0)
-    canvas.setFillColor(AMBER)
-    canvas.rect(0, A4[1]-19*mm, A4[0], 1*mm, fill=1, stroke=0)
-    canvas.setFillColor(WHITE)
-    canvas.setFont("Helvetica-Bold", 11)
-    canvas.drawString(20*mm, A4[1]-12*mm, "Metan.iQ")
-    canvas.setFillColor(AMBER)
-    canvas.setFont("Helvetica", 9)
-    canvas.drawRightString(A4[0]-20*mm, A4[1]-12*mm, "Manuale Utente")
-    # Footer
-    canvas.setFillColor(GREY)
-    canvas.setFont("Helvetica", 8)
-    canvas.drawString(20*mm, 12*mm,
-                      "(c) Metan.iQ - Decision Intelligence Platform per biometano DM 2022 / RED III")
-    canvas.drawRightString(A4[0]-20*mm, 12*mm, f"Pag. {doc.page}")
-    # Banda amber bottom
-    canvas.setFillColor(AMBER)
-    canvas.rect(0, 6*mm, A4[0], 1*mm, fill=1, stroke=0)
-    canvas.restoreState()
+def make_std_page(lang):
+    def std_page(canvas, doc):
+        canvas.saveState()
+        canvas.setFillColor(NAVY)
+        canvas.rect(0, A4[1]-18*mm, A4[0], 18*mm, fill=1, stroke=0)
+        canvas.setFillColor(AMBER)
+        canvas.rect(0, A4[1]-19*mm, A4[0], 1*mm, fill=1, stroke=0)
+        canvas.setFillColor(WHITE)
+        canvas.setFont("Helvetica-Bold", 11)
+        canvas.drawString(20*mm, A4[1]-12*mm, "Metan.iQ")
+        canvas.setFillColor(AMBER)
+        canvas.setFont("Helvetica", 9)
+        canvas.drawRightString(A4[0]-20*mm, A4[1]-12*mm, t("header_doc", lang))
+        canvas.setFillColor(GREY)
+        canvas.setFont("Helvetica", 8)
+        canvas.drawString(20*mm, 12*mm, t("footer_company", lang))
+        canvas.drawRightString(A4[0]-20*mm, 12*mm, f"{t('footer_page', lang)}{doc.page}")
+        canvas.setFillColor(AMBER)
+        canvas.rect(0, 6*mm, A4[0], 1*mm, fill=1, stroke=0)
+        canvas.restoreState()
+    return std_page
 
 
 # ============================================================
@@ -153,20 +224,15 @@ def subsec(title):
     return Paragraph(title, H2)
 
 
-def subsub(title):
-    return Paragraph(title, H3)
-
-
 def bullet_list(items):
     return ListFlowable(
-        [ListItem(p(t), leftIndent=0) for t in items],
+        [ListItem(p(i), leftIndent=0) for i in items],
         bulletType="bullet", start="-", leftIndent=14,
         bulletFontName="Helvetica-Bold", bulletFontSize=9,
     )
 
 
 def intro_list(intro_text, items, h2_title=None):
-    """Paragrafo intro + lista bullet, tenuti insieme. Opz. include H2 prima."""
     blocks = []
     if h2_title:
         blocks.append(subsec(h2_title))
@@ -175,25 +241,10 @@ def intro_list(intro_text, items, h2_title=None):
     return KeepTogether(blocks)
 
 
-def intro_table(intro_text, header, rows, col_widths=None, h2_title=None):
-    """Paragrafo intro + tabella, tenuti insieme. Opz. include H2 prima."""
-    blocks = []
-    if h2_title:
-        blocks.append(subsec(h2_title))
-    blocks.append(p(intro_text))
-    blocks.append(data_table(header, rows, col_widths))
-    return KeepTogether(blocks)
-
-
-def h2_block(h2_title, *flowables):
-    """H2 + N flowable tenuti insieme nella stessa pagina."""
-    return KeepTogether([subsec(h2_title), *flowables])
-
-
 def kv_table(rows, col_widths=(70*mm, 100*mm)):
     data = [[p(f"<b>{k}</b>", BODY_TIGHT), p(v, BODY_TIGHT)] for k, v in rows]
-    t = Table(data, colWidths=col_widths, hAlign="LEFT")
-    t.setStyle(TableStyle([
+    tbl = Table(data, colWidths=col_widths, hAlign="LEFT")
+    tbl.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (0, -1), TINT),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("GRID", (0, 0), (-1, -1), 0.3, GREY_LIGHT),
@@ -202,19 +253,17 @@ def kv_table(rows, col_widths=(70*mm, 100*mm)):
         ("TOPPADDING", (0, 0), (-1, -1), 4),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
     ]))
-    return t
+    return tbl
 
 
 def data_table(header, rows, col_widths=None):
     if col_widths is None:
-        col_widths = [170*mm / (len(header))] * len(header)
-    # Header row: usa HEADER_CELL (testo bianco) perche' lo sfondo e' NAVY.
+        col_widths = [170*mm / len(header)] * len(header)
     data = [[p(str(c), HEADER_CELL) for c in header]] + \
            [[p(str(c), BODY_TIGHT) for c in r] for r in rows]
-    t = Table(data, colWidths=col_widths, hAlign="LEFT", repeatRows=1)
-    t.setStyle(TableStyle([
+    tbl = Table(data, colWidths=col_widths, hAlign="LEFT", repeatRows=1)
+    tbl.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), NAVY),
-        ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, TINT]),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("GRID", (0, 0), (-1, -1), 0.3, GREY_LIGHT),
@@ -223,14 +272,23 @@ def data_table(header, rows, col_widths=None):
         ("TOPPADDING", (0, 0), (-1, -1), 3),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]))
-    return t
+    return tbl
+
+
+def intro_table(intro_text, header, rows, col_widths=None, h2_title=None):
+    blocks = []
+    if h2_title:
+        blocks.append(subsec(h2_title))
+    blocks.append(p(intro_text))
+    blocks.append(data_table(header, rows, col_widths))
+    return KeepTogether(blocks)
 
 
 def callout(text, kind="info"):
     bg = TINT if kind == "info" else colors.HexColor("#FFF4E0")
     border = AMBER if kind == "warn" else GREY_LIGHT
-    t = Table([[p(text)]], colWidths=[170*mm])
-    t.setStyle(TableStyle([
+    tbl = Table([[p(text)]], colWidths=[170*mm])
+    tbl.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), bg),
         ("BOX", (0, 0), (-1, -1), 0.8, border),
         ("LEFTPADDING", (0, 0), (-1, -1), 10),
@@ -238,64 +296,1038 @@ def callout(text, kind="info"):
         ("TOPPADDING", (0, 0), (-1, -1), 6),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
     ]))
-    return t
+    return tbl
 
 
 # ============================================================
-# BUILD DOCUMENT
+# BIOMASSE 42 (estratte da FEEDSTOCK_DB con ast.literal_eval)
+# Etichette categoria tradotte. Nomi biomasse mantenuti in IT (sono i nomi
+# tecnici-commerciali italiani di filiera, usati in audit RINA/SGS/ISCC e GSE).
 # ============================================================
 
-def build():
-    doc = BaseDocTemplate(
-        OUTPUT_PATH, pagesize=A4,
-        leftMargin=20*mm, rightMargin=20*mm,
-        topMargin=24*mm, bottomMargin=22*mm,
-        title="Metan.iQ - Manuale Utente",
-        author="Carlo Sicurini",
-        subject="Manuale operativo software Metan.iQ",
-    )
-    frame_cover = Frame(0, 0, A4[0], A4[1], leftPadding=0, rightPadding=0,
-                        topPadding=0, bottomPadding=0, id="cover")
-    frame_std = Frame(20*mm, 22*mm, A4[0]-40*mm, A4[1]-46*mm,
-                      leftPadding=0, rightPadding=0,
-                      topPadding=0, bottomPadding=0, id="std")
-    doc.addPageTemplates([
-        PageTemplate(id="cover", frames=[frame_cover], onPage=cover_page),
-        PageTemplate(id="std", frames=[frame_std], onPage=std_page),
-    ])
+def categoria(lang, key):
+    cats = {
+        "colture":  {"it": "Colture dedicate",
+                     "en": "Energy crops"},
+        "effluenti": {"it": "Effluenti zootecnici",
+                      "en": "Animal manure"},
+        "sottop":   {"it": "Sottoprod. agroindustriali",
+                     "en": "Agro-industrial by-products"},
+        "forsu":    {"it": "FORSU / Rifiuti",
+                     "en": "OFMSW / Waste"},
+    }
+    return cats[key][lang]
 
-    story = []
 
-    # ---------------- COVER ----------------
-    story.append(Spacer(1, 1))
-    story.append(PageBreak())  # apre la pagina cover, poi passa a std
-
-    # Forziamo passaggio al template std
-    from reportlab.platypus.doctemplate import NextPageTemplate
-    story.insert(0, NextPageTemplate("cover"))
-    story.insert(2, NextPageTemplate("std"))
-
-    # ---------------- INDICE ----------------
-    story.append(p("Indice", H1))
-    toc_rows = [
-        ("1.", "Scopo del software e contesto normativo"),
-        ("2.", "Architettura e tecnologie"),
-        ("3.", "Avvio dell'app: prima schermata e sidebar"),
-        ("4.", "Tab 1 - Conduzione Giornaliera Standard (UNI-TS / RED III)"),
-        ("5.", "Tab 2 - Conduzione Giornaliera Analisi (BMT / Override EF)"),
-        ("6.", "Tab 3 - Risultati, Incentivi e Business Plan"),
-        ("7.", "Logica di calcolo GHG (RED III All.V Parte C)"),
-        ("8.", "Calcolo aux_factor e bilancio energetico"),
-        ("9.", "Vincoli normativi e verifica compliance mensile"),
-        ("10.", "Export: PDF, Excel, CSV"),
-        ("11.", "Anagrafica impianto e audit trail"),
-        ("12.", "FAQ e troubleshooting"),
-        ("A.", "Appendice - Formule normative complete"),
-        ("B.", "Appendice - Costanti fisiche e fattori emissivi"),
-        ("C.", "Appendice - Database biomasse (estratto)"),
+def make_biomasse_42(lang):
+    C = lambda k: categoria(lang, k)
+    return [
+        ["Trinciato di mais",                  C("colture"),  "+29", "0.8", "116.1", "A"],
+        ["Trinciato di sorgo da foraggio",     C("colture"),  "+26", "0.8",  "81.4", "A"],
+        ["Trinciato di sorgo (energetico)",    C("colture"),  "+26", "0.8",  "90.5", "A"],
+        ["Triticale insilato",                 C("colture"),  "+20", "0.8", "106.1", "A"],
+        ["Segale insilata",                    C("colture"),  "+22", "0.8",  "80.0", "A"],
+        ["Orzo insilato",                      C("colture"),  "+22", "0.8",  "82.0", "A"],
+        ["Loietto insilato (ryegrass)",        C("colture"),  "+18", "0.8",  "93.7", "A"],
+        ["Erba medica insilata",               C("colture"),  "+15", "0.8",  "70.0", "A"],
+        ["Doppia coltura (2° raccolto)",       C("colture"),  "+15", "0.8",  "95.0", "A"],
+        ["Erbaio misto insilato",              C("colture"),  "+16", "0.8",  "64.0", "A"],
+        ["Barbabietola da zucchero",           C("colture"),  "+12", "0.8", "105.0", "A"],
+        ["Liquame suino",                      C("effluenti"), "-45", "0.8",  "14.0", "D"],
+        ["Liquame bovino",                     C("effluenti"), "-45", "0.8",  "14.0", "D"],
+        ["Liquame bufalino",                   C("effluenti"), "-45", "0.8",  "14.0", "D"],
+        ["Letame bovino palabile",             C("effluenti"), "-30", "0.8",  "35.0", "D"],
+        ["Letame equino",                      C("effluenti"), "-20", "0.8",  "42.0", "D"],
+        ["Pollina ovaiole (aerobico)",         C("effluenti"), "+5",  "0.8",  "84.0", "C"],
+        ["Pollina broiler (lettiera)",         C("effluenti"), "-15", "0.8", "105.0", "D"],
+        ["Pollina tacchini",                   C("effluenti"), "-10", "0.8", "100.0", "D"],
+        ["Deiezioni conigli",                  C("effluenti"), "+5",  "0.8",  "75.0", "C"],
+        ["Sansa di olive umida",               C("sottop"),    "+3",  "0.8", "120.0", "C"],
+        ["Sansa vergine",                      C("sottop"),    "+2",  "0.8", "140.0", "C"],
+        ["Pastazzo di agrumi",                 C("sottop"),    "+6",  "0.8", "100.0", "C"],
+        ["Vinaccia (con raspi)",               C("sottop"),    "+5",  "0.8", "130.0", "C"],
+        ["Raspi d'uva",                        C("sottop"),    "+3",  "0.8",  "70.0", "C"],
+        ["Feccia vinicola",                    C("sottop"),    "+3",  "0.8", "180.0", "C"],
+        ["Siero di latte",                     C("sottop"),    "+3",  "0.8",  "30.0", "C"],
+        ["Scotta (siero residuo)",             C("sottop"),    "+2",  "0.8",  "22.0", "C"],
+        ["Trebbie di birra",                   C("sottop"),    "+4",  "0.8", "140.0", "C"],
+        ["Lolla/pula di riso",                 C("sottop"),    "+2",  "0.8",  "50.0", "C"],
+        ["Melasso",                            C("sottop"),    "+8",  "0.8", "180.0", "A"],
+        ["Scarti panificazione/pasticceria",   C("sottop"),    "+5",  "0.8", "280.0", "C"],
+        ["Grassi esausti / UCO",               C("sottop"),    "+2",  "0.8", "700.0", "C"],
+        ["Scarti macellazione (cat. 3)",       C("sottop"),    "+5",  "0.8", "180.0", "C"],
+        ["Sottoprodotti ortofrutticoli",       C("sottop"),    "+7",  "0.8", "100.0", "A"],
+        ["Scarti caseari vari",                C("sottop"),    "+4",  "0.8",  "40.0", "C"],
+        ["Fanghi agro-industriali",            C("sottop"),    "+3",  "0.8",  "55.0", "C"],
+        ["Polpe di barbabietola fresche",      C("sottop"),     "0",  "2.0",  "50.0", "A/B"],
+        ["Polpe di barbabietola insilate",     C("sottop"),     "0",  "2.5",  "75.0", "A/B"],
+        ["Melasso di barbabietola",            C("sottop"),     "0",  "1.5", "280.0", "A/B"],
+        ["FORSU selezionata",                  C("forsu"),      "0",  "0.8",  "64.8", "A/B"],
+        ["Fanghi depurazione",                 C("forsu"),      "0",  "0.8",  "13.0", "A/B"],
     ]
+
+
+# ============================================================
+# CONTENUTI CAPITOLI - lingua selezionata via lang
+# Per snellezza: contenuti lunghi in funzioni dedicate
+# ============================================================
+
+def build_chapter_1(story, lang):
+    story.extend(section(t("ch1", lang)))
+    if lang == "it":
+        story.append(p(
+            "<b>Metan.iQ</b> e' una <b>Decision Intelligence Platform</b> "
+            "(piattaforma di intelligenza decisionale) progettata per gli "
+            "operatori di <b>impianti di biometano da digestione anaerobica "
+            "con immissione in rete</b>, regolati dal <b>DM 15 settembre 2022</b> "
+            "(incentivazione del biometano immesso in rete) e dalle direttive "
+            "europee <b>RED II (2018/2001)</b> e <b>RED III (2023/2413)</b>."
+        ))
+        story.append(p(
+            "Il software opera in modalita' <b>biometano-only</b> "
+            "(APP_MODE = 'biometano' hardcoded nel runtime). Eventuali sezioni "
+            "di autoconsumo CHP modellate dall'app si riferiscono al "
+            "<b>recupero termico/elettrico interno dall'autoconsumo di una "
+            "quota di biometano prodotto</b>, non a un impianto biogas-CHP "
+            "standalone che produce direttamente elettricita' in rete."
+        ))
+        story.append(subsec("1.1 Obiettivi principali"))
+        story.append(bullet_list([
+            "<b>Tracciare</b> giorno per giorno biomasse caricate e Sm3 netti immessi in rete (letti dalla cabina REMI).",
+            "<b>Calcolare</b> il risparmio GHG (saving %) secondo RED III Allegato V Parte C e UNI/TS 11567:2024.",
+            "<b>Verificare</b> il rispetto della soglia normativa di saving sul lotto di sostenibilita' MENSILE.",
+            "<b>Verificare</b> il rispetto del cap autorizzativo (es. 300 Sm3/h medi mensili).",
+            "<b>Ottimizzare</b> il mix biomasse via solver LP per massimizzare saving GHG o ricavi tariffari.",
+            "<b>Pianificare</b> il business plan a 15 anni con tariffe DM 2022, premi matrice, PNRR conto capitale.",
+            "<b>Esportare</b> dossier audit-ready (PDF, Excel, CSV) per consulenti, OdC, GSE.",
+        ]))
+        story.append(subsec("1.2 Riferimenti normativi applicati"))
+    else:
+        story.append(p(
+            "<b>Metan.iQ</b> is a <b>Decision Intelligence Platform</b> designed "
+            "for operators of <b>biomethane plants from anaerobic digestion with "
+            "grid injection</b>, regulated by the Italian <b>Ministerial Decree "
+            "15 September 2022</b> (biomethane grid injection incentives) and the "
+            "European directives <b>RED II (2018/2001)</b> and <b>RED III (2023/2413)</b>."
+        ))
+        story.append(p(
+            "The software operates in <b>biomethane-only</b> mode "
+            "(APP_MODE = 'biometano' hardcoded in the runtime). Any CHP self-consumption "
+            "sections refer to <b>internal thermal/electrical recovery from "
+            "self-consumption of a fraction of produced biomethane</b>, not to a "
+            "standalone biogas-CHP plant injecting electricity into the grid."
+        ))
+        story.append(subsec("1.1 Main objectives"))
+        story.append(bullet_list([
+            "<b>Track</b> daily feedstock loaded and net Sm3 injected (REMI cabin readings).",
+            "<b>Compute</b> GHG saving (%) per RED III Annex V Part C and UNI/TS 11567:2024.",
+            "<b>Verify</b> the saving threshold on the MONTHLY sustainability lot.",
+            "<b>Verify</b> the authorisation cap (e.g. 300 Sm3/h monthly average).",
+            "<b>Optimise</b> the feedstock mix via LP solver to maximise GHG saving or tariff revenue.",
+            "<b>Plan</b> the 15-year business plan with DM 2022 tariffs, matrix premiums, PNRR capital grants.",
+            "<b>Export</b> audit-ready dossiers (PDF, Excel, CSV) for consultants, certification bodies, GSE.",
+        ]))
+        story.append(subsec("1.2 Applied regulatory references"))
+
+    story.append(data_table(
+        ["DM 15/09/2022" if lang == "it" else "DM 15/09/2022", "RED III (Dir. UE 2023/2413)",
+         "D.Lgs. 199/2021", "D.Lgs. 5/2026", "UNI/TS 11567:2024",
+         "GSE Linee Guida 2024", "JEC WTT v5", "Reg. UE 2022/996", "UNI EN 16723-1"][:1] + [{
+            "it": "Ambito di applicazione", "en": "Scope of application"
+        }[lang]],
+        [
+            ["DM 15/09/2022", {"it": "Tariffe biometano in rete (TR per taglia, 15 anni)",
+                              "en": "Biomethane grid tariffs (size-based, 15 years)"}[lang]],
+            ["RED III (Dir. UE 2023/2413)", {"it": "Soglie saving GHG, metodologia Allegato V Parte C",
+                                            "en": "GHG saving thresholds, methodology Annex V Part C"}[lang]],
+            ["D.Lgs. 199/2021", {"it": "Recepimento italiano RED II",
+                                "en": "Italian transposition of RED II"}[lang]],
+            ["UNI/TS 11567:2024", {"it": "Calcolo emissioni GHG biocombustibili, rese standard",
+                                  "en": "GHG emissions calculation for biofuels, standard yields"}[lang]],
+            ["GSE Linee Guida 2024", {"it": "Modalita' operative attuative DM 2022 (Decreto 248/2024)",
+                                     "en": "Operating procedures for DM 2022 (Decree 248/2024)"}[lang]],
+            ["JEC WTT v5", {"it": "Joint Research Centre Well-to-Tank, fattori emissivi default",
+                           "en": "Joint Research Centre Well-to-Tank, default emission factors"}[lang]],
+            ["Reg. UE 2022/996", {"it": "GWP aggiornati (CH4 = 28, N2O = 265)",
+                                 "en": "Updated GWP values (CH4 = 28, N2O = 265)"}[lang]],
+            ["UNI EN 16723-1", {"it": "Specifiche biometano per immissione in rete (LHV, % CH4)",
+                               "en": "Biomethane specifications for grid injection (LHV, %CH4)"}[lang]],
+        ],
+        col_widths=[55*mm, 115*mm]
+    ))
+
+    if lang == "it":
+        story.append(subsec("1.3 Regola fondamentale di compliance"))
+        story.append(callout(
+            "<b>La sostenibilita' GHG si verifica sul LOTTO MENSILE, non sul "
+            "singolo giorno.</b> Il saving giornaliero in tabella e' solo "
+            "informativo. Il verdetto ufficiale <b>Compliant / Non Compliant</b> "
+            "e' calcolato sull'aggregato mensile, regola dei <b>Lotti di "
+            "Sostenibilita' (LS)</b> della UNI/TS 11567:2024 (durata max 6 mesi, "
+            "mensile per prassi GSE).",
+            kind="warn"
+        ))
+        story.append(p(
+            "Un mese puo' essere <b>Compliant</b> anche se alcuni giorni isolati "
+            "hanno saving giornaliero sotto soglia, purche' la media pesata "
+            "sull'energia dell'intero mese rispetti il limite. Questo permette "
+            "di compensare giorni 'cattivi' (mais puro) con giorni 'buoni' "
+            "(reflui, manure credit)."
+        ))
+    else:
+        story.append(subsec("1.3 Fundamental compliance rule"))
+        story.append(callout(
+            "<b>GHG sustainability is verified on the MONTHLY LOT, not on the "
+            "individual day.</b> Daily saving in the table is purely informative. "
+            "The official <b>Compliant / Non Compliant</b> verdict is computed on "
+            "the monthly aggregate, following the <b>Sustainability Lots (LS)</b> "
+            "rule of UNI/TS 11567:2024 (max duration 6 months, monthly by GSE "
+            "practice).",
+            kind="warn"
+        ))
+        story.append(p(
+            "A month can be <b>Compliant</b> even when some isolated days fall "
+            "below threshold, provided the energy-weighted monthly average "
+            "respects the limit. This allows offsetting 'bad' days (pure maize) "
+            "with 'good' days (manure, manure credit)."
+        ))
+
+
+def build_chapter_2(story, lang):
+    story.extend(section(t("ch2", lang)))
+    if lang == "it":
+        story.append(p(
+            "Metan.iQ e' un'applicazione web su <b>Streamlit</b>. L'utente "
+            "interagisce tramite browser, i calcoli avvengono server-side in Python."
+        ))
+        story.append(subsec("2.1 Stack tecnico"))
+    else:
+        story.append(p(
+            "Metan.iQ is a web application built on <b>Streamlit</b>. The user "
+            "interacts through the browser, calculations run server-side in Python."
+        ))
+        story.append(subsec("2.1 Technical stack"))
+    L = lang == "it"
+    story.append(kv_table([
+        ("Frontend / runtime" if L else "Frontend / runtime", "Streamlit 1.57+ (Python 3.11+)"),
+        ("Motore di calcolo" if L else "Calculation engine", "NumPy, SciPy (LP solver), pandas"),
+        ("Visualizzazione" if L else "Visualisation", "Plotly, HTML/CSS Material 3 custom"),
+        ("Export PDF", "ReportLab (Metan.iQ brand template)"),
+        ("Export Excel", "openpyxl (4-6 sheets, conditional formatting)"),
+        ("Export PPTX", "python-pptx (8 yearly slides)"),
+        ("Persistenza locale" if L else "Local persistence", "SQLite (data/metaniq_daily.db)"),
+        ("i18n", "IT/EN dictionary substring replacement"),
+        ("Theme", "Light / Dark switcher (navy + amber, Outfit font)"),
+        ("Hosting", "Streamlit Cloud (private, branch dm2022-only)"),
+    ]))
+
+
+def build_chapter_3(story, lang):
+    story.extend(section(t("ch3", lang)))
+    if lang == "it":
+        story.append(p(
+            "All'apertura dell'URL dell'app si presenta una schermata divisa in:"
+        ))
+        story.append(bullet_list([
+            "<b>Sidebar a sinistra</b>: selettori globali (lingua, regime, mese, biomasse, parametri impianto).",
+            "<b>Area principale a destra</b>: tre macro-tab di lavoro (Standard / Analisi / Risultati).",
+            "<b>Header in alto</b>: brand Metan.iQ con versione e regime attivo.",
+            "<b>Footer</b>: link legali (Privacy, Terms), versione software.",
+        ]))
+        story.append(subsec("3.1 Sidebar: pannello di controllo globale"))
+        intro = "La sidebar contiene i seguenti gruppi di controlli:"
+        rows = [
+            ["Lingua", "Selettore IT / EN", "Cambia label, formato numeri e date"],
+            ["Tema", "Toggle Light / Dark", "Switcher palette WCAG AA"],
+            ["Anno / Mese", "Number input / Select", "Periodo di lavoro"],
+            ["ID impianto", "Text input", "Discriminante multi-impianto"],
+            ["Regime", "Radio DM 2022 / DM 2018 / FER2", "Cambia soglia GHG e cap"],
+            ["Biomasse attive", "Multiselect", "Colonne disponibili in tabella"],
+            ["Plant net Sm3/h", "Number input (default 300)", "Cap autorizzativo"],
+            ["Aux factor", "Auto o manuale", "Sm3 lordi / netti (default 1.29)"],
+            ["ep totale", "Auto o manuale", "Emissioni processing (gCO2eq/MJ)"],
+            ["Manure credit", "Checkbox (default ON)", "Attiva eec negativo per reflui"],
+        ]
+        story.append(intro_table(intro, ["Sezione", "Controllo", "Funzione"], rows,
+                                 col_widths=[30*mm, 50*mm, 90*mm]))
+    else:
+        story.append(p(
+            "Opening the app URL presents a screen split into:"
+        ))
+        story.append(bullet_list([
+            "<b>Left sidebar</b>: global selectors (language, regime, month, feedstocks, plant parameters).",
+            "<b>Main area on the right</b>: three macro-tabs (Standard / Analysis / Results).",
+            "<b>Top header</b>: Metan.iQ brand with version and active regime.",
+            "<b>Footer</b>: legal links (Privacy, Terms), software version.",
+        ]))
+        story.append(subsec("3.1 Sidebar: global control panel"))
+        intro = "The sidebar contains the following control groups:"
+        rows = [
+            ["Language", "Selector IT / EN", "Switches labels, number and date format"],
+            ["Theme", "Light / Dark toggle", "WCAG AA palette switcher"],
+            ["Year / Month", "Number input / Select", "Working period"],
+            ["Plant ID", "Text input", "Multi-plant discriminator"],
+            ["Regime", "Radio DM 2022 / DM 2018 / FER2", "Changes GHG threshold and cap"],
+            ["Active feedstocks", "Multiselect", "Available columns in table"],
+            ["Plant net Sm3/h", "Number input (default 300)", "Authorisation cap"],
+            ["Aux factor", "Auto or manual", "Gross Sm3 / Net (default 1.29)"],
+            ["ep total", "Auto or manual", "Processing emissions (gCO2eq/MJ)"],
+            ["Manure credit", "Checkbox (default ON)", "Enables negative eec for manure"],
+        ]
+        story.append(intro_table(intro, ["Section", "Control", "Function"], rows,
+                                 col_widths=[30*mm, 50*mm, 90*mm]))
+
+
+def build_chapter_workflow(story, lang):
+    """Capitoli 4-6: Tabs."""
+    story.extend(section(t("ch4", lang)))
+    L = lang == "it"
+    if L:
+        story.append(p(
+            "Tab di lavoro principale per la <b>gestione quotidiana</b>. "
+            "Usa rese e fattori emissivi <b>standard</b> UNI/TS 11567:2024 "
+            "(Prospetto A.5). Indicato per uso routinario senza analisi BMT."
+        ))
+        story.append(subsec("4.1 Tabella biomasse giornaliere"))
+        story.append(p(
+            "Tabella centrale: una riga per ogni giorno del mese, colonne "
+            "dinamiche in base alle biomasse selezionate in sidebar."
+        ))
+        story.append(intro_list(
+            "<b>Colonne tipiche:</b>",
+            [
+                "<b>Data</b> - generata automaticamente.",
+                "<b>Biomassa 1, 2, ...</b> - una colonna per biomassa attiva, input in t/giorno.",
+                "<b>Sm3 lordi</b> - calcolato (massa x resa).",
+                "<b>Sm3 netti</b> - <b>INSERITO DALL'OPERATORE</b> il giorno dopo (lettura REMI).",
+                "<b>Sm3/h netti</b> - Sm3 netti / ore funzionamento.",
+                "<b>MWh</b> - Sm3 netti x NM3_TO_MWH (0.00979).",
+                "<b>eec/esca/etd/ep</b> - emissioni componenti.",
+                "<b>e_total</b> - somma in gCO2eq/MJ.",
+                "<b>Saving giornaliero</b> - (80 - e_total) / 80 x 100, solo informativo.",
+                "<b>Cap OK</b> - True se Sm3/h netti <= cap.",
+                "<b>Cumulato Sm3/MWh/t</b> - progressivi mese.",
+            ]
+        ))
+        story.append(intro_list(
+            "Sotto la tabella appaiono 4 metriche principali:",
+            [
+                "<b>Biomassa mese (t)</b>",
+                "<b>Sm3 netti mese</b>",
+                "<b>MWh netti mese</b>",
+                "<b>Saving GHG (%)</b> con badge <b>COMPLIANT</b> / <b>NON COMPLIANT</b>",
+            ],
+            h2_title="4.3 KPI mensili"
+        ))
+    else:
+        story.append(p(
+            "Main working tab for <b>daily management</b>. Uses <b>standard</b> "
+            "yields and emission factors from UNI/TS 11567:2024 (Schedule A.5). "
+            "Recommended for routine use without BMT analysis."
+        ))
+        story.append(subsec("4.1 Daily feedstock table"))
+        story.append(p(
+            "Central table: one row per day of the month, dynamic columns based "
+            "on the feedstocks selected in the sidebar."
+        ))
+        story.append(intro_list(
+            "<b>Typical columns:</b>",
+            [
+                "<b>Date</b> - auto-generated.",
+                "<b>Feedstock 1, 2, ...</b> - one column per active feedstock, input in t/day.",
+                "<b>Gross Sm3</b> - computed (mass x yield).",
+                "<b>Net Sm3</b> - <b>ENTERED BY OPERATOR</b> next day (REMI reading).",
+                "<b>Net Sm3/h</b> - Net Sm3 / operating hours.",
+                "<b>MWh</b> - Net Sm3 x NM3_TO_MWH (0.00979).",
+                "<b>eec/esca/etd/ep</b> - component emissions.",
+                "<b>e_total</b> - sum in gCO2eq/MJ.",
+                "<b>Daily saving</b> - (80 - e_total) / 80 x 100, informative only.",
+                "<b>Cap OK</b> - True if Net Sm3/h <= cap.",
+                "<b>Cumulative Sm3/MWh/t</b> - month-to-date progressives.",
+            ]
+        ))
+        story.append(intro_list(
+            "Below the table, 4 main metrics are displayed:",
+            [
+                "<b>Monthly feedstock (t)</b>",
+                "<b>Net Sm3 month</b>",
+                "<b>Net MWh month</b>",
+                "<b>GHG Saving (%)</b> with <b>COMPLIANT</b> / <b>NON COMPLIANT</b> badge",
+            ],
+            h2_title="4.3 Monthly KPIs"
+        ))
+
+    # Cap 5 - Tab 2
+    story.extend(section(t("ch5", lang)))
+    if L:
+        story.append(p(
+            "Variante avanzata del Tab 1, per operatori con BMT (Biological "
+            "Methane Potential, test laboratorio) e/o Relazione Tecnica con "
+            "fattori emissivi su misura."
+        ))
+        story.append(subsec("5.1 Override BMT (rese)"))
+        story.append(p(
+            "Sostituisce le rese standard A.3 UNI/TS 11567:2024 con valori "
+            "da analisi lab. Riconciliazione mass balance <= +/-15% per LS valido."
+        ))
+        story.append(subsec("5.2 Override fattori emissivi"))
+        story.append(bullet_list([
+            "<b>eec</b> custom per biomasse non tabulate o dichiarazioni fornitore.",
+            "<b>ep</b> custom da bilancio energetico reale impianto.",
+            "<b>etd</b> custom da rilievo logistico.",
+        ]))
+    else:
+        story.append(p(
+            "Advanced variant of Tab 1, for operators with BMT (Biological "
+            "Methane Potential lab test) and/or Technical Report with custom "
+            "emission factors."
+        ))
+        story.append(subsec("5.1 BMT override (yields)"))
+        story.append(p(
+            "Replaces standard yields A.3 UNI/TS 11567:2024 with lab values. "
+            "Mass balance reconciliation must stay within +/-15% for valid LS."
+        ))
+        story.append(subsec("5.2 Emission factors override"))
+        story.append(bullet_list([
+            "<b>eec</b> custom for non-tabulated feedstocks or supplier declarations.",
+            "<b>ep</b> custom from real plant energy balance.",
+            "<b>etd</b> custom from logistic survey.",
+        ]))
+
+    # Cap 6 - Tab 3
+    story.extend(section(t("ch6", lang)))
+    if L:
+        story.append(p(
+            "Tab di sintesi annuale / strategica. Aggrega 12 mesi, calcola "
+            "ricavi, OPEX, CAPEX, business plan 15 anni."
+        ))
+        story.append(subsec("6.1 Configurazione impianto (ep)"))
+        story.append(p(
+            "Definisce il bilancio energetico, da cui derivano <b>aux_factor</b> "
+            "(tecnologia upgrading, gestione off-gas, fonti calore/elettricita') "
+            "e <b>ep_total</b> (somma EP_UPGRADING + EP_OFFGAS + EP_HEAT + EP_ELEC). "
+            "ep_total e' vincolato a <b>>= 0</b> per RED III All.V Parte C."
+        ))
+        story.append(subsec("6.2 DM 2022 - Tariffe e premi"))
+        story.append(bullet_list([
+            "Taglia impianto (scaglione Sm3/h) determina la TR.",
+            "Ribasso d'asta applicato in gara GSE.",
+            "Premi matrice cumulabili (Annex IX, kWh recuperato, lavoro agricolo, cogen).",
+            "PNRR conto capitale (max 40% contributo).",
+        ]))
+        story.append(subsec("6.3 Business plan 15 anni"))
+        story.append(bullet_list([
+            "CAPEX per voce, scalato con plant_size.",
+            "OPEX annuale per voce (O&M, gestore, service, assicurazioni).",
+            "Finanziamento a leva (default 70% leverage, 5% tasso, 15 anni).",
+            "Conto economico con ricavi tariffari, OPEX, ammortamenti, imposte.",
+            "Free Cash Flow + NPV, IRR, payback.",
+        ]))
+    else:
+        story.append(p(
+            "Yearly / strategic summary tab. Aggregates 12 months, computes "
+            "revenue, OPEX, CAPEX, 15-year business plan."
+        ))
+        story.append(subsec("6.1 Plant configuration (ep)"))
+        story.append(p(
+            "Defines the energy balance, which determines <b>aux_factor</b> "
+            "(upgrading technology, off-gas handling, heat/electricity sources) "
+            "and <b>ep_total</b> (sum of EP_UPGRADING + EP_OFFGAS + EP_HEAT + "
+            "EP_ELEC). ep_total is constrained to <b>>= 0</b> per RED III "
+            "Annex V Part C."
+        ))
+        story.append(subsec("6.2 DM 2022 - Tariffs and premiums"))
+        story.append(bullet_list([
+            "Plant size (Sm3/h bracket) determines the reference tariff (TR).",
+            "Auction discount applied in GSE tender.",
+            "Cumulative matrix premiums (Annex IX, recovered kWh, farm labour, cogen).",
+            "PNRR capital grant (max 40% contribution).",
+        ]))
+        story.append(subsec("6.3 15-year business plan"))
+        story.append(bullet_list([
+            "CAPEX by line item, scaled with plant_size.",
+            "Annual OPEX by line item (O&M, manager, service, insurance).",
+            "Leveraged financing (default 70% leverage, 5% rate, 15 years).",
+            "Income statement: tariff revenue, OPEX, depreciation, taxes.",
+            "Free Cash Flow + NPV, IRR, payback.",
+        ]))
+
+
+def build_chapter_7(story, lang):
+    story.extend(section(t("ch7", lang)))
+    L = lang == "it"
+    if L:
+        story.append(p(
+            "Questa sezione descrive analiticamente la formula GHG. E' il cuore "
+            "tecnico-normativo del prodotto e ogni numero in output deriva da queste relazioni."
+        ))
+        story.append(subsec("7.1 Formula generale RED III"))
+        story.append(p("Per ogni Lotto di Sostenibilita' (LS = mese aggregato):"))
+        story.append(callout(
+            "<b>E = eec + el + ep + etd + eu - esca - eccs - eccr</b><br/>"
+            "[gCO2eq / MJ biometano]<br/><br/>"
+            "Risparmio (%) = (FFC - E) / FFC x 100"
+        ))
+        rows = [
+            ["eec", "Estrazione/coltivazione materie prime", "0 (rifiuti) a +29 (mais)"],
+            ["el", "Lavorazione (digestione)", "incluso in ep nel modello"],
+            ["ep", "Processing (upgrading, calore, elettr.)", "0-10, cap >= 0"],
+            ["etd", "Trasporto e distribuzione", "0.8 (default standard)"],
+            ["eu", "Uso del carburante", "0 (biometano rete)"],
+            ["esca", "Credito C nel suolo", "0 (default)"],
+            ["eccs/eccr", "Credito cattura CO2", "0 (default)"],
+            ["FFC", "Comparatore fossile", "80 rete/calore, 94 trasporti, 183 elettricita'"],
+        ]
+        story.append(data_table(["Termine", "Significato", "Tipico biometano"], rows,
+                                col_widths=[20*mm, 90*mm, 60*mm]))
+        story.append(subsec("7.2 Calcolo aggregato sul lotto mensile"))
+        story.append(p(
+            "<b>NON e' una media aritmetica dei saving giornalieri</b>. Per "
+            "UNI/TS 11567:2024 e RED III All.V Parte C, l'aggregazione avviene "
+            "sull'energia totale del lotto:"
+        ))
+        story.append(callout(
+            "<b>e_w_lotto = SOMMA (e_biomassa_i x Energia_biomassa_i) / "
+            "SOMMA (Energia_biomassa_i)</b><br/><br/>"
+            "Energia_i = massa_i x resa_CH4_i x LHV<br/>"
+            "e_biomassa_i = eec_i + esca_i + etd_i + ep<br/><br/>"
+            "Saving_lotto = (FFC - e_w_lotto) / FFC x 100"
+        ))
+        story.append(p(
+            "Giorni con saving giornaliero <80% non rendono il mese non conforme: "
+            "vengono diluiti da giorni a saving alto grazie alla pesatura sull'energia."
+        ))
+        story.append(subsec("7.3 Sistema tier difendibilita' eec (A/B/C/D)"))
+        tier_rows = [
+            ["A - Default normativo", "Tabellato Prospetto A.5 UNI/TS", "Mais 29, Sorgo 26, rifiuti 0"],
+            ["B - Zero da regola", "Residuo Annex IX non tabulato", "0 (regola residui)"],
+            ["C - Stima conservativa", "Letteratura JEC/KTBL a sfavore", "positivo, non contestabile"],
+            ["D - Manure credit", "Credito reflui zootecnici", "negativo (-45 std), baseline fornitore"],
+        ]
+        story.append(data_table(["Tier", "Significato", "eec tipico"], tier_rows,
+                                col_widths=[40*mm, 70*mm, 60*mm]))
+        story.append(subsec("7.4 Manure credit (Tier D)"))
+        story.append(p(
+            "Per reflui zootecnici il software applica per default eec <b>-45 "
+            "gCO2eq/MJ</b> (RED III All.V/VI). Riflette le emissioni metano "
+            "<b>evitate</b> rispetto a stoccaggio in vasca/lagone aperto."
+        ))
+        story.append(callout(
+            "Il manure credit richiede <b>dichiarazione baseline fornitore</b> "
+            "in audit OdC. Se fornitore stocca in vasca COPERTA con captazione "
+            "o N-stripping, il credit va ridotto o annullato.",
+            kind="warn"
+        ))
+    else:
+        story.append(p(
+            "This chapter analytically describes the GHG formula. It is the "
+            "regulatory-technical core of the product: every output number derives from these relations."
+        ))
+        story.append(subsec("7.1 RED III general formula"))
+        story.append(p("For each Sustainability Lot (LS = monthly aggregate):"))
+        story.append(callout(
+            "<b>E = eec + el + ep + etd + eu - esca - eccs - eccr</b><br/>"
+            "[gCO2eq / MJ biomethane]<br/><br/>"
+            "Saving (%) = (FFC - E) / FFC x 100"
+        ))
+        rows = [
+            ["eec", "Feedstock extraction/cultivation", "0 (waste) to +29 (maize)"],
+            ["el", "Processing (digestion)", "included in ep in this model"],
+            ["ep", "Processing (upgrading, heat, electr.)", "0-10, cap >= 0"],
+            ["etd", "Transport and distribution", "0.8 (standard default)"],
+            ["eu", "Fuel use", "0 (grid biomethane)"],
+            ["esca", "Soil C accumulation credit", "0 (default)"],
+            ["eccs/eccr", "CO2 capture credit", "0 (default)"],
+            ["FFC", "Fossil fuel comparator", "80 grid/heat, 94 transport, 183 electricity"],
+        ]
+        story.append(data_table(["Term", "Meaning", "Typical biomethane"], rows,
+                                col_widths=[20*mm, 90*mm, 60*mm]))
+        story.append(subsec("7.2 Aggregation on the monthly lot"))
+        story.append(p(
+            "<b>It is NOT an arithmetic mean of daily savings</b>. Per UNI/TS "
+            "11567:2024 and RED III Annex V Part C, aggregation is energy-weighted on the total lot:"
+        ))
+        story.append(callout(
+            "<b>e_w_lot = SUM (e_feedstock_i x Energy_feedstock_i) / "
+            "SUM (Energy_feedstock_i)</b><br/><br/>"
+            "Energy_i = mass_i x CH4_yield_i x LHV<br/>"
+            "e_feedstock_i = eec_i + esca_i + etd_i + ep<br/><br/>"
+            "Saving_lot = (FFC - e_w_lot) / FFC x 100"
+        ))
+        story.append(p(
+            "Days with daily saving <80% do not make the month non-compliant: "
+            "they are diluted by high-saving days through energy weighting."
+        ))
+        story.append(subsec("7.3 eec defensibility tiers (A/B/C/D)"))
+        tier_rows = [
+            ["A - Regulatory default", "Tabulated Schedule A.5 UNI/TS", "Maize 29, Sorghum 26, waste 0"],
+            ["B - Zero by rule", "Non-tabulated Annex IX residue", "0 (residue rule)"],
+            ["C - Conservative estimate", "JEC/KTBL literature against operator", "positive, non-contestable"],
+            ["D - Manure credit", "Animal manure credit", "negative (-45 std), supplier baseline required"],
+        ]
+        story.append(data_table(["Tier", "Meaning", "Typical eec"], tier_rows,
+                                col_widths=[40*mm, 70*mm, 60*mm]))
+        story.append(subsec("7.4 Manure credit (Tier D)"))
+        story.append(p(
+            "For animal manure the software applies by default eec <b>-45 "
+            "gCO2eq/MJ</b> (RED III Annex V/VI). It reflects methane emissions "
+            "<b>avoided</b> compared to open tank/lagoon storage."
+        ))
+        story.append(callout(
+            "The manure credit requires a <b>supplier baseline declaration</b> "
+            "during certification body audit. If the supplier uses a COVERED "
+            "tank with capture or N-stripping, the credit must be reduced or removed.",
+            kind="warn"
+        ))
+
+
+def build_chapter_8(story, lang):
+    story.extend(section(t("ch8", lang)))
+    L = lang == "it"
+    if L:
+        story.append(p(
+            "L'<b>aux_factor</b> e' il rapporto Sm3 biometano lordi / Sm3 netti "
+            "immessi in rete. Tiene conto degli autoconsumi energetici."
+        ))
+        story.append(subsec("8.1 Formula"))
+        story.append(callout(
+            "<b>aux_factor = 1 / (1 - f_calore - f_elettr - f_slip - f_margine)</b><br/><br/>"
+            "Sm3_netti = Sm3_lordi / aux_factor"
+        ))
+        story.append(bullet_list([
+            "<b>f_calore</b> - frazione biometano per caldaia digestore (0 se calore esterno).",
+            "<b>f_elettrico</b> - frazione bruciata in CHP interno (0 se elettricita' da rete o FV).",
+            "<b>f_slip</b> - perdite CH4 in upgrading (0.5%-2%).",
+            "<b>f_margine</b> - margine prudenziale (3% default).",
+        ]))
+        story.append(subsec("8.2 Default e range tipici"))
+    else:
+        story.append(p(
+            "The <b>aux_factor</b> is the ratio of gross biomethane Sm3 to net "
+            "Sm3 injected. It accounts for the plant's energy self-consumption."
+        ))
+        story.append(subsec("8.1 Formula"))
+        story.append(callout(
+            "<b>aux_factor = 1 / (1 - f_heat - f_elec - f_slip - f_margin)</b><br/><br/>"
+            "Net_Sm3 = Gross_Sm3 / aux_factor"
+        ))
+        story.append(bullet_list([
+            "<b>f_heat</b> - biomethane fraction for digester boiler (0 if external heat).",
+            "<b>f_elec</b> - fraction burned in internal CHP (0 if grid or PV).",
+            "<b>f_slip</b> - CH4 losses in upgrading (0.5%-2%).",
+            "<b>f_margin</b> - prudential margin (3% default).",
+        ]))
+        story.append(subsec("8.2 Default and typical ranges"))
+    story.append(kv_table([
+        ("DEFAULT_AUX_FACTOR", "1.29 (JRC-CONCAWE)"),
+        ("Amine + thermal self-consumption", "1.20 - 1.32"),
+        ("PSA + grid electricity", "1.10 - 1.18"),
+        ("Membranes + cogen", "1.15 - 1.25"),
+        ("Manual override", "Available in 'Config Tecnica & GHG'"),
+    ]))
+
+
+def build_chapter_9(story, lang):
+    story.extend(section(t("ch9", lang)))
+    L = lang == "it"
+    if L:
+        story.append(p("Il software verifica automaticamente DUE vincoli a fine mese:"))
+        story.append(subsec("9.1 Vincolo A - Soglia saving GHG"))
+        rows = [
+            ["Prima 5 ott 2015", "Trasporti", "50%"],
+            ["5 ott 2015 - 31 dic 2020", "Trasporti", "60%"],
+            ["Dal 1 gen 2021", "Trasporti", "65%"],
+            ["Dal 1 gen 2021", "Elettricita' / calore (>1 MW)", "70%"],
+            ["Dal 1 gen 2026 (impianti nuovi)", "Elettricita' / calore", "80%"],
+        ]
+        story.append(data_table(["Entrata in servizio impianto", "Uso", "Soglia"], rows,
+                                col_widths=[60*mm, 60*mm, 50*mm]))
+        story.append(callout(
+            "La data rilevante e' quella di <b>entrata in servizio dell'impianto "
+            "di biogas originario</b>, NON dell'upgrading."
+        ))
+        story.append(subsec("9.2 Vincolo B - Cap autorizzativo Sm3/h"))
+        story.append(p(
+            "Verifica che la portata media mensile non superi il cap dell'AUA / "
+            "AIA. Default 300 Sm3/h, modificabile in sidebar."
+        ))
+        story.append(subsec("9.3 Esito finale"))
+        story.append(p(
+            "Il mese e' <b>COMPLIANT</b> se ENTRAMBI i vincoli sono soddisfatti. "
+            "Il PDF mensile mostra badge verde/rosso e margine in punti percentuali."
+        ))
+    else:
+        story.append(p("The software automatically verifies TWO month-end constraints:"))
+        story.append(subsec("9.1 Constraint A - GHG saving threshold"))
+        rows = [
+            ["Before 5 Oct 2015", "Transport", "50%"],
+            ["5 Oct 2015 - 31 Dec 2020", "Transport", "60%"],
+            ["From 1 Jan 2021", "Transport", "65%"],
+            ["From 1 Jan 2021", "Electricity / heat (>1 MW)", "70%"],
+            ["From 1 Jan 2026 (new plants)", "Electricity / heat", "80%"],
+        ]
+        story.append(data_table(["Plant commissioning date", "End use", "Threshold"], rows,
+                                col_widths=[60*mm, 60*mm, 50*mm]))
+        story.append(callout(
+            "The relevant date is the <b>commissioning date of the ORIGINAL "
+            "biogas plant</b>, NOT of the upgrading."
+        ))
+        story.append(subsec("9.2 Constraint B - Authorisation cap Sm3/h"))
+        story.append(p(
+            "Verifies that the monthly average flow rate does not exceed the "
+            "AUA / AIA cap. Default 300 Sm3/h, configurable in the sidebar."
+        ))
+        story.append(subsec("9.3 Final outcome"))
+        story.append(p(
+            "The month is <b>COMPLIANT</b> if BOTH constraints are met. The "
+            "monthly PDF shows a green/red badge and margin in percentage points."
+        ))
+
+
+def build_chapter_10(story, lang):
+    story.extend(section(t("ch10", lang)))
+    L = lang == "it"
+    if L:
+        story.append(subsec("10.1 PDF mensile (7 pagine)"))
+        rows = [
+            ["1", "Copertina - Esito ufficiale, KPI principali"],
+            ["2", "Riepilogo KPI mensili + Vincoli normativi"],
+            ["3", "Indicazioni operative (azioni correttive fine mese)"],
+            ["4-5", "Tabella giornaliera dettagliata (26 colonne)"],
+            ["6", "Anagrafica simulazione & Audit Trail"],
+            ["7", "Riferimenti normativi & Validazione"],
+        ]
+        story.append(data_table(["Pag.", "Contenuto"], rows, col_widths=[15*mm, 155*mm]))
+        story.append(subsec("10.2 Excel (4 fogli)"))
+        story.append(bullet_list([
+            "<b>Riepilogo Mensile</b> - esito, KPI principali, totali biomasse.",
+            "<b>Operativita' Giornaliera</b> - tabella 26 colonne, 28-31 righe.",
+            "<b>Anagrafica & Parametri</b> - voci tracciabilita' per audit.",
+            "<b>Vincoli</b> - esito per ogni vincolo regime.",
+        ]))
+        story.append(subsec("10.3 CSV"))
+        story.append(p(
+            "Separatore <b>;</b>, decimale <b>,</b>, UTF-8 con BOM. Apertura "
+            "diretta in Excel italiano. Contiene tabella giornaliera completa."
+        ))
+        story.append(subsec("10.4 Dossier Conformita' OdC"))
+        story.append(bullet_list([
+            "Tutti i parametri di calcolo con fonte normativa.",
+            "Mass balance del lotto: scarto biomassa vs biometano (<= +/- 15%).",
+            "Origine rese (standard / BMT).",
+            "Origine fattori emissivi (standard / Relazione Tecnica).",
+            "Lista DDT di ingresso e fornitori.",
+            "Dichiarazioni di sostenibilita' fornitori.",
+        ]))
+    else:
+        story.append(subsec("10.1 Monthly PDF (7 pages)"))
+        rows = [
+            ["1", "Cover - Official outcome, main KPIs"],
+            ["2", "Monthly KPI summary + regulatory constraints"],
+            ["3", "Operational guidance (month-end corrective actions)"],
+            ["4-5", "Detailed daily table (26 columns)"],
+            ["6", "Simulation registry & Audit Trail"],
+            ["7", "Regulatory references & Validation"],
+        ]
+        story.append(data_table(["Page", "Content"], rows, col_widths=[15*mm, 155*mm]))
+        story.append(subsec("10.2 Excel (4 sheets)"))
+        story.append(bullet_list([
+            "<b>Monthly Summary</b> - outcome, main KPIs, feedstock totals.",
+            "<b>Daily Operations</b> - 26-column table, 28-31 rows.",
+            "<b>Registry & Parameters</b> - traceability entries for audit.",
+            "<b>Constraints</b> - outcome for each regime constraint.",
+        ]))
+        story.append(subsec("10.3 CSV"))
+        story.append(p(
+            "Separator <b>;</b>, decimal <b>,</b>, UTF-8 with BOM. Opens "
+            "directly in Italian Excel. Contains the complete daily table."
+        ))
+        story.append(subsec("10.4 Certification Body Conformity Dossier"))
+        story.append(bullet_list([
+            "All calculation parameters with regulatory source.",
+            "Lot mass balance: feedstock vs biomethane deviation (<= +/- 15%).",
+            "Yield origin (standard / BMT).",
+            "Emission factors origin (standard / Technical Report).",
+            "Incoming DDTs and supplier list.",
+            "Supplier sustainability declarations.",
+        ]))
+
+
+def build_chapter_11(story, lang):
+    story.extend(section(t("ch11", lang)))
+    L = lang == "it"
+    rows_it = [
+        ["Nome azienda", "Ragione sociale completa"],
+        ["Sede legale", "Indirizzo sede legale"],
+        ["Nome impianto", "Denominazione operativa"],
+        ["Sede operativa", "Indirizzo impianto"],
+        ["Regime applicato", "DM 2022 / DM 2018 / FER2"],
+        ["Soglia normativa (%)", "80 / 70 / 65 / 60 / 50 a seconda regime"],
+        ["Comparatore fossile", "80 / 94 / 183 secondo uso finale"],
+        ["Aux factor", "Da Config Tecnica o override"],
+        ["EP totale", "Da Config Tecnica o override"],
+        ["Plant net (Sm3/h)", "Cap autorizzativo"],
+        ["Origine rese", "BMT override se attivo, altrimenti standard"],
+        ["Origine fattori emissivi", "Override RT se attivo, altrimenti UNI-TS"],
+        ["Giorni con dati", "Conteggio giorni compilati"],
+        ["Giorni cap violato", "Conteggio giorni con Sm3/h > cap"],
+    ]
+    rows_en = [
+        ["Company name", "Full registered name"],
+        ["Registered office", "Registered office address"],
+        ["Plant name", "Operating name"],
+        ["Operating site", "Plant address"],
+        ["Applied regime", "DM 2022 / DM 2018 / FER2"],
+        ["Regulatory threshold (%)", "80 / 70 / 65 / 60 / 50 depending on regime"],
+        ["Fossil comparator", "80 / 94 / 183 based on end use"],
+        ["Aux factor", "From Tech Config or override"],
+        ["EP total", "From Tech Config or override"],
+        ["Plant net (Sm3/h)", "Authorisation cap"],
+        ["Yield origin", "BMT override if active, else standard"],
+        ["Emission factors origin", "Tech Report override if active, else UNI-TS"],
+        ["Days with data", "Count of filled days"],
+        ["Days cap violated", "Count of days with Sm3/h > cap"],
+    ]
+    if L:
+        story.append(p(
+            "Sezione obbligatoria per la tracciabilita' GSE / OdC. Tutti i "
+            "valori vengono riportati in copertina dei report e nell'Excel."
+        ))
+        story.append(data_table(["Voce", "Note"], rows_it, col_widths=[55*mm, 115*mm]))
+    else:
+        story.append(p(
+            "Mandatory section for GSE / certification body traceability. All "
+            "values appear on the cover of reports and in the Excel."
+        ))
+        story.append(data_table(["Item", "Notes"], rows_en, col_widths=[55*mm, 115*mm]))
+
+
+def build_chapter_12(story, lang):
+    story.extend(section(t("ch12", lang)))
+    L = lang == "it"
+    if L:
+        story.append(subsec("12.1 Domande frequenti"))
+        faq = [
+            ("Perche' il saving mensile non e' la media dei saving giornalieri?",
+             "Perche' UNI/TS 11567:2024 e RED III prescrivono l'aggregazione sull'energia del lotto. Vedi cap. 7.2."),
+            ("Posso avere giorni con saving < 80% senza essere Non Compliant?",
+             "Si', purche' il saving mensile aggregato sia >= 80%. La compensazione tra giorni alto/basso saving e' caratteristica del LS."),
+            ("Cosa succede se non inserisco i Sm3 netti REMI?",
+             "I KPI di portata, MWh netti e ricavi vengono mostrati come 0. Il saving GHG e' comunque calcolabile dalla biomassa."),
+            ("Il manure credit -45 si applica sempre?",
+             "Si' per default, ma solo se il fornitore stocca i reflui in vasca APERTA. Vasca coperta + captazione annulla il credit."),
+            ("ep_total puo' essere negativo?",
+             "No. Per RED III All.V Parte C, ep e' >= 0. Il software applica un floor automatico."),
+            ("Quale LHV biometano usa il software?",
+             "9.79 kWh/Sm3 = 35.24 MJ/Sm3, conforme UNI EN 16723-1 (biometano spec rete, ~98% CH4)."),
+            ("I dati sono persistenti su Streamlit Cloud?",
+             "Il filesystem Streamlit Cloud e' EFFIMERO. Esporta PDF/Excel regolarmente come backup."),
+            ("Come gestisco un fornitore non certificato?",
+             "Va escluso dal LS o avviato iter certificazione."),
+        ]
+    else:
+        story.append(subsec("12.1 Frequently asked questions"))
+        faq = [
+            ("Why is monthly saving not the average of daily savings?",
+             "Because UNI/TS 11567:2024 and RED III mandate aggregation on the lot energy. See ch. 7.2."),
+            ("Can I have days with saving < 80% without being Non Compliant?",
+             "Yes, provided the aggregate monthly saving is >= 80%. Offsetting high/low days is a feature of LS."),
+            ("What if I don't enter the net Sm3 REMI?",
+             "Flow, net MWh and revenue KPIs are shown as 0. GHG saving can still be computed from feedstock."),
+            ("Does the manure credit -45 always apply?",
+             "Yes by default, only if the supplier stores manure in an OPEN tank. Covered tank + capture cancels the credit."),
+            ("Can ep_total be negative?",
+             "No. Per RED III Annex V Part C, ep >= 0. The software applies an automatic floor."),
+            ("Which biomethane LHV does the software use?",
+             "9.79 kWh/Sm3 = 35.24 MJ/Sm3, compliant with UNI EN 16723-1 (grid spec biomethane, ~98% CH4)."),
+            ("Is data persistent on Streamlit Cloud?",
+             "The Streamlit Cloud filesystem is EPHEMERAL. Export PDF/Excel regularly as backup."),
+            ("How do I handle a non-certified supplier?",
+             "It must be excluded from the LS or a certification process must be started."),
+        ]
+    for q, a in faq:
+        story.append(p(f"<b>{'D' if L else 'Q'}:</b> {q}", BODY_TIGHT))
+        story.append(p(f"<b>{'R' if L else 'A'}:</b> {a}", BODY))
+        story.append(Spacer(1, 4))
+
+    if L:
+        story.append(subsec("12.2 Troubleshooting"))
+        rows = [
+            ["KPI tutti a 0 dopo apertura", "Sidebar: nessuna biomassa selezionata. Aggiungerne almeno una."],
+            ["Saving mensile basso inatteso", "Troppo mais (eec +29). Aumenta reflui."],
+            ["MWh netti != cumulato giornaliero", "Aggiorna a v0.5.0+ (fix UNI EN 16723-1)."],
+            ["ep_total mostrato 0 ma config dice diverso", "Floor ep >= 0: config produrrebbe ep negativo (RTO off-gas)."],
+            ["Tabella non aggiornabile", "Mese gia' chiuso. Usa 'Nuovo mese' o riapri."],
+            ["Solver LP nessuna soluzione", "Vincoli incompatibili. Rilassa uno dei tre."],
+        ]
+        story.append(data_table(["Problema", "Causa probabile / Azione"], rows, col_widths=[60*mm, 110*mm]))
+    else:
+        story.append(subsec("12.2 Troubleshooting"))
+        rows = [
+            ["All KPIs at 0 after opening", "Sidebar: no feedstock selected. Add at least one."],
+            ["Unexpectedly low monthly saving", "Too much maize (eec +29). Increase manure."],
+            ["Net MWh != daily cumulative", "Upgrade to v0.5.0+ (UNI EN 16723-1 fix)."],
+            ["ep_total shows 0 but config says otherwise", "Floor ep >= 0: config would produce negative ep (RTO off-gas)."],
+            ["Table not editable", "Month already closed. Use 'New month' or reopen."],
+            ["LP solver no solution", "Incompatible constraints. Relax one of the three."],
+        ]
+        story.append(data_table(["Problem", "Probable cause / Action"], rows, col_widths=[60*mm, 110*mm]))
+
+
+def build_appendices(story, lang):
+    L = lang == "it"
+    # Appendice A
+    story.extend(section(t("appA", lang)))
+    if L:
+        story.append(subsec("A.1 GHG per singola biomassa"))
+        story.append(callout("e_biomassa = eec + esca + etd + ep<br/><br/>Tutti in gCO2eq/MJ. Manure credit su eec con segno negativo (es. -45 liquame)."))
+        story.append(subsec("A.2 Energia biomassa"))
+        story.append(callout("Energia_i [MJ] = massa_i [t] x resa_CH4_i [Nm3/t] x LHV [MJ/Nm3]<br/><br/>LHV = 35.24 MJ/Nm3 (UNI EN 16723-1)"))
+        story.append(subsec("A.3 Aggregato lotto"))
+        story.append(callout("e_w_lotto = SOMMA(e_biomassa_i x Energia_i) / SOMMA(Energia_i)<br/>Saving = (FFC - e_w_lotto) / FFC x 100<br/>FFC = 80 (rete/calore) | 94 (trasporti) | 183 (elettricita')"))
+        story.append(subsec("A.4 Mass balance LS"))
+        story.append(callout("Tolleranza UNI/TS 11567 sec. 6:<br/>| biometano_atteso - biometano_REMI | / biometano_atteso <= 15%<br/>Durata massima LS: 6 mesi (prassi GSE: mensile)."))
+    else:
+        story.append(subsec("A.1 GHG per single feedstock"))
+        story.append(callout("e_feedstock = eec + esca + etd + ep<br/><br/>All in gCO2eq/MJ. Manure credit on eec with negative sign (e.g. -45 for slurry)."))
+        story.append(subsec("A.2 Feedstock energy"))
+        story.append(callout("Energy_i [MJ] = mass_i [t] x CH4_yield_i [Nm3/t] x LHV [MJ/Nm3]<br/><br/>LHV = 35.24 MJ/Nm3 (UNI EN 16723-1)"))
+        story.append(subsec("A.3 Lot aggregate"))
+        story.append(callout("e_w_lot = SUM(e_feedstock_i x Energy_i) / SUM(Energy_i)<br/>Saving = (FFC - e_w_lot) / FFC x 100<br/>FFC = 80 (grid/heat) | 94 (transport) | 183 (electricity)"))
+        story.append(subsec("A.4 LS mass balance"))
+        story.append(callout("UNI/TS 11567 sec. 6 tolerance:<br/>| expected_biomethane - REMI_biomethane | / expected_biomethane <= 15%<br/>Maximum LS duration: 6 months (GSE practice: monthly)."))
+
+    # Appendice B
+    story.extend(section(t("appB", lang)))
+    rows_const = [
+        ["LHV biometano" if L else "Biomethane LHV", "35.24 MJ/Nm3 = 9.79 kWh/Sm3", "UNI EN 16723-1"],
+        ["NM3_TO_MWH", "0.00979", "derivato LHV" if L else "LHV-derived"],
+        ["Purezza CH4 default" if L else "Default CH4 purity", "98.0 %", "UNI EN 16723-1"],
+        ["FFC rete / calore" if L else "FFC grid / heat", "80 gCO2eq/MJ", "RED III All. VI"],
+        ["FFC trasporti" if L else "FFC transport", "94 gCO2eq/MJ", "RED III All. VI"],
+        ["FFC elettricita'" if L else "FFC electricity", "183 gCO2eq/MJ", "RED III All. VI"],
+        ["GWP CH4", "28", "Reg. UE 2022/996"],
+        ["GWP N2O", "265", "Reg. UE 2022/996"],
+        ["GWP CO2", "1", "Reg. UE 2022/996"],
+        ["DEFAULT_AUX_FACTOR", "1.29", "JRC-CONCAWE"],
+        ["Soglia GHG nuova rete/calore 2026+" if L else "GHG threshold new grid/heat 2026+", "80 %", "RED III"],
+        ["Soglia GHG trasporti 2021+" if L else "GHG threshold transport 2021+", "65 %", "RED III"],
+        ["Tolleranza mass balance LS" if L else "LS mass balance tolerance", "+/- 15 %", "UNI/TS 11567:2024 sec.6"],
+        ["Durata massima LS" if L else "Maximum LS duration", "6 " + ("mesi" if L else "months"), "UNI/TS 11567:2024 sec.6"],
+        ["Conservazione documenti" if L else "Document retention", "5 " + ("anni" if L else "years"), "UNI/TS 11567:2024"],
+    ]
+    story.append(data_table(
+        ["Costante" if L else "Constant", "Valore" if L else "Value", "Fonte" if L else "Source"],
+        rows_const, col_widths=[55*mm, 55*mm, 60*mm]
+    ))
+
+    # Appendice C - 42 biomasse
+    story.extend(section(t("appC", lang)))
+    if L:
+        story.append(p(
+            "Elenco completo delle <b>42 biomasse</b> nel FEEDSTOCK_DB del "
+            "software, estratto direttamente da <i>app_mensile.py</i>. Valori "
+            "normativi UNI/TS 11567:2024 Prospetto A.5 salvo override BMT / Relazione Tecnica."
+        ))
+    else:
+        story.append(p(
+            "Complete list of the <b>42 feedstocks</b> in the software's "
+            "FEEDSTOCK_DB, extracted directly from <i>app_mensile.py</i>. "
+            "Regulatory values from UNI/TS 11567:2024 Schedule A.5 unless "
+            "overridden by BMT / Technical Report. Feedstock names are kept in "
+            "Italian as they are the official commercial designations used in "
+            "Italian audits (RINA / SGS / ISCC) and GSE filings."
+        ))
+    biomasse = make_biomasse_42(lang)
+    story.append(data_table(
+        ["#",
+         "Biomassa" if L else "Feedstock (IT)",
+         "Categoria" if L else "Category",
+         "eec", "etd",
+         "Resa Nm3CH4/t" if L else "Yield Nm3CH4/t",
+         "Tier"],
+        [[str(i)] + row for i, row in enumerate(biomasse, 1)],
+        col_widths=[8*mm, 55*mm, 45*mm, 14*mm, 12*mm, 24*mm, 12*mm]
+    ))
+    if L:
+        story.append(callout(
+            "<b>Legenda Tier (livello difendibilita' eec in audit OdC):</b><br/>"
+            "<b>A</b> = Default normativo tabulato (Prospetto A.5 UNI/TS 11567:2024).<br/>"
+            "<b>A/B</b> = eec = 0 da regola (rifiuti, sottoprodotti, residui).<br/>"
+            "<b>C</b> = Stima conservativa positiva (no manure credit). A sfavore dell'operatore, non contestabile in audit.<br/>"
+            "<b>D</b> = Manure credit (eec negativo). Richiede <b>dichiarazione baseline fornitore</b> (stoccaggio in vasca/lagone aperto)."
+        ))
+        story.append(Spacer(1, 6))
+        story.append(p(
+            "<b>Distribuzione delle 42 voci:</b> Colture dedicate 11 | Effluenti zootecnici 9 "
+            "| Sottoprodotti agroindustriali 20 | FORSU/Rifiuti 2.",
+            NOTE
+        ))
+        story.append(Spacer(1, 20))
+        story.append(p("<i>Fine del manuale. Per supporto: carlo.sicurini@gmail.com.</i>", NOTE))
+    else:
+        story.append(callout(
+            "<b>Tier legend (eec defensibility level in certification body audit):</b><br/>"
+            "<b>A</b> = Tabulated regulatory default (Schedule A.5 UNI/TS 11567:2024).<br/>"
+            "<b>A/B</b> = eec = 0 by rule (waste, by-products, residues).<br/>"
+            "<b>C</b> = Conservative positive estimate (no manure credit). Against operator interest, non-contestable in audit.<br/>"
+            "<b>D</b> = Manure credit (negative eec). Requires <b>supplier baseline declaration</b> (open tank/lagoon storage)."
+        ))
+        story.append(Spacer(1, 6))
+        story.append(p(
+            "<b>Distribution of the 42 entries:</b> Energy crops 11 | Animal manure 9 "
+            "| Agro-industrial by-products 20 | OFMSW/Waste 2.",
+            NOTE
+        ))
+        story.append(Spacer(1, 20))
+        story.append(p("<i>End of manual. Support: carlo.sicurini@gmail.com.</i>", NOTE))
+
+
+# ============================================================
+# TOC
+# ============================================================
+
+def build_toc(story, lang):
+    L = lang == "it"
+    story.append(p(t("toc_title", lang), H1))
+    if L:
+        toc_rows = [
+            ("1.", "Scopo del software e contesto normativo"),
+            ("2.", "Architettura e tecnologie"),
+            ("3.", "Avvio dell'app: prima schermata e sidebar"),
+            ("4.", "Tab 1 - Conduzione Giornaliera Standard (UNI-TS / RED III)"),
+            ("5.", "Tab 2 - Conduzione Giornaliera Analisi (BMT / Override EF)"),
+            ("6.", "Tab 3 - Risultati, Incentivi e Business Plan"),
+            ("7.", "Logica di calcolo GHG (RED III All.V Parte C)"),
+            ("8.", "Calcolo aux_factor e bilancio energetico"),
+            ("9.", "Vincoli normativi e verifica compliance mensile"),
+            ("10.", "Export: PDF, Excel, CSV"),
+            ("11.", "Anagrafica impianto e audit trail"),
+            ("12.", "FAQ e troubleshooting"),
+            ("A.", "Appendice - Formule normative complete"),
+            ("B.", "Appendice - Costanti fisiche e fattori emissivi"),
+            ("C.", "Appendice - Database biomasse completo (42 voci)"),
+        ]
+    else:
+        toc_rows = [
+            ("1.", "Software scope and regulatory context"),
+            ("2.", "Architecture and technologies"),
+            ("3.", "Launching the app: first screen and sidebar"),
+            ("4.", "Tab 1 - Daily Operations Standard (UNI-TS / RED III)"),
+            ("5.", "Tab 2 - Daily Operations Analysis (BMT / EF Override)"),
+            ("6.", "Tab 3 - Results, Incentives and Business Plan"),
+            ("7.", "GHG calculation logic (RED III Annex V Part C)"),
+            ("8.", "aux_factor calculation and energy balance"),
+            ("9.", "Regulatory constraints and monthly compliance check"),
+            ("10.", "Export: PDF, Excel, CSV"),
+            ("11.", "Plant registry and audit trail"),
+            ("12.", "FAQ and troubleshooting"),
+            ("A.", "Appendix - Complete regulatory formulas"),
+            ("B.", "Appendix - Physical constants and emission factors"),
+            ("C.", "Appendix - Complete feedstock database (42 entries)"),
+        ]
     toc_table = Table(
-        [[p(f"<b>{n}</b>", BODY_TIGHT), p(t, BODY_TIGHT)] for n, t in toc_rows],
+        [[p(f"<b>{n}</b>", BODY_TIGHT), p(tt, BODY_TIGHT)] for n, tt in toc_rows],
         colWidths=[12*mm, 158*mm], hAlign="LEFT"
     )
     toc_table.setStyle(TableStyle([
@@ -307,808 +1339,59 @@ def build():
     ]))
     story.append(toc_table)
 
-    # ---------------- CAP 1 ----------------
-    story.extend(section("1. Scopo del software e contesto normativo"))
-    story.append(p(
-        "<b>Metan.iQ</b> e' una <b>Decision Intelligence Platform</b> "
-        "(piattaforma di intelligenza decisionale) progettata per gli "
-        "operatori di <b>impianti di biometano da digestione anaerobica "
-        "con immissione in rete</b>, regolati dal <b>DM 15 settembre 2022</b> "
-        "(incentivazione del biometano immesso in rete) e dalle direttive "
-        "europee <b>RED II (2018/2001)</b> e <b>RED III (2023/2413)</b>."
-    ))
-    story.append(p(
-        "Il software opera in modalita' <b>biometano-only</b> "
-        "(APP_MODE = 'biometano' hardcoded nel runtime). Eventuali sezioni "
-        "di autoconsumo CHP modellate dall'app si riferiscono al "
-        "<b>recupero termico/elettrico interno dall'autoconsumo di una "
-        "quota di biometano prodotto</b>, non a un impianto biogas-CHP "
-        "standalone che produce direttamente elettricita' in rete."
-    ))
-    story.append(p(
-        "Lo strumento copre l'intero ciclo operativo dell'impianto a livello "
-        "<b>mensile</b>, dalla pianificazione del mix biomasse alla "
-        "verifica della sostenibilita' GHG, dalla conformita' ai vincoli "
-        "autorizzativi alla generazione dei report ufficiali per audit "
-        "RINA / SGS / ISCC e dossier conformita' verso GSE / MASE."
-    ))
 
-    story.append(subsec("1.1 Obiettivi principali"))
-    story.append(bullet_list([
-        "<b>Tracciare</b> giorno per giorno biomasse caricate e Sm3 netti "
-        "immessi in rete (letti dalla cabina REMI).",
-        "<b>Calcolare</b> il risparmio GHG (saving %) secondo la "
-        "metodologia RED III Allegato V Parte C e UNI/TS 11567:2024.",
-        "<b>Verificare</b> il rispetto della soglia normativa di saving "
-        "(80% per impianti nuovi rete/calore, 65% trasporti) sul lotto "
-        "di sostenibilita' MENSILE.",
-        "<b>Verificare</b> il rispetto del cap autorizzativo (es. 300 Sm3/h "
-        "medi mensili).",
-        "<b>Ottimizzare</b> il mix biomasse via solver LP per massimizzare "
-        "saving GHG o ricavi tariffari rispettando i vincoli.",
-        "<b>Pianificare</b> il business plan a 15 anni con tariffe DM 2022, "
-        "premi matrice, PNRR conto capitale, OPEX, finance.",
-        "<b>Esportare</b> dossier audit-ready (PDF brand, Excel 4 fogli, "
-        "CSV separato ;) per consulenti tecnici, OdC, GSE.",
-    ]))
+# ============================================================
+# BUILD
+# ============================================================
 
-    story.append(subsec("1.2 Riferimenti normativi applicati"))
-    story.append(data_table(
-        ["Norma", "Ambito di applicazione"],
-        [
-            ["DM 15/09/2022", "Tariffe biometano in rete (TR per taglia, 15 anni)"],
-            ["RED III (Dir. UE 2023/2413)", "Soglie saving GHG, metodologia Allegato V Parte C"],
-            ["RED II (Dir. UE 2018/2001)", "Quadro normativo precedente, ancora applicabile per impianti pre-2021"],
-            ["D.Lgs. 199/2021", "Recepimento italiano RED II"],
-            ["D.Lgs. 5/2026 (atteso)", "Recepimento italiano RED III"],
-            ["UNI/TS 11567:2024", "Calcolo emissioni GHG biocombustibili, rese standard, fattori emissivi"],
-            ["GSE Linee Guida 2024", "Modalita' operative attuative DM 2022, Lotti di Sostenibilita'"],
-            ["JEC WTT v5", "Joint Research Centre Well-to-Tank, fattori emissivi default"],
-            ["Reg. UE 2022/996", "GWP aggiornati (CH4 = 28, N2O = 265)"],
-            ["UNI EN 16723-1", "Specifiche biometano per immissione in rete (LHV, % CH4)"],
-        ],
-        col_widths=[55*mm, 115*mm]
-    ))
+def build(lang):
+    out = OUTPUT_PATHS[lang]
+    doc = BaseDocTemplate(
+        out, pagesize=A4,
+        leftMargin=20*mm, rightMargin=20*mm,
+        topMargin=24*mm, bottomMargin=22*mm,
+        title=t("doc_title_pdf", lang),
+        author="Carlo Sicurini",
+        subject=t("doc_subject", lang),
+    )
+    frame_cover = Frame(0, 0, A4[0], A4[1], leftPadding=0, rightPadding=0,
+                        topPadding=0, bottomPadding=0, id="cover")
+    frame_std = Frame(20*mm, 22*mm, A4[0]-40*mm, A4[1]-46*mm,
+                      leftPadding=0, rightPadding=0,
+                      topPadding=0, bottomPadding=0, id="std")
+    doc.addPageTemplates([
+        PageTemplate(id="cover", frames=[frame_cover], onPage=make_cover_page(lang)),
+        PageTemplate(id="std", frames=[frame_std], onPage=make_std_page(lang)),
+    ])
 
-    story.append(subsec("1.3 Regola fondamentale di compliance"))
-    story.append(callout(
-        "<b>La sostenibilita' GHG si verifica sul LOTTO MENSILE, non sul "
-        "singolo giorno.</b> Il saving giornaliero mostrato in tabella e' "
-        "solo informativo. Il verdetto ufficiale <b>Compliant / Non "
-        "Compliant</b> e' calcolato sull'aggregato mensile, secondo la "
-        "regola dei <b>Lotti di Sostenibilita' (LS)</b> della UNI/TS "
-        "11567:2024 (durata max 6 mesi, mensile per prassi GSE).",
-        kind="warn"
-    ))
-    story.append(p(
-        "Conseguenza pratica: un mese puo' essere <b>Compliant</b> anche se "
-        "alcuni giorni isolati hanno saving giornaliero sotto soglia, "
-        "purche' la media pesata sull'energia dell'intero mese rispetti "
-        "il limite normativo. Questo permette di compensare giorni 'cattivi' "
-        "(mais puro, alto eec) con giorni 'buoni' (reflui, manure credit)."
-    ))
-
-    # ---------------- CAP 2 ----------------
-    story.extend(section("2. Architettura e tecnologie"))
-    story.append(p(
-        "Metan.iQ e' un'applicazione web monolitica costruita su <b>Streamlit</b> "
-        "(framework Python per data app). L'utente interagisce tramite browser; "
-        "tutti i calcoli avvengono server-side in Python."
-    ))
-
-    story.append(subsec("2.1 Stack tecnico"))
-    story.append(kv_table([
-        ("Frontend / runtime", "Streamlit 1.57+ (Python 3.11+)"),
-        ("Motore di calcolo", "NumPy, SciPy (solver LP linprog), pandas"),
-        ("Visualizzazione", "Plotly (grafici), HTML/CSS Material 3 custom"),
-        ("Export PDF", "ReportLab (template brand Metan.iQ)"),
-        ("Export Excel", "openpyxl (4-6 fogli, formattazione condizionale)"),
-        ("Export PPTX", "python-pptx (8 slide annuali)"),
-        ("Persistenza locale", "SQLite (data/metaniq_daily.db)"),
-        ("i18n", "Dizionari IT/EN con substring replacement"),
-        ("Theme", "Light / Dark switcher (palette navy + amber, font Outfit)"),
-        ("Hosting di riferimento", "Streamlit Cloud (privato, branch dm2022-only)"),
-    ]))
-
-    story.append(subsec("2.2 Struttura logica del codice"))
-    story.append(data_table(
-        ["Modulo", "Responsabilita'"],
-        [
-            ["app_mensile.py", "Entry point Streamlit, UI principale, calcoli, FEEDSTOCK_DB"],
-            ["core/daily_model.py", "DailyEntry, compute_daily() - calcolo giornaliero"],
-            ["core/monthly_aggregate.py", "aggregate_month() - aggregato mensile GHG"],
-            ["core/sustainability.py", "evaluate_monthly_sustainability() - verdetto"],
-            ["core/constants.py", "LHV biometano, NM3_TO_MWH, FFC, GWP, soglie"],
-            ["core/calculation_engine.py", "ghg_summary(), e_total_feedstock()"],
-            ["core/persistence.py", "Salvataggio / caricamento SQLite"],
-            ["output/monthly_kpis.py", "KPI builder, calcoli di sintesi"],
-            ["output/output_builder.py", "Builder dati tabellari per UI ed export"],
-            ["export/daily_pdf.py", "Generatore report PDF brand Metan.iQ"],
-            ["export/daily_excel.py", "Generatore Excel 4-6 fogli"],
-            ["bmt_override.py", "Override rese da BMT (lab analysis)"],
-            ["emission_factors_override.py", "Override fattori emissivi (relazione tecnica)"],
-            ["dossier_conformita.py", "PDF dossier conformita' OdC"],
-            ["theme_editorial.py", "Override CSS estetico iniettato post design system"],
-        ],
-        col_widths=[60*mm, 110*mm]
-    ))
-
-    # ---------------- CAP 3 ----------------
-    story.extend(section("3. Avvio dell'app: prima schermata e sidebar"))
-    story.append(p(
-        "Aprendo l'URL dell'app (es. https://appco-6lmzj97bbbw8ndlwnvnocf.streamlit.app/) "
-        "si presenta una schermata divisa in:"
-    ))
-    story.append(bullet_list([
-        "<b>Sidebar a sinistra:</b> selettori globali (lingua, regime, mese di "
-        "lavoro, biomasse attive, parametri tecnici impianto).",
-        "<b>Area principale a destra:</b> tre macro-tab di lavoro "
-        "(Standard / Analisi / Risultati).",
-        "<b>Header in alto:</b> brand Metan.iQ con badge versione e regime "
-        "attivo (DM 2022 / RED III).",
-        "<b>Footer:</b> link legali (Privacy, Terms), versione software.",
-    ]))
-
-    story.append(subsec("3.1 Sidebar: pannello di controllo globale"))
-    story.append(p("La sidebar contiene i seguenti gruppi di controlli:"))
-    story.append(data_table(
-        ["Sezione", "Controllo", "Funzione"],
-        [
-            ["Lingua", "Selettore IT / EN",
-             "Cambia tutte le label dell'app, formato numeri e date"],
-            ["Tema", "Toggle Light / Dark",
-             "Switcher palette colori, mantiene leggibilita' WCAG AA"],
-            ["Anno / Mese", "Number input / Select",
-             "Periodo di lavoro per cui caricare/salvare dati"],
-            ["ID impianto", "Text input",
-             "Discriminante per gestire piu' impianti nello stesso DB"],
-            ["Regime", "Radio DM 2022 / DM 2018 / FER2",
-             "Cambia soglia GHG e cap autorizzativo"],
-            ["Biomasse attive", "Multiselect su FEEDSTOCK_DB",
-             "Definisce le colonne disponibili nella tabella giornaliera"],
-            ["Plant net Sm3/h", "Number input (default 300)",
-             "Cap autorizzativo Sm3/h immessi in rete"],
-            ["Aux factor", "Auto (Config Tecnica) o manuale",
-             "Rapporto Sm3 lordi / Sm3 netti, default 1.29 (JRC-CONCAWE)"],
-            ["ep totale", "Auto da config upgrading o manuale",
-             "Emissioni processing impianto (gCO2eq/MJ)"],
-            ["Manure credit", "Checkbox per biomassa (default ON)",
-             "Attiva/disattiva eec negativo per reflui zootecnici"],
-        ],
-        col_widths=[30*mm, 50*mm, 90*mm]
-    ))
-    story.append(callout(
-        "<b>Importante:</b> qualunque modifica in sidebar ricalcola "
-        "<b>immediatamente</b> tutta l'app. Se modifichi un parametro tecnico "
-        "(es. aux_factor) durante l'analisi, i KPI mensili e il PDF tengono "
-        "conto del nuovo valore senza dover salvare."
-    ))
-
-    # ---------------- CAP 4 ----------------
-    story.extend(section("4. Tab 1 - Conduzione Giornaliera Standard"))
-    story.append(p(
-        "Tab di lavoro principale per la <b>gestione operativa quotidiana</b>. "
-        "Usa rese e fattori emissivi <b>standard</b> della UNI/TS 11567:2024 "
-        "(Prospetto A.5). Indicato per uso routinario senza analisi di laboratorio."
-    ))
-
-    story.append(subsec("4.1 Tabella biomasse giornaliere"))
-    story.append(p(
-        "E' la tabella centrale del software. Una riga per ogni giorno del mese "
-        "(28-31 a seconda del mese, anno bisestile gestito). Colonne dinamiche "
-        "in base alle biomasse selezionate in sidebar."
-    ))
-    story.append(intro_list(
-        "<b>Colonne tipiche:</b>",
-        [
-        "<b>Data</b> - generata automaticamente.",
-        "<b>Trinciato di mais, Liquame suino, ...</b> - una colonna per ogni "
-        "biomassa attiva. Input in <b>tonnellate / giorno</b>.",
-        "<b>Tot biomasse t</b> - somma riga (calcolata).",
-        "<b>Sm3 lordi</b> - calcolato da (sum massa x resa biomassa).",
-        "<b>Sm3 netti</b> - <b>INSERITO DALL'OPERATORE</b> il giorno dopo "
-        "leggendo la cabina REMI. Senza questo valore i KPI di portata e "
-        "produzione netta sono 0.",
-        "<b>Sm3/h netti</b> - calcolato come Sm3 netti / ore funzionamento.",
-        "<b>MWh</b> - calcolato come Sm3 netti x NM3_TO_MWH (0.00979).",
-        "<b>eec</b> - emissioni colture pesate sull'energia del giorno.",
-        "<b>esca / etd / ep</b> - emissioni altre componenti.",
-        "<b>e_total</b> - somma componenti, in gCO2eq/MJ.",
-        "<b>Saving giornaliero (stima %)</b> - (80 - e_total) / 80 x 100. "
-        "Solo informativo, non vincolante.",
-        "<b>Cap OK</b> - True se Sm3/h netti <= 300 (o cap autorizzativo).",
-        "<b>Cumulato Sm3 / MWh / t</b> - progressivi mese.",
-        ]
-    ))
-
-    story.append(subsec("4.2 Workflow giornaliero passo-passo"))
-    story.append(data_table(
-        ["Step", "Azione operatore", "Effetto nel software"],
-        [
-            ["1", "Apri il mese di lavoro in sidebar",
-             "Carica dati salvati o crea mese vuoto"],
-            ["2", "Inserisci massa biomasse del giorno (t)",
-             "Calcola in tempo reale Sm3 lordi attesi, eec, e_total"],
-            ["3", "Il giorno successivo, leggi cabina REMI",
-             "Inserisci Sm3 netti immessi nella colonna 'Sm3 netti'"],
-            ["4", "Verifica saving giornaliero (informativo)",
-             "Vedi se sei sopra/sotto soglia per il giorno"],
-            ["5", "Verifica Cap OK (Sm3/h)",
-             "Verifica non superi cap autorizzativo"],
-            ["6", "Salva il mese (pulsante in basso)",
-             "Scrive su SQLite locale"],
-            ["7", "A fine mese, controlla KPI aggregato",
-             "Saving GHG mese vs soglia 80% - esito Compliant/Non Compliant"],
-            ["8", "Esporta report PDF / Excel / CSV",
-             "Dossier per archivio aziendale, OdC, GSE"],
-        ],
-        col_widths=[12*mm, 75*mm, 83*mm]
-    ))
-
-    story.append(intro_list(
-        "Sotto la tabella appaiono 4 metriche principali:",
-        [
-            "<b>Biomassa mese (t)</b> - totale tonnellate caricate.",
-            "<b>Sm3 netti mese</b> - totale REMI immesso in rete.",
-            "<b>MWh netti mese</b> - energia netta (= Sm3 netti x 0.00979).",
-            "<b>Saving GHG (%)</b> - calcolato sull'aggregato mensile, "
-            "con badge <b>COMPLIANT</b> (verde) o <b>NON COMPLIANT</b> (rosso) "
-            "e indicazione del margine vs soglia.",
-        ],
-        h2_title="4.3 KPI mensili",
-    ))
-
-    story.append(subsec("4.4 Pulsanti operativi"))
-    story.append(data_table(
-        ["Pulsante", "Effetto"],
-        [
-            ["Ricarica da DB", "Riporta i dati dal SQLite (scarta modifiche non salvate)"],
-            ["Nuovo mese (vuoto)", "Azzera la tabella (cura: perde dati non salvati)"],
-            ["Salva mese", "Persiste dati su data/metaniq_daily.db"],
-            ["Esporta PDF", "Genera report mensile brand Metan.iQ (7 pagine)"],
-            ["Esporta Excel", "Genera workbook 4 fogli (Riepilogo, Giornaliera, Anagrafica, Vincoli)"],
-            ["Esporta CSV", "Genera CSV (sep ;, dec ,, UTF-8) per import Excel italiano"],
-            ["Genera dossier conformita'", "PDF audit-ready per OdC (RINA/SGS/ISCC)"],
-            ["Risolvi 1 incognita", "Solver LP per quantita' ottimale di 1 biomassa"],
-            ["Risolvi 2 incognite", "Solver LP dual (saving + produzione target)"],
-        ],
-        col_widths=[55*mm, 115*mm]
-    ))
-
-    # ---------------- CAP 5 ----------------
-    story.extend(section("5. Tab 2 - Conduzione Giornaliera Analisi (BMT / Override EF)"))
-    story.append(p(
-        "Variante <b>avanzata</b> del Tab 1, destinata a operatori che dispongono "
-        "di <b>BMT</b> (Biological Methane Potential, test di laboratorio sulla "
-        "resa metanogena specifica delle proprie biomasse) e/o di una "
-        "<b>Relazione Tecnica</b> con fattori emissivi su misura validati "
-        "dal proprio OdC."
-    ))
-
-    story.append(subsec("5.1 Override BMT (rese)"))
-    story.append(p(
-        "Permette di sostituire le rese standard del Prospetto A.3 UNI/TS "
-        "11567:2024 con valori da analisi laboratorio. Tipicamente:"
-    ))
-    story.append(bullet_list([
-        "Rese reali pesate (umide) o normalizzate su ST (Sostanza Totale) / SV "
-        "(Sostanza Volatile).",
-        "Conversione Nm3 biogas -> Nm3 CH4 tramite %CH4 medio misurato.",
-        "Riconciliazione con il dato di campo (Sm3 netti REMI) tramite scarto "
-        "% atteso (deve essere <= +/- 15% per validita' LS).",
-    ]))
-    story.append(callout(
-        "Quando attivi un override BMT, l'audit trail del PDF lo riporta "
-        "esplicitamente come <b>'Origine rese: BMT override'</b>. Questa "
-        "informazione e' obbligatoria per audit OdC."
-    ))
-
-    story.append(subsec("5.2 Override fattori emissivi"))
-    story.append(p(
-        "Sostituisce i valori standard di <b>eec, esca, etd, ep</b> con valori "
-        "da Relazione Tecnica certificata. Tipicamente:"
-    ))
-    story.append(bullet_list([
-        "<b>eec</b> custom per biomasse non tabulate o per dichiarazioni "
-        "specifiche del fornitore (es. manure credit con vasca aperta documentata).",
-        "<b>ep</b> custom da bilancio energetico reale dell'impianto "
-        "(consumi elettrici, termici, slip CH4 misurato).",
-        "<b>etd</b> custom da rilievo logistico (km, mezzo, ritorno a vuoto).",
-    ]))
-
-    # ---------------- CAP 6 ----------------
-    story.extend(section("6. Tab 3 - Risultati, Incentivi e Business Plan"))
-    story.append(p(
-        "Tab di sintesi annuale / strategica. Aggrega 12 mesi e calcola "
-        "ricavi, OPEX, CAPEX, business plan a 15 anni."
-    ))
-
-    story.append(subsec("6.1 Configurazione impianto (ep)"))
-    story.append(p(
-        "Sezione tecnica per definire il bilancio energetico dell'impianto, "
-        "che determina automaticamente:"
-    ))
-    story.append(bullet_list([
-        "<b>aux_factor</b> = Sm3 lordi / Sm3 netti, dipende da tecnologia "
-        "upgrading (ammine, PSA, membrane), gestione off-gas (RTO, flare), "
-        "fonti calore (autoconsumo biometano, biogas, esterno) ed elettricita' "
-        "(rete, FV, cogen).",
-        "<b>ep_total</b> = somma EP_UPGRADING + EP_OFFGAS + EP_HEAT + EP_ELEC, "
-        "in gCO2eq/MJ. Vincolato a <b>>= 0</b> per RED III All.V Parte C "
-        "(off-gas RTO non puo' rendere ep negativo).",
-    ]))
-
-    story.append(subsec("6.2 DM 2022 - Tariffe e premi"))
-    story.append(p(
-        "Configurazione lato incentivo. L'utente seleziona:"
-    ))
-    story.append(bullet_list([
-        "<b>Taglia impianto</b> (scaglione Sm3/h) - determina la tariffa di "
-        "riferimento (TR).",
-        "<b>Ribasso d'asta</b> applicato in gara GSE.",
-        "<b>Premi matrice</b> cumulabili (Annex IX, kWh recuperato, lavoro "
-        "agricolo, premio cogenerazione).",
-        "<b>PNRR conto capitale</b> - aliquota di contributo (max 40%) e "
-        "massimale di spesa eleggibile (euro/Sm3h).",
-    ]))
-
-    story.append(subsec("6.3 Business plan 15 anni"))
-    story.append(p(
-        "Costruisce un piano economico-finanziario completo:"
-    ))
-    story.append(bullet_list([
-        "<b>CAPEX</b> per voce (movimenti terra, civili, tecnologico, "
-        "upgrading, varie) scalato con plant_size.",
-        "<b>OPEX</b> annuale per voce (O&M, gestore, service, assicurazioni).",
-        "<b>Finanziamento</b> a leva (default 70% leverage, 5% tasso, 15 anni).",
-        "<b>Conto economico</b> con ricavi tariffari, OPEX, ammortamenti, "
-        "imposte (IRES + IRAP semplificato 24%).",
-        "<b>Free Cash Flow</b> e indicatori (NPV, IRR, payback).",
-    ]))
-
-    # ---------------- CAP 7 ----------------
-    story.extend(section("7. Logica di calcolo GHG (RED III All.V Parte C)"))
-    story.append(p(
-        "Questa sezione descrive analiticamente la formula applicata dal "
-        "software per calcolare il risparmio GHG. E' il cuore tecnico-normativo "
-        "del prodotto e ogni numero in output deriva da queste relazioni."
-    ))
-
-    story.append(subsec("7.1 Formula generale RED III"))
-    story.append(p("Per ogni Lotto di Sostenibilita' (LS = mese aggregato):"))
-    story.append(callout(
-        "<b>E = eec + el + ep + etd + eu - esca - eccs - eccr</b><br/>"
-        "[gCO2eq / MJ biometano]<br/><br/>"
-        "Risparmio (%) = (FFC - E) / FFC x 100"
-    ))
-    story.append(data_table(
-        ["Termine", "Significato", "Tipico biometano"],
-        [
-            ["eec", "Estrazione/coltivazione materie prime", "0 (rifiuti) a 29 (mais)"],
-            ["el", "Lavorazione (digestione)", "incluso in ep nel modello"],
-            ["ep", "Processing (upgrading, calore, elettricita')", "0 a 10 (cap >= 0)"],
-            ["etd", "Trasporto e distribuzione", "0.8 (default standard)"],
-            ["eu", "Uso del carburante", "0 (biometano ad uso rete)"],
-            ["esca", "Credito accumulo C nel suolo", "0 (default)"],
-            ["eccs/eccr", "Credito cattura CO2", "0 (default)"],
-            ["FFC", "Fossil Fuel Comparator", "80 rete/calore, 94 trasporti, 183 elettr."],
-        ],
-        col_widths=[20*mm, 90*mm, 60*mm]
-    ))
-
-    story.append(subsec("7.2 Calcolo aggregato sul lotto mensile"))
-    story.append(p(
-        "Il punto critico - <b>NON e' una media aritmetica dei saving "
-        "giornalieri</b>. Per UNI/TS 11567:2024 e RED III All.V Parte C, "
-        "l'aggregazione avviene sull'energia totale del lotto:"
-    ))
-    story.append(callout(
-        "<b>e_w_lotto = SOMMA (e_biomassa_i x Energia_biomassa_i) / "
-        "SOMMA (Energia_biomassa_i)</b><br/><br/>"
-        "dove Energia_i = massa_i x resa_CH4_i x LHV<br/>"
-        "e e_biomassa_i = eec_i + esca_i + etd_i + ep<br/><br/>"
-        "Saving_lotto = (FFC - e_w_lotto) / FFC x 100"
-    ))
-    story.append(p(
-        "<b>Implicazione operativa:</b> giorni con saving giornaliero <80% "
-        "non rendono automaticamente il mese non conforme. Vengono 'diluiti' "
-        "da giorni a saving alto grazie alla pesatura sull'energia. Il "
-        "verdetto finale e' sul totale mese."
-    ))
-
-    story.append(subsec("7.3 Sistema tier difendibilita' eec (A/B/C/D)"))
-    story.append(p(
-        "Ogni biomassa nel software e' classificata per <b>livello di "
-        "difendibilita' del valore eec in audit</b>:"
-    ))
-    story.append(data_table(
-        ["Tier", "Significato", "eec tipico"],
-        [
-            ["A - Default normativo", "Tabellato Prospetto A.5 UNI/TS",
-             "Mais 29, Sorgo 26, rifiuti 0"],
-            ["B - Zero da regola", "Residuo Annex IX non tabulato",
-             "0 (regola residui)"],
-            ["C - Stima conservativa", "Letteratura JEC/KTBL a sfavore",
-             "positivo, non contestabile"],
-            ["D - Manure credit", "Credito reflui zootecnici",
-             "negativo (-45 std), richiede baseline fornitore"],
-        ],
-        col_widths=[40*mm, 70*mm, 60*mm]
-    ))
-
-    story.append(subsec("7.4 Manure credit (Tier D)"))
-    story.append(p(
-        "Per reflui zootecnici (liquame suino/bovino, pollina, etc.) il "
-        "software applica per default un eec <b>-45 gCO2eq/MJ</b> (RED III "
-        "All.V/VI). Questo credito riflette le emissioni di metano <b>evitate</b> "
-        "rispetto allo stoccaggio in vasca/lagone aperto (decomposizione "
-        "anaerobica spontanea)."
-    ))
-    story.append(callout(
-        "Il manure credit richiede <b>dichiarazione baseline del fornitore</b> "
-        "in audit OdC. Se il fornitore stocca in vasca COPERTA con captazione "
-        "o N-stripping, il credit va ridotto o annullato. Il software emette "
-        "warning specifico per ogni biomassa con credit attivo.",
-        kind="warn"
-    ))
-
-    # ---------------- CAP 8 ----------------
-    story.extend(section("8. Calcolo aux_factor e bilancio energetico"))
-    story.append(p(
-        "L'<b>aux_factor</b> (fattore servizi ausiliari) e' il rapporto tra "
-        "Sm3 di biometano <b>lordi</b> prodotti dal fermentatore e Sm3 <b>netti</b> "
-        "effettivamente immessi in rete. Tiene conto degli autoconsumi "
-        "energetici dell'impianto."
-    ))
-
-    story.append(subsec("8.1 Formula"))
-    story.append(callout(
-        "<b>aux_factor = 1 / (1 - f_calore - f_elettrico - f_slip - f_margine)</b><br/><br/>"
-        "Sm3_netti = Sm3_lordi / aux_factor"
-    ))
-    story.append(p("Le frazioni di autoconsumo dipendono dalla configurazione:"))
-    story.append(bullet_list([
-        "<b>f_calore</b> - frazione di biometano destinata alla caldaia "
-        "per riscaldare il fermentatore (0 se calore esterno o cogenerazione).",
-        "<b>f_elettrico</b> - frazione bruciata in CHP interno per "
-        "produrre elettricita' di autoconsumo (0 se rete o FV).",
-        "<b>f_slip</b> - perdite metano in upgrading (PSA, ammine, membrane). "
-        "Tipicamente 0.5% - 2%.",
-        "<b>f_margine</b> - margine prudenziale (3% default).",
-    ]))
-
-    story.append(subsec("8.2 Valore default e range"))
-    story.append(kv_table([
-        ("Default DEFAULT_AUX_FACTOR", "1.29 (JRC-CONCAWE)"),
-        ("Range tipico ammine + autoconsumo termico", "1.20 - 1.32"),
-        ("Range tipico PSA + elettricita' rete", "1.10 - 1.18"),
-        ("Range tipico membrane + cogen", "1.15 - 1.25"),
-        ("Override manuale", "Disponibile in 'Config Tecnica & GHG'"),
-    ]))
-
-    # ---------------- CAP 9 ----------------
-    story.extend(section("9. Vincoli normativi e verifica compliance mensile"))
-    story.append(p(
-        "Il software verifica automaticamente DUE vincoli a fine mese:"
-    ))
-
-    story.append(subsec("9.1 Vincolo A - Soglia saving GHG"))
-    story.append(p(
-        "Confronta saving_mese aggregato con la soglia del regime selezionato:"
-    ))
-    story.append(data_table(
-        ["Entrata in servizio impianto", "Uso", "Soglia"],
-        [
-            ["Prima 5 ott 2015", "Trasporti", "50%"],
-            ["5 ott 2015 - 31 dic 2020", "Trasporti", "60%"],
-            ["Dal 1 gen 2021", "Trasporti", "65%"],
-            ["Dal 1 gen 2021", "Elettricita' / calore (>1 MW)", "70%"],
-            ["Dal 1 gen 2026 (impianti nuovi)", "Elettricita' / calore", "80%"],
-        ],
-        col_widths=[60*mm, 60*mm, 50*mm]
-    ))
-    story.append(callout(
-        "La data rilevante e' quella di <b>entrata in servizio dell'impianto "
-        "di biogas originario</b>, NON dell'upgrading. Riconfigurabile in "
-        "sidebar."
-    ))
-
-    story.append(subsec("9.2 Vincolo B - Cap autorizzativo Sm3/h"))
-    story.append(p(
-        "Verifica che la portata media mensile non superi il cap "
-        "dell'autorizzazione AUA / VIA. Default 300 Sm3/h, modificabile "
-        "in sidebar 'plant_net Sm3/h'."
-    ))
-
-    story.append(subsec("9.3 Esito finale"))
-    story.append(p(
-        "Il mese e' <b>COMPLIANT</b> se ENTRAMBI i vincoli sono soddisfatti. "
-        "Il PDF mensile mostra il verdetto in copertina con badge colorato "
-        "(verde = OK, rosso = KO) e dettaglia il margine in punti percentuali."
-    ))
-
-    # ---------------- CAP 10 ----------------
-    story.extend(section("10. Export: PDF, Excel, CSV"))
-    story.append(subsec("10.1 PDF mensile (7 pagine)"))
-    story.append(p("Struttura del PDF brand Metan.iQ generato:"))
-    story.append(data_table(
-        ["Pag.", "Contenuto"],
-        [
-            ["1", "Copertina - Esito ufficiale, KPI principali (Biomasse, Sm3, MWh, Saving)"],
-            ["2", "Riepilogo KPI mensili + Vincoli normativi con esito"],
-            ["3", "Indicazioni operative (azioni correttive fine mese)"],
-            ["4-5", "Tabella giornaliera dettagliata (26 colonne)"],
-            ["6", "Anagrafica simulazione & Audit Trail"],
-            ["7", "Riferimenti normativi & Validazione"],
-        ],
-        col_widths=[15*mm, 155*mm]
-    ))
-
-    story.append(subsec("10.2 Excel (4 fogli)"))
-    story.append(bullet_list([
-        "<b>Riepilogo Mensile</b> - intestazione, esito, KPI principali, totali biomasse.",
-        "<b>Operativita' Giornaliera</b> - tabella 26 colonne, 28-31 righe.",
-        "<b>Anagrafica & Parametri</b> - voci tracciabilita' per audit.",
-        "<b>Vincoli</b> - esito per ogni vincolo regime.",
-    ]))
-
-    story.append(subsec("10.3 CSV"))
-    story.append(p(
-        "Separatore <b>;</b>, decimale <b>,</b>, encoding UTF-8 con BOM. "
-        "Apertura diretta in Excel italiano senza wizard import. "
-        "Contiene la tabella giornaliera completa."
-    ))
-
-    story.append(subsec("10.4 Dossier Conformita' OdC"))
-    story.append(p(
-        "PDF specifico per audit RINA / SGS / ISCC. Include:"
-    ))
-    story.append(bullet_list([
-        "Tutti i parametri di calcolo (eec, etd, ep, esca, FFC) con fonte normativa.",
-        "Mass balance del lotto: scarto biomassa vs biometano (<= +/- 15%).",
-        "Origine rese (standard / BMT) per ciascuna biomassa.",
-        "Origine fattori emissivi (standard / Relazione Tecnica).",
-        "Lista DDT di ingresso e fornitori (se anagrafati).",
-        "Dichiarazioni di sostenibilita' fornitori (link).",
-        "Firma elettronica responsabile filiera (placeholder).",
-    ]))
-
-    # ---------------- CAP 11 ----------------
-    story.extend(section("11. Anagrafica impianto e audit trail"))
-    story.append(p(
-        "Sezione obbligatoria per la tracciabilita' GSE / OdC. Tutti i valori "
-        "vengono riportati in copertina dei report e nel foglio "
-        "<b>Anagrafica & Parametri</b> dell'Excel."
-    ))
-    story.append(data_table(
-        ["Voce", "Note"],
-        [
-            ["Nome azienda", "Ragione sociale completa"],
-            ["Sede legale", "Indirizzo sede legale"],
-            ["Nome impianto", "Denominazione operativa"],
-            ["Sede operativa", "Indirizzo impianto"],
-            ["Regime applicato", "DM 2022 / DM 2018 / FER2"],
-            ["Soglia normativa (%)", "80 / 70 / 65 / 60 / 50 a seconda regime"],
-            ["Comparatore fossile", "80 / 94 / 183 a seconda uso finale"],
-            ["Aux factor", "Da Config Tecnica oppure override"],
-            ["EP totale", "Da Config Tecnica oppure override"],
-            ["Plant net (Sm3/h)", "Cap autorizzativo"],
-            ["Origine rese", "BMT override se attivo, altrimenti standard"],
-            ["Origine fattori emissivi", "Override RT se attivo, altrimenti UNI-TS"],
-            ["Giorni con dati", "Conteggio giorni compilati"],
-            ["Giorni cap violato", "Conteggio giorni con Sm3/h > cap"],
-        ],
-        col_widths=[55*mm, 115*mm]
-    ))
-
-    # ---------------- CAP 12 ----------------
-    story.extend(section("12. FAQ e troubleshooting"))
-    story.append(subsec("12.1 Domande frequenti"))
-
-    faq = [
-        ("Perche' il saving mensile non e' la media dei saving giornalieri?",
-         "Perche' UNI/TS 11567:2024 e RED III prescrivono l'aggregazione "
-         "sull'energia del lotto. Vedi cap. 7.2 per la formula completa."),
-        ("Posso avere giorni con saving < 80% senza essere Non Compliant?",
-         "Si', purche' il saving mensile aggregato sia >= 80%. La "
-         "compensazione tra giorni a alto e basso saving e' una "
-         "caratteristica della metodologia LS."),
-        ("Cosa succede se non inserisco i Sm3 netti REMI?",
-         "I KPI di portata, MWh netti e ricavi vengono mostrati come 0 (o "
-         "auto-derivati da PCI standard, con warning). Il saving GHG e' "
-         "comunque calcolabile dalla biomassa (basato sul lordo)."),
-        ("Il manure credit -45 si applica sempre?",
-         "Si' per default, ma solo se il fornitore stocca i reflui in vasca "
-         "APERTA. Con vasca coperta + captazione, il credit va annullato. "
-         "Richiede dichiarazione baseline fornitore in audit."),
-        ("ep_total puo' essere negativo (es. credito RTO off-gas)?",
-         "No. Per RED III All.V Parte C, ep e' >= 0. Il software applica un "
-         "floor automatico se la configurazione produrrebbe ep negativo "
-         "(es. ammine + RTO con credito -8)."),
-        ("Quale LHV biometano usa il software?",
-         "9.79 kWh/Sm3 = 35.24 MJ/Sm3, conforme a UNI EN 16723-1 "
-         "(biometano spec rete, ~98% CH4). E' il valore commercialmente "
-         "difendibile in audit GSE."),
-        ("I dati sono persistenti su Streamlit Cloud?",
-         "Il filesystem Streamlit Cloud e' EFFIMERO: i dati salvati in "
-         "sessione possono perdersi al redeploy. Si raccomanda export "
-         "regolare PDF/Excel come backup, e uso locale per persistenza "
-         "affidabile."),
-        ("Come gestisco un fornitore non certificato?",
-         "Va escluso dal LS, oppure va avviato iter certificazione. La "
-         "biomassa non certificata non puo' contribuire al saving GHG "
-         "dichiarato in audit."),
+    story = [
+        NextPageTemplate("cover"),
+        Spacer(1, 1),
+        NextPageTemplate("std"),
+        PageBreak(),
     ]
-    for q, a in faq:
-        story.append(p(f"<b>D:</b> {q}", BODY_TIGHT))
-        story.append(p(f"<b>R:</b> {a}", BODY))
-        story.append(Spacer(1, 4))
 
-    story.append(subsec("12.2 Troubleshooting"))
-    story.append(data_table(
-        ["Problema", "Causa probabile / Azione"],
-        [
-            ["KPI tutti a 0 dopo apertura app",
-             "Sidebar: nessuna biomassa selezionata. Aggiungi almeno una."],
-            ["Saving mensile basso inatteso",
-             "Verifica mix biomasse: troppo mais (eec +29) abbatte il saving. Aumenta reflui."],
-            ["MWh netti != cumulato giornaliero",
-             "Probabile incoerenza LHV - aggiornare a v0.5.0+ (fix UNI EN 16723-1)."],
-            ["ep_total mostrato 0 ma config dice diverso",
-             "Verifica floor ep >= 0: configurazione produrrebbe ep negativo (RTO off-gas)."],
-            ["Tabella non aggiornabile",
-             "Mese gia' chiuso (saved_at presente). Usa 'Nuovo mese' o riapri esplicitamente."],
-            ["Export PDF in errore",
-             "Spesso caratteri non-ASCII in anagrafica. Usa font Helvetica safe."],
-            ["Solver LP nessuna soluzione",
-             "Vincoli incompatibili (saving + produzione + cap). Rilassa uno dei tre."],
-        ],
-        col_widths=[60*mm, 110*mm]
-    ))
+    build_toc(story, lang)
+    build_chapter_1(story, lang)
+    build_chapter_2(story, lang)
+    build_chapter_3(story, lang)
+    build_chapter_workflow(story, lang)  # cap 4, 5, 6
+    build_chapter_7(story, lang)
+    build_chapter_8(story, lang)
+    build_chapter_9(story, lang)
+    build_chapter_10(story, lang)
+    build_chapter_11(story, lang)
+    build_chapter_12(story, lang)
+    build_appendices(story, lang)
 
-    # ---------------- APPENDICE A ----------------
-    story.extend(section("Appendice A - Formule normative complete"))
-    story.append(subsec("A.1 GHG per singola biomassa"))
-    story.append(callout(
-        "e_biomassa = eec + esca + etd + ep<br/><br/>"
-        "Tutti in gCO2eq / MJ biometano. Manure credit applicato su eec con "
-        "segno negativo (es. -45 per liquame)."
-    ))
-
-    story.append(subsec("A.2 Energia biomassa (denominatore aggregato)"))
-    story.append(callout(
-        "Energia_i [MJ] = massa_i [t] x resa_CH4_i [Nm3/t] x LHV [MJ/Nm3]<br/><br/>"
-        "LHV = 35.24 MJ/Nm3 (UNI EN 16723-1, biometano spec rete)"
-    ))
-
-    story.append(subsec("A.3 Aggregato lotto"))
-    story.append(callout(
-        "e_w_lotto = SOMMA(e_biomassa_i x Energia_i) / SOMMA(Energia_i)<br/><br/>"
-        "Saving = (FFC - e_w_lotto) / FFC x 100<br/><br/>"
-        "FFC = 80 (rete/calore) | 94 (trasporti) | 183 (elettricita')"
-    ))
-
-    story.append(subsec("A.4 Mass balance LS"))
-    story.append(callout(
-        "Tolleranza mass balance LS UNI/TS 11567 sec. 6:<br/>"
-        "| (biometano_atteso - biometano_REMI) | / biometano_atteso <= 15%<br/><br/>"
-        "Durata massima LS: 6 mesi (prassi GSE: mensile)."
-    ))
-
-    # ---------------- APPENDICE B ----------------
-    story.extend(section("Appendice B - Costanti fisiche e fattori emissivi"))
-    story.append(data_table(
-        ["Costante", "Valore", "Fonte"],
-        [
-            ["LHV biometano", "35.24 MJ/Nm3 = 9.79 kWh/Sm3", "UNI EN 16723-1"],
-            ["NM3_TO_MWH", "0.00979", "derivato LHV"],
-            ["Purezza CH4 default", "98.0 %", "spec rete UNI EN 16723-1"],
-            ["FFC rete / calore", "80 gCO2eq/MJ", "RED III All. VI"],
-            ["FFC trasporti", "94 gCO2eq/MJ", "RED III All. VI"],
-            ["FFC elettricita'", "183 gCO2eq/MJ", "RED III All. VI"],
-            ["GWP CH4", "28", "Reg. UE 2022/996"],
-            ["GWP N2O", "265", "Reg. UE 2022/996"],
-            ["GWP CO2", "1", "Reg. UE 2022/996"],
-            ["DEFAULT_AUX_FACTOR", "1.29", "JRC-CONCAWE"],
-            ["Soglia GHG nuova rete/calore 2026+", "80 %", "RED III"],
-            ["Soglia GHG trasporti 2021+", "65 %", "RED III"],
-            ["Tolleranza mass balance LS", "+/- 15 %", "UNI/TS 11567:2024 sec.6"],
-            ["Durata massima LS", "6 mesi", "UNI/TS 11567:2024 sec.6"],
-            ["Conservazione documenti", "5 anni", "UNI/TS 11567:2024"],
-        ],
-        col_widths=[55*mm, 55*mm, 60*mm]
-    ))
-
-    # ---------------- APPENDICE C ----------------
-    story.extend(section("Appendice C - Database biomasse completo (42 voci)"))
-    story.append(p(
-        "Elenco completo delle <b>42 biomasse</b> nel FEEDSTOCK_DB del software, "
-        "estratto direttamente dal codice sorgente "
-        "(<i>app_mensile.py</i>). Valori normativi UNI/TS 11567:2024 Prospetto A.5 "
-        "salvo override BMT / Relazione Tecnica."
-    ))
-    # Tutte le 42 biomasse, raggruppate per categoria, estratte da FEEDSTOCK_DB.
-    # Tier: A=default normativo, C=stima conservativa, D=manure credit, A/B=eec=0
-    BIOMASSE_42 = [
-        # === COLTURE DEDICATE (11) ===
-        ["Trinciato di mais",                        "Colture dedicate",            "+29", "0.8", "116.1", "A"],
-        ["Trinciato di sorgo da foraggio",           "Colture dedicate",            "+26", "0.8",  "81.4", "A"],
-        ["Trinciato di sorgo (energetico)",          "Colture dedicate",            "+26", "0.8",  "90.5", "A"],
-        ["Triticale insilato",                       "Colture dedicate",            "+20", "0.8", "106.1", "A"],
-        ["Segale insilata",                          "Colture dedicate",            "+22", "0.8",  "80.0", "A"],
-        ["Orzo insilato",                            "Colture dedicate",            "+22", "0.8",  "82.0", "A"],
-        ["Loietto insilato (ryegrass)",              "Colture dedicate",            "+18", "0.8",  "93.7", "A"],
-        ["Erba medica insilata",                     "Colture dedicate",            "+15", "0.8",  "70.0", "A"],
-        ["Doppia coltura (2° raccolto)",             "Colture dedicate",            "+15", "0.8",  "95.0", "A"],
-        ["Erbaio misto insilato",                    "Colture dedicate",            "+16", "0.8",  "64.0", "A"],
-        ["Barbabietola da zucchero",                 "Colture dedicate",            "+12", "0.8", "105.0", "A"],
-        # === EFFLUENTI ZOOTECNICI (9) ===
-        ["Liquame suino",                            "Effluenti zootecnici",        "-45", "0.8",  "14.0", "D"],
-        ["Liquame bovino",                           "Effluenti zootecnici",        "-45", "0.8",  "14.0", "D"],
-        ["Liquame bufalino",                         "Effluenti zootecnici",        "-45", "0.8",  "14.0", "D"],
-        ["Letame bovino palabile",                   "Effluenti zootecnici",        "-30", "0.8",  "35.0", "D"],
-        ["Letame equino",                            "Effluenti zootecnici",        "-20", "0.8",  "42.0", "D"],
-        ["Pollina ovaiole (aerobico)",               "Effluenti zootecnici",        "+5",  "0.8",  "84.0", "C"],
-        ["Pollina broiler (lettiera)",               "Effluenti zootecnici",        "-15", "0.8", "105.0", "D"],
-        ["Pollina tacchini",                         "Effluenti zootecnici",        "-10", "0.8", "100.0", "D"],
-        ["Deiezioni conigli",                        "Effluenti zootecnici",        "+5",  "0.8",  "75.0", "C"],
-        # === SOTTOPRODOTTI AGROINDUSTRIALI (20) ===
-        ["Sansa di olive umida",                     "Sottoprod. agroindustriali",  "+3",  "0.8", "120.0", "C"],
-        ["Sansa vergine",                            "Sottoprod. agroindustriali",  "+2",  "0.8", "140.0", "C"],
-        ["Pastazzo di agrumi",                       "Sottoprod. agroindustriali",  "+6",  "0.8", "100.0", "C"],
-        ["Vinaccia (con raspi)",                     "Sottoprod. agroindustriali",  "+5",  "0.8", "130.0", "C"],
-        ["Raspi d'uva",                              "Sottoprod. agroindustriali",  "+3",  "0.8",  "70.0", "C"],
-        ["Feccia vinicola",                          "Sottoprod. agroindustriali",  "+3",  "0.8", "180.0", "C"],
-        ["Siero di latte",                           "Sottoprod. agroindustriali",  "+3",  "0.8",  "30.0", "C"],
-        ["Scotta (siero residuo)",                   "Sottoprod. agroindustriali",  "+2",  "0.8",  "22.0", "C"],
-        ["Trebbie di birra",                         "Sottoprod. agroindustriali",  "+4",  "0.8", "140.0", "C"],
-        ["Lolla/pula di riso",                       "Sottoprod. agroindustriali",  "+2",  "0.8",  "50.0", "C"],
-        ["Melasso",                                  "Sottoprod. agroindustriali",  "+8",  "0.8", "180.0", "A"],
-        ["Scarti panificazione/pasticceria",         "Sottoprod. agroindustriali",  "+5",  "0.8", "280.0", "C"],
-        ["Grassi esausti / UCO",                     "Sottoprod. agroindustriali",  "+2",  "0.8", "700.0", "C"],
-        ["Scarti macellazione (cat. 3)",             "Sottoprod. agroindustriali",  "+5",  "0.8", "180.0", "C"],
-        ["Sottoprodotti ortofrutticoli",             "Sottoprod. agroindustriali",  "+7",  "0.8", "100.0", "A"],
-        ["Scarti caseari vari",                      "Sottoprod. agroindustriali",  "+4",  "0.8",  "40.0", "C"],
-        ["Fanghi agro-industriali",                  "Sottoprod. agroindustriali",  "+3",  "0.8",  "55.0", "C"],
-        ["Polpe di barbabietola fresche",            "Sottoprod. agroindustriali",   "0",  "2.0",  "50.0", "A/B"],
-        ["Polpe di barbabietola insilate",           "Sottoprod. agroindustriali",   "0",  "2.5",  "75.0", "A/B"],
-        ["Melasso di barbabietola",                  "Sottoprod. agroindustriali",   "0",  "1.5", "280.0", "A/B"],
-        # === FORSU / RIFIUTI (2) ===
-        ["FORSU selezionata",                        "FORSU / Rifiuti",              "0",  "0.8",  "64.8", "A/B"],
-        ["Fanghi depurazione",                       "FORSU / Rifiuti",              "0",  "0.8",  "13.0", "A/B"],
-    ]
-    story.append(data_table(
-        ["#", "Biomassa", "Categoria", "eec", "etd", "Resa Nm3CH4/t", "Tier"],
-        [[str(i)] + row for i, row in enumerate(BIOMASSE_42, 1)],
-        col_widths=[8*mm, 55*mm, 45*mm, 14*mm, 12*mm, 24*mm, 12*mm]
-    ))
-    story.append(callout(
-        "<b>Legenda Tier (livello difendibilita' eec in audit OdC):</b><br/>"
-        "<b>A</b> = Default normativo tabulato (Prospetto A.5 UNI/TS 11567:2024).<br/>"
-        "<b>A/B</b> = eec = 0 da regola (rifiuti, sottoprodotti, residui colturali).<br/>"
-        "<b>C</b> = Stima conservativa positiva (no manure credit, es. pollina ovaiole aerobica). "
-        "Valore non tabulato A.5, ma a sfavore dell'operatore --> non contestabile in audit.<br/>"
-        "<b>D</b> = Manure credit (eec negativo). Richiede <b>dichiarazione baseline fornitore</b> "
-        "(stoccaggio in vasca/lagone aperto). Se fornitore ha vasca coperta con captazione, "
-        "il credit va ridotto/annullato."
-    ))
-    story.append(Spacer(1, 6))
-    story.append(p(
-        "<b>Distribuzione delle 42 voci:</b> Colture dedicate 11 | Effluenti zootecnici 9 "
-        "| Sottoprodotti agroindustriali 20 | FORSU/Rifiuti 2.",
-        NOTE
-    ))
-
-    story.append(Spacer(1, 20))
-    story.append(p(
-        "<i>Fine del manuale. Per supporto contatta carlo.sicurini@gmail.com.</i>",
-        NOTE
-    ))
-
-    # Genera
     doc.build(story)
-    print(f"PDF generato: {OUTPUT_PATH}")
+    print(f"PDF [{lang.upper()}] generato: {out}")
 
 
 if __name__ == "__main__":
-    build()
+    lang_arg = sys.argv[1].lower() if len(sys.argv) > 1 else "both"
+    if lang_arg in ("it", "en"):
+        build(lang_arg)
+    else:
+        build("it")
+        build("en")

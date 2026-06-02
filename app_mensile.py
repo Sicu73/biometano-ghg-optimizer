@@ -7226,12 +7226,21 @@ with st.sidebar:
         "border-top:1px solid rgba(148,163,184,0.18);'></div>",
         unsafe_allow_html=True,
     )
-    # Manuale Utente — download PDF brand Metan.iQ
+    # Manuale Utente — PDF bilingue (servito in base alla lingua attiva _LANG)
     with st.expander("📖 " + _t("Manuale Utente"), expanded=False):
+        _manual_lang_code = "EN" if str(_LANG).lower().startswith("en") else "IT"
+        _manual_filename = f"Metan.iQ_Manuale_Utente_{_manual_lang_code}.pdf"
         _manual_path = (
             Path(__file__).resolve().parent
-            / "docs" / "user_manual" / "Metan.iQ_Manuale_Utente.pdf"
+            / "docs" / "user_manual" / _manual_filename
         )
+        # Fallback al PDF italiano se versione lingua mancante
+        if not _manual_path.is_file():
+            _manual_path = (
+                Path(__file__).resolve().parent
+                / "docs" / "user_manual" / "Metan.iQ_Manuale_Utente_IT.pdf"
+            )
+            _manual_filename = "Metan.iQ_Manuale_Utente_IT.pdf"
         if _manual_path.is_file():
             st.caption(_t(
                 "Guida operativa completa: funzioni, calcoli GHG, workflow, "
@@ -7242,7 +7251,7 @@ with st.sidebar:
                 st.download_button(
                     "⬇️ " + _t("Scarica Manuale (PDF)"),
                     data=_manual_bytes,
-                    file_name="Metan.iQ_Manuale_Utente.pdf",
+                    file_name=_manual_filename,
                     mime="application/pdf",
                     use_container_width=True,
                     key="dl_user_manual_sidebar",
