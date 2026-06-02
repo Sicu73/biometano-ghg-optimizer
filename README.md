@@ -9,6 +9,14 @@
 ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.30+-FF4B4B.svg)
 
+> ⚠ **Software proprietario — All Rights Reserved.** Codice sorgente, dataset
+> FEEDSTOCK, modelli di calcolo GHG, motore di ottimizzazione e marchio
+> "Metan.iQ" sono di proprietà esclusiva di Carlo Sicurini. La pubblicazione
+> di questo repository su GitHub **non concede alcuna licenza d'uso**: copia,
+> redistribuzione, fork, reverse engineering e uso commerciale sono vietati
+> senza autorizzazione scritta. Vedi [LICENSE](LICENSE) e la sezione
+> [Licensing](#-licensing--ip) per i dettagli.
+
 ---
 
 ## 🎯 Cosa fa
@@ -146,12 +154,45 @@ Per passare in produzione SaaS:
    ```
 4. Reboot app → gate signup/login attivo, multi-tenant isolation, billing.
 
-## 📜 Licenza
+## 📜 Licensing & IP
 
-**Software proprietario** — All Rights Reserved. Vedi [LICENSE](LICENSE).
+**Software proprietario — All Rights Reserved.**
+Copyright (c) 2026 Carlo Sicurini. Testo completo: [LICENSE](LICENSE) (IT + EN).
 
-Per licenze commerciali, partnership o collaborazioni:
-**Carlo Sicurini** — carlo.sicurini@gmail.com
+### Cosa è protetto
+
+- Codice sorgente di `app_mensile.py`, `core/`, `export/`, `output/`, `tests/`
+- Dataset `FEEDSTOCK_DB` (42 biomasse con rese, FE, classificazione RED III)
+- Costanti e fattori cablati in [core/constants.py](core/constants.py)
+  (LHV, FFC, soglie saving, GWP, default aux factor JRC-CONCAWE)
+- Motore di calcolo GHG (`ghg_summary`, `compute_daily`, `aggregate_month`,
+  `e_total_feedstock`) e solver di ottimizzazione mix biomasse
+- Design system Metan.iQ (palette navy/amber, font Outfit, template PDF/PPTX)
+- Logo, naming, claim e marchio "Metan.iQ"
+- Manuale utente e documentazione tecnica in `docs/user_manual/`
+
+### Cosa NON è consentito senza autorizzazione scritta
+
+1. Copiare, riprodurre, modificare o redistribuire il Software, anche parziale
+2. Eseguire reverse engineering, decompilare o creare opere derivate
+3. Usare il Software per finalità commerciali, consulenza o analisi per terzi
+4. Riutilizzare nome, logo o segni distintivi "Metan.iQ" in prodotti concorrenti
+5. Rimuovere o alterare gli header di copyright presenti nei file sorgente
+
+### Pubblicazione su GitHub ≠ Open Source
+
+Il repository è pubblico per ragioni di trasparenza e deploy su Streamlit
+Cloud. **Non è rilasciato con licenza open source.** L'assenza di una licenza
+permissiva (MIT, Apache, GPL) implica per default tutti i diritti riservati
+ai sensi del diritto d'autore italiano (L. 633/1941) e internazionale
+(Berne Convention, TRIPS).
+
+### Contatto licensing
+
+Per **licenze commerciali**, **partnership**, **white-label**, **integrazioni
+API** o uso in **audit di terzi**:
+
+**Carlo Sicurini** — [carlo@apros-ra.com](mailto:carlo@apros-ra.com)
 
 ## 🔒 Privacy
 
