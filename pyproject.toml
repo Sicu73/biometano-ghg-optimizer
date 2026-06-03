@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "metaniq"
 version = "0.4.1"
@@ -45,6 +49,15 @@ monitoring = [
 [project.urls]
 Homepage = "https://appco-6lmzj97bbbw8ndlwnvnocf.streamlit.app/"
 Repository = "https://github.com/Sicu73/biometano-ghg-optimizer"
+
+# Flat-layout: dichiarazione esplicita dei package per evitare l'errore
+# "Multiple top-level packages discovered" di setuptools auto-discovery.
+# core/output/export sono package (hanno __init__.py); app_mensile e' il
+# modulo entry-point importato dai test. legal/data/logs/scripts NON sono
+# package e restano esclusi.
+[tool.setuptools]
+packages = ["core", "output", "export"]
+py-modules = ["app_mensile"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
