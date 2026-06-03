@@ -1566,11 +1566,15 @@ def _build_emission_audit(ctx, styles):
         ))
         flow.append(Spacer(1, 2 * mm))
         for r in real_rows:
+            # Estratto fuori dalla f-string: la chiave contiene un apostrofo e
+            # un backslash dentro l'espressione f-string e' SyntaxError su 3.11
+            # (lecito solo da 3.12 / PEP 701).
+            _soc = r.get("Societa'", "-")
             meta = (
                 f"<b>{r.get('Biomassa', '')}</b> &mdash; "
                 f"Report: {r.get('Relazione tecnica', '-')} &middot; "
                 f"Title: {r.get('Titolo relazione', '-')} &middot; "
-                f"Author: {r.get('Autore', '-')} ({r.get('Societa\'', '-')}) &middot; "
+                f"Author: {r.get('Autore', '-')} ({_soc}) &middot; "
                 f"Date: {r.get('Data relazione', '-')} &middot; "
                 f"Plant: {r.get('Impianto rif.', '-')} &middot; "
                 f"Sample: {r.get('Riferimento campione', '-')}"
@@ -1578,7 +1582,7 @@ def _build_emission_audit(ctx, styles):
                 f"<b>{r.get('Biomassa', '')}</b> &mdash; "
                 f"Relazione: {r.get('Relazione tecnica', '-')} &middot; "
                 f"Titolo: {r.get('Titolo relazione', '-')} &middot; "
-                f"Autore: {r.get('Autore', '-')} ({r.get('Societa\'', '-')}) &middot; "
+                f"Autore: {r.get('Autore', '-')} ({_soc}) &middot; "
                 f"Data: {r.get('Data relazione', '-')} &middot; "
                 f"Impianto: {r.get('Impianto rif.', '-')} &middot; "
                 f"Campione: {r.get('Riferimento campione', '-')}"

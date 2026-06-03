@@ -2,7 +2,7 @@
 # Metan.iQ - Biometano GHG Optimizer (DM 2022 / RED III)
 # Proprietary and confidential. See LICENSE for terms.
 # Commercial licensing: carlo.sicurini@gmail.com
-﻿import io
+import io
 import datetime
 try:
     from pptx import Presentation
