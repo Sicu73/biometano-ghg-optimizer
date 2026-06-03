@@ -9,6 +9,18 @@
 ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.30+-FF4B4B.svg)
 
+### ▶ Prova la demo live
+
+**[👉 Apri Metan.iQ — demo live](https://appco-6lmzj97bbbw8ndlwnvnocf.streamlit.app/)**
+
+Software **dimostrativo** e funzionante. Per una demo guidata, un account di
+prova o una valutazione per il tuo impianto:
+**[carlo.sicurini@gmail.com](mailto:carlo.sicurini@gmail.com)**
+
+> ℹ Questo repository è **vetrina tecnica**: il codice è visibile per
+> trasparenza e audit, ma il prodotto si usa dall'app live qui sopra, non
+> clonando il repo. Vedi [Licensing & IP](#-licensing--ip).
+
 > ⚠ **Software proprietario — All Rights Reserved.** Codice sorgente, dataset
 > FEEDSTOCK, modelli di calcolo GHG, motore di ottimizzazione e marchio
 > "Metan.iQ" sono di proprietà esclusiva di Carlo Sicurini. La pubblicazione
