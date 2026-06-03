@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # Copyright (c) 2026 Carlo Sicurini. All Rights Reserved.
 # Metan.iQ - Biometano GHG Optimizer (DM 2022 / RED III)
 # Proprietary and confidential. See LICENSE for terms.
@@ -59,6 +59,9 @@ except Exception as _om_imp_exc:  # noqa: BLE001
 # ── Logging strutturato per produzione (audit robustezza #3) ────────────────
 from core.logging_setup import get_logger
 _LOG = get_logger("app")
+
+# ── Lead capture (CTA "Richiedi una demo") ──────────────────────────────────
+from core import leads as _leads
 
 # ── i18n: selettore lingua + funzione di traduzione ──────────────────────────
 from i18n_runtime import t as _t, get_lang, render_lang_selector, translate_df
@@ -7264,6 +7267,59 @@ with st.sidebar:
                 st.caption(_t("Manuale non disponibile") + f" ({_man_exc})")
         else:
             st.caption(_t("Manuale non disponibile."))
+    # ── CTA marketing: richiesta demo / contatto ───────────────────────────
+    with st.expander("📩 " + _t("Richiedi una demo"), expanded=False):
+        st.caption(_t(
+            "Vuoi una demo guidata, un account di prova o una valutazione "
+            "per il tuo impianto? Lascia i tuoi dati: ti ricontatto io."
+        ))
+        with st.form("lead_demo_form", clear_on_submit=False):
+            _lead_name = st.text_input(_t("Nome e cognome"), key="lead_name")
+            _lead_email = st.text_input(_t("Email"), key="lead_email")
+            _lead_company = st.text_input(
+                _t("Azienda / Impianto"), key="lead_company"
+            )
+            _lead_msg = st.text_area(
+                _t("Messaggio (opzionale)"), key="lead_msg", height=80
+            )
+            _lead_submit = st.form_submit_button(
+                "📨 " + _t("Invia richiesta"), use_container_width=True
+            )
+        if _lead_submit:
+            if not (_lead_email or "").strip():
+                st.warning(_t("Inserisci almeno un'email per essere ricontattato."))
+            else:
+                _saved = _leads.log_lead(
+                    name=_lead_name or "",
+                    email=_lead_email or "",
+                    company=_lead_company or "",
+                    message=_lead_msg or "",
+                    source="in_app_cta",
+                )
+                _mailto = _leads.build_mailto(
+                    name=_lead_name or "",
+                    email=_lead_email or "",
+                    company=_lead_company or "",
+                    message=_lead_msg or "",
+                )
+                st.success(_t("Richiesta registrata. Grazie!"))
+                # Canale di recapito affidabile (DB Cloud effimero): mailto
+                st.markdown(
+                    f"<a href='{_mailto}' target='_blank' "
+                    f"style='display:inline-block; margin-top:6px; padding:8px 14px; "
+                    f"background:#F59E0B; color:#0F172A; font-weight:600; "
+                    f"border-radius:8px; text-decoration:none;'>"
+                    f"✉️ {_html.escape(_t('Conferma via email'))}</a>",
+                    unsafe_allow_html=True,
+                )
+                _LOG.info(
+                    "lead_cta_submitted saved_to_db=%s email_present=%s",
+                    _saved, bool((_lead_email or '').strip()),
+                )
+        st.caption(
+            _t("Oppure scrivimi direttamente:")
+            + f" [{_leads.CONTACT_EMAIL}](mailto:{_leads.CONTACT_EMAIL})"
+        )
     with st.expander("📜 " + _t("Termini & Privacy"), expanded=False):
         _legal_t1, _legal_t2, _legal_t3 = st.tabs([
             _t("Privacy"), _t("Termini di Servizio"), _t("Licenza"),

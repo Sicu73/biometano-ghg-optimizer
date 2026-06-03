@@ -1,4 +1,4 @@
-﻿# Metan.iQ
+# Metan.iQ
 
 > **Decision Intelligence Platform per biometano DM 2022 / RED III** —
 > Pianificazione mensile, ottimizzazione GHG, business plan e reporting

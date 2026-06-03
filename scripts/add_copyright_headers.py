@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """Inserisce header di copyright proprietario nei moduli Python principali.
 
 Idempotente: se l'header e' gia' presente, salta il file.
