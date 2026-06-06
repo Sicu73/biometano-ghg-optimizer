@@ -25,8 +25,6 @@ def _minimal_ctx():
     })
     return {
         "df_res": df_res,
-        "IS_CHP": False, "IS_CHP_DM2012": False, "IS_FER2": False,
-        "IS_DM2018": False, "IS_DM2022": True,
         "APP_MODE": "biometano",
         "plant_kwe": 0, "plant_kwe_net": 0,
         "plant_net_smch": 300.0,
