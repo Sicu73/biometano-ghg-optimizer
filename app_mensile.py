@@ -3268,11 +3268,13 @@ try:
     _current_year = int(st.session_state.get("do_year", 2024))
     _plant_id = st.session_state.get("do_plant", "default_plant")
     
-    # Contesto per il calcolo (ricalcolo dinamico in base alla sidebar)
+    # Contesto per il calcolo (ricalcolo dinamico in base alla sidebar).
+    # Comparator: legge session_state se gia' popolato (rerun successivi al primo),
+    # altrimenti fallback alla costante FOSSIL_COMPARATOR=80 (default RED III rete/calore).
     _ctx = {
         "aux_factor": aux_factor,
         "ep": ep_total,
-        "fossil_comparator": FOSSIL_COMPARATOR,
+        "fossil_comparator": st.session_state.get("fossil_comparator_active", FOSSIL_COMPARATOR),
         "plant_net_smch": plant_net_smch,
     }
 
@@ -3391,6 +3393,10 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
     KPI, banner, export). _key_prefix evita collisioni di widget keys
     quando il pannello è renderizzato in più tab."""
     _DOG_KEY = f"{_key_prefix}do_editor_gen"
+    # Comparator attivo letto da session_state (popolato dal tab_tech selectbox
+    # end_use). Fallback alla costante FOSSIL_COMPARATOR=80 se la funzione e'
+    # chiamata prima del render del tab_tech (caso unico: import isolato).
+    _fossil_comparator = st.session_state.get("fossil_comparator_active", FOSSIL_COMPARATOR)
     if _DAILY_OPS_AVAILABLE:
 
 
@@ -3579,7 +3585,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         _ctx = {
             "aux_factor": float(aux_factor),
             "ep": float(ep_total),
-            "fossil_comparator": float(FOSSIL_COMPARATOR),
+            "fossil_comparator": float(_fossil_comparator),
             "plant_net_smch": float(plant_net_smch),
             "hours_per_day": 24.0,
         }
@@ -4460,7 +4466,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             # === Parametri di calcolo ===
             _t("Regime applicato"):                 _regime_lbl,
             _t("Soglia normativa (%)"):             f"{_thr_pct:.2f}",
-            _t("Comparatore fossile (gCO2eq/MJ)"):  f"{FOSSIL_COMPARATOR:.2f}",
+            _t("Comparatore fossile (gCO2eq/MJ)"):  f"{_fossil_comparator:.2f}",
             _t("Aux factor (lordo/netto)"):         f"{aux_factor:.4f}",
             _t("EP totale (gCO2eq/MJ)"):            f"{ep_total:.3f}",
             _t("Plant net (Sm³/h)"):                f"{plant_net_smch:.2f}",
@@ -5126,16 +5132,21 @@ with tab_tech:
         help=_t("RED III + D.Lgs. 5/2026: 80% per elettricita'/calore (impianto nuovo ≥20/11/2023), 70% per esistenti <10 MW primi 15 anni, 65% per trasporti. Il comparator fossile (80 per rete/calore, 94 per trasporti) viene aggiornato di conseguenza."),
     )
     ghg_threshold = END_USE_THRESHOLDS[end_use]
-    FOSSIL_COMPARATOR = COMPARATOR_BY_END_USE[end_use]
+    # FOSSIL_COMPARATOR (uppercase) e' una COSTANTE = 80 (RED III rete/calore).
+    # Il valore attivo derivato da end_use vive come var locale + session_state,
+    # cosi' che gli altri tab e _render_daily_ops_panel leggano il comparator
+    # corrente senza mutare la costante globale (anti-pattern audit/test).
+    fossil_comparator = COMPARATOR_BY_END_USE[end_use]
+    st.session_state["fossil_comparator_active"] = fossil_comparator
     st.caption(
-        f"📐 Comparator fossile RED III: **{fmt_it(FOSSIL_COMPARATOR, 0)} "
+        f"📐 Comparator fossile RED III: **{fmt_it(fossil_comparator, 0)} "
         f"gCO₂/MJ** "
-        + ("(gas naturale sostituito)" if FOSSIL_COMPARATOR == 80.0
+        + ("(gas naturale sostituito)" if fossil_comparator == 80.0
            else "(diesel sostituito)")
     )
     target_saving = ghg_threshold + 0.01  # +1 pp margine sicurezza
-    target_e_max = FOSSIL_COMPARATOR * (1 - target_saving)
-    max_allowed_e = FOSSIL_COMPARATOR * (1 - ghg_threshold)
+    target_e_max = fossil_comparator * (1 - target_saving)
+    max_allowed_e = fossil_comparator * (1 - ghg_threshold)
     st.metric(
         _t("Soglia saving obbligatoria"),
         fmt_it(ghg_threshold * 100, 0, "%"),
@@ -5189,6 +5200,9 @@ with tab_business:
     # (250 Smc/h, costi medi settore 2024), ricalibrati al 2026 con
     # inflazione ISTAT cumulata e tassi BCE.
     # ============================================================
+    # Comparator attivo (deriva da end_use selezionato in tab_tech).
+    # Fallback alla costante FOSSIL_COMPARATOR=80 al primo run (session_state vuoto).
+    fossil_comparator = st.session_state.get("fossil_comparator_active", FOSSIL_COMPARATOR)
     st.divider()
     st.header(_t("🧬 DM 2022 — Configurazione Impianto & Incentivi"))
 
@@ -5598,11 +5612,11 @@ with tab_business:
                 "APP_MODE": APP_MODE, "APP_MODE_LABEL": _MODE["label"], "lang": _LANG,
                 "plant_net_smch": plant_net_smch,
                 "aux_factor": aux_factor, "ep_total": ep_total, "end_use": end_use,
-                "ghg_threshold": ghg_threshold, "fossil_comparator": FOSSIL_COMPARATOR,
+                "ghg_threshold": ghg_threshold, "fossil_comparator": fossil_comparator,
                 "active_feeds": active_feeds, "FEEDSTOCK_DB": FEEDSTOCK_DB,
                 "df_res": df_res, "tot_biomasse_t": float(df_res["Totale biomasse (t)"].sum()),
                 "tot_sm3_netti": float(df_res["Sm³ netti"].sum()), "tot_mwh_netti": float(df_res["MWh netti"].sum()),
-                "saving_avg": saving_annuale_pesato(df_res, comparator=FOSSIL_COMPARATOR), "valid_months": int(df_res["Validità"].str.startswith("✅").sum()),
+                "saving_avg": saving_annuale_pesato(df_res, comparator=fossil_comparator), "valid_months": int(df_res["Validità"].str.startswith("✅").sum()),
                 "tot_revenue": float(tot_revenue), "tariffa_media_ponderata": float(tariffa_media_ponderata),
                 "revenue_rows": pdf_revenue_rows,
                 "actual_yields": {_f: _yield_of(_f) for _f in active_feeds},
@@ -5619,7 +5633,7 @@ with tab_business:
             _xlsx_ctx = {
                 "active_feeds": active_feeds, "FEEDSTOCK_DB": FEEDSTOCK_DB,
                 "aux_factor": aux_factor, "ep_total": ep_total,
-                "fossil_comparator": FOSSIL_COMPARATOR, "ghg_threshold": ghg_threshold,
+                "fossil_comparator": fossil_comparator, "ghg_threshold": ghg_threshold,
                 "plant_net_smch": plant_net_smch, "NM3_TO_MWH": NM3_TO_MWH,
                 "MONTHS": MONTHS, "MONTH_HOURS": MONTH_HOURS,
                 "initial_data": {row["Mese"]: {"Ore": int(row["Ore"]), **{f: row[f] for f in active_feeds if f in row}} for _, row in df_res.iterrows()},
@@ -6077,7 +6091,7 @@ with tab_business:
             all_masses = dict(fixed_map)
             feasible = True
 
-        summary = ghg_summary(all_masses, aux_factor, ep_total, FOSSIL_COMPARATOR)
+        summary = ghg_summary(all_masses, aux_factor, ep_total, fossil_comparator)
 
         # Validita' - DUE CONDIZIONI OBBLIGATORIE:
         #   (1) saving GHG >= soglia RED III (80/70/65% a seconda uso finale),
@@ -6267,7 +6281,7 @@ with tab_business:
     c3.metric("MWh netti (anno)",
               fmt_it(df_res["MWh netti"].sum(), 0))
     c4.metric("Saving annuo (%)",
-              fmt_it(saving_annuale_pesato(df_res, comparator=FOSSIL_COMPARATOR), 1),
+              fmt_it(saving_annuale_pesato(df_res, comparator=fossil_comparator), 1),
               help=_t("Saving GHG ricalcolato sui totali annuali (RED III), "
                       "non media aritmetica dei mesi."))
     valid_months = df_res["Validità"].str.startswith("✅").sum()
@@ -6290,7 +6304,7 @@ with tab_business:
                   fmt_it(df_res_db["Sm³ netti"].sum(), 0))
         d3.metric(_t("MWh netti (anno)"),
                   fmt_it(df_res_db["MWh netti"].sum(), 0))
-        _saving_db_annuo = saving_annuale_pesato(df_res_db, comparator=FOSSIL_COMPARATOR)
+        _saving_db_annuo = saving_annuale_pesato(df_res_db, comparator=fossil_comparator)
         d4.metric(_t("Saving annuo (%)"),
                   fmt_it(_saving_db_annuo, 1),
                   help=_t("Saving GHG ricalcolato sui totali annuali (RED III), "
@@ -6640,7 +6654,7 @@ with tab_business:
                 "ep_total":          ep_total,
                 "end_use":           end_use,
                 "ghg_threshold":     ghg_threshold,
-                "fossil_comparator": FOSSIL_COMPARATOR,
+                "fossil_comparator": fossil_comparator,
                 "upgrading_opt":     upgrading_opt,
                 "offgas_opt":        offgas_opt,
                 "injection_opt":     injection_opt,
@@ -6657,7 +6671,7 @@ with tab_business:
                 "tot_sm3_netti":     float(df_res["Sm³ netti"].sum()),
                 "tot_mwh_netti":     float(df_res["MWh netti"].sum()),
                 "tot_mwh":           float(tot_mwh),
-                "saving_avg":        saving_annuale_pesato(df_res, comparator=FOSSIL_COMPARATOR),
+                "saving_avg":        saving_annuale_pesato(df_res, comparator=fossil_comparator),
                 "valid_months":      int(df_res["Validità"].str.startswith("✅").sum()),
                 "tot_revenue":       float(tot_revenue),
                 "tariffa_media_ponderata": float(tariffa_media_ponderata)
@@ -6714,7 +6728,7 @@ with tab_business:
                 "FEEDSTOCK_DB": FEEDSTOCK_DB,
                 "aux_factor":   aux_factor,
                 "ep_total":     ep_total,
-                "fossil_comparator": FOSSIL_COMPARATOR,
+                "fossil_comparator": fossil_comparator,
                 "ghg_threshold":     ghg_threshold,
                 "plant_net_smch":    plant_net_smch,
                 "NM3_TO_MWH":        NM3_TO_MWH,
@@ -6804,7 +6818,7 @@ with tab_business:
             "ep_total": ep_total,
             "end_use": end_use,
             "ghg_threshold": ghg_threshold,
-            "fossil_comparator": FOSSIL_COMPARATOR,
+            "fossil_comparator": fossil_comparator,
             "upgrading_opt": upgrading_opt,
             "offgas_opt": offgas_opt,
             "injection_opt": injection_opt,
@@ -6823,7 +6837,7 @@ with tab_business:
             "tot_biomasse_t": float(df_res["Totale biomasse (t)"].sum()),
             "tot_sm3_netti": float(df_res["Sm³ netti"].sum()),
             "tot_mwh_netti": float(df_res["MWh netti"].sum()),
-            "saving_avg": saving_annuale_pesato(df_res, comparator=FOSSIL_COMPARATOR),
+            "saving_avg": saving_annuale_pesato(df_res, comparator=fossil_comparator),
             "valid_months": int(df_res["Validità"].str.startswith("✅").sum()),
             "tot_revenue": float(tot_revenue),
             "tot_mwh_basis": float(tot_revenue_base_mwh),
