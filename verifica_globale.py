@@ -100,9 +100,9 @@ rec("B1", cet(eec=10, esca=0, etd=1, ep=5) == 16 and cet(eec=-45,esca=0,etd=1,ep
 # B2 saving formula presente
 b2 = "(_cmp - e_w) / _cmp * 100" in src or "comparator - e_w" in src
 rec("B2", b2, "saving=(comp-e_w)/comp*100 sul lordo presente")
-# B3 aux factor default
-b3 = "DEFAULT_AUX_FACTOR = 1.29" in src
-rec("B3", b3, "aux_factor default 1.29 presente")
+# B3 aux factor default — single source in core/constants.py
+b3 = C.DEFAULT_AUX_FACTOR == 1.29
+rec("B3", b3, f"aux_factor default {C.DEFAULT_AUX_FACTOR} (single source: core.constants)")
 
 # ================= SEZIONE C — Documenti =================
 # C3 dossier conformità

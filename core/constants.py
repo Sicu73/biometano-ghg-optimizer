@@ -103,6 +103,15 @@ MANURE_CREDIT_POLLINA_BROILER = -15.0
 MANURE_CREDIT_POLLINA_OVAIOLE = 0.0  # vs FEEDSTOCK_DB eec=+5.0 (handling aerobico)
 
 
+# ---------------------------------------------------------------------------
+# Aux factor (netto -> lordo) — single source of truth
+# ---------------------------------------------------------------------------
+# Default JRC-CONCAWE per perdite upgrading + autoconsumi caldaia/RTO.
+# Storicamente duplicato in app_mensile.py e core/calculation_engine.py;
+# qui centralizzato per evitare divergenze al primo aggiornamento JEC WTT.
+DEFAULT_AUX_FACTOR = 1.29
+
+
 __all__ = [
     # riferimenti normativi
     "RED_III_DIRECTIVE",
@@ -133,4 +142,6 @@ __all__ = [
     "EP_DIGESTATE_CHIUSO_30D",
     "EP_DIGESTATE_BREVE_TERMINE",
     "EP_DIGESTATE_APERTO",
+    # aux factor
+    "DEFAULT_AUX_FACTOR",
 ]

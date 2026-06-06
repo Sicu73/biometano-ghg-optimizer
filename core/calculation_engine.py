@@ -42,6 +42,7 @@ from core.constants import (  # noqa: E402
     LHV_BIOMETHANE_MJ_NM3                as LHV_BIOMETHANE,
     NM3_TO_MWH,
     COMPARATOR_GRID_HEAT_GCO2_MJ         as FOSSIL_COMPARATOR,
+    DEFAULT_AUX_FACTOR,
 )
 
 FEEDSTOCK_DB: dict = {}
@@ -52,7 +53,6 @@ MONTHS = [
     "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre",
 ]
 MONTH_HOURS = [744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]
-DEFAULT_AUX_FACTOR = 1.29
 DEFAULT_PLANT_NET_SMCH = 300.0
 COMPARATOR_BY_END_USE = {
     "Elettricità/calore/immissione rete (nuovo >=20/11/2023)": 80.0,

@@ -368,10 +368,10 @@ from core.constants import (
     LHV_BIOMETHANE_MJ_NM3            as LHV_BIOMETHANE,
     NM3_TO_MWH,
     COMPARATOR_GRID_HEAT_GCO2_MJ     as _COMP_GRID_HEAT,
+    DEFAULT_AUX_FACTOR,
 )
 
 FOSSIL_COMPARATOR = _COMP_GRID_HEAT
-DEFAULT_AUX_FACTOR = 1.29                      # netto -> lordo (perdite upgrading + caldaia)
 DEFAULT_PLANT_NET_SMCH = 300.0                 # Sm3/h netti autorizzati (default)
 
 # ============================================================
