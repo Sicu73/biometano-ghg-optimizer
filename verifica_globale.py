@@ -13,19 +13,20 @@ def rec(idc, ok, detail):
     RESULTS.append((idc, "PASS" if ok else "FAIL", detail))
     print(f"RESULT|{idc}|{'PASS' if ok else 'FAIL'}|{detail}")
 
-# ---- Estrazione FEEDSTOCK_DB + eec_tier da app_mensile (no Streamlit) ----
+# ---- FEEDSTOCK_DB: import diretto dal nuovo modulo (estratto 2026-06-06) ----
+# Storicamente estraevamo via ast.parse(app_mensile.py); ora il catalogo
+# vive in core/feedstock_db.py come single source of truth.
+from core.feedstock_db import FEEDSTOCK_DB
+
+# eec_tier resta in app_mensile.py (logica UI/audit dipendente dal dict),
+# va estratta via ast per evitare l'import di Streamlit.
 src = open("app_mensile.py", encoding="utf-8").read()
 tree = ast.parse(src)
 ns = {}
 for node in tree.body:
-    if isinstance(node, ast.Assign) and any(
-        getattr(tg, "id", None) == "FEEDSTOCK_DB" for tg in node.targets):
-        code = compile(ast.Module([node], []), "<fdb>", "exec")
-        exec(code, ns)
     if isinstance(node, ast.FunctionDef) and node.name == "eec_tier":
         code = compile(ast.Module([node], []), "<tier>", "exec")
         exec(code, ns)
-FEEDSTOCK_DB = ns["FEEDSTOCK_DB"]
 eec_tier = ns.get("eec_tier")
 
 # ================= SEZIONE A — Normativa & valori =================
