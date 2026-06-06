@@ -109,6 +109,7 @@ MANURE_CREDIT_POLLINA_OVAIOLE = 0.0  # vs FEEDSTOCK_DB eec=+5.0 (handling aerobi
 # Default JRC-CONCAWE per perdite upgrading + autoconsumi caldaia/RTO.
 # Storicamente duplicato in app_mensile.py e core/calculation_engine.py;
 # qui centralizzato per evitare divergenze al primo aggiornamento JEC WTT.
+# (revisione 2026-06-06: cache-bust per Streamlit Cloud .pyc stale)
 DEFAULT_AUX_FACTOR = 1.29
 
 
