@@ -893,7 +893,7 @@ def build_daily_pdf(
             f"<b>Software</b>: Metan.iQ v{_sw_version}",
             f"<b>{'Data esportazione' if lang != 'en' else 'Export date'}</b>: {_gen_at}",
             f"<b>{'Metodo calcolo GHG' if lang != 'en' else 'GHG calculation method'}</b>: RED III Allegato V Parte C · UNI-TS 11567:2024",
-            f"<b>{'Comparator fossile' if lang != 'en' else 'Fossil comparator'}</b>: 80 gCO₂/MJ (gas naturale) · 94 gCO₂/MJ (diesel trasporti)",
+            f"<b>{'Comparator fossile' if lang != 'en' else 'Fossil comparator'}</b>: 80 gCO2/MJ (gas naturale) · 94 gCO2/MJ (diesel trasporti)",
         ]
         for line in meta_lines:
             story.append(Paragraph(line, s_body))

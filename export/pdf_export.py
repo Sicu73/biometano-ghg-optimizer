@@ -253,7 +253,7 @@ def _build_fallback_pdf(output_model: dict, error: str | None = None) -> BytesIO
          f"{calc.get('saving_avg', 0.0):,.1f}"],
         ["Base sostenibilita'",
          str(calc.get("sustainability_basis", "LORDO"))],
-        ["Mesi validi (≥soglia)",    f"{calc.get('valid_months', 0)}/12"],
+        ["Mesi validi (>= soglia)",    f"{calc.get('valid_months', 0)}/12"],
         ["Ricavi totali (EUR)",      f"{calc.get('total_revenue', 0.0):,.0f}"],
     ]
     t = Table(kpi_data, colWidths=[90*mm, 60*mm])
@@ -316,9 +316,9 @@ def _build_fallback_pdf(output_model: dict, error: str | None = None) -> BytesIO
         story.append(Paragraph("<b>Note e avvisi</b>", styles["Heading2"]))
         story.append(Spacer(1, 2*mm))
         for w in warnings:
-            story.append(Paragraph(f"⚠ {w}", styles["Normal"]))
+            story.append(Paragraph(f"<b>ATTENZIONE:</b> {w}", styles["Normal"]))
         for e in errors:
-            story.append(Paragraph(f"✗ {e}", styles["Normal"]))
+            story.append(Paragraph(f"<b>ERRORE:</b> {e}", styles["Normal"]))
 
     if error:
         story.append(Spacer(1, 4*mm))
