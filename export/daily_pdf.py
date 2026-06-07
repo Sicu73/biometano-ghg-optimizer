@@ -690,12 +690,35 @@ def build_daily_pdf(
             lambda x: date_fmt(x) if pd.notna(x) else ""
         )
 
-    # Accorcia header lunghi per occupare meglio la larghezza
+    # Razionalizzazione PDF: mostriamo SOLO le colonne essenziali del giorno.
+    # (Il CSV/export mantiene tutte le colonne — eec/esca/etd, cumulati, REMI
+    # tecnici, feed singoli — per chi serve il dettaglio completo.)
+    _pdf_keep = [
+        "Data",
+        "Tot biomasse t",
+        "remi_vb",
+        "Sm³/h netti",
+        "MWh",
+        "ep",
+        "Saving giornaliero (stima %)",
+        "Cap OK",
+    ]
+    df = df[[c for c in _pdf_keep if c in df.columns]]
+
+    # Cap OK booleano → testo leggibile (evita "True/False" nel PDF). La riga
+    # TOTALE MESE può già avere un testo: in quel caso lo lasciamo com'è.
+    if "Cap OK" in df.columns:
+        df["Cap OK"] = df["Cap OK"].map(
+            lambda v: v if isinstance(v, str) else ("OK" if bool(v) else "KO")
+        )
+
+    # Header brevi e leggibili
     _header_map = {
-        "Totale Biomasse (t)": "Tot Biom. (t)",
-        "Sm³ reali giorno": "Sm³ reali",
-        "Portata REMI (Smc/h)": "REMI (Sm³/h)",
-        "Saving GHG (%)": "Saving %",
+        "Tot biomasse t":               "Tot Biom. (t)",
+        "remi_vb":                      "Sm³ reali",
+        "ep":                           "ep (gCO2eq/MJ)",
+        "Saving giornaliero (stima %)": "Saving %",
+        "Cap OK":                       "Esito",
     }
     df_display = df.rename(columns={k: v for k, v in _header_map.items() if k in df.columns})
 
