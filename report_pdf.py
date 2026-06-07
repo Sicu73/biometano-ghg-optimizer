@@ -287,22 +287,7 @@ def _build_cover(ctx, styles):
                        textColor=colors.HexColor("#CBD5E1"), leading=26),
     ))
     flow.append(Spacer(1, 18 * mm))
-
-    # Info table — mode-aware
-    if False:
-        cap = ctx.get("fer2_kwe_cap", 300)
-        qual = ("matrice OK ≥soglia"
-                if ctx.get("fer2_qualified") else "matrice INSUFFICIENTE")
-        mode_label = (f"Biogas CHP — FER 2 (DM 19/06/2024) · "
-                      f"≤{cap:.0f} kWe · {qual}")
-    elif False:
-        mode_label = "Biogas — Cogenerazione (CHP) · DM 6/7/2012"
-    elif False:
-        adv = ("AVANZATO · double counting CIC"
-               if ctx.get("is_advanced") else "non avanzato · single counting")
-        mode_label = f"Biometano — DM 2/3/2018 · {adv}"
-    else:
-        mode_label = "Biometano — DM 15/9/2022 · tariffa diretta €/MWh"
+    mode_label = "Biometano — DM 15/9/2022 · tariffa diretta €/MWh"
     info_rows = [
         ["Modalità", mode_label],
         ["Periodo analizzato", "12 mesi · pianificazione annuale"],
@@ -311,27 +296,6 @@ def _build_cover(ctx, styles):
          f"(comparator {_fmt_it(ctx['fossil_comparator'], 0)} gCO₂/MJ)"],
         ["Generato il", ctx["report_date_full"]],
     ]
-    if False and ctx.get("cic_active"):
-        info_rows.insert(2, [
-            "Sistema CIC",
-            f"{_fmt_it(ctx['MWH_PER_CIC'], 2)} MWh/CIC"
-            + (f" · ×2 (avanzato → 1 CIC ogni "
-               f"{_fmt_it(ctx['MWH_PER_CIC']/2, 2)} MWh)"
-               if ctx.get("cic_double") else " · single counting"),
-        ])
-    if False:
-        # Tariffa effettiva FER 2 (TR + premi attivi)
-        tar_str = f"{_fmt_it(ctx['fer2_tariffa_base'], 0)} TR"
-        if ctx.get("fer2_apply_matrice"):
-            tar_str += f" + {_fmt_it(ctx['fer2_premio_matrice_eur'], 0)} matrice"
-        if ctx.get("fer2_apply_car"):
-            tar_str += f" + {_fmt_it(ctx['fer2_premio_car_eur'], 0)} CAR"
-        tar_str += f" = {_fmt_it(ctx['fer2_tariffa_eff'], 0)} €/MWh_el"
-        info_rows.insert(2, ["Tariffa FER 2", tar_str])
-        info_rows.insert(3, [
-            "Periodo incentivo",
-            f"{ctx.get('fer2_periodo_anni', 20)} anni",
-        ])
     info_tbl = Table(info_rows, colWidths=[42 * mm, CONTENT_W - 42 * mm])
     info_tbl.setStyle(TableStyle([
         ("FONTNAME", (0, 0), (0, -1), "Courier-Bold"),
@@ -379,71 +343,21 @@ def _build_executive_summary(ctx, styles):
     # 4 KPI in row — mode-aware
     saving_accent = (EMERALD if ctx["saving_avg"] >= ctx["ghg_threshold"]*100
                      else RED)
-    if False:
-        # FER 2: KPI dedicati al regime ≤300 kW
-        kpi1 = _kpi_tile("Feedstocks" if ctx.get("_lang")=="en" else "Biomasse",
-                         _fmt_it(ctx["tot_biomasse_t"], 0),
-                         "t/anno (FM)", styles=s)
-        kpi2 = _kpi_tile("Net el. energy (grid)" if ctx.get("_lang")=="en" else "Energia el. netta rete",
-                         _fmt_it(ctx["tot_mwh_el_netto"], 0),
-                         "MWh/anno", styles=s)
-        kpi3 = _kpi_tile("By-products share" if ctx.get("_lang")=="en" else "Quota sottoprodotti",
-                         _fmt_it(ctx.get("fer2_subprod_share", 0)*100, 1, "%"),
-                         (f"OK · soglia {_fmt_it(ctx.get('fer2_matrice_threshold', 0.8)*100, 0, '%')}"
-                          if ctx.get("fer2_qualified")
-                          else f"KO · sotto soglia {_fmt_it(ctx.get('fer2_matrice_threshold', 0.8)*100, 0, '%')}"),
-                         styles=s,
-                         accent=EMERALD if ctx.get("fer2_qualified") else RED)
-        kpi4 = _kpi_tile("Electrical revenue" if ctx.get("_lang")=="en" else "Ricavi elettrici",
-                         _fmt_it(ctx["tot_revenue"]/1000, 0),
-                         f"k€/anno · TR+premi", styles=s)
-    elif False:
-        kpi1 = _kpi_tile("Feedstocks" if ctx.get("_lang")=="en" else "Biomasse",
-                         _fmt_it(ctx["tot_biomasse_t"], 0),
-                         "t/anno (FM)", styles=s)
-        kpi2 = _kpi_tile("Net el. energy (grid)" if ctx.get("_lang")=="en" else "Energia el. netta rete",
-                         _fmt_it(ctx["tot_mwh_el_netto"], 0),
-                         "MWh/anno", styles=s)
-        kpi3 = _kpi_tile("Avg. GHG saving" if ctx.get("_lang")=="en" else "Saving GHG medio",
-                         _fmt_it(ctx["saving_avg"], 1, "%"),
-                         f"≥ {_fmt_it(ctx['ghg_threshold']*100, 0, '%')} RED III",
-                         styles=s, accent=saving_accent)
-        kpi4 = _kpi_tile("Electrical revenue" if ctx.get("_lang")=="en" else "Ricavi elettrici",
-                         _fmt_it(ctx["tot_revenue"]/1000, 0),
-                         "k€/anno", styles=s)
-    elif False and ctx.get("cic_active"):
-        kpi1 = _kpi_tile("Feedstocks" if ctx.get("_lang")=="en" else "Biomasse",
-                         _fmt_it(ctx["tot_biomasse_t"], 0),
-                         "t/anno (FM)", styles=s)
-        kpi2 = _kpi_tile("Net biomethane" if ctx.get("_lang")=="en" else "Biometano netto",
-                         _fmt_it(ctx["tot_sm3_netti"]/1000, 0),
-                         "k Sm³/anno · "
-                         f"{_fmt_it(ctx['tot_mwh_netti'], 0)} MWh", styles=s)
-        kpi3 = _kpi_tile("CIC/year" if ctx.get("_lang")=="en" else "CIC/anno",
-                         _fmt_it(ctx["tot_n_cic"], 1),
-                         ("AVANZATO ×2" if ctx.get("cic_double")
-                          else "single counting"),
-                         styles=s,
-                         accent=AMBER if ctx.get("cic_double") else SLATE_500)
-        kpi4 = _kpi_tile("CIC revenue" if ctx.get("_lang")=="en" else "Ricavi CIC",
-                         _fmt_it(ctx["tot_revenue"]/1000, 0),
-                         "k€/anno", styles=s)
-    else:
-        # DM 2022 o DM 2018 altri usi
-        kpi1 = _kpi_tile("Feedstocks" if ctx.get("_lang")=="en" else "Biomasse",
-                         _fmt_it(ctx["tot_biomasse_t"], 0),
-                         "t/anno (FM)", styles=s)
-        kpi2 = _kpi_tile("Net biomethane" if ctx.get("_lang")=="en" else "Biometano netto",
-                         _fmt_it(ctx["tot_sm3_netti"]/1000, 0),
-                         "k Sm³/anno · "
-                         f"{_fmt_it(ctx['tot_mwh_netti'], 0)} MWh", styles=s)
-        kpi3 = _kpi_tile("Avg. GHG saving" if ctx.get("_lang")=="en" else "Saving GHG medio",
-                         _fmt_it(ctx["saving_avg"], 1, "%"),
-                         f"≥ {_fmt_it(ctx['ghg_threshold']*100, 0, '%')} RED III",
-                         styles=s, accent=saving_accent)
-        kpi4 = _kpi_tile("Ricavi",
-                         _fmt_it(ctx["tot_revenue"]/1000, 0),
-                         "k€/anno", styles=s)
+    # DM 2022 o DM 2018 altri usi
+    kpi1 = _kpi_tile("Feedstocks" if ctx.get("_lang")=="en" else "Biomasse",
+                     _fmt_it(ctx["tot_biomasse_t"], 0),
+                     "t/anno (FM)", styles=s)
+    kpi2 = _kpi_tile("Net biomethane" if ctx.get("_lang")=="en" else "Biometano netto",
+                     _fmt_it(ctx["tot_sm3_netti"]/1000, 0),
+                     "k Sm³/anno · "
+                     f"{_fmt_it(ctx['tot_mwh_netti'], 0)} MWh", styles=s)
+    kpi3 = _kpi_tile("Avg. GHG saving" if ctx.get("_lang")=="en" else "Saving GHG medio",
+                     _fmt_it(ctx["saving_avg"], 1, "%"),
+                     f"≥ {_fmt_it(ctx['ghg_threshold']*100, 0, '%')} RED III",
+                     styles=s, accent=saving_accent)
+    kpi4 = _kpi_tile("Ricavi",
+                     _fmt_it(ctx["tot_revenue"]/1000, 0),
+                     "k€/anno", styles=s)
     kpi_row = Table(
         [[kpi1, kpi2, kpi3, kpi4]],
         colWidths=[CONTENT_W / 4] * 4,
@@ -473,59 +387,12 @@ def _build_executive_summary(ctx, styles):
         f"<font color='{'#10B981' if saving_pass else '#DC2626'}'>"
         f"<b>{'CONFORME' if saving_pass else 'NON CONFORME'}</b></font>."
     )
-    if False:
-        bullets.append(
-            f"• Bilancio elettrico CHP: lordo motore "
-            f"<b>{_fmt_it(ctx['plant_kwe'], 0)} kW</b> meno "
-            f"{_fmt_it(ctx['aux_el_pct']*100, 1, '%')} ausiliari = "
-            f"<b>{_fmt_it(ctx['plant_kwe_net'], 0)} kW netti</b> immessi in rete. "
-            f"Tariffa media ponderata "
-            f"<b>{_fmt_it(ctx['tariffa_media_ponderata'], 2, ' €/MWh_el')}</b>."
-        )
-    else:
-        bullets.append(
-            f"• Taglia netta autorizzata: <b>{_fmt_it(ctx['plant_net_smch'], 0)} "
-            f"Sm³/h</b> · fattore aux <b>{_fmt_it(ctx['aux_factor'], 2)}</b>"
-            + ("." if False and ctx.get("cic_active") else
-               f" · tariffa media ponderata "
-               f"<b>{_fmt_it(ctx['tariffa_media_ponderata'], 2, ' €/MWh')}</b>.")
-        )
-    if False:
-        adv_color = "#10B981" if ctx.get("is_advanced") else "#DC2626"
-        adv_label = "AVANZATO" if ctx.get("is_advanced") else "NON AVANZATO"
-        bullets.append(
-            f"• <b>DM 2018</b>: matrice Annex IX in massa "
-            f"<b>{_fmt_it(ctx['annex_mass_share']*100, 1, '%')}</b> "
-            f"(soglia {_fmt_it(ctx['annex_threshold']*100, 0, '%')}) → "
-            f"impianto <font color='{adv_color}'><b>{adv_label}</b></font>. "
-            + (f"CIC generati/anno: <b>{_fmt_it(ctx['tot_n_cic'], 1)}</b> "
-               f"al prezzo di {_fmt_it(ctx['cic_price'], 0)} €/CIC = "
-               f"<b>{_fmt_it(ctx['tot_revenue']/1000, 0)} k€</b>."
-               if ctx.get("cic_active") else
-               "Sistema tariffa diretta €/MWh (CIC non applicabile per uso finale).")
-        )
-    if False:
-        qual_color = "#10B981" if ctx.get("fer2_qualified") else "#DC2626"
-        qual_label = "MATRICE OK" if ctx.get("fer2_qualified") else "MATRICE KO"
-        premi_str = []
-        if ctx.get("fer2_apply_matrice"):
-            premi_str.append(
-                f"matrice +{_fmt_it(ctx['fer2_premio_matrice_eur'], 0)} €/MWh")
-        if ctx.get("fer2_apply_car"):
-            premi_str.append(
-                f"CAR +{_fmt_it(ctx['fer2_premio_car_eur'], 0)} €/MWh")
-        premi_full = (" + " + " + ".join(premi_str)) if premi_str else ""
-        bullets.append(
-            f"• <b>FER 2 (DM 19/06/2024, ≤{_fmt_it(ctx.get('fer2_kwe_cap', 300), 0)} kWe)</b>: "
-            f"sottoprodotti in massa "
-            f"<b>{_fmt_it(ctx.get('fer2_subprod_share', 0)*100, 1, '%')}</b> "
-            f"(soglia {_fmt_it(ctx.get('fer2_matrice_threshold', 0.8)*100, 0, '%')}) → "
-            f"<font color='{qual_color}'><b>{qual_label}</b></font>. "
-            f"Tariffa effettiva: <b>{_fmt_it(ctx['fer2_tariffa_base'], 0)} TR{premi_full} = "
-            f"{_fmt_it(ctx['fer2_tariffa_eff'], 0)} €/MWh_el</b>. "
-            f"Periodo: {ctx.get('fer2_periodo_anni', 20)} anni → cumulo "
-            f"~<b>{_fmt_it(ctx['tot_revenue'] * ctx.get('fer2_periodo_anni', 20) / 1_000_000, 1)} M€</b>."
-        )
+    bullets.append(
+        f"• Taglia netta autorizzata: <b>{_fmt_it(ctx['plant_net_smch'], 0)} "
+        f"Sm³/h</b> · fattore aux <b>{_fmt_it(ctx['aux_factor'], 2)}</b>"
+        + f" · tariffa media ponderata "
+           f"<b>{_fmt_it(ctx['tariffa_media_ponderata'], 2, ' €/MWh')}</b>."
+    )
     bullets.append(
         f"• Configurazione impiantistica: ep totale "
         f"<b>{_fmt_it(ctx['ep_total'], 1, ' gCO₂/MJ', signed=True)}</b> · "
@@ -560,53 +427,19 @@ def _build_plant_config(ctx, styles):
     rows = [
         [_t("Parametro",_ln), _t("Valore",_ln), _t("Note",_ln)],
     ]
-    if False:
-        regime_chp = (
-            f"Biogas CHP — FER 2 (DM 19/06/2024) · cap "
-            f"{_fmt_it(ctx.get('fer2_kwe_cap', 300), 0)} kWe"
-            if False else
-            "Biogas → Cogenerazione (CHP) · DM 6/7/2012 (≤1 MW)"
-        )
-        rows.extend([
-            ["Tipologia", regime_chp,
-             "Biogas grezzo al motore, no upgrading"],
-            ["Potenza elettrica LORDA",
-             f"{_fmt_it(ctx['plant_kwe'], 0)} kW_el",
-             "Targa motore (morsetti alternatore)"
-             + (f" · cap FER 2 = {_fmt_it(ctx.get('fer2_kwe_cap', 300), 0)} kWe"
-                if False else "")],
-            ["Autoconsumo ausiliari",
-             f"{_fmt_it(ctx['aux_el_pct']*100, 1, '%')}",
-             "Pompe, agitatori, desolforatore, PLC"],
-            ["Potenza NETTA in rete",
-             f"{_fmt_it(ctx['plant_kwe_net'], 0)} kW_el",
-             "Lordo × (1 − aux%) — base ricavi"],
-            ["Rendimento elettrico η_el",
-             f"{_fmt_it(ctx['eta_el']*100, 1, '%')}", ""],
-            ["Rendimento termico η_th",
-             f"{_fmt_it(ctx['eta_th']*100, 1, '%')}",
-             "Recupero fumi + acqua motore"],
-            ["CH₄ al motore",
-             f"{_fmt_it(ctx['plant_net_smch'], 1)} Sm³/h",
-             "= kW_el lordi / (η_el × 9,97)"],
-        ])
-    else:
-        regime_label = (
-            "Biometano DM 2/3/2018 — sistema CIC" if False
-            else "Biometano DM 15/9/2022 — tariffa diretta €/MWh"
-        )
-        rows.extend([
-            ["Tipologia", regime_label, ""],
-            ["Taglia netta autorizzata",
-             f"{_fmt_it(ctx['plant_net_smch'], 0)} Sm³/h",
-             "Tetto autorizzativo immissione"],
-            ["Tecnologia upgrading",
-             ctx.get("upgrading_opt") or "—", ""],
-            ["Combustione off-gas",
-             ctx.get("offgas_opt") or "—", ""],
-            ["Iniezione in rete",
-             ctx.get("injection_opt") or "—", ""],
-        ])
+    regime_label = "Biometano DM 15/9/2022 — tariffa diretta €/MWh"
+    rows.extend([
+        ["Tipologia", regime_label, ""],
+        ["Taglia netta autorizzata",
+         f"{_fmt_it(ctx['plant_net_smch'], 0)} Sm³/h",
+         "Tetto autorizzativo immissione"],
+        ["Tecnologia upgrading",
+         ctx.get("upgrading_opt") or "—", ""],
+        ["Combustione off-gas",
+         ctx.get("offgas_opt") or "—", ""],
+        ["Iniezione in rete",
+         ctx.get("injection_opt") or "—", ""],
+    ])
     rows.extend([
         ["Aux factor (netto→lordo)",
          _fmt_it(ctx["aux_factor"], 3),
@@ -620,70 +453,6 @@ def _build_plant_config(ctx, styles):
          f"{_fmt_it(ctx['ghg_threshold']*100, 0, '%')} · "
          f"comparator {_fmt_it(ctx['fossil_comparator'], 0)} gCO₂/MJ"],
     ])
-    # Riga DM 2018 specifica
-    if False:
-        adv_text = (
-            f"AVANZATO (Annex IX in massa "
-            f"{_fmt_it(ctx['annex_mass_share']*100, 1, '%')}, "
-            f"soglia {_fmt_it(ctx['annex_threshold']*100, 0, '%')})"
-            if ctx.get("is_advanced") else
-            f"NON avanzato (Annex IX in massa "
-            f"{_fmt_it(ctx['annex_mass_share']*100, 1, '%')} "
-            f"sotto soglia {_fmt_it(ctx['annex_threshold']*100, 0, '%')})"
-        )
-        rows.append(["Classificazione DM 2018", adv_text,
-                     "Determina double counting CIC"])
-        if ctx.get("cic_active"):
-            cic_eq = (
-                ctx["MWH_PER_CIC"] / 2.0 if ctx.get("cic_double")
-                else ctx["MWH_PER_CIC"]
-            )
-            rows.append([
-                "Conversione CIC",
-                f"1 CIC = {_fmt_it(cic_eq, 2)} MWh"
-                + (" (×2 avanzato)" if ctx.get("cic_double") else ""),
-                f"Prezzo CIC: {_fmt_it(ctx['cic_price'], 0)} €/CIC",
-            ])
-            rows.append([
-                "CIC generati/anno",
-                _fmt_it(ctx["tot_n_cic"], 1),
-                "Base ricavi DM 2018 (×prezzo CIC)",
-            ])
-    # Riga FER 2 specifica
-    if False:
-        qual_text = (
-            f"MATRICE OK (sottoprodotti "
-            f"{_fmt_it(ctx['fer2_subprod_share']*100, 1, '%')}, "
-            f"soglia {_fmt_it(ctx['fer2_matrice_threshold']*100, 0, '%')})"
-            if ctx.get("fer2_qualified") else
-            f"MATRICE INSUFFICIENTE (sottoprodotti "
-            f"{_fmt_it(ctx['fer2_subprod_share']*100, 1, '%')} "
-            f"sotto soglia {_fmt_it(ctx['fer2_matrice_threshold']*100, 0, '%')})"
-        )
-        rows.append(["Qualifica FER 2", qual_text,
-                     "Determina premio matrice"])
-        rows.append([
-            "Tariffa di Riferimento (TR)",
-            f"{_fmt_it(ctx['fer2_tariffa_base'], 0)} €/MWh_el",
-            "Base FER 2 piccoli impianti",
-        ])
-        if ctx.get("fer2_apply_matrice"):
-            rows.append([
-                "Premio matrice",
-                f"+{_fmt_it(ctx['fer2_premio_matrice_eur'], 0)} €/MWh_el",
-                f"Attivo (matrice ≥{_fmt_it(ctx['fer2_matrice_threshold']*100, 0, '%')})",
-            ])
-        if ctx.get("fer2_apply_car"):
-            rows.append([
-                "Premio CAR",
-                f"+{_fmt_it(ctx['fer2_premio_car_eur'], 0)} €/MWh_el",
-                "Cogenerazione ad Alto Rendimento (PES > 10%)",
-            ])
-        rows.append([
-            "Tariffa effettiva FER 2",
-            f"{_fmt_it(ctx['fer2_tariffa_eff'], 0)} €/MWh_el",
-            f"Periodo {ctx.get('fer2_periodo_anni', 20)} anni",
-        ])
     cfg_tbl = Table(rows, colWidths=[60 * mm, 50 * mm, CONTENT_W - 110 * mm])
     cfg_tbl.setStyle(TableStyle([
         # Header
@@ -724,18 +493,11 @@ def _build_monthly_table(ctx, styles):
     flow.append(Spacer(1, 3 * mm))
 
     df = ctx["df_res"]
-    if False:
-        cols = ["Mese", "Ore", "Totale biomasse (t)",
-                "Sm³ netti", "MWh elettrici netti", "Saving %", "Validità"]
-        _ln = ctx.get("_lang","it")
-        headers = [_t("Mese",_ln), _t("Ore",_ln), "Feedstocks (t)" if _ln=="en" else "Biomasse (t)", "CH₄ engine (Sm³)" if _ln=="en" else "CH₄ motore (Sm³)",
-                   "Net MWh el." if _ln=="en" else "MWh_el netti", "Saving %", _t("Validità",_ln)]
-    else:
-        cols = ["Mese", "Ore", "Totale biomasse (t)",
-                "Sm³ netti", "MWh netti", "Saving %", "Validità"]
-        _ln = ctx.get("_lang","it")
-        headers = [_t("Mese",_ln), _t("Ore",_ln), "Feedstocks (t)" if _ln=="en" else "Biomasse (t)", _t("Sm³ netti",_ln),
-                   _t("MWh netti",_ln), "Saving %", _t("Validità",_ln)]
+    cols = ["Mese", "Ore", "Totale biomasse (t)",
+            "Sm³ netti", "MWh netti", "Saving %", "Validità"]
+    _ln = ctx.get("_lang","it")
+    headers = [_t("Mese",_ln), _t("Ore",_ln), "Feedstocks (t)" if _ln=="en" else "Biomasse (t)", _t("Sm³ netti",_ln),
+               _t("MWh netti",_ln), "Saving %", _t("Validità",_ln)]
 
     data = [headers]
     for _, r in df.iterrows():
@@ -847,7 +609,7 @@ def _build_revenue(ctx, styles):
         ])
         col_w_rel = [38, 12, 14, 18, 14, 28, 12]
     else:
-        tar_unit = "€/MWh_el" if False else "€/MWh"
+        tar_unit = "€/MWh"
         _ln = ctx.get("_lang","it")
         headers = [_t("Biomassa",_ln), "t/year" if _ln=="en" else "t/anno", "Yield" if _ln=="en" else "Resa", _t("MWh netti",_ln),
                    f"Tariff ({tar_unit})" if _ln=="en" else f"Tariffa ({tar_unit})", "Revenue €/yr" if _ln=="en" else "Ricavi €/anno", "Share %" if _ln=="en" else "Quota %"]
@@ -908,279 +670,16 @@ def _build_revenue(ctx, styles):
     ]))
     flow.append(rev_tbl)
     flow.append(Spacer(1, 8 * mm))
-
-    # Revenue summary card
-    if False:
-        rev_caption = (
-            f"<b>Calcolo FER 2 (DM 19/06/2024, ≤"
-            f"{_fmt_it(ctx.get('fer2_kwe_cap', 300), 0)} kWe)</b> · "
-            f"MWh_el lordi = MWh_CH₄ × η_el "
-            f"({_fmt_it(ctx['eta_el']*100, 0, '%')}) · "
-            f"MWh_el netti = lordi × (1 − aux%) · "
-            f"<b>Tariffa eff. = TR ({_fmt_it(ctx['fer2_tariffa_base'], 0)})"
-            + (f" + matrice ({_fmt_it(ctx['fer2_premio_matrice_eur'], 0)})"
-               if ctx.get('fer2_apply_matrice') else "")
-            + (f" + CAR ({_fmt_it(ctx['fer2_premio_car_eur'], 0)})"
-               if ctx.get('fer2_apply_car') else "")
-            + f" = {_fmt_it(ctx['fer2_tariffa_eff'], 0)} €/MWh_el</b>. "
-            f"Ricavi = MWh_el netti × tariffa eff. "
-            f"Periodo incentivo {ctx.get('fer2_periodo_anni', 20)} anni → "
-            f"cumulo ~{_fmt_it(ctx['tot_revenue']*ctx.get('fer2_periodo_anni', 20)/1_000_000, 1)} M€."
-        )
-    elif False:
-        rev_caption = (
-            f"<b>Calcolo CHP DM 6/7/2012</b> · MWh_el lordi = MWh_CH₄ × η_el "
-            f"({_fmt_it(ctx['eta_el']*100, 0, '%')}) · "
-            f"MWh_el netti rete = lordi × (1 − aux%) "
-            f"({_fmt_it(ctx['aux_el_pct']*100, 1, '%')}) · "
-            f"Ricavi = MWh_el netti rete × tariffa €/MWh_el. "
-            f"I ricavi termici da recupero calore "
-            f"({_fmt_it(ctx['eta_th']*100, 0, '%')}) non sono inclusi."
-        )
-    elif False and cic_active:
-        cic_eq = (ctx["MWH_PER_CIC"] / 2.0 if ctx.get("cic_double")
-                  else ctx["MWH_PER_CIC"])
-        rev_caption = (
-            f"<b>Calcolo DM 2018 · Sistema CIC</b> · 1 CIC = "
-            f"{_fmt_it(ctx['MWH_PER_CIC'], 2)} MWh "
-            f"({_fmt_it(ctx['GCAL_PER_CIC'], 0)} Gcal). "
-            + (f"Impianto AVANZATO (≥{_fmt_it(ctx['annex_threshold']*100, 0, '%')} "
-               f"matrice Annex IX in massa) → <b>double counting</b>: "
-               f"1 CIC ogni {_fmt_it(cic_eq, 2)} MWh. "
-               if ctx.get("cic_double") else
-               "Impianto NON avanzato → single counting: 1 CIC ogni "
-               f"{_fmt_it(cic_eq, 2)} MWh. ")
-            + f"Ricavi = N_CIC × <b>{_fmt_it(ctx['cic_price'], 0)} €/CIC</b>. "
-            f"Per la certificazione GSE è richiesta la dichiarazione di "
-            f"sostenibilità con tracciabilità delle matrici per ogni "
-            f"periodo di rendicontazione (D.Lgs. 199/2021)."
-        )
-    else:
-        rev_caption = (
-            f"<b>Calcolo</b> · MWh netti = t × resa Nm³/t ÷ "
-            f"{_fmt_it(ctx['aux_factor'], 2)} × 0,00997 · "
-            f"Ricavi = MWh netti × tariffa €/MWh. Tariffe modificabili "
-            f"in app per scenari PPA / FER-X / mercato spot."
-        )
+    rev_caption = (
+        f"<b>Calcolo</b> · MWh netti = t × resa Nm³/t ÷ "
+        f"{_fmt_it(ctx['aux_factor'], 2)} × 0,00997 · "
+        f"Ricavi = MWh netti × tariffa €/MWh. Tariffe modificabili "
+        f"in app per scenari PPA / FER-X / mercato spot."
+    )
     flow.append(Paragraph(rev_caption, s["muted"]))
     return flow
 
 
-def _build_business_plan(ctx, styles):
-    """Sezione Business Plan PDF (solo DM 2022 con BP attivo)."""
-    s = styles
-    bp = ctx.get("bp_result")
-    flow = []
-    flow.append(Paragraph("// BUSINESS PLAN · DM 2022", s["eyebrow"]))
-    flow.append(Paragraph("Pro forma 15 anni", s["h2"]))
-    flow.append(Spacer(1, 3 * mm))
-
-    # KPI cards 4-up
-    saving_accent_irr = AMBER
-    irr_v = bp.get("irr_equity")
-    irr_str = (_fmt_it(irr_v*100, 1, "%") if irr_v is not None else "n/d")
-    payback_v = bp.get("payback_anno")
-    payback_str = (f"{_fmt_it(payback_v, 1)} anni"
-                   if payback_v is not None else "> 15 anni")
-    kpi_row = Table(
-        [[
-            _kpi_tile("CAPEX totale",
-                      _fmt_it(bp["capex_totale"]/1000, 0),
-                      f"k€ · netto {_fmt_it(bp['capex_netto']/1000, 0)} k€",
-                      styles=s),
-            _kpi_tile("Ricavi anno",
-                      _fmt_it(bp["ricavi"][0]/1000, 0),
-                      f"k€ · {_fmt_it(bp['biometano_smc_anno']/1000, 0)} kSmc",
-                      styles=s),
-            _kpi_tile("EBITDA medio",
-                      _fmt_it(bp["ebitda_medio"]/1000, 0),
-                      "k€ pre-biomasse",
-                      styles=s, accent=EMERALD),
-            _kpi_tile("IRR equity",
-                      irr_str,
-                      f"payback {payback_str}",
-                      styles=s, accent=saving_accent_irr),
-        ]],
-        colWidths=[CONTENT_W / 4] * 4,
-    )
-    kpi_row.setStyle(TableStyle([
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-    ]))
-    flow.append(kpi_row)
-    flow.append(Spacer(1, 6 * mm))
-
-    # CAPEX summary
-    flow.append(Paragraph("Composizione CAPEX", s["h3"]))
-    capex_rows = [["Voce", "Importo €", "Quota %"]]
-    capex_breakdown = ctx.get("bp_capex_breakdown") or {}
-    capex_forfait = ctx.get("bp_capex_forfait") or {}
-    plant_smch = ctx.get("plant_net_smch", 0.0)
-    for k, v in capex_breakdown.items():
-        tot = v * plant_smch
-        capex_rows.append([
-            k,
-            _fmt_it(tot, 0, " €"),
-            _fmt_it(tot / bp["capex_totale"] * 100, 1, "%"),
-        ])
-    for k, v in capex_forfait.items():
-        capex_rows.append([
-            k + " (forfait)",
-            _fmt_it(v, 0, " €"),
-            _fmt_it(v / bp["capex_totale"] * 100, 1, "%"),
-        ])
-    capex_rows.append([
-        "TOTALE CAPEX",
-        _fmt_it(bp["capex_totale"], 0, " €"),
-        "100,0%",
-    ])
-    capex_rows.append([
-        f"Contributo PNRR ({_fmt_it(ctx['bp_pnrr_pct'], 0, '%')})",
-        _fmt_it(-bp["contributo"], 0, " €"),
-        _fmt_it(-bp["contributo"]/bp["capex_totale"]*100, 1, "%"),
-    ])
-    capex_rows.append([
-        "CAPEX NETTO (post PNRR)",
-        _fmt_it(bp["capex_netto"], 0, " €"),
-        _fmt_it(bp["capex_netto"]/bp["capex_totale"]*100, 1, "%"),
-    ])
-    capex_tbl = Table(capex_rows, colWidths=[CONTENT_W*0.55,
-                                              CONTENT_W*0.27,
-                                              CONTENT_W*0.18])
-    capex_tbl.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), NAVY),
-        ("TEXTCOLOR",  (0, 0), (-1, 0), WHITE),
-        ("FONTNAME",   (0, 0), (-1, 0), "Courier-Bold"),
-        ("FONTSIZE",   (0, 0), (-1, 0), 7),
-        ("ALIGN",      (1, 0), (-1, -1), "RIGHT"),
-        ("ALIGN",      (0, 0), (0, -1), "LEFT"),
-        ("FONTNAME",   (0, 1), (-1, -4), "Helvetica"),
-        ("FONTSIZE",   (0, 1), (-1, -1), 8.5),
-        ("TEXTCOLOR",  (0, 1), (-1, -4), SLATE_700),
-        ("LEFTPADDING", (0, 0), (-1, -1), 6),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 1), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 1), (-1, -1), 4),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -4), [WHITE, SLATE_50]),
-        ("LINEBELOW",  (0, 1), (-1, -4), 0.3, SLATE_200),
-        ("BACKGROUND", (0, -3), (-1, -3), SLATE_100),
-        ("FONTNAME",   (0, -3), (-1, -3), "Helvetica-Bold"),
-        ("LINEABOVE",  (0, -3), (-1, -3), 1, NAVY),
-        ("BACKGROUND", (0, -2), (-1, -2), AMBER_BG),
-        ("TEXTCOLOR",  (0, -2), (-1, -2), AMBER_DK),
-        ("FONTNAME",   (0, -2), (-1, -2), "Helvetica-Bold"),
-        ("BACKGROUND", (0, -1), (-1, -1), SLATE_100),
-        ("FONTNAME",   (0, -1), (-1, -1), "Helvetica-Bold"),
-        ("LINEABOVE",  (0, -1), (-1, -1), 0.5, SLATE_200),
-        ("BOX", (0, 0), (-1, -1), 0.5, SLATE_200),
-    ]))
-    flow.append(capex_tbl)
-    flow.append(Spacer(1, 6 * mm))
-
-    # CE multi-anno (compatto: anni 1, 2, 5, 10, 15)
-    flow.append(Paragraph("Conto Economico (anni di riferimento)", s["h3"]))
-    n_anni = len(bp["ricavi"])
-    snap_anni = sorted({1, 2, 5, 10, n_anni})
-    snap_anni = [a for a in snap_anni if 1 <= a <= n_anni]
-    headers = ["Voce (k€)"] + [f"A{a}" for a in snap_anni]
-    ce_rows = [headers]
-    voci = [
-        ("Ricavi",        "ricavi"),
-        ("OPEX",          "opex"),
-        ("EBITDA pre-biom.", "ebitda"),
-        ("Interessi LT",  "interessi"),
-        ("Ammortamenti",  "ammortamenti"),
-        ("Utile netto",   "utile_netto"),
-        ("FCF",           "fcf"),
-    ]
-    for label, key in voci:
-        row = [label]
-        for a in snap_anni:
-            v = bp[key][a-1]
-            sign = -1 if key in ("opex", "interessi", "ammortamenti") else 1
-            row.append(_fmt_it(sign * v / 1000, 0))
-        ce_rows.append(row)
-    ce_col_w = [CONTENT_W * 0.30] + [CONTENT_W * 0.70 / len(snap_anni)] * len(snap_anni)
-    ce_tbl = Table(ce_rows, colWidths=ce_col_w)
-    ce_tbl.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), NAVY),
-        ("TEXTCOLOR",  (0, 0), (-1, 0), WHITE),
-        ("FONTNAME",   (0, 0), (-1, 0), "Courier-Bold"),
-        ("FONTSIZE",   (0, 0), (-1, 0), 7),
-        ("ALIGN",      (1, 0), (-1, -1), "RIGHT"),
-        ("ALIGN",      (0, 0), (0, -1), "LEFT"),
-        ("FONTNAME",   (0, 1), (0, -1), "Helvetica-Bold"),
-        ("FONTNAME",   (1, 1), (-1, -1), "Helvetica"),
-        ("FONTSIZE",   (0, 1), (-1, -1), 8.5),
-        ("TEXTCOLOR",  (0, 1), (-1, -1), SLATE_700),
-        ("LEFTPADDING", (0, 0), (-1, -1), 6),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 1), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 1), (-1, -1), 5),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, SLATE_50]),
-        ("LINEBELOW",  (0, 1), (-1, -1), 0.3, SLATE_200),
-        ("BOX", (0, 0), (-1, -1), 0.5, SLATE_200),
-    ]))
-    flow.append(ce_tbl)
-    flow.append(Spacer(1, 5 * mm))
-
-    # Schema finanziamento
-    flow.append(Paragraph("Schema finanziamento & costo biogas", s["h3"]))
-    fin_rows = [
-        ["Debito LT iniziale",
-         f"{_fmt_it(bp['debito_lt'], 0, ' €')}",
-         f"leva {_fmt_it(ctx['bp_lt_leva'], 0, '%')}"],
-        ["Equity (soci)",
-         f"{_fmt_it(bp['equity'], 0, ' €')}",
-         f"leva {_fmt_it(100-ctx['bp_lt_leva'], 0, '%')}"],
-        ["Rata LT/anno",
-         f"{_fmt_it(bp['rata_lt'], 0, ' €')}",
-         f"{_fmt_it(ctx['bp_lt_durata'], 0)} anni @ "
-         f"{_fmt_it(ctx['bp_lt_tasso'], 2, '%')}"],
-        ["Ammortamento contabile",
-         f"{_fmt_it(bp['ammort_anno'], 0, ' €')}/anno",
-         f"22 anni"],
-        ["Costo biogas implicito",
-         f"{_fmt_it(bp['costo_biogas_eur_per_nm3'], 4, ' €/Nm³')}",
-         f"q.biomasse {_fmt_it(bp['quota_biomasse_anno']/1000, 0)} k€/a"],
-        ["EBITDA target",
-         f"{_fmt_it(ctx['bp_ebitda_target_pct'], 1, '%')}",
-         f"di {_fmt_it(bp['ricavi'][0]/1000, 0)} k€ ricavi"],
-    ]
-    fin_tbl = Table(fin_rows, colWidths=[CONTENT_W*0.40,
-                                          CONTENT_W*0.30,
-                                          CONTENT_W*0.30])
-    fin_tbl.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTNAME", (1, 0), (1, -1), "Helvetica-Bold"),
-        ("FONTNAME", (2, 0), (2, -1), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("TEXTCOLOR", (0, 0), (0, -1), SLATE_700),
-        ("TEXTCOLOR", (1, 0), (1, -1), NAVY),
-        ("TEXTCOLOR", (2, 0), (2, -1), SLATE_500),
-        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-        ("ALIGN", (2, 0), (2, -1), "LEFT"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("ROWBACKGROUNDS", (0, 0), (-1, -1), [WHITE, SLATE_50]),
-        ("BOX", (0, 0), (-1, -1), 0.5, SLATE_200),
-    ]))
-    flow.append(fin_tbl)
-
-    flow.append(Spacer(1, 4 * mm))
-    flow.append(Paragraph(
-        "<b>Modello derivato dal benchmark di un impianto medio biometano (250 Smc/h, parametri tipici 2024)</b>, "
-        "ricalibrato 2026 con inflazione ISTAT cumulata e tassi BCE. "
-        "I valori sono indicativi a supporto delle decisioni di "
-        "pianificazione: la certificazione GSE, la quotazione equity e il "
-        "deal financing richiedono validazione tramite advisor.",
-        s["muted"],
-    ))
-    return flow
 
 
 def _build_methodology(ctx, styles):
@@ -1643,8 +1142,7 @@ def build_metaniq_pdf(ctx: dict) -> BytesIO:
         subject="Report di pianificazione Metan.iQ",
     )
     # Metadata accessible by canvas callbacks
-    doc.metaniq_subtitle = ("Biogas — CHP" if False
-                            else "Biometano — Upgrading")
+    doc.metaniq_subtitle = "Biometano — Upgrading"
     doc.metaniq_date = ctx["report_date_short"]
 
     cover_frame = Frame(0, 0, PAGE_W, PAGE_H,

@@ -129,19 +129,3 @@ span[data-baseweb="tag"][role="button"] svg {{ fill:#1C1B16 !important; color:#1
 EDITORIAL_PALETTE = ["#15242E", "#9A7B3C", "#3C6A52", "#1F343F", "#B59450", "#5C5849"]
 
 
-def style_plotly(fig, is_dark: bool = False):
-    t = _tokens(is_dark)
-    grid = "rgba(232,227,213,.10)" if is_dark else "rgba(28,27,22,.07)"
-    fig.update_layout(
-        colorway=EDITORIAL_PALETTE,
-        font=dict(family="Outfit, sans-serif", color=t["INK"], size=13),
-        title_font=dict(family="Spectral, serif", size=18, color=t["INK"]),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        separators=",.",
-        hoverlabel=dict(bgcolor=t["NAVY"], bordercolor=t["BRASS"],
-                        font=dict(family="IBM Plex Mono, monospace", color="#F4F1E8")),
-        legend=dict(font=dict(family="IBM Plex Mono, monospace", size=11)),
-    )
-    fig.update_xaxes(showgrid=False, tickfont=dict(family="IBM Plex Mono", size=11), linecolor=t["LINE"])
-    fig.update_yaxes(gridcolor=grid, tickfont=dict(family="IBM Plex Mono", size=11), zeroline=False)
-    return fig
