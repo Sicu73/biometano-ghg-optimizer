@@ -117,12 +117,3 @@ def build_mailto(
     return f"mailto:{to}?subject={quote(subject)}&body={quote(body)}"
 
 
-def count_leads(path: str | None = None) -> int:
-    """Conta i lead registrati (best-effort, 0 se tabella assente)."""
-    try:
-        db_path = init_leads_table(path)
-        with sqlite3.connect(db_path) as conn:
-            row = conn.execute("SELECT COUNT(*) FROM leads").fetchone()
-        return int(row[0]) if row else 0
-    except Exception:  # noqa: BLE001
-        return 0

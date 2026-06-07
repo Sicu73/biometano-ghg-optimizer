@@ -171,12 +171,6 @@ def build_metaniq_xlsx(ctx: dict, snapshot: bool = False) -> BytesIO:
     return buf
 
 
-def build_metaniq_xlsx_snapshot(ctx: dict) -> BytesIO:
-    """Comodita': snapshot XLSX (valori statici, no formule).
-
-    Equivalente a build_metaniq_xlsx(ctx, snapshot=True).
-    """
-    return build_metaniq_xlsx(ctx, snapshot=True)
 
 
 # ============================================================
