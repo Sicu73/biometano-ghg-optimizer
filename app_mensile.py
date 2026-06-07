@@ -3505,6 +3505,16 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                 return _t("OK")
             return " + ".join(notes)
 
+        def _sav_display(c, biomass_t, hours_run):
+            """Saving GHG giornaliero come testo con indicatore colore.
+            Conforme (≥ soglia) → 🟢 · sotto soglia → 🔴 · '—' se nessun dato.
+            (Nel data_editor il testo della cella non è colorabile: usiamo
+            un pallino come segnale rosso/verde senza rallentare l'editing.)"""
+            if c is None or biomass_t <= 0 or hours_run <= 0:
+                return "—"
+            v = float(c.daily_saving_estimate)
+            return f"{'🟢' if v >= _thr_pct_pre else '🔴'} {v:.2f}"
+
         st.markdown(f"### 🌾 {_t('Tabella giornaliera')}")
         st.caption(
             _t("Inserisci **ore di funzionamento** (formato decimale: 16.50 = 16h 30min) "
@@ -3541,14 +3551,13 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             if _c is not None:
                 _row[_SMH_GROSS_COL] = float(_c.sm3_gross_ora)
                 _row[_SMH_COL]       = float(_c.sm3_netti_ora)
-                _row[_SAV_COL]       = float(_c.daily_saving_estimate)
                 _row[_REMI_FLOW_COL] = _c.remi_portata_media_smch
             else:
                 _row[_SMH_GROSS_COL] = 0.0
                 _row[_SMH_COL]       = 0.0
-                _row[_SAV_COL]       = 0.0
                 _row[_REMI_FLOW_COL] = 0.0
 
+            _row[_SAV_COL]       = _sav_display(_c, _bio_row, _h)
             _row[_OK_COL]        = _row_outcome(_c, _bio_row, _h)
             _row["Note"]         = _row_note(_c, _bio_row, _h)
             _edit_rows.append(_row)
@@ -3567,7 +3576,8 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         _compiled_hours = sum(_r.get(_HOURS_COL, 24.0) for _r in _edit_rows if _r.get(_BIO_TOT_COL, 0) > 0 or _r.get(_REMI_VB_COL, 0) > 0 or _r.get(_SMH_GROSS_COL, 0) > 0)
         _totals_row[_SMH_GROSS_COL] = _kpis.get('sm3_gross', 0.0) / _compiled_hours if _compiled_hours > 0 else 0.0
         _totals_row[_SMH_COL] = _kpis.get('sm3_netti', 0.0) / _compiled_hours if _compiled_hours > 0 else 0.0
-        _totals_row[_SAV_COL] = _kpis.get('saving_pct', 0.0)
+        _msav_tot = float(_kpis.get('saving_pct', 0.0))
+        _totals_row[_SAV_COL] = f"{'🟢' if _msav_tot >= _thr_pct_pre else '🔴'} {_msav_tot:.2f}"
         _totals_row[_REMI_FLOW_COL] = _kpis.get('remi_vb_total', 0.0) / _compiled_hours if _compiled_hours > 0 else 0.0
         _totals_row[_OK_COL] = _sust_icon
         _saving_pct = _kpis.get('saving_pct_net', 0.0)
@@ -3623,111 +3633,70 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
 
         # _editor_key è stato definito sopra (g{counter}). Cambia solo se
         # bumpiamo do_editor_gen (es. dopo cambio mese / nuovo / ricarica DB).
-        # INPUT in un expander: la tabella PRINCIPALE (sotto) è read-only e
-        # colora il Saving GHG. Streamlit non colora il testo dentro un
-        # st.data_editor (griglia canvas): per avere il NUMERO Saving in
-        # rosso/verde serve una vista read-only con Styler su st.dataframe.
-        _col_cfg = {
-            "Data": st.column_config.TextColumn(
-                "Data", disabled=True,
-                help=_t("Giorno del mese di rendicontazione."),
-            ),
-            _HOURS_COL: st.column_config.NumberColumn(
-                _HOURS_COL, min_value=0.0, max_value=24.0,
-                step=0.25, format="%.2f",
-                help=_t("Ore di funzionamento dell'impianto. Formato decimale: "
-                        "16.50 = 16h 30min, 16.25 = 16h 15min, 16.75 = 16h 45min. "
-                        "Default 24.00 (impianto sempre attivo)."),
-            ),
-            **{
-                _f: st.column_config.NumberColumn(
-                    _f, min_value=0.0, step=0.1, format="%.2f",
-                    help=_t("Biomassa giornaliera (t)"),
-                )
-                for _f in _do_active_feeds
-            },
-            _BIO_TOT_COL: st.column_config.NumberColumn(
-                _BIO_TOT_COL, disabled=True, format="%.2f",
-                help=_t("Somma totale delle biomasse inserite nel giorno (t)"),
-            ),
-            _SMH_GROSS_COL: st.column_config.NumberColumn(
-                _SMH_GROSS_COL, disabled=True, format="%.1f",
-                help=_t("Biogas LORDO prodotto in 1 ora. "
-                        "Calcolato = Resa teorica biomasse / ore di funzionamento."),
-            ),
-            _SMH_COL: st.column_config.NumberColumn(
-                _SMH_COL, disabled=True, format="%.1f",
-                help=_t("Biometano NETTO immesso in rete in 1 ora. "
-                        "Calcolato = Sm³ reali giorno / ore di funzionamento. "
-                        "Cap autorizzato:") + f" {_cap_smch:,.0f}",
-            ),
-            _SAV_COL: st.column_config.NumberColumn(
-                _SAV_COL, disabled=True, format="%.2f",
-                help=_t("Saving GHG giornaliero (informativo). La compliance è mensile.")
-                     + "  🟢 conforme (≥ soglia) · 🔴 sotto soglia",
-            ),
-            _OK_COL: st.column_config.TextColumn(
-                _OK_COL, disabled=True, width="small",
-                help=_t("✅ giorno OK (entro cap e sopra soglia GHG) · "
-                        "❌ violazione cap o saving sotto soglia · "
-                        "— nessun dato. NB: la conformità ufficiale resta mensile."),
-            ),
-            "Note": st.column_config.TextColumn(
-                "Note", disabled=True, width="medium",
-                help=_t("Dettaglio dell'esito (es. OK, Violazione cap, Saving sotto soglia)."),
-            ),
-            _REMI_VB_COL: st.column_config.NumberColumn(
-                _REMI_VB_COL, min_value=0.0, format="%.0f",
-                help=_t("Volume biometano reale misurato al REMI (Sm³) in questo giorno. "
-                        "Questo valore viene diviso per le Ore per determinare gli Sm³/h netti."),
-            ),
-            _REMI_FLOW_COL: st.column_config.NumberColumn(
-                _REMI_FLOW_COL, disabled=True, format="%.1f",
-                help=_t("Portata media reale misurata al REMI = Sm³ reali / ore di funzionamento."),
-            ),
-        }
-
-        with st.expander("✏️ " + _t("Inserisci / modifica ore e biomasse"), expanded=False):
-            _edited = st.data_editor(
-                _edit_df,
-                key=_editor_key,
-                num_rows="fixed",
-                hide_index=True,
-                column_config=_col_cfg,
-                use_container_width=True,
-            )
-
-        # --- Tabella giornaliera READ-ONLY con Saving GHG colorato ---
-        # Verde = conforme (saving >= soglia), Rosso = sotto soglia. I giorni
-        # senza dati (Esito "—") restano neutri. Styler funziona su st.dataframe.
-        def _style_saving_col(_col):
-            _styles = []
-            for _idx, _v in _col.items():
-                _esito = _edit_df.at[_idx, _OK_COL]
-                if _esito == "—" or _v is None:
-                    _styles.append("")
-                else:
-                    _hex = "#059669" if float(_v) >= _thr_pct_pre else "#DC2626"
-                    _styles.append(f"color: {_hex}; font-weight: 700;")
-            return _styles
-
-        _num_fmt = {
-            _HOURS_COL: "{:.2f}", _BIO_TOT_COL: "{:.2f}",
-            _SMH_GROSS_COL: "{:.1f}", _SMH_COL: "{:.1f}",
-            _SAV_COL: "{:.2f}", _REMI_VB_COL: "{:.0f}",
-            _REMI_FLOW_COL: "{:.1f}",
-        }
-        _num_fmt.update({_f: "{:.2f}" for _f in _do_active_feeds})
-        _num_fmt = {k: v for k, v in _num_fmt.items() if k in _edit_df.columns}
-        _view_styler = (
-            _edit_df.style
-            .apply(_style_saving_col, subset=[_SAV_COL])
-            .format(_num_fmt)
-        )
-        st.dataframe(
-            _view_styler,
-            key=f"{_editor_key}_view",
+        _edited = st.data_editor(
+            _edit_df,
+            key=_editor_key,
+            num_rows="fixed",
             hide_index=True,
+            column_config={
+                "Data": st.column_config.TextColumn(
+                    "Data", disabled=True,
+                    help=_t("Giorno del mese di rendicontazione."),
+                ),
+                _HOURS_COL: st.column_config.NumberColumn(
+                    _HOURS_COL, min_value=0.0, max_value=24.0,
+                    step=0.25, format="%.2f",
+                    help=_t("Ore di funzionamento dell'impianto. Formato decimale: "
+                            "16.50 = 16h 30min, 16.25 = 16h 15min, 16.75 = 16h 45min. "
+                            "Default 24.00 (impianto sempre attivo)."),
+                ),
+                **{
+                    _f: st.column_config.NumberColumn(
+                        _f, min_value=0.0, step=0.1, format="%.2f",
+                        help=_t("Biomassa giornaliera (t)"),
+                    )
+                    for _f in _do_active_feeds
+                },
+                _BIO_TOT_COL: st.column_config.NumberColumn(
+                    _BIO_TOT_COL, disabled=True, format="%.2f",
+                    help=_t("Somma totale delle biomasse inserite nel giorno (t)"),
+                ),
+                _SMH_GROSS_COL: st.column_config.NumberColumn(
+                    _SMH_GROSS_COL, disabled=True, format="%.1f",
+                    help=_t("Biogas LORDO prodotto in 1 ora. "
+                            "Calcolato = Resa teorica biomasse / ore di funzionamento."),
+                ),
+                _SMH_COL: st.column_config.NumberColumn(
+                    _SMH_COL, disabled=True, format="%.1f",
+                    help=_t("Biometano NETTO immesso in rete in 1 ora. "
+                            "Calcolato = Sm³ reali giorno / ore di funzionamento. "
+                            "Cap autorizzato:") + f" {_cap_smch:,.0f}",
+                ),
+                _SAV_COL: st.column_config.TextColumn(
+                    _SAV_COL, disabled=True,
+                    help=_t("Saving GHG giornaliero (informativo). La compliance è mensile.")
+                         + "  🟢 conforme (≥ soglia) · 🔴 sotto soglia",
+                ),
+                _OK_COL: st.column_config.TextColumn(
+                    _OK_COL, disabled=True, width="small",
+                    help=_t("✅ giorno OK (entro cap e sopra soglia GHG) · "
+                            "❌ violazione cap o saving sotto soglia · "
+                            "— nessun dato. NB: la conformità ufficiale resta mensile."),
+                ),
+                "Note": st.column_config.TextColumn(
+                    "Note", disabled=True, width="medium",
+                    help=_t("Dettaglio dell'esito (es. OK, Violazione cap, Saving sotto soglia)."),
+                ),
+                _REMI_VB_COL: st.column_config.NumberColumn(
+                    _REMI_VB_COL, min_value=0.0, format="%.0f",
+                    help=_t("Volume biometano reale misurato al REMI (Sm³) in questo giorno. "
+                            "Questo valore viene diviso per le Ore per determinare gli Sm³/h netti."),
+                ),
+                _REMI_FLOW_COL: st.column_config.NumberColumn(
+                    _REMI_FLOW_COL, disabled=True, format="%.1f",
+                    help=_t("Portata media reale misurata al REMI = Sm³ reali / ore di funzionamento."),
+                ),
+            },
             use_container_width=True,
         )
 
