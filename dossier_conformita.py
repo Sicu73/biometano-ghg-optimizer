@@ -95,7 +95,6 @@ def build_conformity_dossier(feedstock_db: dict, *, lang: str = "it",
                              company: str = "", plant: str = "", cui: str = "",
                              date_str: str = "", manure_credit_declared: bool = False
                              ) -> bytes:
-    is_en = (lang == "en")
     s = _styles()
     date_str = date_str or date.today().isoformat()
     buf = io.BytesIO()

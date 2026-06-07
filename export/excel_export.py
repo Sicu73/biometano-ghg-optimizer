@@ -87,7 +87,6 @@ def _output_model_to_xlsx_ctx(output_model: dict, snapshot: bool = False) -> dic
     meta = output_model.get("metadata", {})
     inp = output_model.get("input_summary", {})
     plant = inp.get("plant", {})
-    calc = output_model.get("calculation_summary", {})
     monthly_rows = output_model.get("monthly_table", [])
 
     # df_res per snapshot (se disponibile)
@@ -124,7 +123,6 @@ def _output_model_to_xlsx_ctx(output_model: dict, snapshot: bool = False) -> dic
             "color": "#64748B",
         }
 
-    app_mode = meta.get("app_mode", "biometano")
 
     ctx: dict[str, Any] = {
         "active_feeds":      active_feeds,

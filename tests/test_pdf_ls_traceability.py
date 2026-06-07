@@ -7,7 +7,6 @@ Verifica che:
 3. Mostri il warning "DA COMPILARE" se i campi anagrafica sono assenti
 4. Il PDF completo si generi senza errori con il ctx minimo richiesto
 """
-import pytest
 
 from report_pdf import _build_ls_traceability, _styles
 

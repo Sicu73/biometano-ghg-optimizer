@@ -15,13 +15,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Iterable
 
 from core.calculation_engine import (
     LHV_BIOMETHANE,
     NM3_TO_MWH,
     DEFAULT_AUX_FACTOR,
-    FOSSIL_COMPARATOR,
     ghg_summary,
     MONTHS,
 )

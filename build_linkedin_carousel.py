@@ -15,8 +15,6 @@ Output:
 import sys
 from datetime import date
 from reportlab.lib import colors
-from reportlab.lib.units import mm
-from reportlab.lib.pagesizes import portrait
 from reportlab.pdfgen import canvas
 
 # --- Formato 4:5 verticale (ottimale LinkedIn mobile) -----------------------

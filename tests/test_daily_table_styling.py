@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import datetime as _dt
 
-import pandas as pd
 import pytest
 
 from core.daily_model import DailyComputed, DailyEntry

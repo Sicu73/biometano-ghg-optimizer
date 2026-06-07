@@ -22,7 +22,6 @@ Riferimenti:
 
 import html as _html
 import json
-import urllib.request
 from pathlib import Path
 
 import streamlit as st
@@ -38,11 +37,6 @@ from excel_export import build_metaniq_xlsx
 # Carica le funzioni nuove con fallback per non rompere il vecchio percorso.
 try:
     from output.output_builder import build_output_model as _build_output_model
-    from output.tables import (
-        build_feedstock_table as _build_feedstock_table_om,
-        build_ghg_table       as _build_ghg_table_om,
-        build_audit_table     as _build_audit_table_om,
-    )
     from output.explanations import (
         explain_yield_origin            as _explain_yield_origin,
         explain_emission_factor_origin  as _explain_emission_factor_origin,
@@ -79,7 +73,6 @@ from bmt_override import (
     validate_bmt_override,
     resolve_biomass_yield,
     build_yield_audit_row,
-    ALLOWED_CERT_EXTS,
     BMT_DEVIATION_WARN_THRESHOLD,
     YIELD_UNIT as BMT_YIELD_UNIT,
     SOURCE_BMT,
@@ -93,7 +86,6 @@ from emission_factors_override import (
     resolve_emission_factors,
     build_emission_factor_audit_row,
     calculate_emission_total,
-    ALLOWED_REPORT_EXTS,
     EMISSION_DEVIATION_WARN_THRESHOLD,
     EMISSION_UNIT,
     SOURCE_REAL as EF_SOURCE_REAL,
@@ -1008,14 +1000,12 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
     for n, m in fixed_masses.items():
         if m is None:
             m = 0.0
-        d = FEEDSTOCK_DB[n]
         y = _yield_of(n)  # resa effettiva (BMT override se attivo)
         e = e_total_feedstock(n, ep)
         rhs_prod -= m * y
         rhs_sust -= m * y * (e - target_e_max)
 
     x, y_name = unknowns
-    dx = FEEDSTOCK_DB[x]; dy = FEEDSTOCK_DB[y_name]
     yx = _yield_of(x); yy = _yield_of(y_name)
     ex = e_total_feedstock(x, ep) - target_e_max
     ey = e_total_feedstock(y_name, ep) - target_e_max
@@ -1181,7 +1171,6 @@ MONTHS = [_t(m) for m in MONTHS]
 
 # ── Colori provvisori per sidebar (definiti prima del Design System completo) ──
 AMBER       = "#9A7B3C"   # provvisorio -> BRASS editoriale
-ACCENT      = AMBER
 BORDER      = "#E4DDCD"
 TEXT_MUTED   = "#726C5E"
 _SIDEBAR_PRE_DARK = st.session_state.methaniq_theme == "dark"
@@ -1463,8 +1452,6 @@ IS_DARK = st.session_state.methaniq_theme == "dark"
 # ============================================================
 # Brand tokens condivisi (Web + PDF + i18n) importati da core/design_tokens.py
 from core.design_tokens import (
-    AMBER       as ACCENT,    # alias semantico Material 3
-    AMBER_DARK  as AMBER_DK,
     EMERALD     as SUCCESS,
 )
 
@@ -3017,7 +3004,6 @@ try:
     from core.daily_model import DailyEntry as _DEntry, compute_daily as _compute_daily
     from core.monthly_aggregate import (
         aggregate_month as _agg_month,
-        progressive_to_date as _prog_to_date,
     )
     from core.sustainability import (
         evaluate_monthly_sustainability as _eval_sust,
@@ -3031,7 +3017,6 @@ try:
     from core.validators import validate_daily_entry as _validate_daily
     from output.daily_table_view import (
         build_daily_dataframe as _build_daily_df,
-        style_daily_dataframe as _style_daily_df,
     )
     # Import resiliente: append_monthly_total_row aggiunto in commit 7b00a71.
     # Se Streamlit Cloud sta servendo una versione cached di daily_table_view,

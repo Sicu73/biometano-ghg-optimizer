@@ -28,7 +28,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-import math
 
 
 # Costanti default
@@ -228,7 +227,6 @@ def build_business_plan(
     # Costruzione righe anno per anno
     rows: list[BPYear] = []
     debito_residuo = capex_debt
-    fcf_cumulato_project = -capex_equity  # Year 0: outflow equity
     fcf_cumulato_equity = -capex_equity
 
     # Year 0 (investimento iniziale, no produzione)

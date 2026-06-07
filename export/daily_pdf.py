@@ -237,9 +237,8 @@ def build_daily_pdf(
     from reportlab.lib.units import mm
     from reportlab.platypus import (
         BaseDocTemplate, Frame, PageTemplate, Paragraph, Spacer, Table,
-        TableStyle, PageBreak, KeepTogether,
+        TableStyle, PageBreak,
     )
-    from reportlab.platypus.flowables import HRFlowable
 
     audit_trail = audit_trail or {}
     guidance = guidance or []
@@ -249,14 +248,6 @@ def build_daily_pdf(
     # =========================================================================
     # STILI PARAGRAFI
     # =========================================================================
-    s_title_h = ParagraphStyle(
-        "TitleH", fontName="Helvetica-Bold", fontSize=28, leading=32,
-        textColor=colors.HexColor(_WHITE), alignment=0,
-    )
-    s_subtitle = ParagraphStyle(
-        "SubT", fontName="Helvetica", fontSize=11, leading=14,
-        textColor=colors.HexColor(_GREY_LIGHT), alignment=0,
-    )
     s_h2 = ParagraphStyle(
         "H2", fontName="Helvetica-Bold", fontSize=13, leading=16,
         textColor=colors.HexColor(_NAVY_DARK), spaceAfter=8, spaceBefore=12,
@@ -272,14 +263,6 @@ def build_daily_pdf(
     s_caption = ParagraphStyle(
         "Caption", fontName="Helvetica-Oblique", fontSize=8, leading=11,
         textColor=colors.HexColor(_GREY_TXT),
-    )
-    s_kpi_label = ParagraphStyle(
-        "KpiLbl", fontName="Helvetica-Bold", fontSize=8, leading=10,
-        textColor=colors.HexColor(_GREY_TXT), alignment=1,
-    )
-    s_kpi_value = ParagraphStyle(
-        "KpiVal", fontName="Helvetica-Bold", fontSize=20, leading=24,
-        textColor=colors.HexColor(_NAVY_DARK), alignment=1,
     )
 
     # =========================================================================

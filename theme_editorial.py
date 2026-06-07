@@ -24,9 +24,6 @@ def _tokens(is_dark: bool) -> dict:
 
 def inject_editorial_theme(is_dark: bool = False):
     t = _tokens(is_dark)
-    # Testo ad alto contrasto su fondo ottone (non piu' usato per i download, che
-    # ora sono navy; mantenuto per eventuali superfici ottone).
-    on_acc = "#15242E" if is_dark else "#F7F4EC"
     st.markdown(f"""
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">

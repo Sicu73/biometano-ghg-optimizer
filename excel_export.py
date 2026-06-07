@@ -13,14 +13,13 @@ from datetime import datetime
 from io import BytesIO
 
 from openpyxl import Workbook
-from openpyxl.formatting.rule import CellIsRule, FormulaRule
+from openpyxl.formatting.rule import CellIsRule
 from openpyxl.styles import (
     Alignment, Border, Font, PatternFill, Side,
 )
 from openpyxl.utils import get_column_letter
 
 from i18n_runtime import t as _t
-from openpyxl.worksheet.protection import SheetProtection
 
 
 # ============================================================
@@ -330,7 +329,6 @@ def _build_database(ws, ctx, lang='it'):
     # === Caption finale ===
     last_r = 11
     end_col = 1 + n
-    end_letter = get_column_letter(end_col)
     ws.merge_cells(start_row=last_r, start_column=1,
                    end_row=last_r, end_column=end_col)
     c = ws.cell(row=last_r, column=1,
@@ -403,7 +401,6 @@ def _build_piano(ws, ctx, db_sheet_name, snapshot: bool = False, lang='it'):
         mwh_el_lordo_col = mwh_el_netto_col = mwh_th_col = kw_lordi_col = None
 
     L = get_column_letter
-    last_col_letter = L(valid_col)
 
     # === Title (row 1) ===
     ws.merge_cells(start_row=1, start_column=1,
@@ -577,8 +574,6 @@ def _build_piano(ws, ctx, db_sheet_name, snapshot: bool = False, lang='it'):
     # Esempio (4 biomasse):
     #   Sm3_lordi = C13*Database!$B$2 + D13*Database!$C$2 +
     #               E13*Database!$D$2 + F13*Database!$E$2
-    bio_start_letter = L(bio_col_start)
-    bio_end_letter   = L(bio_col_end)
 
     def _sum_of_products(row_idx: int, db_row_idx: int) -> str:
         """Costruisce somma di prodotti esplicita per N_feed biomasse."""
@@ -1264,13 +1259,6 @@ def _build_business_plan(ws, ctx, snapshot: bool = False, lang='it'):
     )
 
     # Energia netta annua [MWh/anno] - mode-aware
-    if is_chp:
-        # CHP: kW_lordo × ore × (1-aux_el%) / 1000 = MWh netti rete
-        mwh_anno = plant_size * ore_anno * (1 - aux_el_pct) / 1000.0
-    else:
-        # Biometano: Smc/h × ore × PCI = MWh
-        mwh_anno = plant_size * ore_anno * nm3_to_mwh
-
     # ============================================================
     # SHEET LAYOUT
     # ============================================================
@@ -1730,7 +1718,6 @@ def _build_business_plan(ws, ctx, snapshot: bool = False, lang='it'):
     ws.row_dimensions[kpi_section_row].height = 22
 
     kpi_first_row = kpi_section_row + 1
-    fcf_range = f"{L(2)}{ce_row_fcf}:{L(16)}{ce_row_fcf}"
     fcf_cum_range = f"{L(2)}{ce_row_fcf_cum}:{L(16)}{ce_row_fcf_cum}"
     ricavi_range = f"{L(2)}{ce_row_ricavi}:{L(16)}{ce_row_ricavi}"
     ebitda_range = f"{L(2)}{ce_row_ebitda}:{L(16)}{ce_row_ebitda}"
@@ -1786,7 +1773,6 @@ def _build_business_plan(ws, ctx, snapshot: bool = False, lang='it'):
     # Year 1..15 (cols C..Q): copia FCF
     for y in range(1, 16):
         col = 2 + y  # C, D, ..., Q
-        cl_dst = L(col)
         cl_src = L(1 + y)  # B, C, ..., P (FCF originali)
         ws.cell(row=irr_helper_row, column=col,
                 value=f"={cl_src}{ce_row_fcf}")

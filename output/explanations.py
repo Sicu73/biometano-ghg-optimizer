@@ -214,7 +214,6 @@ def explain_ghg_method(ctx: dict) -> str:
 def explain_regulatory_basis(ctx: dict) -> str:
     """Testo spiegativo base normativa applicata."""
     lang = ctx.get("lang", "it") if isinstance(ctx, dict) else "it"
-    app_mode = ctx.get("APP_MODE", "biometano") if isinstance(ctx, dict) else "biometano"
     base = _REGULATORY_BASIS_EN if lang == "en" else _REGULATORY_BASIS_IT
     return base
 

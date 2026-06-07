@@ -29,10 +29,8 @@ from core.calculation_engine import (
     LHV_BIOMETHANE,
     NM3_TO_MWH,
     DEFAULT_AUX_FACTOR,
-    FOSSIL_COMPARATOR,
     _emission_factors_of,
     _yield_of,
-    e_total_feedstock,
     ghg_summary,
 )
 

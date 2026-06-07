@@ -11,7 +11,6 @@ highlighting rosso sulle celle che violano:
 """
 from __future__ import annotations
 
-from typing import Iterable
 
 import pandas as pd
 

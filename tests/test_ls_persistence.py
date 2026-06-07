@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 """Tests core/ls_persistence — backup/restore dossier UNI/TS 11567."""
 import json
-import os
-import tempfile
-from pathlib import Path
 
 import pytest
 

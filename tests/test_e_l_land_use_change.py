@@ -42,7 +42,6 @@ class TestFeedstockDbHasEl:
     def test_food_feed_crops_have_e_l_and_no_luc_flag(self):
         """Colture dedicate (mais, sorgo, ...) devono avere e_l=0 e flag."""
         import sys
-        from pathlib import Path
         # Carica app_mensile come modulo per leggere FEEDSTOCK_DB
         if "app_mensile" not in sys.modules:
             try:

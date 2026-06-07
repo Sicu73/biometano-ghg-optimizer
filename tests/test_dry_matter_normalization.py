@@ -19,7 +19,6 @@ if str(ROOT) not in sys.path:
 
 import pytest
 
-import app_mensile
 from app_mensile import (
     FEEDSTOCK_DB,
     _EFFECTIVE_DRY_MATTERS,

@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 
 from metaniq_i18n import IT_EN
-from core.design_tokens import AMBER as _ACCENT, SLATE_500 as _MUTED
+from core.design_tokens import AMBER as _ACCENT
 
 
 # Word-boundary lookbehind/lookahead: previene matching all'interno di parole

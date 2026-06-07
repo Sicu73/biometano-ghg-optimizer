@@ -89,7 +89,6 @@ def _output_model_to_pdf_ctx(output_model: dict) -> dict:
     plant = inp.get("plant", {})
     calc = output_model.get("calculation_summary", {})
     monthly_rows = output_model.get("monthly_table", [])
-    expl = output_model.get("explanations", {})
 
     # Ricostruisci df_res
     df_res = None

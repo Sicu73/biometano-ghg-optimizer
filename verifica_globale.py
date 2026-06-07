@@ -5,8 +5,6 @@ poi esegue i controlli normativi, di formula e di generazione documenti.
 Stampa un esito PASS/FAIL per ogni check (machine-readable: "RESULT|ID|esito|dettaglio").
 """
 import ast
-import io
-import math
 
 RESULTS = []
 def rec(idc, ok, detail):

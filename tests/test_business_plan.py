@@ -10,8 +10,6 @@ from core.business_plan import (
     _npv,
     _payback,
     _french_annuity,
-    BusinessPlan,
-    BPYear,
 )
 
 

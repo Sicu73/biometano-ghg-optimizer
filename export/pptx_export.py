@@ -122,12 +122,8 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     
     # Dati BP
     bp = ctx.get("bp_result") or {}
-    opex_list = bp.get("opex", []) if isinstance(bp, dict) else []
-    avg_opex = sum(opex_list)/len(opex_list) if opex_list else 0.0
-    capex = bp.get("capex_totale", 0.0) if isinstance(bp, dict) else 0.0
     ebitda_list = bp.get("ebitda", []) if isinstance(bp, dict) else []
     avg_ebitda = sum(ebitda_list)/len(ebitda_list) if ebitda_list else 0.0
-    payback = bp.get("payback_anno", "N/D") if isinstance(bp, dict) else "N/D"
 
     # ==========================================
     # SLIDE 1: Copertina

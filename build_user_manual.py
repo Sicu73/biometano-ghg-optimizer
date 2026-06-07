@@ -17,9 +17,9 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+from reportlab.lib.enums import TA_LEFT, TA_JUSTIFY
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle,
+    Paragraph, Spacer, PageBreak, Table, TableStyle,
     KeepTogether, ListFlowable, ListItem
 )
 from reportlab.platypus.doctemplate import PageTemplate, BaseDocTemplate, NextPageTemplate

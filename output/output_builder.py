@@ -24,7 +24,6 @@ Struttura output_model:
 """
 from __future__ import annotations
 
-import importlib
 from datetime import datetime
 from typing import Any
 

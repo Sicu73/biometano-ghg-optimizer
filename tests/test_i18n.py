@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-from core import i18n
 from core.i18n import (
     DEFAULT_LANG,
     SUPPORTED_LANGS,
