@@ -739,9 +739,23 @@ def build_daily_pdf(
                 row.append("" if v is None else str(v))
         body_rows.append(row)
 
-    # Larghezze colonne: distribuisci la larghezza disponibile
+    # Larghezze colonne proporzionate al contenuto (non equidistribuite):
+    # "Data" e le label brevi restano strette, "ep (gCO2eq/MJ)" più larga.
+    # Default 1.0 per header non mappati → degrada a distribuzione uniforme.
     avail_w = PAGE_W - 30 * mm
-    col_widths = [avail_w / len(headers)] * len(headers)
+    _w_weights = {
+        "Data": 1.1,
+        "Tot Biom. (t)": 1.2,
+        "Sm³ reali": 1.1,
+        "Sm³/h netti": 1.1,
+        "MWh": 0.8,
+        "ep (gCO2eq/MJ)": 1.6,
+        "Saving %": 1.0,
+        "Esito": 0.9,
+    }
+    _weights = [_w_weights.get(h, 1.0) for h in headers]
+    _wsum = sum(_weights) or 1.0
+    col_widths = [avail_w * w / _wsum for w in _weights]
 
     daily_tbl = Table([headers] + body_rows, colWidths=col_widths,
                       hAlign="LEFT", repeatRows=1)
@@ -749,10 +763,10 @@ def build_daily_pdf(
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(_NAVY)),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor(_WHITE)),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, 0), 7),
+        ("FONTSIZE", (0, 0), (-1, 0), 7.5),
         ("ALIGN", (0, 0), (-1, 0), "CENTER"),
         ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 1), (-1, -1), 6.5),
+        ("FONTSIZE", (0, 1), (-1, -1), 7),
         ("TEXTCOLOR", (0, 1), (-1, -1), colors.HexColor(_NAVY_DARK)),
         ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor(_WHITE), colors.HexColor(_TINT)]),
@@ -828,8 +842,8 @@ def build_daily_pdf(
         )
         story.append(PageBreak())
         story.append(Paragraph(
-            "📚 " + ("Riferimenti normativi & Validazione" if lang != "en"
-                     else "Regulatory references & Validation"),
+            ("Riferimenti normativi & Validazione" if lang != "en"
+             else "Regulatory references & Validation"),
             s_h2,
         ))
         story.append(Paragraph(
@@ -872,7 +886,7 @@ def build_daily_pdf(
 
         # Metadata software + warning
         story.append(Paragraph(
-            "🔧 " + ("Metadati software" if lang != "en" else "Software metadata"),
+            ("Metadati software" if lang != "en" else "Software metadata"),
             s_h3,
         ))
         meta_lines = [
@@ -894,8 +908,13 @@ def build_daily_pdf(
                         "authorities, data must be validated by a qualified "
                         "technical consultant (RINA, SGS, ISCC) or via "
                         "dedicated internal audit.")
+        # Helvetica (ReportLab) non ha glifi emoji: rimuovo il simbolo ⚠️ e lo
+        # sostituisco con un marcatore testuale in grassetto, altrimenti nel PDF
+        # esce un quadratino/glifo mancante.
+        warning_text = warning_text.replace("⚠️", "").replace("⚠", "").strip()
+        _warn_prefix = "ATTENZIONE — " if lang != "en" else "WARNING — "
         warn_tbl = Table(
-            [[Paragraph(warning_text, ParagraphStyle(
+            [[Paragraph("<b>" + _warn_prefix + "</b>" + warning_text, ParagraphStyle(
                 "Warn", fontName="Helvetica", fontSize=9, leading=12,
                 textColor=colors.HexColor("#7C2D12"),
             ))]],

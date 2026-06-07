@@ -204,10 +204,7 @@ def build_daily_excel(
         ("🟢 Sm³ netti mese",   monthly_kpis.get("sm3_netti", 0.0),        _FMT_INT,  "Sm³"),
         ("🌱 Saving GHG",       _saving / 100.0,                            _FMT_PCT2, ""),
     ]
-    _cols_pairs = [("A", "B"), ("C", "C"), ("D", "D"), ("E", "F")]
-    # Più semplice: card su 6 colonne, una ogni 1-2 colonne
-    _start_cols = ["A", "B", "C", "D"]  # colonne separate per chiarezza
-    # Rifaccio layout: 4 colonne × 2 righe (label sopra, value sotto)
+    # Layout: 4 colonne (A-D) × 2 righe — label sopra, valore sotto.
     for i, (label, value, fmt, unit) in enumerate(_kpi_cards):
         col_letter = chr(ord("A") + i)  # A, B, C, D
         # Estendo card su 1 colonna ciascuna (4 colonne usate, E-F per padding)

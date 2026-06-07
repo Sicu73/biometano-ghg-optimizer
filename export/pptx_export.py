@@ -29,7 +29,7 @@ def _fmt_num(value, decimals=0, suffix="", prefix=""):
             else:
                 formatted = parts[0].replace("'", ".")
         return prefix + formatted + suffix
-    except:
+    except Exception:
         return prefix + str(value) + suffix
 
 # Colori Stile Claude / Modern
@@ -43,7 +43,7 @@ C_CARD_BG = RGBColor(255, 255, 255)    # FFFFFF - Sfondo Card
 
 def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     if not _HAS_PPTX:
-        raise ImportError("python-pptx non e' installato.")
+        raise ImportError("python-pptx non è installato.")
         
     prs = Presentation()
     
@@ -113,7 +113,12 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     taglia = ctx.get("plant_net_smch") or 300.0
     aux = ctx.get("aux_factor") or 1.29
     valid_months = ctx.get("valid_months") or 0
-    compliant = ghg_saving >= 80 and valid_months == 12
+    # Soglia reale dal contesto (frazione 0-1 → %): 80% rete/calore, 65% trasporti.
+    # Conformità = saving annuo pesato ≥ soglia. NON richiede 12/12 mesi:
+    # un singolo mese sotto soglia non preclude se la media annua compensa
+    # (coerente con slide "Piano di Produzione" e RED III All. V Parte C).
+    threshold_pct = float(ctx.get("ghg_threshold") or 0.80) * 100.0
+    compliant = ghg_saving >= threshold_pct
     
     # Dati BP
     bp = ctx.get("bp_result") or {}
@@ -145,7 +150,7 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     p.font.color.rgb = C_TEXT_MAIN
     
     p2 = tf.add_paragraph()
-    p2.text = "Business Plan & Analisi Sostenibilita' RED III"
+    p2.text = "Business Plan & Analisi Sostenibilità RED III"
     p2.font.size = Pt(24)
     p2.font.color.rgb = C_TEXT_MUTED
     
@@ -161,9 +166,9 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     add_background(s2)
     add_title(s2, "Executive Summary")
     
-    draw_kpi_card(s2, 0.5, 1.8, 3.8, 2.2, "SAVING GHG MEDIO", _fmt_num(ghg_saving, 1, '%'), color_value=C_SUCCESS if compliant else C_ERROR, subtitle="Soglia Minima: 80%")
-    draw_kpi_card(s2, 4.75, 1.8, 3.8, 2.2, "CONFORMITA' RED III", "IDONEO" if compliant else "NON IDONEO", color_value=C_SUCCESS if compliant else C_ERROR, subtitle=f"Mesi conformi: {valid_months}/12")
-    draw_kpi_card(s2, 9.0, 1.8, 3.8, 2.2, "ENERGIA IMMESSA", _fmt_num(mwh, 0, ' MWh/anno'), subtitle=f"Da {_fmt_num(taglia,0)} Sm3/h netti autorizzati")
+    draw_kpi_card(s2, 0.5, 1.8, 3.8, 2.2, "SAVING GHG MEDIO", _fmt_num(ghg_saving, 1, '%'), color_value=C_SUCCESS if compliant else C_ERROR, subtitle=f"Soglia Minima: {_fmt_num(threshold_pct, 0, '%')}")
+    draw_kpi_card(s2, 4.75, 1.8, 3.8, 2.2, "CONFORMITÀ RED III", "IDONEO" if compliant else "NON IDONEO", color_value=C_SUCCESS if compliant else C_ERROR, subtitle=f"Mesi conformi: {valid_months}/12")
+    draw_kpi_card(s2, 9.0, 1.8, 3.8, 2.2, "ENERGIA IMMESSA", _fmt_num(mwh, 0, ' MWh/anno'), subtitle=f"Da {_fmt_num(taglia,0)} Sm³/h netti autorizzati")
     
     draw_kpi_card(s2, 0.5, 4.3, 5.9, 2.0, "RICAVI MEDI ANNUI", _fmt_num(rev, 0, ' €', ' '), subtitle="Include tariffa GSE e mercato")
     draw_kpi_card(s2, 6.9, 4.3, 5.9, 2.0, "EBITDA MEDIO", _fmt_num(avg_ebitda, 0, ' €', ' '), subtitle="Margine operativo lordo post-OPEX")
@@ -178,9 +183,16 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     rows = len(feedstock_rows) + 1
     cols = 3
     if rows > 1:
-        table_shape = s3.shapes.add_table(rows, cols, Inches(0.5), Inches(1.8), Inches(12.3), Inches(rows * 0.6))
+        # Cap altezza tabella per non sforare la slide (area utile tra titolo
+        # a 1.8" e nota esplicativa a 5.5"). Con molte biomasse riduciamo
+        # altezza riga e font invece di tagliare la tabella fuori dalla slide.
+        _MAX_TABLE_H = 3.5  # pollici
+        _row_h = min(0.6, _MAX_TABLE_H / rows)
+        _hdr_sz = 16 if rows <= 9 else 12
+        _body_sz = 14 if rows <= 9 else (11 if rows <= 15 else 9)
+        table_shape = s3.shapes.add_table(rows, cols, Inches(0.5), Inches(1.8), Inches(12.3), Inches(_row_h * rows))
         table = table_shape.table
-        
+
         headers = ["Biomassa", "Fabbisogno Annuo", "MWh Producibili"]
         for c in range(cols):
             cell = table.cell(0, c)
@@ -190,22 +202,22 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
             p = cell.text_frame.paragraphs[0]
             p.font.color.rgb = RGBColor(255, 255, 255)
             p.font.bold = True
-            p.font.size = Pt(16)
-            
+            p.font.size = Pt(_hdr_sz)
+
         for r, (name, data) in enumerate(feedstock_rows):
             table.cell(r+1, 0).text = name
             table.cell(r+1, 1).text = _fmt_num(data.get("t", 0), 0, " tonnellate")
             table.cell(r+1, 2).text = _fmt_num(data.get("mwh", 0), 0, " MWh")
             for c in range(cols):
                 p = table.cell(r+1, c).text_frame.paragraphs[0]
-                p.font.size = Pt(14)
+                p.font.size = Pt(_body_sz)
                 p.font.color.rgb = C_TEXT_MAIN
                 
     tx = s3.shapes.add_textbox(Inches(0.5), Inches(5.5), Inches(12.3), Inches(1.5))
     tf = tx.text_frame
     tf.word_wrap = True
     p = tf.paragraphs[0]
-    p.text = f"Il fabbisogno e' dimensionato considerando gli ausiliari ({_fmt_num((aux-1)*100, 0, '%')}). Base calcolo GHG: {_fmt_num(taglia*aux,0)} Sm3/h lordi equivalenti."
+    p.text = f"Il fabbisogno è dimensionato considerando gli ausiliari ({_fmt_num((aux-1)*100, 0, '%')}). Base calcolo GHG: {_fmt_num(taglia*aux,0)} Sm³/h lordi equivalenti."
     p.font.size = Pt(16)
     p.font.color.rgb = C_TEXT_MUTED
 
