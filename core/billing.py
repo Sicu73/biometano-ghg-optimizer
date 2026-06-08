@@ -262,7 +262,13 @@ def _on_payment_succeeded(invoice) -> None:
 
 
 def _on_payment_failed(invoice) -> None:
-    # TODO: inviare email all'utente per aggiornare carta. Grace period 7gg.
+    # Policy: nessun downgrade immediato su singolo pagamento fallito (grace
+    # implicito). Stripe gestisce il dunning (retry automatici) e, se il
+    # pagamento resta insoluto, emette 'customer.subscription.deleted' ->
+    # _on_subscription_deleted declassa il piano a 'free'. Un grace-period
+    # esplicito a giorni richiederebbe la persistenza del timestamp di
+    # fallimento + un check all'accesso: e' una decisione di policy/fatturazione
+    # (tocca gli accessi a pagamento), volutamente NON implementata qui.
     pass
 
 

@@ -1342,6 +1342,23 @@ def _build_ls_traceability(ctx: dict, s) -> list:
         _fmt_it(ctx.get("sm3_netti") or ctx.get("nm3_net") or 0.0, 0),
         "", "", "",
     ])
+    # Riconciliazione mass balance (UNI/TS 11567): scostamento biometano atteso
+    # (lordo, da rese × biomasse) vs misurato (REMI netto riportato a lordo ×aux).
+    # Lo scostamento % e' invariante alla base lordo/netto (l'aux si elide).
+    _bm_gross = float(ctx.get("sm3_gross") or ctx.get("nm3_gross") or 0.0)
+    _bm_net = float(ctx.get("sm3_netti") or ctx.get("nm3_net") or 0.0)
+    _bm_aux = float(ctx.get("aux_factor") or 1.29)
+    _bm_meas = _bm_net * _bm_aux
+    if _bm_gross > 0 and _bm_meas > 0:
+        _bm_dev = abs(_bm_gross - _bm_meas) / _bm_gross * 100.0
+        _bm_ok = _bm_dev <= 15.0
+        _rows_bm.append([
+            ("RICONCILIAZIONE (atteso vs REMI)" if not is_en
+             else "RECONCILIATION (expected vs REMI)"),
+            f"{_fmt_it(_bm_dev, 1)}%",
+            ("OK (<= 15%)" if _bm_ok else "KO (> 15%)"),
+            "", "",
+        ])
     # Warning food/feed crops senza dichiarazione no-LUC
     if _has_food_feed:
         flow.append(Paragraph(

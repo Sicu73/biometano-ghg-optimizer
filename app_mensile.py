@@ -983,7 +983,7 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
                            hours: float, aux: float,
                            plant_net: float = DEFAULT_PLANT_NET_SMCH,
                            ep: float = 0.0,
-                           target_e_max: float = 17.86):
+                           target_e_max: float = None):
     """
     Modalita' 2+2: risolve sistema lineare 2x2.
       Eq.1 (produzione):
@@ -992,7 +992,14 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
           sum((e_i - target_e_max) * yield_i * mass_i) = 0
     ep: contributo processing impianto, applicato a ciascun feedstock.
     target_e_max: emissioni target [gCO2eq/MJ] per raggiungere saving target.
+        OBBLIGATORIO: deriva da comparator × (1 − soglia_saving), nessun default
+        magico (in produzione lo passano i chiamanti a 1119 e 5730).
     """
+    if target_e_max is None:
+        raise ValueError(
+            "solve_2_unknowns_dual: target_e_max obbligatorio "
+            "(= comparator × (1 − soglia_saving)); nessun default."
+        )
     gross_target = plant_net * aux * hours
     # RHS, togliendo contributi delle 2 fisse
     rhs_prod = gross_target

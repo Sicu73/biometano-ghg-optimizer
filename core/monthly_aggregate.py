@@ -64,11 +64,6 @@ class MonthlyAggregate:
     cap_ok_days: int = 0
     cap_violation_days: list[date] = field(default_factory=list)
 
-    # CHP metrics
-    mwh_el_lordo: float = 0.0
-    mwh_el_netto: float = 0.0
-    mwh_termico: float = 0.0
-
     # REMI metrics (consolidate mese)
     remi_vb_total: float = 0.0
     remi_e_total: float = 0.0
@@ -94,14 +89,6 @@ class MonthlyAggregate:
             "Totale biomasse (t)": self.biomass_total_t,
             "Validità": "✅ OK" if self.n_days_with_data > 0 else "❌ Nessun dato",
         }
-        
-        # Aggiungi colonne CHP se valorizzate
-        if self.mwh_el_lordo > 0:
-            d["MWh elettrici lordi"] = self.mwh_el_lordo
-        if self.mwh_el_netto > 0:
-            d["MWh elettrici netti"] = self.mwh_el_netto
-        if self.mwh_termico > 0:
-            d["MWh termici"] = self.mwh_termico
 
         d.update({
             "remi_vb": self.remi_vb_total,
