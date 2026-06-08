@@ -169,14 +169,21 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
         pci = getattr(d, "remi_pci", 0.0)
         rho = getattr(d, "remi_rho", 0.0)
         h = getattr(d, "hours_per_day", 24.0)
+        biomass = getattr(d, "biomass_total_t", 0.0)
 
         tot_vb += vb
         tot_e += e_val
         max_qb = max(max_qb, qb)
-        if vb > 0 or e_val > 0:
+        is_remi = vb > 0 or e_val > 0
+        if is_remi:
             pci_sum += pci
             rho_sum += rho
             remi_days += 1
+        # Ore per il cap autorizzativo: giorni con PRODUZIONE (biomassa O lettura
+        # REMI), coerente con Σ Sm³ / (24h × giorni con dati) e col denominatore
+        # del banner UI. Prima si contavano solo i giorni REMI -> due portate
+        # medie diverse sullo stesso dato in data-entry parziale.
+        if biomass > 0 or is_remi:
             total_hours += h
 
     # Auto-derivazione E totale quando l'utente ha compilato Vb ma non E.

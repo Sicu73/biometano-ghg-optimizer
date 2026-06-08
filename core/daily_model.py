@@ -127,9 +127,9 @@ def compute_daily(entry: DailyEntry, ctx: dict[str, Any] | None = None) -> Daily
               if q is not None and float(q) > 0}
     biomass_total = sum(masses.values())
 
-    if not masses:
-        return DailyComputed(date=entry.date, biomass_total_t=0.0,
-                             feedstock_breakdown=dict(masses), cap_ok=True)
+    # NB: nessun early-return per masses vuoto. Un giorno con sola lettura REMI
+    # (contatore letto, nessun carico biomassa) deve comunque propagare vb/e/ore:
+    # il ramo principale gestisce total_mj=0 (componenti a 0) e legge i campi REMI.
 
     # Riusa la stessa funzione del motore (no duplicazioni di formule)
     try:

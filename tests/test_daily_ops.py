@@ -315,3 +315,27 @@ def test_compute_daily_empty():
     c = compute_daily(e)
     assert c.biomass_total_t == 0.0
     assert c.cap_ok is True
+
+
+def test_compute_daily_remi_only_no_biomass():
+    """Giorno con sola lettura REMI (nessun carico biomassa) deve propagare
+    vb/sm3 netti, non scartarli con un early-return (regressione audit)."""
+    e = DailyEntry(date=date(2026, 1, 2), feedstocks={},
+                   remi_vb=5000.0, remi_e=49000.0)
+    c = compute_daily(e, {"plant_net_smch": 300.0})
+    assert c.biomass_total_t == 0.0
+    assert c.remi_vb == pytest.approx(5000.0)
+    assert c.sm3_netti == pytest.approx(5000.0)
+
+
+def test_aggregate_total_hours_counts_biomass_and_remi_days():
+    """total_hours (base del cap autorizzativo) conta i giorni con biomassa O
+    lettura REMI, non solo i giorni REMI (regressione audit cap/portata)."""
+    daily = [
+        DailyComputed(date=date(2026, 1, 1), biomass_total_t=10.0,
+                      remi_vb=6000.0, remi_e=58000.0, hours_per_day=24.0),
+        DailyComputed(date=date(2026, 1, 2), biomass_total_t=10.0,
+                      remi_vb=0.0, remi_e=0.0, hours_per_day=24.0),
+    ]
+    agg = aggregate_month(daily, year=2026, month=1)
+    assert agg.total_hours == pytest.approx(48.0)
