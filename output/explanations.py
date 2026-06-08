@@ -77,7 +77,7 @@ _EMISSION_FACTOR_ORIGIN_EN = (
 _GHG_METHOD_IT = (
     "Metodo di calcolo GHG (RED III, Allegato V Parte C):\n"
     "1. Per ogni biomassa si calcola il contributo energetico: Eᵢ = Mᵢ × Yᵢ × LHV_CH4 (MJ)\n"
-    "   dove M = massa in tonnellate, Y = resa Nm³ CH4/t, LHV = 35,9 MJ/Nm³.\n"
+    "   dove M = massa in tonnellate, Y = resa Nm³ CH4/t, LHV = 35,24 MJ/Nm³.\n"
     "2. Emissioni ponderate: e_w = Σ(eᵢ × Eᵢ) / ΣEᵢ (gCO₂eq/MJ)\n"
     "   dove eᵢ = eecᵢ + etdᵢ + ep - escaᵢ per ogni biomassa.\n"
     "3. Saving GHG = (comparatore_fossile - e_w) / comparatore_fossile × 100 (%)\n"

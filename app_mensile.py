@@ -446,7 +446,7 @@ def compute_revenues(
 ) -> dict:
     """Calcolo Ricavi biometano DM 2022 (15 anni standard)."""
     biometano_smc_anno = plant_smch * ore_anno
-    # 1 Smc biometano (97% CH4) ~= 9,97 kWh -> tariffa €/Smc = €/MWh / 1000 * 9,97
+    # 1 Smc biometano (98% CH4) ~= 9,79 kWh -> tariffa €/Smc = €/MWh / 1000 * 9,79
     tariffa_eur_smc = tariffa_eur_mwh / 1000.0 * pci_kwh_per_smc
     ricavo_annuo = biometano_smc_anno * tariffa_eur_smc
     biometano_mwh_anno = biometano_smc_anno * pci_kwh_per_smc / 1000.0
@@ -2880,7 +2880,7 @@ with st.sidebar:
                 key="dl_dossier_conformita",
             )
             st.caption(_t(
-                "Documento completo (33 biomasse) con eec, tier difendibilità, "
+                "Documento completo (42 biomasse) con eec, tier difendibilità, "
                 "resa, Annex IX e fonte normativa per ogni voce: da consegnare "
                 "all'Organismo di Certificazione."
             ))
@@ -6270,7 +6270,7 @@ with tab_business:
         cC.metric("💰 Ricavi totali/anno", fmt_it(tot_revenue, 0, " €"))
         st.caption(
             f"📐 **Calcolo**: MWh netti/biomassa = t × resa_Nm³/t ÷ "
-            f"{fmt_it(aux_factor, 2)} × 0,00997. "
+            f"{fmt_it(aux_factor, 2)} × 0,00979. "
             f"Ricavi/biomassa = MWh netti × tariffa €/MWh. "
             f"Modifica la colonna «Tariffa €/MWh» per simulare scenari diversi."
         )

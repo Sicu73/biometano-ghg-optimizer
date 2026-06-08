@@ -293,7 +293,7 @@ def _build_cover(ctx, styles):
         ["Periodo analizzato", "12 mesi · pianificazione annuale"],
         ["Soglia GHG saving",
          f"{_fmt_it(ctx['ghg_threshold']*100, 0, '%')}  "
-         f"(comparator {_fmt_it(ctx['fossil_comparator'], 0)} gCO₂/MJ)"],
+         f"(comparator {_fmt_it(ctx['fossil_comparator'], 0)} gCO2/MJ)"],
         ["Generato il", ctx["report_date_full"]],
     ]
     info_tbl = Table(info_rows, colWidths=[42 * mm, CONTENT_W - 42 * mm])
@@ -353,7 +353,7 @@ def _build_executive_summary(ctx, styles):
                      f"{_fmt_it(ctx['tot_mwh_netti'], 0)} MWh", styles=s)
     kpi3 = _kpi_tile("Avg. GHG saving" if ctx.get("_lang")=="en" else "Saving GHG medio",
                      _fmt_it(ctx["saving_avg"], 1, "%"),
-                     f"≥ {_fmt_it(ctx['ghg_threshold']*100, 0, '%')} RED III",
+                     f">= {_fmt_it(ctx['ghg_threshold']*100, 0, '%')} RED III",
                      styles=s, accent=saving_accent)
     kpi4 = _kpi_tile("Ricavi",
                      _fmt_it(ctx["tot_revenue"]/1000, 0),
@@ -378,12 +378,12 @@ def _build_executive_summary(ctx, styles):
     bullets.append(
         f"• Validità mensile: <b>{valid_months}/12 mesi</b> "
         f"({'tutti conformi' if valid_months == 12 else 'verificare i mesi non conformi'}) "
-        f"rispetto alle due condizioni RED III: saving GHG ≥ "
-        f"{_fmt_it(ctx['ghg_threshold']*100, 0, '%')} e produzione ≤ tetto autorizzativo."
+        f"rispetto alle due condizioni RED III: saving GHG >= "
+        f"{_fmt_it(ctx['ghg_threshold']*100, 0, '%')} e produzione <= tetto autorizzativo."
     )
     bullets.append(
         f"• Saving GHG medio annuale <b>{_fmt_it(ctx['saving_avg'], 1, '%')}</b> "
-        f"contro soglia RED III {_fmt_it(ctx['ghg_threshold']*100, 0, '%')} → "
+        f"contro soglia RED III {_fmt_it(ctx['ghg_threshold']*100, 0, '%')} -> "
         f"<font color='{'#10B981' if saving_pass else '#DC2626'}'>"
         f"<b>{'CONFORME' if saving_pass else 'NON CONFORME'}</b></font>."
     )
@@ -395,7 +395,7 @@ def _build_executive_summary(ctx, styles):
     )
     bullets.append(
         f"• Configurazione impiantistica: ep totale "
-        f"<b>{_fmt_it(ctx['ep_total'], 1, ' gCO₂/MJ', signed=True)}</b> · "
+        f"<b>{_fmt_it(ctx['ep_total'], 1, ' gCO2/MJ', signed=True)}</b> · "
         f"destinazione <b>{ctx['end_use']}</b>."
     )
 
@@ -441,17 +441,17 @@ def _build_plant_config(ctx, styles):
          ctx.get("injection_opt") or "—", ""],
     ])
     rows.extend([
-        ["Aux factor (netto→lordo)",
+        ["Aux factor (netto->lordo)",
          _fmt_it(ctx["aux_factor"], 3),
          "Bilancio energetico impianto"],
         ["Configurazione ep",
-         _fmt_it(ctx["ep_total"], 1, " gCO₂/MJ", signed=True),
+         _fmt_it(ctx["ep_total"], 1, " gCO2/MJ", signed=True),
          "Processing emissions (RED III All. V)"],
         ["Destinazione finale",
          ctx["end_use"],
          f"Soglia saving "
          f"{_fmt_it(ctx['ghg_threshold']*100, 0, '%')} · "
-         f"comparator {_fmt_it(ctx['fossil_comparator'], 0)} gCO₂/MJ"],
+         f"comparator {_fmt_it(ctx['fossil_comparator'], 0)} gCO2/MJ"],
     ])
     cfg_tbl = Table(rows, colWidths=[60 * mm, 50 * mm, CONTENT_W - 110 * mm])
     cfg_tbl.setStyle(TableStyle([
@@ -672,7 +672,7 @@ def _build_revenue(ctx, styles):
     flow.append(Spacer(1, 8 * mm))
     rev_caption = (
         f"<b>Calcolo</b> · MWh netti = t × resa Nm³/t ÷ "
-        f"{_fmt_it(ctx['aux_factor'], 2)} × 0,00997 · "
+        f"{_fmt_it(ctx['aux_factor'], 2)} × 0,00979 · "
         f"Ricavi = MWh netti × tariffa €/MWh. Tariffe modificabili "
         f"in app per scenari PPA / FER-X / mercato spot."
     )
@@ -700,8 +700,8 @@ def _build_methodology(ctx, styles):
         ("RED III · Direttiva (UE) 2023/2413",
          "Aggiornamento RED II. Annex V (biocarburanti/biometano) e "
          "Annex VI (biomassa per elettricità/calore). Soglie saving GHG: "
-         "80% biometano nuovi ≥ 20/11/2023, 65% biocarburanti trasporti, "
-         "80% elettricità CHP. Comparator fossile: 80 gCO₂/MJ "
+         "80% biometano nuovi >= 20/11/2023, 65% biocarburanti trasporti, "
+         "80% elettricità CHP. Comparator fossile: 80 gCO2/MJ "
          "(rete/calore), 94 (trasporti), 183 (elettricità EU mix)."),
         ("D.Lgs. 199/2021 + D.Lgs. 9 gennaio 2026, n. 5 (GU n. 15 del 20/01/2026, vigore 04/02/2026)",
          "Recepimento RED II e RED III. Disposizioni nazionali sui "
@@ -709,8 +709,8 @@ def _build_methodology(ctx, styles):
          "Schemi di certificazione GSE (ISCC, REDcert, 2BSvs)."),
         ("DM 2 marzo 2018 — Decreto Biometano",
          "Sistema CIC (Certificati Immissione in Consumo) per il "
-         "biometano destinato ai trasporti. 1 CIC = 10 Gcal (≈ 11,63 MWh). "
-         "Biometano AVANZATO da matrici Annex IX RED II → double counting "
+         "biometano destinato ai trasporti. 1 CIC = 10 Gcal (~ 11,63 MWh). "
+         "Biometano AVANZATO da matrici Annex IX RED II -> double counting "
          "(1 CIC ogni 5 Gcal). Valore CIC ritirato da GSE: ~375 €/CIC base. "
          "Periodo di incentivazione: 10 anni dall'avvio."),
         ("DM 15 settembre 2022",
@@ -720,25 +720,25 @@ def _build_methodology(ctx, styles):
          "tecnologia upgrading e per matrice."),
         ("GSE Linee Guida 2024 — Biometano",
          "Riconoscimento crediti gestione liquami (manure credit "
-         "−45 gCO₂/MJ in eec). Stoccaggio digestato chiuso con "
-         "recupero gas = 0 gCO₂/MJ. Valutazione status «avanzato» "
-         "su base massa di matrici Annex IX (≥70% interpretazione "
+         "-45 gCO2/MJ in eec). Stoccaggio digestato chiuso con "
+         "recupero gas = 0 gCO2/MJ. Valutazione status «avanzato» "
+         "su base massa di matrici Annex IX (>=70% interpretazione "
          "operativa GSE; 100% per evitare contestazioni)."),
         ("UNI/TS 11567:2024",
          "Resa specifica biogas/biometano per categoria di matrice. "
          "Database alimentato anche da JEC WTT v5 e parametri "
          "operativi Consorzio Italiano Biogas."),
         ("DM 6 luglio 2012 (biogas CHP DM 2012)",
-         "Tariffa Omnicomprensiva biogas agricolo ≤ 1 MW. "
+         "Tariffa Omnicomprensiva biogas agricolo <= 1 MW. "
          "Premio CAR (PES > 10%) e premio matrice sottoprodotti "
          "applicati alla TO base. Periodo: 20 anni."),
-        ("DM 18 settembre 2024 — Decreto FER 2",
+        ("DM 19 giugno 2024 — Decreto FER 2",
          "Regime incentivante per piccoli impianti biogas CHP "
-         "agricoli ≤ 300 kWe. Tariffa di Riferimento (TR) base ~256 "
-         "€/MWh_el + premio matrice (+30 €/MWh se ≥80% sottoprodotti / "
+         "agricoli <= 300 kWe. Tariffa di Riferimento (TR) base ~256 "
+         "€/MWh_el + premio matrice (+30 €/MWh se >=80% sottoprodotti / "
          "effluenti) + premio CAR (+10 €/MWh se PES>10%). "
-         "Cap colture dedicate ≤20% in massa. Periodo incentivo "
-         "20 anni. Saving GHG ≥ 80% (RED III, comparator 183 gCO₂/MJ)."),
+         "Cap colture dedicate <=20% in massa. Periodo incentivo "
+         "20 anni. Saving GHG >= 80% (RED III, comparator 183 gCO2/MJ)."),
     ]
     rows = []
     for title, body in items:
@@ -1227,19 +1227,19 @@ def _build_ls_traceability(ctx: dict, s) -> list:
         ["Periodo di rendicontazione" if not is_en else "Reporting period",
          f"{_month:02d}/{_year}"],
         ["Ragione sociale" if not is_en else "Legal entity",
-         ctx.get("company_name") or "— ⚠️ DA COMPILARE"],
+         ctx.get("company_name") or "— DA COMPILARE"],
         ["P.IVA / Codice Fiscale" if not is_en else "VAT / Tax ID",
-         ctx.get("company_vat") or "— ⚠️ DA COMPILARE"],
+         ctx.get("company_vat") or "— DA COMPILARE"],
         ["Sede legale" if not is_en else "Registered address",
          ctx.get("company_legal_address") or "—"],
         ["Nome impianto" if not is_en else "Plant name",
-         ctx.get("plant_name") or "— ⚠️ DA COMPILARE"],
+         ctx.get("plant_name") or "— DA COMPILARE"],
         ["Sede operativa" if not is_en else "Operational address",
          ctx.get("plant_operational_address") or "—"],
         ["CUI / Codice GSE" if not is_en else "Plant Unique Code (GSE)",
-         ctx.get("plant_cui") or "— ⚠️ DA COMPILARE"],
+         ctx.get("plant_cui") or "— DA COMPILARE"],
         ["Comparator fossile applicato" if not is_en else "Fossil comparator",
-         f"{_fmt_it(ctx.get('fossil_comparator', 80.0), 0, ' gCO₂eq/MJ')} "
+         f"{_fmt_it(ctx.get('fossil_comparator', 80.0), 0, ' gCO2eq/MJ')} "
          f"({ctx.get('end_use', '—')})"],
         ["Soglia saving applicata" if not is_en else "Saving threshold",
          f"{_fmt_it(ctx.get('saving_threshold_pct', 80.0), 1, '%')}"],
@@ -1345,12 +1345,12 @@ def _build_ls_traceability(ctx: dict, s) -> list:
     # Warning food/feed crops senza dichiarazione no-LUC
     if _has_food_feed:
         flow.append(Paragraph(
-            "⚠️ Sono presenti colture dedicate (food/feed crop). Per audit OdC è "
+            "Sono presenti colture dedicate (food/feed crop). Per audit OdC è "
             "obbligatorio allegare per ciascuna la <b>dichiarazione no-LUC NUTS-2</b> "
             "del fornitore (Reg. (UE) 2022/996 e UNI/TS 11567:2024 § Carbonio Suolo). "
             "In assenza, l'OdC può imputare valori e_l punitivi tabellari."
             if not is_en else
-            "⚠️ Food/feed crops are present. For OdC audit, attach the supplier's "
+            "Food/feed crops are present. For OdC audit, attach the supplier's "
             "<b>no-LUC NUTS-2 declaration</b> for each (Reg. (EU) 2022/996 and "
             "UNI/TS 11567:2024 § Soil Carbon). Otherwise OdC may impute punitive "
             "default e_l values.",
@@ -1359,9 +1359,9 @@ def _build_ls_traceability(ctx: dict, s) -> list:
         flow.append(Spacer(1, 3 * mm))
     # Warning baseline stoccaggio per manure credit
     if _baseline_warnings:
-        bw_title = ("⚠️ Verifica baseline stoccaggio (manure credit RED III):"
+        bw_title = ("Verifica baseline stoccaggio (manure credit RED III):"
                     if not is_en else
-                    "⚠️ Storage baseline verification (RED III manure credit):")
+                    "Storage baseline verification (RED III manure credit):")
         flow.append(Paragraph(bw_title, s["h3"]))
         for w in _baseline_warnings:
             flow.append(Paragraph(f"• {w}", s["body"]))
@@ -1421,12 +1421,12 @@ def _build_ls_traceability(ctx: dict, s) -> list:
         flow.append(tbl_sup)
     else:
         flow.append(Paragraph(
-            "⚠️ Registro fornitori non popolato in app. "
+            "Registro fornitori non popolato in app. "
             "Per audit OdC compilare la sezione 'Registro fornitori biomassa' "
             "nella sidebar dell'app con: ragione sociale, P.IVA, tipologia "
             "biomassa, t/mese, contratto/DDT, sistema di stoccaggio baseline."
             if not is_en else
-            "⚠️ Suppliers registry not populated. For OdC audit, fill the "
+            "Suppliers registry not populated. For OdC audit, fill the "
             "'Suppliers registry' section in the app sidebar with: company, "
             "VAT, feedstock type, tons/month, contract/DDT, baseline storage.",
             s["body"],

@@ -58,7 +58,7 @@ def build_sustainability_basis_table(output_model: dict) -> Any:
             "Voce": "MWh biometano",
             "LORDO (base sostenibilita')": tot_mwh_lordi,
             "NETTO (immesso in rete)": tot_mwh_netti,
-            "Note": "Conversione 1 Sm³ ≈ 0,00997 MWh (LHV)",
+            "Note": "Conversione 1 Sm³ ~ 0,00979 MWh (LHV)",
         },
         {
             "Voce": "Saving GHG (%)",

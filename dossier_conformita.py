@@ -164,17 +164,17 @@ def build_conformity_dossier(feedstock_db: dict, *, lang: str = "it",
                              "1. Regulatory framework applied"), s["h2"]))
     flow.append(Paragraph(_T(lang,
         "Formula GHG (RED III All. V Parte C): "
-        "<b>e_total = eec + e_l + e_td + e_p − e_sca − crediti</b> [gCO₂eq/MJ]. "
+        "<b>e_total = eec + e_l + e_td + e_p - e_sca - crediti</b> [gCO2eq/MJ]. "
         "Comparatori fossili (FFC): rete/calore <b>80</b>, trasporto <b>94</b>, "
         "CHP mix UE <b>183</b>. Soglie saving GHG: rete/calore <b>80%</b> "
         "(nuovi impianti), trasporto 65%, CHP 80%. GWP (Reg. UE 2022/996): "
-        "CH₄ 28, N₂O 265. Rese da UNI/TS Prosp. A.1/A.3; eec standard da Prosp. A.5.",
+        "CH4 28, N2O 265. Rese da UNI/TS Prosp. A.1/A.3; eec standard da Prosp. A.5.",
         "GHG formula (RED III Annex V Part C): "
-        "<b>e_total = eec + e_l + e_td + e_p − e_sca − credits</b> [gCO₂eq/MJ]. "
+        "<b>e_total = eec + e_l + e_td + e_p - e_sca - credits</b> [gCO2eq/MJ]. "
         "Fossil comparators (FFC): grid/heat <b>80</b>, transport <b>94</b>, "
         "EU-mix CHP <b>183</b>. GHG saving thresholds: grid/heat <b>80%</b> "
         "(new plants), transport 65%, CHP 80%. GWP (Reg. EU 2022/996): "
-        "CH₄ 28, N₂O 265. Yields from UNI/TS A.1/A.3; standard eec from A.5."),
+        "CH4 28, N2O 265. Yields from UNI/TS A.1/A.3; standard eec from A.5."),
         s["body"]))
 
     # ---- Legenda tier ----
@@ -194,8 +194,8 @@ def build_conformity_dossier(feedstock_db: dict, *, lang: str = "it",
          _T(lang, "Regola RED III esplicita.", "Explicit RED III rule.")),
         ("C", _T(lang, "Stima conservativa da letteratura JEC v5/KTBL (eec>0)",
                  "Conservative literature estimate JEC v5/KTBL (eec>0)"),
-         _T(lang, "A sfavore dell'operatore → nessun motivo di contestazione.",
-            "Against the operator → no reason to contest.")),
+         _T(lang, "A sfavore dell'operatore -> nessun motivo di contestazione.",
+            "Against the operator -> no reason to contest.")),
         ("D", _T(lang, "Credito da stoccaggio (manure credit, eec<0)",
                  "Storage credit (manure credit, eec<0)"),
          _T(lang, "Richiede dichiarazione baseline del fornitore (RED III All. VI).",
