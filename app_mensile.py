@@ -351,7 +351,7 @@ def parse_it(value) -> float:
 #     [RED III Annex VI - electricity generation]
 COMPARATOR_BY_END_USE = {
     "Elettricità/calore/immissione rete (nuovo ≥20/11/2023)": 80.0,
-    "Elettricità/calore (esistente <10 MW, primi 15 anni)":   80.0,
+    "Immissione rete/calore (esistente <10 MW, primi 15 anni)":   80.0,
     "Trasporti (BioGNL/BioCNG)":                              94.0,
 }
 # Costanti normative/energetiche: fonte di verità centralizzata in
@@ -372,7 +372,7 @@ DEFAULT_PLANT_NET_SMCH = 300.0                 # Sm3/h netti autorizzati (defaul
 # ============================================================
 END_USE_THRESHOLDS = {
     "Elettricità/calore/immissione rete (nuovo ≥20/11/2023)": 0.80,
-    "Elettricità/calore (esistente <10 MW, primi 15 anni)": 0.70,
+    "Immissione rete/calore (esistente <10 MW, primi 15 anni)": 0.70,
     "Trasporti (BioGNL/BioCNG)": 0.65,
 }
 

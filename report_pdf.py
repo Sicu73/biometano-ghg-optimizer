@@ -519,7 +519,7 @@ def _build_monthly_table(ctx, styles):
         _fmt_it(df["Totale biomasse (t)"].sum(), 0),
         _fmt_it(df["Sm³ netti"].sum(), 0),
         _fmt_it(df[cols[4]].sum(), 1),
-        _fmt_it(df["Saving %"].mean(), 1, "%"),
+        _fmt_it(ctx.get("saving_avg", df["Saving %"].mean()), 1, "%"),
         f"{ctx['valid_months']}/12",
     ]
     data.append(totals)
