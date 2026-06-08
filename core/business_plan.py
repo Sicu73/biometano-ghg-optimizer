@@ -221,8 +221,10 @@ def build_business_plan(
                                      float(interest_rate_pct) / 100.0,
                                      int(loan_duration_years))
 
-    # Ammortamento contabile lineare (15 anni)
-    ammort_annuo = capex_total / float(durata_tariffa)
+    # Ammortamento contabile lineare (15 anni) sulla base AMMORTIZZABILE, cioe'
+    # al netto del contributo a fondo perduto PNRR (contributo in conto impianti:
+    # i beni finanziati da contributo non sono fiscalmente ammortizzabili).
+    ammort_annuo = capex_net / float(durata_tariffa)
 
     # Costruzione righe anno per anno
     rows: list[BPYear] = []
@@ -235,7 +237,7 @@ def build_business_plan(
         ricavi=0.0, opex=0.0, ebitda=0.0, ammortamento=0.0,
         interessi=0.0, imposte=0.0, cfo=0.0,
         rata_capitale=0.0,
-        fcf_project=-capex_equity, fcf_equity=-capex_equity,
+        fcf_project=-capex_net, fcf_equity=-capex_equity,
         debito_residuo=capex_debt,
         fcf_cumulato=fcf_cumulato_equity,
     ))
@@ -254,13 +256,19 @@ def build_business_plan(
             interessi_y = 0.0
             quota_capitale = 0.0
 
-        # Imposte: applicate su utile imponibile (EBITDA - interessi - ammortamento)
+        _tax = float(tax_rate_pct) / 100.0
+        # Imposte EQUITY (reali, levered): deducono gli interessi passivi.
         utile_lordo = ebitda - interessi_y - ammort_annuo
-        imposte = max(0.0, utile_lordo) * float(tax_rate_pct) / 100.0
+        imposte = max(0.0, utile_lordo) * _tax
+        # Imposte PROJECT (unlevered): SENZA deduzione interessi, cosi' l'IRR di
+        # progetto e' indipendente dalla struttura finanziaria (no scudo debito).
+        imposte_project = max(0.0, ebitda - ammort_annuo) * _tax
 
         # Cash flows
         cfo = ebitda - imposte
-        fcf_project = cfo - quota_capitale  # Project: rimborsa anche capitale
+        # Project FCF unlevered: solo EBITDA - imposte unlevered (nessun flusso
+        # di debito: ne' interessi ne' rimborso capitale).
+        fcf_project = ebitda - imposte_project
         fcf_equity = cfo - quota_capitale - interessi_y  # Equity dopo interessi
 
         debito_residuo = max(0.0, debito_residuo - quota_capitale)
@@ -276,7 +284,7 @@ def build_business_plan(
 
     # IRR / NPV / Payback
     # IRR Project: investimento = CAPEX totale - PNRR (no debito), FCF = ricavi - opex - imposte
-    cf_project = [-(capex_total - pnrr_grant)] + [r.cfo for r in rows[1:]]
+    cf_project = [-capex_net] + [r.fcf_project for r in rows[1:]]
     # IRR Equity: investimento = capex_equity, FCF = fcf_equity (dopo interessi+capitale)
     cf_equity = [-capex_equity] + [r.fcf_equity for r in rows[1:]]
 
