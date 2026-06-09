@@ -111,6 +111,8 @@ MANURE_CREDIT_POLLINA_OVAIOLE = 0.0  # vs FEEDSTOCK_DB eec=+5.0 (handling aerobi
 # Storicamente duplicato in app_mensile.py e core/calculation_engine.py;
 # qui centralizzato per evitare divergenze al primo aggiornamento JEC WTT.
 # (revisione 2026-06-06: cache-bust per Streamlit Cloud .pyc stale)
+# (revisione 2026-06-09: cache-bust bis — ImportError PCI_BIOMETHANE_KWH_SMC
+#  su Cloud con codice remoto corretto: stesso sintomo .pyc stale)
 DEFAULT_AUX_FACTOR = 1.29
 
 
