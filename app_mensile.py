@@ -7119,6 +7119,45 @@ with tab_plan:
             st.plotly_chart(_bp_fig, use_container_width=True)
         except Exception:  # noqa: BLE001
             pass
+
+        # --- Export PDF della sezione Business Plan completo (15 anni) ---
+        st.divider()
+        st.markdown("##### 📄 " + _t("Esporta"))
+        try:
+            from export.business_plan_pdf import build_business_plan_pdf
+            _bp_meta = {
+                "company_name": COMPANY_NAME,
+                "plant_name": PLANT_NAME,
+                "plant_type_label": BP_PLANT_TYPES.get(
+                    bp_plant_type, {}).get("label", str(bp_plant_type)),
+                "fascia_label": _fascia_label,
+                "capex_unit": _bp_capex_unit,
+                "opex_unit": _bp_opex_unit,
+                "leverage_pct": _bp_leverage,
+                "interest_rate_pct": _bp_rate,
+                "loan_years": int(_bp_loan),
+                "inflation_pct": _bp_inflation,
+                "discount_rate_pct": _bp_discount,
+                "pnrr_pct": _bp_pnrr,
+                "lang": _LANG,
+            }
+            _bp_pdf_buf = build_business_plan_pdf(_bp, _bp_meta)
+            st.download_button(
+                "📄 " + _t("Scarica PDF Business Plan (15 anni)"),
+                data=_bp_pdf_buf.getvalue(),
+                file_name=f"metaniq_{APP_MODE}_business_plan_15anni.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                type="primary",
+                key="dl_bp_completo_pdf",
+                help=_t("PDF della sezione Business Plan: parametri di input, "
+                        "KPI finanziari (CAPEX, equity, IRR, NPV, payback) e "
+                        "conto economico / flussi di cassa anno per anno (15 anni)."),
+            )
+        except Exception as _bp_pdf_exc:  # noqa: BLE001
+            _LOG.warning("BP PDF export failed: %s", _bp_pdf_exc)
+            st.caption("⚠️ " + _t("PDF Business Plan non disponibile")
+                       + f": {_bp_pdf_exc}")
     except Exception as _bp_exc:  # noqa: BLE001
         _LOG.warning("Business Plan completo render failed: %s", _bp_exc)
         st.warning(f"⚠️ Business Plan non disponibile: {_bp_exc}")

@@ -448,6 +448,16 @@ IT_EN: dict = {
     "Incentivi DM 2022 · scenario · BP 15 anni":
         "DM 2022 incentives · scenario · 15-yr BP",
     "Grafici sul consuntivo reale (DB)": "Charts on real actuals (DB)",
+    # Export PDF Business Plan completo (15 anni)
+    "Scarica PDF Business Plan (15 anni)":
+        "Download Business Plan PDF (15 years)",
+    "PDF Business Plan non disponibile": "Business Plan PDF not available",
+    "PDF della sezione Business Plan: parametri di input, "
+    "KPI finanziari (CAPEX, equity, IRR, NPV, payback) e "
+    "conto economico / flussi di cassa anno per anno (15 anni).":
+        "PDF of the Business Plan section: input parameters, financial KPIs "
+        "(CAPEX, equity, IRR, NPV, payback) and year-by-year income statement "
+        "/ cash flows (15 years).",
     "ℹ️ Nessun dato disponibile per i grafici.":
         "ℹ️ No data available for charts.",
     "Nessun dato annuale ancora disponibile.":
