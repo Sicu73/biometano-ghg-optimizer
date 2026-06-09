@@ -22,6 +22,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import (
     SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer,
 )
+from reportlab.graphics.shapes import Drawing, Rect, Line, String, PolyLine
 
 # Brand tokens (allineati a export/daily_pdf.py / build_user_manual.py)
 NAVY = colors.HexColor("#15242E")
@@ -49,6 +50,67 @@ def _pct(v: float, decimals: int = 1) -> str:
         return f"{float(v):.{decimals}f}%".replace(".", ",")
     except (TypeError, ValueError):
         return "-"
+
+
+def _cashflow_drawing(rows, label: str, width: float = 760.0,
+                      height: float = 215.0) -> Drawing:
+    """Disegna il cash flow equity: barre FCF/anno (rosso<0, verde>=0) +
+    linea FCF cumulato (brass) + linea zero. Nativo ReportLab, nessuna
+    dipendenza esterna (funziona anche su Streamlit Cloud)."""
+    d = Drawing(width, height)
+    rows = list(rows or [])
+    if not rows:
+        return d
+    years = [getattr(r, "year", i) for i, r in enumerate(rows)]
+    eq = [float(getattr(r, "fcf_equity", 0.0)) for r in rows]
+    cum = [float(getattr(r, "fcf_cumulato", 0.0)) for r in rows]
+    n = len(rows)
+    ml, mr, mt, mb = 58.0, 12.0, 26.0, 26.0
+    pw, ph = width - ml - mr, height - mt - mb
+    x0, y0 = ml, mb
+    vmin = min(0.0, min(eq), min(cum))
+    vmax = max(0.0, max(eq), max(cum))
+    if vmax == vmin:
+        vmax = vmin + 1.0
+
+    def sy(v):
+        return y0 + (v - vmin) / (vmax - vmin) * ph
+
+    def sx(i):
+        return x0 + (i + 0.5) / n * pw
+
+    zero_y = sy(0.0)
+    # titolo
+    d.add(String(x0, height - 14, label, fontName="Helvetica-Bold",
+                 fontSize=8.5, fillColor=NAVY))
+    # gridlines + asse Y (k€)
+    for k in range(5):
+        v = vmin + (vmax - vmin) * k / 4.0
+        yy = sy(v)
+        d.add(Line(x0, yy, x0 + pw, yy, strokeColor=LINE, strokeWidth=0.4))
+        d.add(String(x0 - 6, yy - 3,
+                     _fmt_eur(v / 1000.0), fontName="Helvetica",
+                     fontSize=6.5, fillColor=MUTED, textAnchor="end"))
+    # barre FCF equity
+    bw = pw / n * 0.55
+    for i, v in enumerate(eq):
+        cx, yv = sx(i), sy(v)
+        top, bot = max(yv, zero_y), min(yv, zero_y)
+        col = colors.HexColor("#059669") if v >= 0 else colors.HexColor("#DC2626")
+        d.add(Rect(cx - bw / 2.0, bot, bw, max(top - bot, 0.6),
+                   fillColor=col, strokeColor=None))
+    # linea zero
+    d.add(Line(x0, zero_y, x0 + pw, zero_y, strokeColor=MUTED, strokeWidth=0.8))
+    # linea FCF cumulato
+    pts = []
+    for i, v in enumerate(cum):
+        pts.extend([sx(i), sy(v)])
+    d.add(PolyLine(pts, strokeColor=BRASS, strokeWidth=2.0))
+    # etichette anni
+    for i, yr in enumerate(years):
+        d.add(String(sx(i), y0 - 12, str(yr), fontName="Helvetica",
+                     fontSize=6.0, fillColor=MUTED, textAnchor="middle"))
+    return d
 
 
 def build_business_plan_pdf(bp: Any, meta: dict | None = None) -> BytesIO:
@@ -257,6 +319,19 @@ def build_business_plan_pdf(bp: Any, meta: dict | None = None) -> BytesIO:
         _style.append(("FONTNAME", (10, i), (10, i), "Helvetica-Bold"))
     bpt.setStyle(TableStyle(_style))
     story.append(bpt)
+
+    # ---- Grafico cash flow equity (barre + cumulato) ----
+    story.append(Spacer(1, 12))
+    story.append(Paragraph(
+        T("Cash Flow Equity per anno + Cumulato (break-even visivo)",
+          "Equity Cash Flow per year + Cumulative (visual break-even)"), h_sec))
+    story.append(_cashflow_drawing(
+        getattr(bp, "rows", []),
+        T("Barre = FCF equity (verde ≥ 0, rosso < 0)  ·  linea ottone = FCF "
+          "cumulato  ·  valori in k€",
+          "Bars = equity FCF (green ≥ 0, red < 0)  ·  brass line = cumulative "
+          "FCF  ·  values in k€"),
+    ))
 
     story.append(Paragraph(
         T("Valori in € correnti. EBITDA = Ricavi − OPEX. CFO = EBITDA − "
