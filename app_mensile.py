@@ -4301,26 +4301,133 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         )
 
 
+def _render_annual_charts(df_src, key_prefix: str = ""):
+    """Rende i 4 grafici annuali (Biomasse / Sostenibilita' / Produzione /
+    Mix) su un DataFrame mensile generico — usato sia sul consuntivo REALE
+    (df_res_db) sia sullo scenario. SOLO visivo: nessun calcolo ricavi o
+    side-effect. key_prefix garantisce chiavi widget univoche tra le due
+    istanze (reale vs scenario)."""
+    if df_src is None or df_src.empty or "Mese" not in df_src.columns:
+        st.info(_t("ℹ️ Nessun dato disponibile per i grafici."))
+        return
+    _ct1, _ct2, _ct3, _ct4 = st.tabs([
+        _t("🌾 Biomasse per mese"),
+        _t("🌍 Sostenibilità"),
+        _t("⚡ Produzione"),
+        _t("🥧 Mix annuale"),
+    ])
+    with _ct1:
+        _melt = df_src.melt(
+            id_vars="Mese", value_vars=active_feeds,
+            var_name="Biomassa", value_name="t/mese",
+        )
+        _f1 = px.bar(
+            _melt, x="Mese", y="t/mese", color="Biomassa",
+            color_discrete_map={n: FEEDSTOCK_DB[n]["color"] for n in active_feeds},
+            title="Ripartizione mensile biomasse",
+        )
+        _f1.update_layout(barmode="stack", height=450)
+        apply_metaniq_theme(_f1, dark=IS_DARK)
+        st.plotly_chart(_f1, use_container_width=True, key=f"{key_prefix}ch_biom")
+    with _ct2:
+        _f2 = go.Figure()
+        _f2.add_trace(go.Bar(
+            x=df_src["Mese"], y=df_src["Saving %"],
+            marker=dict(
+                color=df_src["Saving %"],
+                colorscale=[[0, "#E53935"], [0.5, "#FDD835"], [1, "#43A047"]],
+                cmin=70, cmax=100, colorbar=dict(title="Saving %"),
+            ),
+            text=[fmt_it(v, 1, "%") for v in df_src["Saving %"]],
+            textposition="outside",
+        ))
+        _f2.add_hline(
+            y=ghg_threshold*100, line_dash="dash", line_color="red",
+            annotation_text=f"Soglia RED III {fmt_it(ghg_threshold*100, 0, '%')}",
+            annotation_position="top right",
+        )
+        _f2.update_layout(title="Saving GHG mensile (%)", yaxis_title="Saving (%)",
+                          height=450, yaxis=dict(range=[60, 160]))
+        apply_metaniq_theme(_f2, dark=IS_DARK)
+        st.plotly_chart(_f2, use_container_width=True, key=f"{key_prefix}ch_sav")
+    with _ct3:
+        _lordi = df_src["Sm³ lordi"].astype(float)
+        _netti = df_src["Sm³ netti"].astype(float)
+        _f3 = go.Figure()
+        _f3.add_trace(go.Bar(
+            x=df_src["Mese"], y=_lordi, name="Sm³ lordi (biomasse)",
+            marker_color="#94A3B8",
+            text=[fmt_it(v, 0) for v in _lordi], textposition="outside",
+        ))
+        _f3.add_trace(go.Bar(
+            x=df_src["Mese"], y=_netti, name="Sm³ netti (immessi in rete)",
+            marker_color=NAVY,
+            text=[fmt_it(v, 0) for v in _netti], textposition="outside",
+        ))
+        _f3.update_layout(
+            title=f"Produzione mensile Sm³  (aux_factor = {fmt_it(aux_factor, 2)})",
+            barmode="group", height=500, yaxis_title="Sm³ / mese",
+            yaxis=dict(tickformat=",.0f", separatethousands=True),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                        xanchor="right", x=1),
+        )
+        apply_metaniq_theme(_f3, dark=IS_DARK)
+        st.plotly_chart(_f3, use_container_width=True, key=f"{key_prefix}ch_prod")
+    with _ct4:
+        _at = {n: max(df_src[n].sum(), 0) for n in active_feeds}
+        _amwh = {n: max(df_src[n].sum(), 0) * _yield_of(n) / aux_factor * NM3_TO_MWH
+                 for n in active_feeds}
+        _cmap = {n: FEEDSTOCK_DB[n]["color"] for n in active_feeds}
+        if sum(_at.values()) <= 0 or sum(_amwh.values()) <= 0:
+            st.info("ℹ️ " + _t("Nessun dato annuale ancora disponibile."))
+            return
+        _pa, _pb = st.columns(2)
+        with _pa:
+            _fa = px.pie(
+                names=list(_at.keys()), values=list(_at.values()),
+                color=list(_at.keys()), color_discrete_map=_cmap,
+                title=f"Mix t/anno (totale {fmt_it(sum(_at.values()), 0)} t)", hole=0.4,
+            )
+            _fa.update_traces(textposition="inside", textinfo="percent+label")
+            apply_metaniq_theme(_fa, dark=IS_DARK)
+            st.plotly_chart(_fa, use_container_width=True, key=f"{key_prefix}pie_t")
+        with _pb:
+            _fb = px.pie(
+                names=list(_amwh.keys()), values=list(_amwh.values()),
+                color=list(_amwh.keys()), color_discrete_map=_cmap,
+                title=f"Mix MWh netti/anno (totale {fmt_it(sum(_amwh.values()), 0)} MWh)",
+                hole=0.4,
+            )
+            _fb.update_traces(textposition="inside", textinfo="percent+label")
+            apply_metaniq_theme(_fb, dark=IS_DARK)
+            st.plotly_chart(_fb, use_container_width=True, key=f"{key_prefix}pie_mwh")
+
+
 # =============================================================================
-# MODE SELECTOR — 3 livelli di configurazione resi come "stepper" segmentato
-# (card numerate 1·2·3 con titolo + sottotitolo, stato attivo navy/brass).
+# MODE SELECTOR — 4 modalità (2 operative + 2 strategiche) come "stepper"
+# segmentato (card numerate 1·2·3·4 con titolo + sottotitolo, attivo navy/brass).
 # Lo stile e' scopato a .st-key-mode_tabs e, tramite :not([tab-panel] *),
-# NON tocca i 5 tab annidati della sezione Risultati/Business Plan piu' sotto.
+# NON tocca i tab annidati delle sezioni Risultati/Pianificazione piu' sotto.
 # =============================================================================
 _sub1 = _t("Solo valori standard · UNI-TS / RED III")
 _sub2 = _t("Standard + valori personalizzati · BMT & EF")
-_sub3 = _t("Costi, incentivi & pro forma 15 anni")
+_sub3 = _t("Consuntivo 12 mesi · dati reali")
+_sub4 = _t("Incentivi DM 2022 · scenario · BP 15 anni")
 st.markdown(
     f"""
     <style>
     .st-key-mode_tabs [data-baseweb="tab-list"]:not([data-baseweb="tab-panel"] *) {{
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 10px;
         background: transparent !important;
         border-bottom: none !important;
         overflow: visible !important;
         margin-bottom: 22px;
+    }}
+    /* Stacco tra famiglia OPERATIVA (1-2) e STRATEGICA (3-4) */
+    .st-key-mode_tabs [data-baseweb="tab"]:nth-child(3):not([data-baseweb="tab-panel"] *) {{
+        margin-left: 20px;
     }}
     .st-key-mode_tabs [data-baseweb="tab"]:not([data-baseweb="tab-panel"] *) {{
         display: flex !important;
@@ -4354,6 +4461,7 @@ st.markdown(
     .st-key-mode_tabs [data-baseweb="tab"]:nth-child(1):not([data-baseweb="tab-panel"] *)::before {{ content: "1"; }}
     .st-key-mode_tabs [data-baseweb="tab"]:nth-child(2):not([data-baseweb="tab-panel"] *)::before {{ content: "2"; }}
     .st-key-mode_tabs [data-baseweb="tab"]:nth-child(3):not([data-baseweb="tab-panel"] *)::before {{ content: "3"; }}
+    .st-key-mode_tabs [data-baseweb="tab"]:nth-child(4):not([data-baseweb="tab-panel"] *)::before {{ content: "4"; }}
     .st-key-mode_tabs [data-baseweb="tab"]:not([data-baseweb="tab-panel"] *) p {{
         font-weight: 700 !important;
         font-size: 1.0rem !important;
@@ -4371,6 +4479,7 @@ st.markdown(
     .st-key-mode_tabs [data-baseweb="tab"]:nth-child(1):not([data-baseweb="tab-panel"] *)::after {{ content: "{_sub1}"; }}
     .st-key-mode_tabs [data-baseweb="tab"]:nth-child(2):not([data-baseweb="tab-panel"] *)::after {{ content: "{_sub2}"; }}
     .st-key-mode_tabs [data-baseweb="tab"]:nth-child(3):not([data-baseweb="tab-panel"] *)::after {{ content: "{_sub3}"; }}
+    .st-key-mode_tabs [data-baseweb="tab"]:nth-child(4):not([data-baseweb="tab-panel"] *)::after {{ content: "{_sub4}"; }}
     .st-key-mode_tabs [data-baseweb="tab"]:not([data-baseweb="tab-panel"] *):hover {{
         border-color: {ACCENT} !important;
     }}
@@ -4398,6 +4507,9 @@ st.markdown(
         .st-key-mode_tabs [data-baseweb="tab-list"]:not([data-baseweb="tab-panel"] *) {{
             grid-template-columns: 1fr;
         }}
+        .st-key-mode_tabs [data-baseweb="tab"]:nth-child(3):not([data-baseweb="tab-panel"] *) {{
+            margin-left: 0;
+        }}
         .st-key-mode_tabs [data-baseweb="tab"]:not([data-baseweb="tab-panel"] *) {{
             min-height: 64px;
         }}
@@ -4407,10 +4519,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 with st.container(key="mode_tabs"):
-    tab_daily, tab_tech, tab_business = st.tabs([
+    tab_daily, tab_tech, tab_results, tab_plan = st.tabs([
         "📆 " + _t("Standard"),
         "🧪 " + _t("Analisi"),
-        "📊 " + _t("Risultati & Business Plan"),
+        "📊 " + _t("Risultati Annuali"),
+        "💼 " + _t("Pianificazione & Business Plan"),
     ])
 
 with tab_tech:
@@ -4965,7 +5078,7 @@ with tab_tech:
     ))
     _render_daily_ops_panel(_key_prefix="tech_")
 
-with tab_business:
+with tab_plan:
     # ============================================================
     # PRO FORMA / BUSINESS PLAN — DM 2022
     # ============================================================
@@ -5334,6 +5447,11 @@ with tab_business:
         help=_t("Produzione oraria lorda di biogas necessaria per garantire la produzione netta immessa in rete, tenuto conto dell'aux_factor.")
     )
 
+# ====================== SPLIT → TAB 3 «RISULTATI ANNUALI» ======================
+# Da qui in poi il CONSUNTIVO REALE (dati DB, forward) vive nel tab Risultati.
+# Lo split e' solo di contenitore: l'ordine di esecuzione resta invariato, quindi
+# df_res_db cattura ancora il reale prima che il simulatore riassegni df_res.
+with tab_results:
     # ============================================================
     # EXPORT & REPORTING (sezione accorpata nel tab Risultati, Incentivi & BP)
     # ============================================================
@@ -5509,6 +5627,10 @@ with tab_business:
             f"Soglia warning scostamento: ±{int(EMISSION_DEVIATION_WARN_THRESHOLD*100)}%."
         )
 
+# ============== SPLIT → TAB 4 «PIANIFICAZIONE & BUSINESS PLAN» ================
+# Da qui il SIMULATORE what-if (solver inverso, scenario) e il business plan
+# tornano nel tab Pianificazione. Ordine di esecuzione invariato.
+with tab_plan:
     # ------------------------- MODE SELECTOR -------------------------
     st.subheader(_t("🎯 Modalità di calcolo"))
 
@@ -6062,7 +6184,9 @@ with tab_business:
               delta="OK" if valid_months == 12 else f"{12-valid_months}{_t(' NON validi')}",
               delta_color="normal" if valid_months == 12 else "inverse")
 
-    # --- Sintesi reale (DB) — affiancata, solo se il DB ha dati ---
+# ------- SPLIT → TAB 3: sintesi + grafici sul CONSUNTIVO REALE (df_res_db) ------
+with tab_results:
+    # --- Sintesi reale (DB) — solo se il DB ha dati ---
     if _db_has_data:
         st.markdown("##### 📊 " + _t("Sintesi reale (DB)") +
                     f" — _{_t('dati salvati')} {_sim_year} / {_sim_plant}_")
@@ -6099,7 +6223,14 @@ with tab_business:
                 f"Sm³ netti **{_sign_s}{fmt_it(_delta_sm3, 0)}**"
             )
 
-    # ------------------------- GRAFICI -------------------------
+    # Grafici sul CONSUNTIVO REALE (stessi 4 grafici visivi, su df_res_db)
+    if (not df_res_db.empty and "Sm³ netti" in df_res_db.columns
+            and df_res_db["Sm³ netti"].sum() > 0):
+        st.markdown("##### 📊 " + _t("Grafici sul consuntivo reale (DB)"))
+        _render_annual_charts(df_res_db, key_prefix="real_")
+
+with tab_plan:
+    # ------------------------- GRAFICI (scenario what-if) -------------------------
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         _t("🌾 Biomasse per mese"),
         _t("🌍 Sostenibilità"),

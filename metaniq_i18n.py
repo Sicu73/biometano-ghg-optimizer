@@ -441,6 +441,17 @@ IT_EN: dict = {
         "Standard + custom values · BMT & EF",
     "Costi, incentivi & pro forma 15 anni":
         "Costs, incentives & 15-year pro forma",
+    # Mode selector — 4 tab (split Risultati Annuali / Pianificazione & BP)
+    "Risultati Annuali": "Annual Results",
+    "Pianificazione & Business Plan": "Planning & Business Plan",
+    "Consuntivo 12 mesi · dati reali": "12-month actuals · real data",
+    "Incentivi DM 2022 · scenario · BP 15 anni":
+        "DM 2022 incentives · scenario · 15-yr BP",
+    "Grafici sul consuntivo reale (DB)": "Charts on real actuals (DB)",
+    "ℹ️ Nessun dato disponibile per i grafici.":
+        "ℹ️ No data available for charts.",
+    "Nessun dato annuale ancora disponibile.":
+        "No annual data available yet.",
     # Confronto Standard vs Analisi
     "Confronto Standard vs Analisi": "Standard vs Analysis Comparison",
     "Modalità Analisi attiva": "Analysis mode active",

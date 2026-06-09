@@ -87,8 +87,8 @@ S = {
               "en": "4. Tab 1 - Daily Operations Standard (UNI-TS / RED III)"},
     "ch5":   {"it": "5. Tab 2 - Conduzione Giornaliera Analisi (BMT / Override EF)",
               "en": "5. Tab 2 - Daily Operations Analysis (BMT / EF Override)"},
-    "ch6":   {"it": "6. Tab 3 - Risultati, Incentivi e Business Plan",
-              "en": "6. Tab 3 - Results, Incentives and Business Plan"},
+    "ch6":   {"it": "6. Tab 3-4 - Risultati Annuali e Pianificazione & BP",
+              "en": "6. Tab 3-4 - Annual Results and Planning & BP"},
     "ch7":   {"it": "7. Logica di calcolo GHG (RED III All.V Parte C)",
               "en": "7. GHG calculation logic (RED III Annex V Part C)"},
     "ch8":   {"it": "8. Calcolo aux_factor e bilancio energetico",
@@ -550,17 +550,19 @@ def build_chapter_3(story, lang):
         ]
         story.append(intro_table(intro, ["Sezione", "Controllo", "Funzione"], rows,
                                  col_widths=[30*mm, 50*mm, 90*mm]))
-        story.append(subsec("3.2 Le tre modalita' di configurazione"))
+        story.append(subsec("3.2 Le quattro modalita' di configurazione"))
         story.append(p(
-            "L'area principale presenta le tre tab come un <b>selettore a step "
-            "numerato (1 - 2 - 3)</b>: ogni modalita' e' una scheda con titolo e "
-            "sottotitolo descrittivo e rappresenta un livello crescente di "
-            "configurazione. La scheda attiva e' evidenziata in navy con barra "
-            "d'accento ottone; le altre restano chiare. Su schermo stretto le tre "
-            "schede si impilano in verticale."
+            "L'area principale presenta le quattro tab come un <b>selettore a "
+            "step numerato (1 - 2 - 3 - 4)</b>, raggruppate in due famiglie: "
+            "<b>operativa</b> (1-2, conduzione mensile sui dati reali) e "
+            "<b>strategica</b> (3-4, sintesi annuale ed economia), separate da "
+            "uno stacco visivo. Ogni modalita' e' una scheda con titolo e "
+            "sottotitolo; la scheda attiva e' evidenziata in navy con barra "
+            "d'accento ottone. Su schermo stretto le schede si impilano in "
+            "verticale."
         ))
         story.append(intro_table(
-            "Le tre modalita' a confronto:",
+            "Le quattro modalita' a confronto:",
             ["#", "Modalita'", "Cosa configura", "Quando usarla"],
             [
                 ["1", "Standard",
@@ -569,15 +571,20 @@ def build_chapter_3(story, lang):
                 ["2", "Analisi",
                  "Standard + valori personalizzati (BMT &amp; EF)",
                  "Quando hai rese BMT da laboratorio o fattori emissivi su misura."],
-                ["3", "Risultati &amp; Business Plan",
-                 "Costi, incentivi e pro forma 15 anni",
-                 "Sintesi annuale, tariffe DM 2022, OPEX/CAPEX, IRR/NPV/payback."],
+                ["3", "Risultati Annuali",
+                 "Consuntivo reale 12 mesi (dati DB)",
+                 "Vedere produzione, saving e grafici sui dati realmente immessi."],
+                ["4", "Pianificazione &amp; BP",
+                 "Incentivi DM 2022, scenario what-if, pro forma 15 anni",
+                 "Configurare tariffe, simulare e costruire il business plan."],
             ],
-            col_widths=[8*mm, 40*mm, 60*mm, 62*mm]
+            col_widths=[8*mm, 38*mm, 60*mm, 64*mm]
         ))
         story.append(callout(
-            "Le tre modalita' condividono mese, biomasse e parametri della "
-            "sidebar: cambiando scheda non perdi i dati inseriti.", "info"
+            "Distinzione chiave: la modalita' 3 mostra il <b>consuntivo REALE</b> "
+            "(forward, dai dati salvati), la 4 lavora su uno <b>scenario di "
+            "pianificazione</b> (solver inverso). Tutte condividono mese, biomasse "
+            "e parametri della sidebar.", "info"
         ))
     else:
         story.append(p(
@@ -605,17 +612,18 @@ def build_chapter_3(story, lang):
         ]
         story.append(intro_table(intro, ["Section", "Control", "Function"], rows,
                                  col_widths=[30*mm, 50*mm, 90*mm]))
-        story.append(subsec("3.2 The three configuration modes"))
+        story.append(subsec("3.2 The four configuration modes"))
         story.append(p(
-            "The main area presents the three tabs as a <b>numbered step "
-            "selector (1 - 2 - 3)</b>: each mode is a card with a title and a "
-            "descriptive subtitle, representing an increasing level of "
-            "configuration. The active card is highlighted in navy with a brass "
-            "accent bar; the others stay light. On a narrow screen the three "
-            "cards stack vertically."
+            "The main area presents the four tabs as a <b>numbered step "
+            "selector (1 - 2 - 3 - 4)</b>, grouped into two families: "
+            "<b>operational</b> (1-2, monthly operation on real data) and "
+            "<b>strategic</b> (3-4, annual summary and economics), separated by a "
+            "visual gap. Each mode is a card with a title and subtitle; the "
+            "active card is highlighted in navy with a brass accent bar. On a "
+            "narrow screen the cards stack vertically."
         ))
         story.append(intro_table(
-            "The three modes compared:",
+            "The four modes compared:",
             ["#", "Mode", "What it configures", "When to use it"],
             [
                 ["1", "Standard",
@@ -624,15 +632,20 @@ def build_chapter_3(story, lang):
                 ["2", "Analysis",
                  "Standard + custom values (BMT &amp; EF)",
                  "When you have BMT lab yields or custom emission factors."],
-                ["3", "Results &amp; Business Plan",
-                 "Costs, incentives and 15-year pro forma",
-                 "Yearly summary, DM 2022 tariffs, OPEX/CAPEX, IRR/NPV/payback."],
+                ["3", "Annual Results",
+                 "Real 12-month actuals (DB data)",
+                 "See production, saving and charts on actually injected data."],
+                ["4", "Planning &amp; BP",
+                 "DM 2022 incentives, what-if scenario, 15-year pro forma",
+                 "Configure tariffs, simulate and build the business plan."],
             ],
-            col_widths=[8*mm, 40*mm, 60*mm, 62*mm]
+            col_widths=[8*mm, 38*mm, 60*mm, 64*mm]
         ))
         story.append(callout(
-            "The three modes share the month, feedstocks and sidebar parameters: "
-            "switching cards does not lose the data you entered.", "info"
+            "Key distinction: mode 3 shows the <b>REAL actuals</b> (forward, from "
+            "saved data), mode 4 works on a <b>planning scenario</b> (inverse "
+            "solver). All share the month, feedstocks and sidebar parameters.",
+            "info"
         ))
 
 
@@ -768,10 +781,12 @@ def build_chapter_workflow(story, lang):
     story.extend(section(t("ch6", lang)))
     if L:
         story.append(p(
-            "<b>Modalita' 3 - Risultati &amp; Business Plan</b> (sottotitolo: "
-            "<i>Costi, incentivi e pro forma 15 anni</i>). "
-            "Tab di sintesi annuale / strategica. Aggrega 12 mesi, calcola "
-            "ricavi, OPEX, CAPEX, business plan 15 anni."
+            "<b>Famiglia strategica</b> — due tab distinti. <b>3 Risultati "
+            "Annuali</b>: consuntivo REALE dei 12 mesi salvati (produzione, "
+            "saving, grafici sui dati effettivamente immessi). <b>4 "
+            "Pianificazione &amp; Business Plan</b>: incentivi DM 2022, scenario "
+            "what-if con solver inverso, pro forma 15 anni. Le sezioni che "
+            "seguono descrivono i contenuti, distribuiti tra i due tab."
         ))
         story.append(subsec("6.1 Configurazione impianto (ep)"))
         story.append(p(
@@ -797,10 +812,11 @@ def build_chapter_workflow(story, lang):
         ]))
     else:
         story.append(p(
-            "<b>Mode 3 - Results &amp; Business Plan</b> (subtitle: "
-            "<i>Costs, incentives and 15-year pro forma</i>). "
-            "Yearly / strategic summary tab. Aggregates 12 months, computes "
-            "revenue, OPEX, CAPEX, 15-year business plan."
+            "<b>Strategic family</b> — two distinct tabs. <b>3 Annual Results</b>: "
+            "REAL 12-month actuals (production, saving, charts on actually "
+            "injected data). <b>4 Planning &amp; Business Plan</b>: DM 2022 "
+            "incentives, what-if scenario with inverse solver, 15-year pro forma. "
+            "The sections below describe the contents, split across the two tabs."
         ))
         story.append(subsec("6.1 Plant configuration (ep)"))
         story.append(p(
@@ -1371,7 +1387,7 @@ def build_toc(story, lang):
             ("3.", "Avvio dell'app: prima schermata e sidebar"),
             ("4.", "Tab 1 - Conduzione Giornaliera Standard (UNI-TS / RED III)"),
             ("5.", "Tab 2 - Conduzione Giornaliera Analisi (BMT / Override EF)"),
-            ("6.", "Tab 3 - Risultati, Incentivi e Business Plan"),
+            ("6.", "Tab 3-4 - Risultati Annuali e Pianificazione & BP"),
             ("7.", "Logica di calcolo GHG (RED III All.V Parte C)"),
             ("8.", "Calcolo aux_factor e bilancio energetico"),
             ("9.", "Vincoli normativi e verifica compliance mensile"),
@@ -1389,7 +1405,7 @@ def build_toc(story, lang):
             ("3.", "Launching the app: first screen and sidebar"),
             ("4.", "Tab 1 - Daily Operations Standard (UNI-TS / RED III)"),
             ("5.", "Tab 2 - Daily Operations Analysis (BMT / EF Override)"),
-            ("6.", "Tab 3 - Results, Incentives and Business Plan"),
+            ("6.", "Tab 3-4 - Annual Results and Planning & BP"),
             ("7.", "GHG calculation logic (RED III Annex V Part C)"),
             ("8.", "aux_factor calculation and energy balance"),
             ("9.", "Regulatory constraints and monthly compliance check"),
