@@ -159,3 +159,13 @@ def test_core_constants_fer2_codes():
     assert "19/06/2024" in DM_FER2
     assert DM_FER2_AVVISO_GU == "24A04589"
     assert DM_FER2_REGOLE_OPERATIVE == "24A06795"
+
+
+def test_core_constants_pci_nm3_to_mwh_coherent():
+    """PCI biometano (kWh/Sm3) e NM3_TO_MWH (MWh/Sm3) devono restare
+    la stessa grandezza su scale diverse (UNI EN 16723-1: 9.79 kWh/Sm3).
+    Sono due letterali distinti per esattezza float: questo test impedisce
+    che divergano a un futuro aggiornamento."""
+    from core.constants import PCI_BIOMETHANE_KWH_SMC, NM3_TO_MWH
+    assert PCI_BIOMETHANE_KWH_SMC == 9.79
+    assert abs(PCI_BIOMETHANE_KWH_SMC / 1000.0 - NM3_TO_MWH) < 1e-12

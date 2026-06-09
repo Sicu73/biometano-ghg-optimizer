@@ -358,6 +358,7 @@ COMPARATOR_BY_END_USE = {
 # core/constants.py (importate qui con i nomi storici dell'app).
 from core.constants import (
     LHV_BIOMETHANE_MJ_NM3            as LHV_BIOMETHANE,
+    PCI_BIOMETHANE_KWH_SMC,
     NM3_TO_MWH,
     COMPARATOR_GRID_HEAT_GCO2_MJ     as _COMP_GRID_HEAT,
     DEFAULT_AUX_FACTOR,
@@ -441,7 +442,7 @@ def compute_revenues(
     tariffa_eur_mwh: float,
     durata_tariffa: int = BP_DURATA_TARIFFA_ANNI,
     ore_anno: float = 8500.0,
-    pci_kwh_per_smc: float = 9.79,
+    pci_kwh_per_smc: float = PCI_BIOMETHANE_KWH_SMC,  # 9.79 kWh/Sm³ (core.constants)
     ch4_in_biogas_pct: float = 54.25,         # % CH4 nel biogas (tipico)
 ) -> dict:
     """Calcolo Ricavi biometano DM 2022 (15 anni standard)."""
@@ -4075,7 +4076,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                 ),
             )
             if _e_estimated:
-                _pci_use = _kpis.get("remi_pci_avg") or 9.79
+                _pci_use = _kpis.get("remi_pci_avg") or PCI_BIOMETHANE_KWH_SMC
                 st.caption(
                     "ℹ️ *E totale stimato come **Vb × PCI** "
                     f"({_it_num(_pci_use, 2)} kWh/Smc, "

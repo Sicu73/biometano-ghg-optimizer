@@ -20,6 +20,12 @@ JEC WTT v5, ecc.).
 """
 from __future__ import annotations
 
+from core.constants import LHV_BIOMETHANE_MJ_NM3
+
+# LHV formattato per i testi esplicativi (IT: virgola decimale, EN: punto).
+_LHV_EN = f"{LHV_BIOMETHANE_MJ_NM3:.2f}"
+_LHV_IT = _LHV_EN.replace(".", ",")
+
 
 # ---------------------------------------------------------------------------
 # Testi statici (template per lingua)
@@ -77,7 +83,7 @@ _EMISSION_FACTOR_ORIGIN_EN = (
 _GHG_METHOD_IT = (
     "Metodo di calcolo GHG (RED III, Allegato V Parte C):\n"
     "1. Per ogni biomassa si calcola il contributo energetico: Eᵢ = Mᵢ × Yᵢ × LHV_CH4 (MJ)\n"
-    "   dove M = massa in tonnellate, Y = resa Nm³ CH4/t, LHV = 35,24 MJ/Nm³.\n"
+    f"   dove M = massa in tonnellate, Y = resa Nm³ CH4/t, LHV = {_LHV_IT} MJ/Nm³.\n"
     "2. Emissioni ponderate: e_w = Σ(eᵢ × Eᵢ) / ΣEᵢ (gCO₂eq/MJ)\n"
     "   dove eᵢ = eecᵢ + etdᵢ + ep - escaᵢ per ogni biomassa.\n"
     "3. Saving GHG = (comparatore_fossile - e_w) / comparatore_fossile × 100 (%)\n"
@@ -101,7 +107,7 @@ _GHG_METHOD_IT = (
 _GHG_METHOD_EN = (
     "GHG calculation method (RED III, Annex V Part C):\n"
     "1. For each feedstock the energy contribution is calculated: Eᵢ = Mᵢ × Yᵢ × LHV_CH4 (MJ)\n"
-    "   where M = mass in tonnes, Y = yield Nm³ CH4/t, LHV = 35.24 MJ/Nm³ (UNI EN 16723-1).\n"
+    f"   where M = mass in tonnes, Y = yield Nm³ CH4/t, LHV = {_LHV_EN} MJ/Nm³ (UNI EN 16723-1).\n"
     "2. Weighted emissions: e_w = Σ(eᵢ × Eᵢ) / ΣEᵢ (gCO₂eq/MJ)\n"
     "   where eᵢ = eecᵢ + etdᵢ + ep - escaᵢ per feedstock.\n"
     "3. GHG Saving = (fossil_comparator - e_w) / fossil_comparator × 100 (%)\n"

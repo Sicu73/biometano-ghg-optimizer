@@ -59,7 +59,8 @@ JEC_WTT_V5 = "JEC Well-to-Tank v5 (JRC-CONCAWE-EUCAR)"
 # ---------------------------------------------------------------------------
 
 LHV_BIOMETHANE_MJ_NM3 = 35.24         # MJ/Nm³ biometano spec rete (UNI EN 16723-1, ~98% CH4)
-NM3_TO_MWH = 0.00979                  # PCI biometano spec rete = 9.79 kWh/Sm³ (UNI EN 16723-1)
+PCI_BIOMETHANE_KWH_SMC = 9.79         # kWh/Sm³ PCI biometano spec rete (UNI EN 16723-1)
+NM3_TO_MWH = 0.00979                  # MWh/Sm³ = PCI_BIOMETHANE_KWH_SMC / 1000 (letterale per esattezza float)
 METHANE_PURITY_PCT = 98.0             # purezza biometano default (%) — spec rete
 
 # ---------------------------------------------------------------------------
@@ -125,6 +126,7 @@ __all__ = [
     "JEC_WTT_V5",
     # energetici
     "LHV_BIOMETHANE_MJ_NM3",
+    "PCI_BIOMETHANE_KWH_SMC",
     "NM3_TO_MWH",
     "METHANE_PURITY_PCT",
     # comparator + soglie

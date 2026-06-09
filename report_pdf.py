@@ -22,6 +22,7 @@ from reportlab.platypus import (
 )
 
 from i18n_runtime import t as _t
+from core.constants import DEFAULT_AUX_FACTOR
 from core.ls_identifier import build_ls_id
 
 
@@ -1347,7 +1348,7 @@ def _build_ls_traceability(ctx: dict, s) -> list:
     # Lo scostamento % e' invariante alla base lordo/netto (l'aux si elide).
     _bm_gross = float(ctx.get("sm3_gross") or ctx.get("nm3_gross") or 0.0)
     _bm_net = float(ctx.get("sm3_netti") or ctx.get("nm3_net") or 0.0)
-    _bm_aux = float(ctx.get("aux_factor") or 1.29)
+    _bm_aux = float(ctx.get("aux_factor") or DEFAULT_AUX_FACTOR)
     _bm_meas = _bm_net * _bm_aux
     if _bm_gross > 0 and _bm_meas > 0:
         _bm_dev = abs(_bm_gross - _bm_meas) / _bm_gross * 100.0

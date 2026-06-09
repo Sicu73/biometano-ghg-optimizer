@@ -27,6 +27,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from core.constants import DEFAULT_AUX_FACTOR, NM3_TO_MWH
+
 # ---------------------------------------------------------------------------
 # Import opzionali (non crashano se mancano)
 # ---------------------------------------------------------------------------
@@ -110,7 +112,7 @@ def build_output_model(ctx: dict) -> dict:
     active_feeds: list[str] = ctx.get("active_feeds", [])
     feedstock_db: dict = ctx.get("FEEDSTOCK_DB", {})
     plant_net_smch: float = float(ctx.get("plant_net_smch", 0.0))
-    aux_factor: float = float(ctx.get("aux_factor", 1.29))
+    aux_factor: float = float(ctx.get("aux_factor", DEFAULT_AUX_FACTOR))
     ep_total: float = float(ctx.get("ep_total", 0.0))
     end_use: str = ctx.get("end_use", "")
 
@@ -157,8 +159,8 @@ def build_output_model(ctx: dict) -> dict:
     tot_mwh = _safe_float(ctx.get("tot_mwh_netti") or ctx.get("tot_mwh"), None,
                            None, warnings)
     # MWh lordi: se non passato dall'app, derivato dai Sm3 lordi.
-    # NM3_TO_MWH = 0.00979 MWh/Sm3 (biometano spec rete UNI EN 16723-1, ~98% CH4).
-    _NM3_TO_MWH = 0.00979
+    # NM3_TO_MWH (core.constants) = 0.00979 MWh/Sm3 (spec rete UNI EN 16723-1, ~98% CH4).
+    _NM3_TO_MWH = NM3_TO_MWH
     tot_mwh_lordi_ctx = ctx.get("tot_mwh_lordi")
     if tot_mwh_lordi_ctx is not None:
         try:

@@ -4,6 +4,9 @@
 # Commercial licensing: carlo.sicurini@gmail.com
 import io
 import datetime
+
+from core.constants import DEFAULT_AUX_FACTOR
+
 try:
     from pptx import Presentation
     from pptx.util import Inches, Pt
@@ -111,7 +114,7 @@ def build_metaniq_pptx(ctx: dict) -> io.BytesIO:
     mwh = ctx.get("tot_mwh_basis") or 0.0
     rev = ctx.get("tot_revenue") or 0.0
     taglia = ctx.get("plant_net_smch") or 300.0
-    aux = ctx.get("aux_factor") or 1.29
+    aux = ctx.get("aux_factor") or DEFAULT_AUX_FACTOR
     valid_months = ctx.get("valid_months") or 0
     # Soglia reale dal contesto (frazione 0-1 → %): 80% rete/calore, 65% trasporti.
     # Conformità = saving annuo pesato ≥ soglia. NON richiede 12/12 mesi:

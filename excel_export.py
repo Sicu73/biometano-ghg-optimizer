@@ -19,6 +19,7 @@ from openpyxl.styles import (
 )
 from openpyxl.utils import get_column_letter
 
+from core.constants import DEFAULT_AUX_FACTOR, NM3_TO_MWH as _NM3_TO_MWH_STD
 from i18n_runtime import t as _t
 
 
@@ -447,12 +448,12 @@ def _build_piano(ws, ctx, db_sheet_name, snapshot: bool = False, lang='it'):
     ws.row_dimensions[3].height = 22
 
     # === Parametri impianto (rows 4-10 biometano, 4-13 CHP) ===
-    aux_factor       = float(ctx.get("aux_factor", 1.29))
+    aux_factor       = float(ctx.get("aux_factor", DEFAULT_AUX_FACTOR))
     comparator       = float(ctx.get("fossil_comparator", 80.0))
     ghg_threshold    = float(ctx.get("ghg_threshold", 0.65)) * 100
     plant_max_smch   = float(ctx.get("plant_net_smch", 300.0))
     ep_total         = float(ctx.get("ep_total", 0.0))
-    nm3_to_mwh       = float(ctx.get("NM3_TO_MWH", 0.00979))
+    nm3_to_mwh       = float(ctx.get("NM3_TO_MWH", _NM3_TO_MWH_STD))
     # CHP-specific
     plant_kwe        = float(ctx.get("plant_kwe", 999.0))
     eta_el           = float(ctx.get("eta_el", 0.40))
