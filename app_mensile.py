@@ -1940,35 +1940,11 @@ st.markdown(
         from {{ opacity: 0; transform: translateY(12px); }}
         to {{ opacity: 1; transform: translateY(0); }}
     }}
-    @keyframes pulseDot {{
-        0%, 100% {{ box-shadow: 0 0 0 0 rgba(154,123,60,0.6); }}
-        50%      {{ box-shadow: 0 0 0 7px rgba(154,123,60,0); }}
-    }}
-    @keyframes shimmer {{
-        0% {{ background-position: -200% center; }}
-        100% {{ background-position: 200% center; }}
-    }}
-
     /* --- Hero header: solo entrance animation, NO text gradient
        (rompeva leggibilità del logo in tema light) --- */
     .methaniq-header {{
         animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
         position: relative;
-    }}
-    .methaniq-header::before {{
-        content: "● LIVE";
-        position: absolute;
-        top: 18px; right: 22px;
-        font-size: 0.62rem;
-        font-weight: 700;
-        letter-spacing: 1.5px;
-        color: #B59450;
-        background: rgba(181,148,80,0.12);
-        border: 1px solid rgba(181,148,80,0.40);
-        padding: 4px 10px;
-        border-radius: 999px;
-        animation: pulseDot 2s infinite;
-        z-index: 2;
     }}
 
     /* --- Tab principali: indicator gradient sotto il tab attivo
@@ -2116,16 +2092,6 @@ st.markdown(
         .methaniq-header .tagline {{
             font-size: 1rem !important;
         }}
-        .methaniq-header::after {{
-            width: 180px !important;
-            height: 180px !important;
-        }}
-        .methaniq-header::before {{
-            top: 10px !important;
-            right: 12px !important;
-            font-size: 0.55rem !important;
-            padding: 3px 8px !important;
-        }}
         .methaniq-header .pill {{
             font-size: 0.75rem !important;
             padding: 6px 14px !important;
@@ -2166,7 +2132,7 @@ st.markdown(
         font-family: 'Outfit', sans-serif;
     }}
     </style>
-    <div class="methaniq-fixed-footer">METAN.iQ · v0.4.0</div>
+    <div class="methaniq-fixed-footer">METAN.iQ · v{_APP_VERSION}</div>
     """,
     unsafe_allow_html=True,
 )
@@ -4335,14 +4301,14 @@ def _render_annual_charts(df_src, key_prefix: str = ""):
             x=df_src["Mese"], y=df_src["Saving %"],
             marker=dict(
                 color=df_src["Saving %"],
-                colorscale=[[0, "#E53935"], [0.5, "#FDD835"], [1, "#43A047"]],
+                colorscale=[[0, "#DC2626"], [0.5, "#F59E0B"], [1, "#059669"]],
                 cmin=70, cmax=100, colorbar=dict(title="Saving %"),
             ),
             text=[fmt_it(v, 1, "%") for v in df_src["Saving %"]],
             textposition="outside",
         ))
         _f2.add_hline(
-            y=ghg_threshold*100, line_dash="dash", line_color="red",
+            y=ghg_threshold*100, line_dash="dash", line_color="#DC2626",
             annotation_text=f"Soglia RED III {fmt_it(ghg_threshold*100, 0, '%')}",
             annotation_position="top right",
         )
@@ -6259,17 +6225,17 @@ with tab_plan:
             x=df_res["Mese"], y=df_res["Saving %"],
             marker=dict(
                 color=df_res["Saving %"],
-                colorscale=[[0, "#E53935"], [0.5, "#FDD835"], [1, "#43A047"]],
+                colorscale=[[0, "#DC2626"], [0.5, "#F59E0B"], [1, "#059669"]],
                 cmin=70, cmax=100,
                 colorbar=dict(title="Saving %"),
             ),
             text=[fmt_it(v, 1, "%") for v in df_res["Saving %"]],
             textposition="outside",
         ))
-        fig2.add_hline(y=ghg_threshold*100, line_dash="dash", line_color="red",
+        fig2.add_hline(y=ghg_threshold*100, line_dash="dash", line_color="#DC2626",
                        annotation_text=f"Soglia RED III {fmt_it(ghg_threshold*100, 0, '%')}",
                        annotation_position="top right")
-        fig2.add_hline(y=target_saving*100, line_dash="dot", line_color="green",
+        fig2.add_hline(y=target_saving*100, line_dash="dot", line_color="#3C6A52",
                        annotation_text=f"Target solver {fmt_it(target_saving*100, 0, '%')}",
                        annotation_position="bottom right")
         fig2.update_layout(title="Saving GHG mensile (%)",
@@ -6524,7 +6490,7 @@ with tab_plan:
     # ============================================================
     if bp_result is not None:
         with tab5:
-            st.markdown("<div style='font-family:\"JetBrains Mono\", monospace; font-size:0.7rem; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:#726C5E; margin-bottom:8px;'>// PRO FORMA · DM 2022</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-family:\"IBM Plex Mono\", monospace; font-size:0.7rem; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:#726C5E; margin-bottom:8px;'>// PRO FORMA · DM 2022</div>", unsafe_allow_html=True)
             st.subheader(_t("💼 Ricavi Annui"))
             st.caption("Calcolo dei ricavi sulla base della tariffa incentivante (o premio) DM 2022 e della produzione di biometano.")
 
@@ -6600,7 +6566,7 @@ with tab_plan:
     # ------------------------- EXPORT -------------------------
     st.divider()
     st.markdown(
-        f"<div style='font-family:\"JetBrains Mono\", monospace; font-size:0.7rem; "
+        f"<div style='font-family:\"IBM Plex Mono\", monospace; font-size:0.7rem; "
         f"font-weight:600; letter-spacing:1.5px; text-transform:uppercase; "
         f"color:{TEXT_MUTED}; margin-bottom:10px;'>// EXPORT</div>",
         unsafe_allow_html=True,

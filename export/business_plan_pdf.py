@@ -24,13 +24,15 @@ from reportlab.platypus import (
 )
 from reportlab.graphics.shapes import Drawing, Rect, Line, String, PolyLine
 
-# Brand tokens (allineati a export/daily_pdf.py / build_user_manual.py)
-NAVY = colors.HexColor("#15242E")
-BRASS = colors.HexColor("#9A7B3C")
-INK = colors.HexColor("#1C1B16")
-MUTED = colors.HexColor("#726C5E")
-LINE = colors.HexColor("#E4DDCD")
-PAPER_ALT = colors.HexColor("#FBF9F3")
+# Brand tokens — stessa palette di export/daily_pdf.py (navy #1E3A5F /
+# amber #F59E0B / slate): i due PDF consegnati al cliente devono avere
+# identita' visiva identica.
+NAVY = colors.HexColor("#1E3A5F")
+BRASS = colors.HexColor("#F59E0B")
+INK = colors.HexColor("#0F172A")
+MUTED = colors.HexColor("#475569")
+LINE = colors.HexColor("#E2E8F0")
+PAPER_ALT = colors.HexColor("#F8FAFC")
 WHITE = colors.white
 
 
