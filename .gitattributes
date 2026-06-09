@@ -1,0 +1,10 @@
+# Forza il trattamento binario: nessuna conversione EOL (CRLF) che corromperebbe i file.
+*.pdf   binary
+*.xlsx  binary
+*.xlsm  binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.db    binary
+*.sqlite binary
+*.ico   binary
