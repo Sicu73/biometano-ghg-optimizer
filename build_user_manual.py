@@ -550,6 +550,35 @@ def build_chapter_3(story, lang):
         ]
         story.append(intro_table(intro, ["Sezione", "Controllo", "Funzione"], rows,
                                  col_widths=[30*mm, 50*mm, 90*mm]))
+        story.append(subsec("3.2 Le tre modalita' di configurazione"))
+        story.append(p(
+            "L'area principale presenta le tre tab come un <b>selettore a step "
+            "numerato (1 - 2 - 3)</b>: ogni modalita' e' una scheda con titolo e "
+            "sottotitolo descrittivo e rappresenta un livello crescente di "
+            "configurazione. La scheda attiva e' evidenziata in navy con barra "
+            "d'accento ottone; le altre restano chiare. Su schermo stretto le tre "
+            "schede si impilano in verticale."
+        ))
+        story.append(intro_table(
+            "Le tre modalita' a confronto:",
+            ["#", "Modalita'", "Cosa configura", "Quando usarla"],
+            [
+                ["1", "Standard",
+                 "Solo valori standard (UNI-TS / RED III)",
+                 "Conduzione quotidiana di routine, senza analisi di laboratorio."],
+                ["2", "Analisi",
+                 "Standard + valori personalizzati (BMT &amp; EF)",
+                 "Quando hai rese BMT da laboratorio o fattori emissivi su misura."],
+                ["3", "Risultati &amp; Business Plan",
+                 "Costi, incentivi e pro forma 15 anni",
+                 "Sintesi annuale, tariffe DM 2022, OPEX/CAPEX, IRR/NPV/payback."],
+            ],
+            col_widths=[8*mm, 40*mm, 60*mm, 62*mm]
+        ))
+        story.append(callout(
+            "Le tre modalita' condividono mese, biomasse e parametri della "
+            "sidebar: cambiando scheda non perdi i dati inseriti.", "info"
+        ))
     else:
         story.append(p(
             "Opening the app URL presents a screen split into:"
@@ -576,6 +605,35 @@ def build_chapter_3(story, lang):
         ]
         story.append(intro_table(intro, ["Section", "Control", "Function"], rows,
                                  col_widths=[30*mm, 50*mm, 90*mm]))
+        story.append(subsec("3.2 The three configuration modes"))
+        story.append(p(
+            "The main area presents the three tabs as a <b>numbered step "
+            "selector (1 - 2 - 3)</b>: each mode is a card with a title and a "
+            "descriptive subtitle, representing an increasing level of "
+            "configuration. The active card is highlighted in navy with a brass "
+            "accent bar; the others stay light. On a narrow screen the three "
+            "cards stack vertically."
+        ))
+        story.append(intro_table(
+            "The three modes compared:",
+            ["#", "Mode", "What it configures", "When to use it"],
+            [
+                ["1", "Standard",
+                 "Standard values only (UNI-TS / RED III)",
+                 "Routine daily operation, without lab analysis."],
+                ["2", "Analysis",
+                 "Standard + custom values (BMT &amp; EF)",
+                 "When you have BMT lab yields or custom emission factors."],
+                ["3", "Results &amp; Business Plan",
+                 "Costs, incentives and 15-year pro forma",
+                 "Yearly summary, DM 2022 tariffs, OPEX/CAPEX, IRR/NPV/payback."],
+            ],
+            col_widths=[8*mm, 40*mm, 60*mm, 62*mm]
+        ))
+        story.append(callout(
+            "The three modes share the month, feedstocks and sidebar parameters: "
+            "switching cards does not lose the data you entered.", "info"
+        ))
 
 
 def build_chapter_workflow(story, lang):
@@ -584,7 +642,9 @@ def build_chapter_workflow(story, lang):
     L = lang == "it"
     if L:
         story.append(p(
-            "Tab di lavoro principale per la <b>gestione quotidiana</b>. "
+            "<b>Modalita' 1 - Standard</b> (sottotitolo: <i>Solo valori standard - "
+            "UNI-TS / RED III</i>). Tab di lavoro principale per la "
+            "<b>gestione quotidiana</b>. "
             "Usa rese e fattori emissivi <b>standard</b> UNI/TS 11567:2024 "
             "(Prospetto A.5). Indicato per uso routinario senza analisi BMT."
         ))
@@ -621,7 +681,9 @@ def build_chapter_workflow(story, lang):
         ))
     else:
         story.append(p(
-            "Main working tab for <b>daily management</b>. Uses <b>standard</b> "
+            "<b>Mode 1 - Standard</b> (subtitle: <i>Standard values only - "
+            "UNI-TS / RED III</i>). Main working tab for <b>daily management</b>. "
+            "Uses <b>standard</b> "
             "yields and emission factors from UNI/TS 11567:2024 (Schedule A.5). "
             "Recommended for routine use without BMT analysis."
         ))
@@ -661,9 +723,13 @@ def build_chapter_workflow(story, lang):
     story.extend(section(t("ch5", lang)))
     if L:
         story.append(p(
+            "<b>Modalita' 2 - Analisi</b> (sottotitolo: <i>Standard + valori "
+            "personalizzati - BMT &amp; EF</i>). "
             "Variante avanzata del Tab 1, per operatori con BMT (Biological "
             "Methane Potential, test laboratorio) e/o Relazione Tecnica con "
-            "fattori emissivi su misura."
+            "fattori emissivi su misura. I valori personalizzati si "
+            "<b>sovrappongono</b> ai tabellari, biomassa per biomassa; senza "
+            "override la modalita' calcola identica alla Standard."
         ))
         story.append(subsec("5.1 Override BMT (rese)"))
         story.append(p(
@@ -678,9 +744,13 @@ def build_chapter_workflow(story, lang):
         ]))
     else:
         story.append(p(
+            "<b>Mode 2 - Analysis</b> (subtitle: <i>Standard + custom values - "
+            "BMT &amp; EF</i>). "
             "Advanced variant of Tab 1, for operators with BMT (Biological "
             "Methane Potential lab test) and/or Technical Report with custom "
-            "emission factors."
+            "emission factors. Custom values <b>override</b> the tabular ones "
+            "feedstock by feedstock; with no override the mode computes "
+            "identically to Standard."
         ))
         story.append(subsec("5.1 BMT override (yields)"))
         story.append(p(
@@ -698,6 +768,8 @@ def build_chapter_workflow(story, lang):
     story.extend(section(t("ch6", lang)))
     if L:
         story.append(p(
+            "<b>Modalita' 3 - Risultati &amp; Business Plan</b> (sottotitolo: "
+            "<i>Costi, incentivi e pro forma 15 anni</i>). "
             "Tab di sintesi annuale / strategica. Aggrega 12 mesi, calcola "
             "ricavi, OPEX, CAPEX, business plan 15 anni."
         ))
@@ -725,6 +797,8 @@ def build_chapter_workflow(story, lang):
         ]))
     else:
         story.append(p(
+            "<b>Mode 3 - Results &amp; Business Plan</b> (subtitle: "
+            "<i>Costs, incentives and 15-year pro forma</i>). "
             "Yearly / strategic summary tab. Aggregates 12 months, computes "
             "revenue, OPEX, CAPEX, 15-year business plan."
         ))
