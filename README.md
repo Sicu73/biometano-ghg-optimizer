@@ -104,7 +104,6 @@ biometano-ghg-optimizer/
 │   ├── monthly_aggregate.py    # aggregate_month(), MonthlyAggregate
 │   ├── sustainability.py       # evaluate_monthly_sustainability()
 │   ├── persistence.py          # SQLite save/load (TODO: multi-tenant)
-│   ├── i18n.py                 # core i18n
 │   ├── design_tokens.py        # palette colors
 │   ├── version.py              # __version__
 │   └── logging_setup.py        # logger + Sentry init

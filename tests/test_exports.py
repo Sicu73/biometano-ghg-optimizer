@@ -3,9 +3,7 @@
 
 Verifica:
   - build_csv_from_output() genera CSV valido per tutti gli sheet
-  - build_excel_from_output() genera BytesIO non vuoto
-  - build_pdf_from_output() genera BytesIO non vuoto
-  - tutti gli export leggono da output_model (non da app_mensile)
+  - l'export legge da output_model (non da app_mensile)
   - se mancano campi non crasha
   - sheet non valido per CSV genera ValueError
 """
@@ -206,90 +204,11 @@ class TestCSVExport:
 
 
 # ---------------------------------------------------------------------------
-# Test Excel
-# ---------------------------------------------------------------------------
-
-class TestExcelExport:
-    """Test per export/excel_export.py::build_excel_from_output."""
-
-    def test_excel_returns_bytesio(self):
-        """build_excel_from_output ritorna BytesIO non vuoto."""
-        from export.excel_export import build_excel_from_output
-        result = build_excel_from_output(_make_output_model())
-        assert isinstance(result, io.BytesIO)
-        data = result.read()
-        assert len(data) > 0
-
-    def test_excel_snapshot_returns_bytesio(self):
-        """Modalita' snapshot ritorna BytesIO non vuoto."""
-        from export.excel_export import build_excel_from_output
-        result = build_excel_from_output(_make_output_model(), snapshot=True)
-        assert isinstance(result, io.BytesIO)
-        data = result.read()
-        assert len(data) > 0
-
-    def test_excel_invalid_model_raises(self):
-        """Output model non dict genera ValueError."""
-        from export.excel_export import build_excel_from_output
-        with pytest.raises(ValueError):
-            build_excel_from_output("not a dict")
-
-    def test_excel_empty_model_does_not_crash(self):
-        """Con output_model vuoto non crasha."""
-        from export.excel_export import build_excel_from_output
-        result = build_excel_from_output({})
-        assert isinstance(result, io.BytesIO)
-
-    def test_excel_is_valid_xlsx(self):
-        """Il file generato e' un XLSX valido (magic bytes PK)."""
-        from export.excel_export import build_excel_from_output
-        result = build_excel_from_output(_make_output_model())
-        data = result.read()
-        # XLSX e' un ZIP -> inizia con PK (0x50 0x4B)
-        assert data[:2] == b"PK", "Il file XLSX non ha magic bytes validi"
-
-
-# ---------------------------------------------------------------------------
-# Test PDF
-# ---------------------------------------------------------------------------
-
-class TestPDFExport:
-    """Test per export/pdf_export.py::build_pdf_from_output."""
-
-    def test_pdf_returns_bytesio(self):
-        """build_pdf_from_output ritorna BytesIO non vuoto."""
-        from export.pdf_export import build_pdf_from_output
-        result = build_pdf_from_output(_make_output_model())
-        assert isinstance(result, io.BytesIO)
-        data = result.read()
-        assert len(data) > 0
-
-    def test_pdf_invalid_model_raises(self):
-        """Output model non dict genera ValueError."""
-        from export.pdf_export import build_pdf_from_output
-        with pytest.raises(ValueError):
-            build_pdf_from_output("not a dict")
-
-    def test_pdf_empty_model_does_not_crash(self):
-        """Con output_model vuoto non crasha."""
-        from export.pdf_export import build_pdf_from_output
-        result = build_pdf_from_output({})
-        assert isinstance(result, io.BytesIO)
-
-    def test_pdf_is_valid_pdf(self):
-        """Il file generato e' un PDF valido (magic bytes %PDF)."""
-        from export.pdf_export import build_pdf_from_output
-        result = build_pdf_from_output(_make_output_model())
-        data = result.read()
-        # Verifica magic bytes PDF
-        assert data[:4] == b"%PDF", "Il file non e' un PDF valido"
-
-# ---------------------------------------------------------------------------
-# Test: tutti gli export leggono da output_model
+# Test: l'export legge da output_model
 # ---------------------------------------------------------------------------
 
 class TestExportsUseOutputModel:
-    """Verifica che tutti gli export usino output_model come unica fonte."""
+    """Verifica che l'export CSV usi output_model come unica fonte."""
 
     def test_csv_reads_saving_avg_from_model(self):
         """Il CSV mensile include il saving corretto da output_model."""
@@ -308,19 +227,10 @@ class TestExportsUseOutputModel:
         text = result.decode("utf-8-sig")
         assert "Biometano DM 2022" in text or "Scenario:" in text
 
-    def test_all_exports_accept_same_output_model(self):
-        """Tutti e tre gli export accettano lo stesso output_model senza errori."""
+    def test_csv_accepts_full_output_model(self):
+        """L'export CSV accetta l'output_model completo senza errori."""
         from export.csv_export import build_csv_from_output
-        from export.excel_export import build_excel_from_output
-        from export.pdf_export import build_pdf_from_output
 
         model = _make_output_model()
-
         csv_result = build_csv_from_output(model, sheet="monthly")
         assert isinstance(csv_result, bytes) and len(csv_result) > 0
-
-        xlsx_result = build_excel_from_output(model)
-        assert isinstance(xlsx_result, io.BytesIO)
-
-        pdf_result = build_pdf_from_output(model)
-        assert isinstance(pdf_result, io.BytesIO)

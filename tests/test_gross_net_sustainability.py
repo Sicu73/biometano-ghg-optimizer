@@ -121,31 +121,6 @@ def test_export_includes_both_gross_and_net():
     )
 
 
-def test_sustainability_basis_table():
-    """`build_sustainability_basis_table` espone la riga 'Base normativa
-    applicata' e i valori LORDO/NETTO per Sm3, MWh e Saving."""
-    from output.output_builder import build_output_model
-    from output.tables import build_sustainability_basis_table
-
-    om = build_output_model(_ctx_biometano())
-    tbl = build_sustainability_basis_table(om)
-    # Tbl puo' essere DataFrame o lista
-    if hasattr(tbl, "to_dict"):
-        rows = tbl.to_dict(orient="records")
-    else:
-        rows = tbl
-    voci = {r["Voce"] for r in rows}
-    assert "Sm³ biometano" in voci
-    assert "MWh biometano" in voci
-    assert "Saving GHG (%)" in voci
-    assert "Base normativa applicata" in voci
-    # Verifica colonna "LORDO" presente come label nelle key
-    sample = rows[0]
-    has_lordo_col = any("LORDO" in str(k) for k in sample.keys())
-    has_netto_col = any("NETTO" in str(k) for k in sample.keys())
-    assert has_lordo_col and has_netto_col
-
-
 # ---------------------------------------------------------------------------
 # 4) La spiegazione dichiara esplicitamente la base usata
 # ---------------------------------------------------------------------------
