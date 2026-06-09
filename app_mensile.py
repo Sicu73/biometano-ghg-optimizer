@@ -4301,11 +4301,117 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         )
 
 
-tab_daily, tab_tech, tab_business = st.tabs([
-    "📆 " + _t("Conduzione Giornaliera — Standard (UNI-TS / RED III)"),
-    "🧪 " + _t("Conduzione Giornaliera — Analisi (BMT & Fattori Emissivi su misura)"),
-    "📊 " + _t("Risultati, Incentivi & Business Plan"),
-])
+# =============================================================================
+# MODE SELECTOR — 3 livelli di configurazione resi come "stepper" segmentato
+# (card numerate 1·2·3 con titolo + sottotitolo, stato attivo navy/brass).
+# Lo stile e' scopato a .st-key-mode_tabs e, tramite :not([tab-panel] *),
+# NON tocca i 5 tab annidati della sezione Risultati/Business Plan piu' sotto.
+# =============================================================================
+_sub1 = _t("Solo valori standard · UNI-TS / RED III")
+_sub2 = _t("Standard + valori personalizzati · BMT & EF")
+_sub3 = _t("Costi, incentivi & pro forma 15 anni")
+st.markdown(
+    f"""
+    <style>
+    .st-key-mode_tabs [data-baseweb="tab-list"]:not([data-baseweb="tab-panel"] *) {{
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        background: transparent !important;
+        border-bottom: none !important;
+        overflow: visible !important;
+        margin-bottom: 22px;
+    }}
+    .st-key-mode_tabs [data-baseweb="tab"]:not([data-baseweb="tab-panel"] *) {{
+        display: flex !important;
+        flex-direction: column;
+        align-items: flex-start !important;
+        justify-content: center;
+        gap: 4px;
+        text-align: left;
+        width: 100%;
+        min-width: 0 !important;
+        min-height: 80px;
+        padding: 14px 16px 14px 48px !important;
+        background: {BG_SURFACE} !important;
+        border: 1px solid {BORDER} !important;
+        border-radius: 12px !important;
+        position: relative;
+        transition: all 0.18s ease !important;
+        white-space: normal !important;
+    }}
+    .st-key-mode_tabs [data-baseweb="tab"]:not([data-baseweb="tab-panel"] *)::before {{
+        position: absolute;
+        left: 15px; top: 50%;
+        transform: translateY(-50%);
+        width: 24px; height: 24px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 50%;
+        font-size: 0.78rem; font-weight: 700; line-height: 1;
+        background: {BORDER}; color: {TEXT_MUTED};
+        transition: all 0.18s ease;
+    }}
+    .st-key-mode_tabs [data-baseweb="tab"]:nth-child(1):not([data-baseweb="tab-panel"] *)::before {{ content: "1"; }}
+    .st-key-mode_tabs [data-baseweb="tab"]:nth-child(2):not([data-baseweb="tab-panel"] *)::before {{ content: "2"; }}
+    .st-key-mode_tabs [data-baseweb="tab"]:nth-child(3):not([data-baseweb="tab-panel"] *)::before {{ content: "3"; }}
+    .st-key-mode_tabs [data-baseweb="tab"]:not([data-baseweb="tab-panel"] *) p {{
+        font-weight: 700 !important;
+        font-size: 1.0rem !important;
+        line-height: 1.15 !important;
+        margin: 0 !important;
+        color: {TEXT_PRIMARY} !important;
+    }}
+    .st-key-mode_tabs [data-baseweb="tab"]:not([data-baseweb="tab-panel"] *)::after {{
+        font-size: 0.74rem;
+        font-weight: 400;
+        line-height: 1.25;
+        color: {TEXT_MUTED};
+        white-space: normal;
+    }}
+    .st-key-mode_tabs [data-baseweb="tab"]:nth-child(1):not([data-baseweb="tab-panel"] *)::after {{ content: "{_sub1}"; }}
+    .st-key-mode_tabs [data-baseweb="tab"]:nth-child(2):not([data-baseweb="tab-panel"] *)::after {{ content: "{_sub2}"; }}
+    .st-key-mode_tabs [data-baseweb="tab"]:nth-child(3):not([data-baseweb="tab-panel"] *)::after {{ content: "{_sub3}"; }}
+    .st-key-mode_tabs [data-baseweb="tab"]:not([data-baseweb="tab-panel"] *):hover {{
+        border-color: {ACCENT} !important;
+    }}
+    .st-key-mode_tabs [aria-selected="true"]:not([data-baseweb="tab-panel"] *) {{
+        background: {NAVY} !important;
+        border-color: {NAVY} !important;
+        border-bottom: 1px solid {NAVY} !important;
+        box-shadow: inset 3px 0 0 {ACCENT};
+    }}
+    .st-key-mode_tabs [aria-selected="true"]:not([data-baseweb="tab-panel"] *) p {{
+        color: #FFFFFF !important;
+    }}
+    .st-key-mode_tabs [aria-selected="true"]:not([data-baseweb="tab-panel"] *)::after {{
+        color: rgba(255,255,255,0.74) !important;
+    }}
+    .st-key-mode_tabs [aria-selected="true"]:not([data-baseweb="tab-panel"] *)::before {{
+        background: {ACCENT} !important;
+        color: {NAVY} !important;
+    }}
+    .st-key-mode_tabs [data-baseweb="tab-highlight"]:not([data-baseweb="tab-panel"] *),
+    .st-key-mode_tabs [data-baseweb="tab-border"]:not([data-baseweb="tab-panel"] *) {{
+        display: none !important;
+    }}
+    @media (max-width: 760px) {{
+        .st-key-mode_tabs [data-baseweb="tab-list"]:not([data-baseweb="tab-panel"] *) {{
+            grid-template-columns: 1fr;
+        }}
+        .st-key-mode_tabs [data-baseweb="tab"]:not([data-baseweb="tab-panel"] *) {{
+            min-height: 64px;
+        }}
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+with st.container(key="mode_tabs"):
+    tab_daily, tab_tech, tab_business = st.tabs([
+        "📆 " + _t("Standard"),
+        "🧪 " + _t("Analisi"),
+        "📊 " + _t("Risultati & Business Plan"),
+    ])
 
 with tab_tech:
     # ============================================================

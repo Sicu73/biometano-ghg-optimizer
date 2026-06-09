@@ -431,6 +431,16 @@ IT_EN: dict = {
         "Daily Operation — Analysis (BMT & Custom Emission Factors)",
     "Risultati, Incentivi & Business Plan": "Results, Incentives & Business Plan",
     "Risultati, Reporting & Export Annuali": "Annual Results, Reporting & Export",
+    # Mode selector stepper (etichette corte + sottotitoli)
+    "Standard": "Standard",
+    "Analisi": "Analysis",
+    "Risultati & Business Plan": "Results & Business Plan",
+    "Solo valori standard · UNI-TS / RED III":
+        "Standard values only · UNI-TS / RED III",
+    "Standard + valori personalizzati · BMT & EF":
+        "Standard + custom values · BMT & EF",
+    "Costi, incentivi & pro forma 15 anni":
+        "Costs, incentives & 15-year pro forma",
     # Confronto Standard vs Analisi
     "Confronto Standard vs Analisi": "Standard vs Analysis Comparison",
     "Modalità Analisi attiva": "Analysis mode active",
