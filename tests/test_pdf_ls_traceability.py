@@ -29,7 +29,7 @@ def _minimal_ctx():
         "plant_net_smch": 300.0,
         "eta_el": 0.40, "eta_th": 0.42, "aux_el_pct": 8.0,
         "aux_factor": 1.29, "ep_total": 5.0,
-        "end_use": "Elettricità/calore/immissione rete (nuovo >=20/11/2023)",
+        "end_use": "Elettricità/calore/immissione rete (nuovo >=1/1/2026)",
         "ghg_threshold": 0.80, "fossil_comparator": 80.0,
         "upgrading_opt": "Membrane", "offgas_opt": "RTO", "injection_opt": "Rete",
         "is_advanced": True, "cic_active": True, "cic_double": True,

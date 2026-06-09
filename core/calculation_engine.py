@@ -58,12 +58,12 @@ DEFAULT_PLANT_NET_SMCH = 300.0
 # Usato quando l'overwrite lazy non scatta (app_mensile a meta' caricamento
 # quando questo modulo viene importato). Tenere sincronizzato con app_mensile.
 COMPARATOR_BY_END_USE = {
-    "Elettricità/calore/immissione rete (nuovo ≥20/11/2023)": 80.0,
+    "Elettricità/calore/immissione rete (nuovo ≥1/1/2026)": 80.0,
     "Immissione rete/calore (esistente <10 MW, primi 15 anni)": 80.0,
     "Trasporti (BioGNL/BioCNG)": 94.0,
 }
 END_USE_THRESHOLDS = {
-    "Elettricità/calore/immissione rete (nuovo ≥20/11/2023)": 0.80,
+    "Elettricità/calore/immissione rete (nuovo ≥1/1/2026)": 0.80,
     "Immissione rete/calore (esistente <10 MW, primi 15 anni)": 0.70,
     "Trasporti (BioGNL/BioCNG)": 0.65,
 }

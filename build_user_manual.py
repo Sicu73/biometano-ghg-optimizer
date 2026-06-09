@@ -58,8 +58,8 @@ S = {
                          "en": "USER MANUAL"},
     "cover_tagline":    {"it": "Guida operativa completa - funzioni, calcoli, workflow",
                          "en": "Complete operating guide - features, calculations, workflow"},
-    "cover_version":    {"it": "Versione documento: 1.0",
-                         "en": "Document version: 1.0"},
+    "cover_version":    {"it": "Versione documento: 1.1",
+                         "en": "Document version: 1.1"},
     "cover_date":       {"it": "Data emissione: ",
                          "en": "Issue date: "},
     "cover_software":   {"it": "Software: Metan.iQ v0.5.0 - branch dm2022-only",
@@ -529,27 +529,35 @@ def build_chapter_3(story, lang):
             "All'apertura dell'URL dell'app si presenta una schermata divisa in:"
         ))
         story.append(bullet_list([
-            "<b>Sidebar a sinistra</b>: selettori globali (lingua, regime, mese, biomasse, parametri impianto).",
-            "<b>Area principale a destra</b>: tre macro-tab di lavoro (Standard / Analisi / Risultati).",
+            "<b>Sidebar a sinistra</b>: identita' prodotto, lingua, tema, anagrafica, biomasse e parametri impianto.",
+            "<b>Area principale a destra</b>: quattro modalita' di lavoro a step numerato (1 Standard / 2 Analisi / 3 Risultati Annuali / 4 Pianificazione &amp; BP).",
             "<b>Header in alto</b>: brand Metan.iQ con versione e regime attivo.",
-            "<b>Footer</b>: link legali (Privacy, Terms), versione software.",
+            "<b>Footer</b>: versione software; Privacy, Termini e Licenza nell'expander legale a fondo sidebar.",
         ]))
         story.append(subsec("3.1 Sidebar: pannello di controllo globale"))
-        intro = "La sidebar contiene i seguenti gruppi di controlli:"
+        intro = "La sidebar contiene, dall'alto in basso, i seguenti gruppi di controlli:"
         rows = [
             ["Lingua", "Selettore IT / EN", "Cambia label, formato numeri e date"],
-            ["Tema", "Toggle Light / Dark", "Switcher palette WCAG AA"],
-            ["Anno / Mese", "Number input / Select", "Periodo di lavoro"],
-            ["ID impianto", "Text input", "Discriminante multi-impianto"],
-            ["Regime", "Radio DM 2022 / DM 2018 / FER2", "Cambia soglia GHG e cap"],
-            ["Biomasse attive", "Multiselect", "Colonne disponibili in tabella"],
-            ["Plant net Sm3/h", "Number input (default 300)", "Cap autorizzativo"],
-            ["Aux factor", "Auto o manuale", "Sm3 lordi / netti (default 1.29)"],
-            ["ep totale", "Auto o manuale", "Emissioni processing (gCO2eq/MJ)"],
+            ["Tema", "Toggle Light / Dark", "Switcher palette chiaro/scuro"],
+            ["Anagrafica simulazione", "Expander: azienda, sede, impianto, P.IVA/CF, CUI/GSE, responsabile sostenibilita'",
+             "Tracciabilita' GSE/OdC in report ed export"],
+            ["Normative applicate", "Expander informativo", "Registro delle norme cablate nel calcolo"],
+            ["Taglia Impianto", "Radio NETTI/LORDI + number input (default 300)",
+             "Cap autorizzativo Sm3/h; sincronizzazione lordo/netto via aux"],
+            ["Config. Tecnica &amp; GHG", "Expander: digestato, upgrading, off-gas, iniezione, calore, elettricita'",
+             "Determina ep_total e aux_factor (default 1.29, override manuale)"],
+            ["Biomasse attive", "Ricerca + multiselect per categoria", "Colonne disponibili in tabella giornaliera"],
             ["Manure credit", "Checkbox (default ON)", "Attiva eec negativo per reflui"],
+            ["Manuale / Demo / Legali", "Expander a fondo sidebar", "Download manuale PDF, richiesta demo, Privacy/Termini/Licenza"],
         ]
         story.append(intro_table(intro, ["Sezione", "Controllo", "Funzione"], rows,
                                  col_widths=[30*mm, 50*mm, 90*mm]))
+        story.append(callout(
+            "Anno, mese e ID impianto <b>non</b> stanno in sidebar: si "
+            "selezionano in testa al pannello Operativita' Giornaliera "
+            "(modalita' 1 e 2), cosi' ogni combinazione impianto+anno+mese "
+            "ha il suo set di dati isolato nel database.", "info"
+        ))
         story.append(subsec("3.2 Le quattro modalita' di configurazione"))
         story.append(p(
             "L'area principale presenta le quattro tab come un <b>selettore a "
@@ -591,27 +599,35 @@ def build_chapter_3(story, lang):
             "Opening the app URL presents a screen split into:"
         ))
         story.append(bullet_list([
-            "<b>Left sidebar</b>: global selectors (language, regime, month, feedstocks, plant parameters).",
-            "<b>Main area on the right</b>: three macro-tabs (Standard / Analysis / Results).",
+            "<b>Left sidebar</b>: product identity, language, theme, registry, feedstocks and plant parameters.",
+            "<b>Main area on the right</b>: four working modes as a numbered step selector (1 Standard / 2 Analysis / 3 Annual Results / 4 Planning &amp; BP).",
             "<b>Top header</b>: Metan.iQ brand with version and active regime.",
-            "<b>Footer</b>: legal links (Privacy, Terms), software version.",
+            "<b>Footer</b>: software version; Privacy, Terms and License in the legal expander at the bottom of the sidebar.",
         ]))
         story.append(subsec("3.1 Sidebar: global control panel"))
-        intro = "The sidebar contains the following control groups:"
+        intro = "From top to bottom, the sidebar contains the following control groups:"
         rows = [
             ["Language", "Selector IT / EN", "Switches labels, number and date format"],
-            ["Theme", "Light / Dark toggle", "WCAG AA palette switcher"],
-            ["Year / Month", "Number input / Select", "Working period"],
-            ["Plant ID", "Text input", "Multi-plant discriminator"],
-            ["Regime", "Radio DM 2022 / DM 2018 / FER2", "Changes GHG threshold and cap"],
-            ["Active feedstocks", "Multiselect", "Available columns in table"],
-            ["Plant net Sm3/h", "Number input (default 300)", "Authorisation cap"],
-            ["Aux factor", "Auto or manual", "Gross Sm3 / Net (default 1.29)"],
-            ["ep total", "Auto or manual", "Processing emissions (gCO2eq/MJ)"],
+            ["Theme", "Light / Dark toggle", "Light/dark palette switcher"],
+            ["Simulation registry", "Expander: company, address, plant, VAT, GSE code, sustainability officer",
+             "GSE/CB traceability in reports and exports"],
+            ["Applied regulations", "Informative expander", "Registry of the norms wired into the engine"],
+            ["Plant Size", "NET/GROSS radio + number input (default 300)",
+             "Authorisation cap Sm3/h; gross/net sync via aux"],
+            ["Technical &amp; GHG Config", "Expander: digestate, upgrading, off-gas, injection, heat, electricity",
+             "Determines ep_total and aux_factor (default 1.29, manual override)"],
+            ["Active feedstocks", "Search + multiselect by category", "Available columns in the daily table"],
             ["Manure credit", "Checkbox (default ON)", "Enables negative eec for manure"],
+            ["Manual / Demo / Legal", "Expander at sidebar bottom", "Manual PDF download, demo request, Privacy/Terms/License"],
         ]
         story.append(intro_table(intro, ["Section", "Control", "Function"], rows,
                                  col_widths=[30*mm, 50*mm, 90*mm]))
+        story.append(callout(
+            "Year, month and plant ID are <b>not</b> in the sidebar: they are "
+            "selected at the top of the Daily Operations panel (modes 1 and 2), "
+            "so each plant+year+month combination has its own isolated data set "
+            "in the database.", "info"
+        ))
         story.append(subsec("3.2 The four configuration modes"))
         story.append(p(
             "The main area presents the four tabs as a <b>numbered step "
@@ -682,6 +698,17 @@ def build_chapter_workflow(story, lang):
                 "<b>Cumulato Sm3/MWh/t</b> - progressivi mese.",
             ]
         ))
+        story.append(subsec("4.2 Selezione periodo e salvataggio automatico"))
+        story.append(p(
+            "In testa al pannello si scelgono <b>Anno</b>, <b>Periodo di "
+            "rendicontazione</b> (mese) e <b>ID impianto</b>: ogni combinazione "
+            "impianto+anno+mese ha un set di dati isolato nel database. Le "
+            "modifiche alla tabella sono <b>salvate automaticamente</b> (nessun "
+            "bottone Salva): a ogni modifica valida compare la conferma "
+            "<i>Auto-salvato HH:MM:SS</i>. Nell'expander <b>Operazioni mese</b> "
+            "sono disponibili <b>Ricarica da DB</b> (ripristina l'ultimo "
+            "salvataggio) e <b>Azzera mese</b> (riparte da tabella vuota)."
+        ))
         story.append(intro_list(
             "Sotto la tabella appaiono 4 metriche principali:",
             [
@@ -691,6 +718,15 @@ def build_chapter_workflow(story, lang):
                 "<b>Saving GHG (%)</b> con badge <b>COMPLIANT</b> / <b>NON COMPLIANT</b>",
             ],
             h2_title="4.3 KPI mensili"
+        ))
+        story.append(subsec("4.4 Consolidato REMI mese"))
+        story.append(p(
+            "Se sono presenti letture del contatore fiscale, il pannello "
+            "<b>Consolidato REMI</b> riepiloga i dati di cabina: volume Vb, "
+            "energia E (kWh), portata massima Qb, PCI medio, portata e potenza "
+            "media, energia specifica. L'energia specifica E/Vb deve "
+            "avvicinarsi a ~9.79 kWh/Sm3 (UNI EN 16723-1): scostamenti ampi "
+            "indicano biometano fuori specifica o errore di lettura."
         ))
     else:
         story.append(p(
@@ -721,6 +757,17 @@ def build_chapter_workflow(story, lang):
                 "<b>Cumulative Sm3/MWh/t</b> - month-to-date progressives.",
             ]
         ))
+        story.append(subsec("4.2 Period selection and auto-save"))
+        story.append(p(
+            "At the top of the panel you select <b>Year</b>, <b>Reporting "
+            "period</b> (month) and <b>Plant ID</b>: each plant+year+month "
+            "combination has an isolated data set in the database. Table "
+            "edits are <b>saved automatically</b> (no Save button): on every "
+            "valid change the confirmation <i>Auto-saved HH:MM:SS</i> appears. "
+            "The <b>Month operations</b> expander offers <b>Reload from DB</b> "
+            "(restores the last save) and <b>Reset month</b> (starts from an "
+            "empty table)."
+        ))
         story.append(intro_list(
             "Below the table, 4 main metrics are displayed:",
             [
@@ -730,6 +777,15 @@ def build_chapter_workflow(story, lang):
                 "<b>GHG Saving (%)</b> with <b>COMPLIANT</b> / <b>NON COMPLIANT</b> badge",
             ],
             h2_title="4.3 Monthly KPIs"
+        ))
+        story.append(subsec("4.4 Monthly REMI consolidation"))
+        story.append(p(
+            "If fiscal-meter readings are present, the <b>REMI "
+            "consolidation</b> panel summarises the metering-station data: "
+            "volume Vb, energy E (kWh), max flow Qb, average HHV/LHV, average "
+            "flow and power, specific energy. The specific energy E/Vb should "
+            "approach ~9.79 kWh/Sm3 (UNI EN 16723-1): large deviations "
+            "indicate off-spec biomethane or a reading error."
         ))
 
     # Cap 5 - Tab 2
@@ -755,6 +811,14 @@ def build_chapter_workflow(story, lang):
             "<b>ep</b> custom da bilancio energetico reale impianto.",
             "<b>etd</b> custom da rilievo logistico.",
         ]))
+        story.append(subsec("5.3 Ponderazione Umidita' / Sostanza Secca"))
+        story.append(p(
+            "Per ogni biomassa si puo' dichiarare la <b>sostanza secca reale "
+            "(%)</b> misurata sul carico: la resa standard viene riponderata "
+            "sul tenore di secco effettivo (UNI/TS 11567:2024), allineando il "
+            "calcolo alla qualita' reale della biomassa senza richiedere un "
+            "BMT di laboratorio."
+        ))
     else:
         story.append(p(
             "<b>Mode 2 - Analysis</b> (subtitle: <i>Standard + custom values - "
@@ -776,6 +840,14 @@ def build_chapter_workflow(story, lang):
             "<b>ep</b> custom from real plant energy balance.",
             "<b>etd</b> custom from logistic survey.",
         ]))
+        story.append(subsec("5.3 Moisture / Dry Matter weighting"))
+        story.append(p(
+            "For each feedstock you can declare the <b>actual dry matter "
+            "(%)</b> measured on the load: the standard yield is re-weighted "
+            "on the effective dry content (UNI/TS 11567:2024), aligning the "
+            "calculation with the real feedstock quality without requiring a "
+            "lab BMT."
+        ))
 
     # Cap 6 - Tab 3
     story.extend(section(t("ch6", lang)))
@@ -1088,10 +1160,12 @@ def build_chapter_10(story, lang):
             ["7", "Riferimenti normativi & Validazione"],
         ]
         story.append(data_table(["Pag.", "Contenuto"], rows, col_widths=[15*mm, 155*mm]))
-        story.append(subsec("10.2 Excel (4 fogli)"))
+        story.append(subsec("10.2 Excel mensile (6 fogli)"))
         story.append(bullet_list([
             "<b>Riepilogo Mensile</b> - esito, KPI principali, totali biomasse.",
             "<b>Operativita' Giornaliera</b> - tabella 26 colonne, 28-31 righe.",
+            "<b>Confronto Standard vs Analisi</b> - delta tra le due modalita'.",
+            "<b>Override Attivi</b> - BMT, sostanza secca e fattori emissivi in uso.",
             "<b>Anagrafica & Parametri</b> - voci tracciabilita' per audit.",
             "<b>Vincoli</b> - esito per ogni vincolo regime.",
         ]))
@@ -1109,6 +1183,19 @@ def build_chapter_10(story, lang):
             "Lista DDT di ingresso e fornitori.",
             "Dichiarazioni di sostenibilita' fornitori.",
         ]))
+        story.append(subsec("10.5 Export annuali e di pianificazione"))
+        story.append(p(
+            "Oltre agli export mensili, le modalita' 3 e 4 offrono:"
+        ))
+        story.append(bullet_list([
+            "<b>Excel consolidato annuale</b> e <b>Report PDF annuale</b> - sintesi 12 mesi (tab Risultati Annuali).",
+            "<b>Presentazione PPTX</b> - 8 slide annuali pronte per il management (python-pptx).",
+            "<b>Excel modificabile</b> - piano mensile riapribile e ricaricabile per iterare lo scenario.",
+            "<b>Excel snapshot</b> - fotografia immutabile dello scenario corrente.",
+            "<b>CSV piano mensile</b> - tabella di pianificazione per integrazione con altri sistemi.",
+            "<b>PDF Business Plan (15 anni)</b> - landscape brand Metan.iQ: parametri di input, KPI "
+            "CAPEX/IRR/NPV/payback, conto economico e flussi di cassa anno per anno, grafico cash flow equity.",
+        ]))
     else:
         story.append(subsec("10.1 Monthly PDF (7 pages)"))
         rows = [
@@ -1120,10 +1207,12 @@ def build_chapter_10(story, lang):
             ["7", "Regulatory references & Validation"],
         ]
         story.append(data_table(["Page", "Content"], rows, col_widths=[15*mm, 155*mm]))
-        story.append(subsec("10.2 Excel (4 sheets)"))
+        story.append(subsec("10.2 Monthly Excel (6 sheets)"))
         story.append(bullet_list([
             "<b>Monthly Summary</b> - outcome, main KPIs, feedstock totals.",
             "<b>Daily Operations</b> - 26-column table, 28-31 rows.",
+            "<b>Standard vs Analysis Comparison</b> - delta between the two modes.",
+            "<b>Active Overrides</b> - BMT, dry matter and emission factors in use.",
             "<b>Registry & Parameters</b> - traceability entries for audit.",
             "<b>Constraints</b> - outcome for each regime constraint.",
         ]))
@@ -1141,6 +1230,19 @@ def build_chapter_10(story, lang):
             "Incoming DDTs and supplier list.",
             "Supplier sustainability declarations.",
         ]))
+        story.append(subsec("10.5 Annual and planning exports"))
+        story.append(p(
+            "Besides the monthly exports, modes 3 and 4 offer:"
+        ))
+        story.append(bullet_list([
+            "<b>Annual consolidated Excel</b> and <b>annual PDF report</b> - 12-month summary (Annual Results tab).",
+            "<b>PPTX presentation</b> - 8 yearly slides ready for management (python-pptx).",
+            "<b>Editable Excel</b> - monthly plan that can be re-opened and re-loaded to iterate the scenario.",
+            "<b>Excel snapshot</b> - immutable picture of the current scenario.",
+            "<b>Monthly plan CSV</b> - planning table for integration with other systems.",
+            "<b>Business Plan PDF (15 years)</b> - landscape Metan.iQ brand: input parameters, "
+            "CAPEX/IRR/NPV/payback KPIs, P&amp;L and cash flows year by year, equity cash-flow chart.",
+        ]))
 
 
 def build_chapter_11(story, lang):
@@ -1151,8 +1253,8 @@ def build_chapter_11(story, lang):
         ["Sede legale", "Indirizzo sede legale"],
         ["Nome impianto", "Denominazione operativa"],
         ["Sede operativa", "Indirizzo impianto"],
-        ["Regime applicato", "DM 2022 / DM 2018 / FER2"],
-        ["Soglia normativa (%)", "80 / 70 / 65 / 60 / 50 a seconda regime"],
+        ["Regime applicato", "Biometano DM 2022 (app mono-regime)"],
+        ["Soglia normativa (%)", "80 / 70 / 65 secondo destinazione d'uso"],
         ["Comparatore fossile", "80 / 94 / 183 secondo uso finale"],
         ["Aux factor", "Da Config Tecnica o override"],
         ["EP totale", "Da Config Tecnica o override"],
@@ -1167,8 +1269,8 @@ def build_chapter_11(story, lang):
         ["Registered office", "Registered office address"],
         ["Plant name", "Operating name"],
         ["Operating site", "Plant address"],
-        ["Applied regime", "DM 2022 / DM 2018 / FER2"],
-        ["Regulatory threshold (%)", "80 / 70 / 65 / 60 / 50 depending on regime"],
+        ["Applied regime", "Biomethane DM 2022 (single-regime app)"],
+        ["Regulatory threshold (%)", "80 / 70 / 65 depending on end use"],
         ["Fossil comparator", "80 / 94 / 183 based on end use"],
         ["Aux factor", "From Tech Config or override"],
         ["EP total", "From Tech Config or override"],

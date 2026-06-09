@@ -350,7 +350,7 @@ def parse_it(value) -> float:
 #   - Biogas CHP (elettricita' diretta da motore): 183 gCO2eq/MJ (mix elettrico EU)
 #     [RED III Annex VI - electricity generation]
 COMPARATOR_BY_END_USE = {
-    "Elettricità/calore/immissione rete (nuovo ≥20/11/2023)": 80.0,
+    "Elettricità/calore/immissione rete (nuovo ≥1/1/2026)": 80.0,
     "Immissione rete/calore (esistente <10 MW, primi 15 anni)":   80.0,
     "Trasporti (BioGNL/BioCNG)":                              94.0,
 }
@@ -369,10 +369,11 @@ DEFAULT_PLANT_NET_SMCH = 300.0                 # Sm3/h netti autorizzati (defaul
 
 # ============================================================
 # SOGLIE RED III per destinazione d'uso biometano
-# (impianti nuovi >= 20/11/2023; per vecchi vedi D.Lgs. 5/2026 art. transitorio)
+# (80% per impianti in esercizio dal 1/1/2026 — art. 29(10)(d) Dir. 2018/2001
+#  consolidata post-RED III; per il transitorio vedi D.Lgs. 5/2026)
 # ============================================================
 END_USE_THRESHOLDS = {
-    "Elettricità/calore/immissione rete (nuovo ≥20/11/2023)": 0.80,
+    "Elettricità/calore/immissione rete (nuovo ≥1/1/2026)": 0.80,
     "Immissione rete/calore (esistente <10 MW, primi 15 anni)": 0.70,
     "Trasporti (BioGNL/BioCNG)": 0.65,
 }
@@ -4982,7 +4983,7 @@ with tab_tech:
         "🎯 " + _t("Destinazione biometano (→ soglia saving + comparator)"),
         list(END_USE_THRESHOLDS.keys()),
         index=0,
-        help=_t("RED III + D.Lgs. 5/2026: 80% per elettricita'/calore (impianto nuovo ≥20/11/2023), 70% per esistenti <10 MW primi 15 anni, 65% per trasporti. Il comparator fossile (80 per rete/calore, 94 per trasporti) viene aggiornato di conseguenza."),
+        help=_t("RED III + D.Lgs. 5/2026: 80% per elettricita'/calore (impianto nuovo ≥1/1/2026), 70% per esistenti <10 MW primi 15 anni, 65% per trasporti. Il comparator fossile (80 per rete/calore, 94 per trasporti) viene aggiornato di conseguenza."),
     )
     ghg_threshold = END_USE_THRESHOLDS[end_use]
     # FOSSIL_COMPARATOR (uppercase) e' una COSTANTE = 80 (RED III rete/calore).

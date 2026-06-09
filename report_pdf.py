@@ -701,7 +701,7 @@ def _build_methodology(ctx, styles):
         ("RED III · Direttiva (UE) 2023/2413",
          "Aggiornamento RED II. Annex V (biocarburanti/biometano) e "
          "Annex VI (biomassa per elettricità/calore). Soglie saving GHG: "
-         "80% biometano nuovi >= 20/11/2023, 65% biocarburanti trasporti, "
+         "80% biometano impianti in esercizio dal 1/1/2026, 65% biocarburanti trasporti, "
          "80% elettricità CHP. Comparator fossile: 80 gCO2/MJ "
          "(rete/calore), 94 (trasporti), 183 (elettricità EU mix)."),
         ("D.Lgs. 199/2021 + D.Lgs. 9 gennaio 2026, n. 5 (GU n. 15 del 20/01/2026, vigore 04/02/2026)",
