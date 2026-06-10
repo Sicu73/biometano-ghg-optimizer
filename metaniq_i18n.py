@@ -325,6 +325,7 @@ IT_EN: dict = {
     "Quota di metano non combusta o fuggita a monte. Tipico 1-2%.": "Share of unburned or upstream slipped methane. Typical 1-2%.",
     "Consumo ausiliari [% del netto in rete]": "Auxiliaries consumption [% of net to grid]",
     "Assorbimento elettrico dell'impianto di upgrading / compressione (tipico 5-8%).": "Electrical absorption of the upgrading / compression plant (typical 5-8%).",
+    "Software in fase di sviluppo — versione beta": "Software under development — beta version",
     "🧬 Fattori emissivi reali da relazione tecnica (opzionale)": "🧬 Real emission factors from technical report (optional)",
     "🧪 Override resa BMT certificata (opzionale, per biomassa)": "🧪 Certified BMT yield override (optional, per-feedstock)",
     "Taglia netta dell'impianto. Cambia il setpoint di produzione: tutte le biomasse vengono ricalcolate per centrare questo valore.": "Net plant size. Changes the production setpoint: all feedstocks are recalculated to center this value.",

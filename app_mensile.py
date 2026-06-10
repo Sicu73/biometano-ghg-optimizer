@@ -1907,7 +1907,32 @@ st.markdown(
             overflow-x: auto !important;
         }}
     }}
+    /* ---------- Dev banner (software in fase di sviluppo) ---------- */
+    @keyframes metaniqDevBlink {{
+        0%, 100% {{ opacity: 1; }}
+        50%      {{ opacity: 0.35; }}
+    }}
+    .methaniq-dev-banner {{
+        background: #F59E0B;
+        color: #15242E;
+        text-align: center;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        font-size: 0.82rem;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        padding: 10px 16px;
+        border-radius: 8px;
+        border: 1px solid #B45309;
+        margin-bottom: 16px;
+        box-shadow: none;
+        animation: metaniqDevBlink 1.2s ease-in-out infinite;
+    }}
+    @media (prefers-reduced-motion: reduce) {{
+        .methaniq-dev-banner {{ animation: none; }}
+    }}
     </style>
+    <div class="methaniq-dev-banner">&#128679; """ + _t("Software in fase di sviluppo — versione beta") + """ &#128679;</div>
     <div class="methaniq-header">
         <span class="eyebrow">// Decision Intelligence Platform</span>
         <h1>Metan<span style="color:""" + HERO_DOT + """; font-weight:700;">.</span>iQ</h1>
