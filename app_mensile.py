@@ -1241,7 +1241,7 @@ with st.sidebar:
                 font-weight: 500;
                 letter-spacing: 1.5px;
                 text-transform: uppercase;
-            '>{_brand_badge_label}</div>
+            '>{_t(_brand_badge_label)}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1938,7 +1938,7 @@ st.markdown(
         <h1>Metan<span style="color:""" + HERO_DOT + """; font-weight:700;">.</span>iQ</h1>
         <div class="tagline">""" + _t(_MODE["tagline"]) + """</div>
         <div class="pills">
-            <span class="pill accent">""" + _MODE["pill_main"] + """</span>
+            <span class="pill accent">""" + _t(_MODE["pill_main"]) + """</span>
             <span class="pill">""" + _MODE["pill_norm"] + """</span>
             <span class="pill">GSE LG 2024</span>
             <span class="pill">UNI-TS 11567:2024</span>
@@ -2701,7 +2701,7 @@ with st.sidebar:
 
         manual_aux_on = st.checkbox(_t("Override aux manuale"), False)
         if manual_aux_on:
-            aux_factor = st.number_input("aux manuale", 1.0, 2.0, round(aux_auto, 3), 0.005)
+            aux_factor = st.number_input(_t("aux manuale"), 1.0, 2.0, round(aux_auto, 3), 0.005)
         else:
             aux_factor = aux_auto
 
@@ -2730,7 +2730,7 @@ with st.sidebar:
     def _fmt_feed(_x):
         _d = FEEDSTOCK_DB[_x]
         _adv = ('🌽 cap30%' if _d.get('annex_ix') is None
-                else f"IX-{_d.get('annex_ix')} ✓avanzato")
+                else f"IX-{_d.get('annex_ix')} ✓{_t('avanzato')}")
         return (f"{_t(_x)} · eec={fmt_it(_d['eec'], 1, signed=True)} · "
                 f"{_adv} · ⓘ {_eec_origin(_x)}")
 
@@ -6519,7 +6519,7 @@ with tab_plan:
         with tab5:
             st.markdown("<div style='font-family:\"IBM Plex Mono\", monospace; font-size:0.7rem; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:#726C5E; margin-bottom:8px;'>// PRO FORMA · DM 2022</div>", unsafe_allow_html=True)
             st.subheader(_t("💼 Ricavi Annui"))
-            st.caption("Calcolo dei ricavi sulla base della tariffa incentivante (o premio) DM 2022 e della produzione di biometano.")
+            st.caption(_t("Calcolo dei ricavi sulla base della tariffa incentivante (o premio) DM 2022 e della produzione di biometano."))
 
             bp_cA, bp_cB = st.columns(2)
             bp_cA.metric("Ricavi anno regime", fmt_it(bp_result["ricavo_annuo"]/1000, 0, " k€/a"), delta=f"{fmt_it(bp_result['biometano_mwh_anno'], 0)} MWh/a")
