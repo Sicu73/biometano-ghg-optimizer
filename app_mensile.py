@@ -3,6 +3,8 @@
 # Metan.iQ - Biometano GHG Optimizer (DM 2022 / RED III)
 # Proprietary and confidential. See LICENSE for terms.
 # Commercial licensing: carlo.sicurini@gmail.com
+# build-marker 2026-06-10-i18n-en: forza redeploy completo Streamlit Cloud
+# (re-import metaniq_i18n fresco). Vedi footer "build EN-2" come canary live.
 """
 BioMethane Monthly Planner - Dual-Constraint Solver
 ---------------------------------------------------
@@ -2159,7 +2161,7 @@ st.markdown(
         font-family: 'Outfit', sans-serif;
     }}
     </style>
-    <div class="methaniq-fixed-footer">METAN.iQ · v{_APP_VERSION}</div>
+    <div class="methaniq-fixed-footer">METAN.iQ · v{_APP_VERSION} · build EN-2</div>
     """,
     unsafe_allow_html=True,
 )
