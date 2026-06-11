@@ -2,6 +2,8 @@
 """metaniq_i18n.py — Dizionario IT->EN completo per Metan.iQ."""
 from __future__ import annotations
 
+# cache-bust 2026-06-10: forza rigenerazione .pyc su Streamlit Cloud dopo il
+# batch di copertura EN (70 nuove chiavi). Stesso sintomo .pyc stale di constants.py.
 IT_EN: dict = {
     # Mesi
     "Gennaio":"January","Febbraio":"February","Marzo":"March","Aprile":"April",
@@ -858,5 +860,12 @@ IT_EN: dict = {
     "FORSU / Rifiuti": "OFMSW / Waste",
     "📚 Fonti normative biomasse attive (audit OdC)": "📚 Regulatory sources for active feedstocks (CB audit)",
     "BIOMETANO · DM 15/9/2022": "BIOMETHANE · DM 15/9/2022",
-    "Biometano · DM 2022": "Biomethane · DM 2022"
+    "Biometano · DM 2022": "Biomethane · DM 2022",
+
+    # --- Copertura EN 5° passaggio: residui label/placeholder (audit t==s esaustivo) ---
+    "Fonte": "Source",
+    "Esporta": "Export",
+    "Indirizzo dell'impianto": "Plant address",
+    "Codice Unico Impianto (Portale GSE).": "Plant Unique Code (GSE Portal).",
+    "Azienda / Impianto": "Company / Plant"
 }
