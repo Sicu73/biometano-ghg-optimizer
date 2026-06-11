@@ -3627,11 +3627,11 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             hide_index=True,
             column_config={
                 "Data": st.column_config.TextColumn(
-                    "Data", disabled=True,
+                    _t("Data"), disabled=True,
                     help=_t("Giorno del mese di rendicontazione."),
                 ),
                 _HOURS_COL: st.column_config.NumberColumn(
-                    _HOURS_COL, min_value=0.0, max_value=24.0,
+                    _t(_HOURS_COL), min_value=0.0, max_value=24.0,
                     step=0.25, format="%.2f",
                     help=_t("Ore di funzionamento dell'impianto. Formato decimale: "
                             "16.50 = 16h 30min, 16.25 = 16h 15min, 16.75 = 16h 45min. "
@@ -3645,42 +3645,42 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                     for _f in _do_active_feeds
                 },
                 _BIO_TOT_COL: st.column_config.NumberColumn(
-                    _BIO_TOT_COL, disabled=True, format="%.2f",
+                    _t(_BIO_TOT_COL), disabled=True, format="%.2f",
                     help=_t("Somma totale delle biomasse inserite nel giorno (t)"),
                 ),
                 _SMH_GROSS_COL: st.column_config.NumberColumn(
-                    _SMH_GROSS_COL, disabled=True, format="%.1f",
+                    _t(_SMH_GROSS_COL), disabled=True, format="%.1f",
                     help=_t("Biogas LORDO prodotto in 1 ora. "
                             "Calcolato = Resa teorica biomasse / ore di funzionamento."),
                 ),
                 _SMH_COL: st.column_config.NumberColumn(
-                    _SMH_COL, disabled=True, format="%.1f",
+                    _t(_SMH_COL), disabled=True, format="%.1f",
                     help=_t("Biometano NETTO immesso in rete in 1 ora. "
                             "Calcolato = Sm³ reali giorno / ore di funzionamento. "
                             "Cap autorizzato:") + f" {_cap_smch:,.0f}",
                 ),
                 _SAV_COL: st.column_config.TextColumn(
-                    _SAV_COL, disabled=True,
+                    _t(_SAV_COL), disabled=True,
                     help=_t("Saving GHG giornaliero (informativo). La compliance è mensile.")
                          + "  🟢 conforme (≥ soglia) · 🔴 sotto soglia",
                 ),
                 _OK_COL: st.column_config.TextColumn(
-                    _OK_COL, disabled=True, width="small",
+                    _t(_OK_COL), disabled=True, width="small",
                     help=_t("✅ giorno OK (entro cap e sopra soglia GHG) · "
                             "❌ violazione cap o saving sotto soglia · "
                             "— nessun dato. NB: la conformità ufficiale resta mensile."),
                 ),
                 "Note": st.column_config.TextColumn(
-                    "Note", disabled=True, width="medium",
+                    _t("Note"), disabled=True, width="medium",
                     help=_t("Dettaglio dell'esito (es. OK, Violazione cap, Saving sotto soglia)."),
                 ),
                 _REMI_VB_COL: st.column_config.NumberColumn(
-                    _REMI_VB_COL, min_value=0.0, format="%.0f",
+                    _t(_REMI_VB_COL), min_value=0.0, format="%.0f",
                     help=_t("Volume biometano reale misurato al REMI (Sm³) in questo giorno. "
                             "Questo valore viene diviso per le Ore per determinare gli Sm³/h netti."),
                 ),
                 _REMI_FLOW_COL: st.column_config.NumberColumn(
-                    _REMI_FLOW_COL, disabled=True, format="%.1f",
+                    _t(_REMI_FLOW_COL), disabled=True, format="%.1f",
                     help=_t("Portata media reale misurata al REMI = Sm³ reali / ore di funzionamento."),
                 ),
             },
@@ -4004,7 +4004,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             ]
             import pandas as _pd_cmp
             st.dataframe(
-                _pd_cmp.DataFrame(_cmp_rows),
+                translate_df(_pd_cmp.DataFrame(_cmp_rows), _LANG),
                 hide_index=True,
                 use_container_width=True,
             )
@@ -5464,11 +5464,11 @@ with tab_results:
     else:
         # Tabella riepilogativa annuale
         st.subheader(_t("📈 Piano Mensile Consolidato (da DB)"))
-        st.dataframe(df_res.style.format({
+        st.dataframe(translate_df(df_res, _LANG).style.format({_t(k): v for k, v in {
             "Ore": "{:.0f}", "Sm³ lordi": "{:,.0f}", "Sm³ netti": "{:,.0f}",
             "MWh netti": "{:,.1f}", "e_w": "{:.2f}", "Saving %": "{:.1f}%",
             "Totale biomasse (t)": "{:,.0f}"
-        }), use_container_width=True, hide_index=True)
+        }.items()}), use_container_width=True, hide_index=True)
 
         # --- SEZIONE REMI ---
         if "remi_vb" in df_res.columns and df_res["remi_vb"].sum() > 0:
@@ -5480,15 +5480,15 @@ with tab_results:
                 "remi_potenza_media", "remi_energia_specifica"
             ]
             st.dataframe(df_res[_remi_cols], column_config={
-                "Mese": st.column_config.TextColumn("Mese"),
-                "remi_vb": st.column_config.NumberColumn("Vb (Sm³)", format="%d"),
-                "remi_e": st.column_config.NumberColumn("E (kWh)", format="%d"),
-                "remi_qb_max": st.column_config.NumberColumn("Qb max (Sm³/h)", format="%.1f"),
-                "remi_pci": st.column_config.NumberColumn("PCI (kWh/Sm³)", format="%.4f"),
-                "remi_rho": st.column_config.NumberColumn("Rho (kg/Sm³)", format="%.4f"),
-                "remi_portata_media": st.column_config.NumberColumn("Portata Media (Sm³/h)", format="%.1f"),
-                "remi_potenza_media": st.column_config.NumberColumn("Potenza Media (MW)", format="%.3f"),
-                "remi_energia_specifica": st.column_config.NumberColumn("Energia Specif. (kWh/Sm³)", format="%.3f"),
+                "Mese": st.column_config.TextColumn(_t("Mese")),
+                "remi_vb": st.column_config.NumberColumn(_t("Vb (Sm³)"), format="%d"),
+                "remi_e": st.column_config.NumberColumn(_t("E (kWh)"), format="%d"),
+                "remi_qb_max": st.column_config.NumberColumn(_t("Qb max (Sm³/h)"), format="%.1f"),
+                "remi_pci": st.column_config.NumberColumn(_t("PCI (kWh/Sm³)"), format="%.4f"),
+                "remi_rho": st.column_config.NumberColumn(_t("Rho (kg/Sm³)"), format="%.4f"),
+                "remi_portata_media": st.column_config.NumberColumn(_t("Portata Media (Sm³/h)"), format="%.1f"),
+                "remi_potenza_media": st.column_config.NumberColumn(_t("Potenza Media (MW)"), format="%.3f"),
+                "remi_energia_specifica": st.column_config.NumberColumn(_t("Energia Specif. (kWh/Sm³)"), format="%.3f"),
             }, use_container_width=True, hide_index=True)
 
         # Logica Export (estratta dal Solver)
@@ -5576,7 +5576,7 @@ with tab_results:
             lambda v: fmt_it(v, 1)
         )
         st.dataframe(
-            df_yield_audit_disp, hide_index=True, use_container_width=True,
+            translate_df(df_yield_audit_disp, _LANG), hide_index=True, use_container_width=True,
         )
         st.caption(
             f"Origine resa = `{SOURCE_BMT}` se l'utente ha caricato un "
@@ -5614,7 +5614,7 @@ with tab_results:
                 df_ef_audit_disp[_c] = df_ef_audit_disp[_c].apply(
                     lambda v: fmt_it(v, 2, signed=(_c in ("eec standard", "eec usato", "e_total")))
                 )
-        st.dataframe(df_ef_audit_disp, hide_index=True, use_container_width=True)
+        st.dataframe(translate_df(df_ef_audit_disp, _LANG), hide_index=True, use_container_width=True)
         st.caption(
             f"Origine = `{EF_SOURCE_REAL}` se l'utente ha caricato la relazione "
             f"tecnica E ha attivato l'override per quella biomassa; altrimenti "
@@ -6062,9 +6062,9 @@ with tab_plan:
     df_disp["Sm³/h netti"] = df_disp["Sm³/h netti"].apply(lambda v: fmt_it(v, 1))
 
     col_cfg = {
-        "Mese": st.column_config.TextColumn("Mese", disabled=True),
+        "Mese": st.column_config.TextColumn(_t("Mese"), disabled=True),
         "Ore": st.column_config.TextColumn(
-            "Ore ✏️",
+            _t("Ore ✏️"),
             help="Ore operative del mese (modificabile, max 744)",
         ),
     }
@@ -6080,19 +6080,17 @@ with tab_plan:
             disabled=True,
             help=f"CALCOLATA dal solver – Resa {fmt_it(_yield_of(u), 0)} Nm³/t FM",
         )
-    col_cfg["Totale biomasse (t)"] = st.column_config.TextColumn("Tot. t", disabled=True)
-    "Sm³ lordi"
-    "Sm³ netti"
+    col_cfg["Totale biomasse (t)"] = st.column_config.TextColumn(_t("Tot. t"), disabled=True)
     col_cfg["Sm³ lordi"]   = st.column_config.TextColumn(
-        "Sm³ lordi", disabled=True,
+        _t("Sm³ lordi"), disabled=True,
         help="Sm³ biometano lordi (pre-perdite upgrading/processo)",
     )
     col_cfg["Sm³ netti"]   = st.column_config.TextColumn(
-        "Sm³ netti", disabled=True,
+        _t("Sm³ netti"), disabled=True,
         help="Sm³ biometano immessi in rete (post-aux_factor)",
     )
     col_cfg["MWh netti"]   = st.column_config.TextColumn(
-        "MWh netti",
+        _t("MWh netti"),
         disabled=True,
         help="Energia biometano netta immessa in rete",
     )
@@ -6104,11 +6102,11 @@ with tab_plan:
         help=f"Obbligatorio ≥ {fmt_it(ghg_threshold*100, 0, '%')} (RED III – {end_use})",
     )
     col_cfg["Sm³/h netti"] = st.column_config.TextColumn(
-        "Sm³/h netti", disabled=True,
+        _t("Sm³/h netti"), disabled=True,
         help=f"Obbligatorio ≤ {fmt_it(plant_net_smch, 0)} (tetto autorizzativo)",
     )
-    col_cfg["Validità"] = st.column_config.TextColumn("Validità", disabled=True, width="medium")
-    col_cfg["Note"] = st.column_config.TextColumn("Note", disabled=True, width="medium")
+    col_cfg["Validità"] = st.column_config.TextColumn(_t("Validità"), disabled=True, width="medium")
+    col_cfg["Note"] = st.column_config.TextColumn(_t("Note"), disabled=True, width="medium")
 
     edited = st.data_editor(
         df_disp,
@@ -6453,20 +6451,20 @@ with tab_plan:
         df_detail = pd.DataFrame(detail_rows)
 
         detail_col_cfg = {
-            "Biomassa":       st.column_config.TextColumn("Biomassa", disabled=True),
-            "t/anno (FM)":    st.column_config.TextColumn("t/anno (FM)", disabled=True),
-            "Resa (Nm³/t)":   st.column_config.TextColumn("Resa Nm³/t", disabled=True),
-            "Sm³ netti/anno": st.column_config.TextColumn("Sm³ netti/anno", disabled=True),
-            "MWh netti/anno": st.column_config.TextColumn("MWh netti/anno", disabled=True),
-            "Quota % MWh":    st.column_config.TextColumn("Quota % MWh", disabled=True),
+            "Biomassa":       st.column_config.TextColumn(_t("Biomassa"), disabled=True),
+            "t/anno (FM)":    st.column_config.TextColumn(_t("t/anno (FM)"), disabled=True),
+            "Resa (Nm³/t)":   st.column_config.TextColumn(_t("Resa Nm³/t"), disabled=True),
+            "Sm³ netti/anno": st.column_config.TextColumn(_t("Sm³ netti/anno"), disabled=True),
+            "MWh netti/anno": st.column_config.TextColumn(_t("MWh netti/anno"), disabled=True),
+            "Quota % MWh":    st.column_config.TextColumn(_t("Quota % MWh"), disabled=True),
             "Ricavi €/anno": st.column_config.TextColumn(
-                "Ricavi €/anno 🧮", disabled=True,
-                help=f"MWh netti × tariffa {_tar_unit} (si ricalcola al variare dei parametri)",
+                _t("Ricavi €/anno") + " 🧮", disabled=True,
+                help=_t("MWh netti × tariffa") + f" {_tar_unit} " + _t("(si ricalcola al variare dei parametri)"),
             ),
             f"Tariffa {_tar_unit}": st.column_config.TextColumn(
-                f"Tariffa {_tar_unit} ✏️",
-                help=f"Tariffa incentivante/PPA [{_tar_unit}] in formato "
-                     f"italiano (es. 1.234,56). Modificabile per simulazioni.",
+                _t("Tariffa") + f" {_tar_unit} ✏️",
+                help=_t("Tariffa incentivante/PPA") + f" [{_tar_unit}] "
+                     + _t("in formato italiano (es. 1.234,56). Modificabile per simulazioni."),
             ),
         }
 
