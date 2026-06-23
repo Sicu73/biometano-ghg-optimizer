@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 BioMethane Monthly Planner - Dual-Constraint Solver
 ---------------------------------------------------
@@ -1587,10 +1587,10 @@ def find_optimal_pair(aux: float, plant_net: float, ep: float,
 # UI
 # ===========================================================
 st.set_page_config(
-    page_title="Metan.iQ — Biometano (DM 2018/2022) & Biogas CHP (DM 2012/FER 2)",
+    page_title="Metan.iQ — Biometano DM 2022 (RED III)",
     page_icon="🧬",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 # ===========================================================
@@ -1735,71 +1735,16 @@ PLANT_CUI                 = st.session_state.get("plant_cui", "")
 RESPONSIBLE_NAME          = st.session_state.get("responsible_name", "")
 
 # ===========================================================
-# Metan.iQ Mode Selector (4 modalita' in griglia 2x2)
+# Metan.iQ Mode Selector (mono-mode: DM 2022 only)
 # ===========================================================
-_VALID_MODES = ("biometano", "biometano_2018",
-                "biogas_chp", "biogas_chp_fer2")
-if "app_mode" not in st.session_state:
-    st.session_state.app_mode = "biometano"
-
-# Migrazione automatica session_state da etichette legacy
-if st.session_state.app_mode not in _VALID_MODES:
-    st.session_state.app_mode = "biometano"
+_VALID_MODES = ("biometano",)
+_previous_app_mode = st.session_state.get("app_mode", "biometano")
+# Guardrail: migra sessioni legacy senza mascherare il valore precedente.
+if _previous_app_mode not in _VALID_MODES:
+    st.warning("Modalita legacy non supportata in questa versione: sessione reimpostata su Biometano DM 2022 (RED III).")
+st.session_state.app_mode = "biometano"
 
 with st.sidebar:
-    st.markdown(
-        f"""
-        <div style='font-size:0.7rem; font-weight:700; letter-spacing:1px; 
-             text-transform:uppercase; color:#64748B; margin-bottom:8px; margin-left:2px;'>
-             🏭 Regime Incentivante / Mode
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    # Riga 1: regimi BIOMETANO
-    _mc1, _mc2 = st.columns(2)
-    with _mc1:
-        if st.button(
-            "🧬 DM 2022",
-            use_container_width=True,
-            type="primary" if st.session_state.app_mode == "biometano" else "secondary",
-            key="btn_mode_biometano",
-            help="Biometano DM 15/9/2022 — tariffa diretta €/MWh. Saving RED III.",
-        ):
-            st.session_state.app_mode = "biometano"
-            st.rerun()
-    with _mc2:
-        if st.button(
-            "🌿 DM 2018",
-            use_container_width=True,
-            type="primary" if st.session_state.app_mode == "biometano_2018" else "secondary",
-            key="btn_mode_biometano_2018",
-            help="Biometano DM 2/3/2018 — sistema CIC (avanzato). Saving RED II/III.",
-        ):
-            st.session_state.app_mode = "biometano_2018"
-            st.rerun()
-    # Riga 2: regimi BIOGAS CHP
-    _mc3, _mc4 = st.columns(2)
-    with _mc3:
-        if st.button(
-            "⚡ CHP 2012",
-            use_container_width=True,
-            type="primary" if st.session_state.app_mode == "biogas_chp" else "secondary",
-            key="btn_mode_chp",
-            help="Biogas → cogenerazione DM 6/7/2012. Tariffa Omnicomprensiva + premio CAR.",
-        ):
-            st.session_state.app_mode = "biogas_chp"
-            st.rerun()
-    with _mc4:
-        if st.button(
-            "🔋 FER 2",
-            use_container_width=True,
-            type="primary" if st.session_state.app_mode == "biogas_chp_fer2" else "secondary",
-            key="btn_mode_chp_fer2",
-            help="Biogas CHP FER 2 (DM 19/06/2024) — taglia max 300 kWe, TR + premi.",
-        ):
-            st.session_state.app_mode = "biogas_chp_fer2"
-            st.rerun()
     st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
 
     # ============================================================
@@ -1899,51 +1844,19 @@ with st.sidebar:
             )
     st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
 
-APP_MODE       = st.session_state.app_mode
-IS_CHP_DM2012  = APP_MODE == "biogas_chp"
-IS_FER2        = APP_MODE == "biogas_chp_fer2"
-IS_CHP         = IS_CHP_DM2012 or IS_FER2  # branche condivise (kW input, motore, biogas grezzo)
-IS_DM2018      = APP_MODE == "biometano_2018"
-IS_DM2022      = APP_MODE == "biometano"
-# NB: branche "biometano generico" (DM 2022 + DM 2018) si esprimono come
-# `not IS_CHP` -- entrambi i regimi condividono upgrading/off-gas/iniezione.
-# `IS_CHP` cattura entrambi i CHP (DM 2012 + FER 2) per UI/calcoli condivisi;
-# `IS_FER2` differenzia solo le specificita' FER 2 (cap 300 kW, premi).
-# Comparator fossile aggiornato dinamicamente:
-#  - mode CHP (qualsiasi): 183 gCO2/MJ (mix elettrico EU)
-#  - mode DM 2022:         80 rete/elec/calore, 94 trasporti (per end_use)
-#  - mode DM 2018:         94 trasporti, 80 altri usi/CAR (per end_use)
-if IS_CHP:
-    FOSSIL_COMPARATOR = COMPARATOR_CHP
+APP_MODE  = "biometano"
+IS_DM2022 = True
+IS_CHP_DM2012 = False
+IS_FER2   = False
+IS_CHP    = False
+IS_DM2018 = False
+# Comparator fossile: DM 2022 aggiornato dinamicamente per end_use
+#  - 80 rete/elec/calore, 94 trasporti (per end_use)
 
 # ---------------------------------------------------------------------------
-# MODE_META — Single source of truth per le stringhe mode-specific
-# Sostituisce ternari nidificati IS_FER2/IS_CHP/IS_DM2018/IS_DM2022 ripetuti
-# in 5+ punti (header tagline/pill, sidebar badge, label/colonne export).
-# Per aggiungere un mode: aggiungere una entry e aggiornare le 5 chiavi.
+# MODE_META — DM 2022 only
 # ---------------------------------------------------------------------------
 _MODE_META: dict = {
-    "biogas_chp_fer2": {
-        "tagline":   "DM 19/06/2024 · CHP biogas piccoli impianti agricoli ≤300 kWe. Tariffa di Riferimento + premi matrice (≥80% sottoprodotti) e CAR. Periodo 20 anni, saving 80% RED III.",
-        "pill_main": "BIOGAS · CHP · FER 2 (≤300 kW)",
-        "pill_norm": "DM 19/06/2024 · FER 2",
-        "badge":     "Biogas · CHP · FER 2 (≤300 kW)",
-        "label":     "Biogas CHP FER 2 (≤300 kW)",
-    },
-    "biogas_chp": {
-        "tagline":   "Pianificazione e business case per impianti biogas cogenerativi (DM 6/7/2012, ≤1 MW). Bilancio elettrico-termico, tariffa T.O. e saving RED III.",
-        "pill_main": "BIOGAS · CHP · DM 6/7/2012",
-        "pill_norm": "RED III · D.LGS 5/2026",
-        "badge":     "Biogas · CHP · DM 6/7/2012",
-        "label":     "Biogas CHP DM 6/7/2012",
-    },
-    "biometano_2018": {
-        "tagline":   "DM 2/3/2018 · sistema CIC con double counting per matrici Annex IX (biometano avanzato). Pianificazione mensile, sostenibilità RED II/III e simulazione CIC.",
-        "pill_main": "BIOMETANO · DM 2/3/2018 · CIC",
-        "pill_norm": "RED II · ALL. IX (avanzato)",
-        "badge":     "Biometano · DM 2018 · CIC",
-        "label":     "Biometano DM 2018 (CIC)",
-    },
     "biometano": {  # DM 15/09/2022
         "tagline":   "DM 15/9/2022 · pianificazione mensile e ottimizzazione GHG per biometano: tariffa diretta €/MWh, saving RED III/D.Lgs. 5/2026 per uso finale.",
         "pill_main": "BIOMETANO · DM 15/9/2022",
@@ -1952,7 +1865,7 @@ _MODE_META: dict = {
         "label":     "Biometano DM 2022",
     },
 }
-_MODE = _MODE_META.get(APP_MODE, _MODE_META["biometano"])
+_MODE = _MODE_META["biometano"]
 
 IS_DARK = st.session_state.methaniq_theme == "dark"
 
@@ -2088,19 +2001,7 @@ st.markdown(
         border-radius: 24px !important;
         margin: 4px 8px !important;
     }}
-
-    /* Hiding utility language buttons */
-    div[data-testid="stColumn"] button[id*="it-hidden"], 
-    div[data-testid="stColumn"] button[id*="uk-hidden"] {{
-        display: none !important;
-    }}
-    /* Target via specific labels if IDs aren't enough */
-    button:has(div:contains("it-hidden")), 
-    button:has(div:contains("uk-hidden")) {{
-        display: none !important;
-    }}
-
-    /* ---------- Hero Header (Material You Style) ---------- */
+/* ---------- Hero Header (Material You Style) ---------- */
     .methaniq-header {{
         background: linear-gradient(135deg, {PRIMARY} 0%, {SECONDARY} 100%);
         padding: 56px;
@@ -2125,7 +2026,7 @@ st.markdown(
         color: white !important;
         font-size: 3.5rem !important;
         font-weight: 700 !important;
-        letter-spacing: -0.04em !important;
+        letter-spacing: 0 !important;
         margin: 0 !important;
         line-height: 1.1 !important;
     }}
@@ -2195,6 +2096,44 @@ st.markdown(
         margin: 32px 0;
         box-shadow: {SHADOW_CARD};
     }}
+
+    @media (max-width: 900px) {{
+        .block-container {{
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }}
+        .methaniq-header {{
+            padding: 28px 22px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }}
+        .methaniq-header::after {{
+            display: none;
+        }}
+        .methaniq-header h1 {{
+            font-size: 2.25rem !important;
+        }}
+        .methaniq-header .tagline {{
+            font-size: 1rem;
+            line-height: 1.45;
+        }}
+        .methaniq-header .pills {{
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 22px;
+        }}
+        .methaniq-header .pill {{
+            max-width: 100%;
+            padding: 7px 10px;
+            font-size: 0.72rem;
+            white-space: normal;
+        }}
+        .methaniq-credit {{
+            border-radius: 16px;
+            margin: 20px 0;
+            padding: 18px;
+        }}
+    }}
     </style>
     <div class="methaniq-header">
         <span class="eyebrow">// Decision Intelligence Platform</span>
@@ -2263,7 +2202,7 @@ with st.sidebar:
                 color: #FFFFFF;
                 font-size: 1.55em;
                 font-weight: 700;
-                letter-spacing: -0.8px;
+                letter-spacing: 0;
                 line-height: 1;
             '>Metan<span style="color:{ACCENT};">.</span>iQ</div>
             <div style='
@@ -2289,207 +2228,137 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### " + _t("🎯 Taglia Impianto"))
 
-    if IS_CHP:
-        # Parametri CHP: input utente in kW_el LORDI (potenza nominale motore),
-        # convertito internamente in Sm3/h CH4 al motore (unit del solver).
-        eta_el = st.slider(
-            _t("Efficienza elettrica CHP [η_el]"),
-            min_value=0.30, max_value=0.45,
-            value=ETA_EL_DEFAULT, step=0.01,
-            help=_t("Rendimento elettrico motore cogeneratore. Tipico 38-42% per motori biogas 500-1000 kWe (Jenbacher, MWM, Guascor)."),
+    # ── Modalità unità di misura: Netti o Lordi ──────────────────────────
+    _unit_key = "plant_input_unit"
+    if _unit_key not in st.session_state:
+        st.session_state[_unit_key] = "netti"
+
+    _unit_opts = [_t("Sm³/h NETTI"), _t("Sm³/h LORDI")]
+    _unit_idx  = 0 if st.session_state[_unit_key] == "netti" else 1
+    _unit_sel  = st.radio(
+        _t("📐 Inserisci taglia come"),
+        options=_unit_opts,
+        index=_unit_idx,
+        horizontal=True,
+        help=_t(
+            "• **Netti**: Sm³/h di biometano a valle dell'upgrading, pronti per l'iniezione o l'utilizzo (valore del Decreto e del contatore di rete).\n"
+            "• **Lordi**: Sm³/h di biogas grezzo in ingresso all'upgrading, prima della rimozione di CO₂ e delle perdite di processo."
+        ),
+        key="plant_unit_radio",
+    )
+    st.session_state[_unit_key] = "netti" if _unit_sel == _unit_opts[0] else "lordi"
+
+    # Fattore globale lordi->netti: legge aux_factor da Config. Tecnica
+    # (include upgrading slip + caldaia + CHP interno + margini)
+    # Default = DEFAULT_AUX_FACTOR = 1.29 (calcolato JRC-CONCAWE)
+    _aux_base = st.session_state.get("aux_factor", DEFAULT_AUX_FACTOR)
+    
+    # Toggle per sincronizzazione automatica o override manuale del lordo
+    if "override_gross_manual" not in st.session_state:
+        st.session_state.override_gross_manual = False
+        
+    _sync = st.toggle(
+        _t("Sincronizza Lordo con Config. Tecnica"), 
+        value=not st.session_state.override_gross_manual,
+        help=_t("Se attivo, il Lordo è calcolato automaticamente come Netto × aux_factor (da Config. Tecnica). Se disattivato, puoi inserire il Lordo manualmente.")
+    )
+    st.session_state.override_gross_manual = not _sync
+
+    if st.session_state[_unit_key] == "netti":
+        _plant_input_net = st.number_input(
+            "🎯 " + _t("Netto autorizzato [Sm³/h netti]"),
+            min_value=10.0, max_value=2000.0,
+            value=float(st.session_state.get("plant_net_smch_saved", DEFAULT_PLANT_NET_SMCH)),
+            step=5.0,
+            help=_t("Portata di biometano **netto** a valle upgrading. Valore contatore rete / decreto."),
+            key="input_smch_netti",
         )
-        eta_th = st.slider(
-            _t("Efficienza termica CHP [η_th]"),
-            min_value=0.30, max_value=0.50,
-            value=ETA_TH_DEFAULT, step=0.01,
-            help=_t("Rendimento termico recuperato (fumi + acqua motore). Tipico 40-45%. Per CAR richiesto PES > 10%."),
-        )
-        # Cap dimensionale: FER 2 ha hard cap a 300 kWe (DM 19/06/2024).
-        # DM 6/7/2012 fino a 1 MW agricolo (cap pratico 999 kWe per evitare
-        # passaggio a fascia successiva). Manteniamo max wide-range per
-        # consentire scenari simulativi anche fuori normativa.
-        if IS_FER2:
-            _kwe_min   = 50.0
-            _kwe_max   = FER2_KWE_CAP
-            _kwe_value = min(DEFAULT_PLANT_KWE_FER2, FER2_KWE_CAP)
-            _kwe_help  = _t("FER 2 (DM 19/06/2024): hard cap **{fmt_it(FER2_KWE_CAP, 0)} kWe**. Targa motore = potenza ai morsetti alternatore. Esempi tipici <300 kWe: Jenbacher JMC 312 GS = 250 kWe, MAN E0834 = 250 kWe.").replace("{fmt_it(FER2_KWE_CAP, 0)}", fmt_it(FER2_KWE_CAP, 0))
-        else:
-            _kwe_min   = 50.0
-            _kwe_max   = 10000.0
-            _kwe_value = DEFAULT_PLANT_KWE
-            _kwe_help  = _t("Potenza elettrica nominale al morsetti alternatore (dato di targa motore). Esempi: Jenbacher JMC 420 GS-BL = 999 kWe, MWM TCG 2020V20 = 2000 kWe. L'autoconsumo ausiliari viene sottratto separatamente qui sotto.")
-        plant_kwe = st.number_input(
-            "🎯 " + _t("Potenza elettrica LORDA (targa motore) [kW_el]")
-            + (f" — {_t('max ')}{fmt_it(FER2_KWE_CAP, 0)} {_t('kWe (cap FER 2)')}"
-               if IS_FER2 else ""),
-            min_value=_kwe_min, max_value=_kwe_max,
-            value=_kwe_value, step=10.0,
-            help=_kwe_help,
-        )
-        # Sanity check: se IS_FER2 e per qualche motivo plant_kwe > cap
-        # (es. riapertura pagina con valore precedente da altro mode)
-        if IS_FER2 and plant_kwe > FER2_KWE_CAP:
-            st.error(
-                f"❌ {_t('FER 2 prevede taglia max ')}**{fmt_it(FER2_KWE_CAP, 0)} kWe**. "
-                f"{_t('Impostato ')}{fmt_it(plant_kwe, 0)} kWe → {_t('fuori normativa.')}"
+        plant_net_smch = _plant_input_net
+        
+        # Calcolo lordo base
+        _gross_suggested = plant_net_smch * _aux_base
+        
+        if st.session_state.override_gross_manual:
+            # Inserimento manuale del lordo
+            plant_gross_smch = st.number_input(
+                "📥 " + _t("Lordo manuale [Sm³/h lordi]"),
+                min_value=plant_net_smch, max_value=10000.0,
+                value=float(st.session_state.get("plant_gross_smch_saved", _gross_suggested)),
+                step=5.0,
+                help=_t("Inserisci manualmente la portata di biogas lordo. Questo sovrascrive il fattore aux calcolato."),
+                key="input_smch_lordi_manual",
             )
-            plant_kwe = FER2_KWE_CAP
-        aux_el_pct = st.slider(
-            "⚙️ " + _t("Autoconsumo elettrico ausiliari [% del lordo]"),
-            min_value=0.0, max_value=20.0,
-            value=AUX_EL_DEFAULT * 100, step=0.5,
-            help=_t("Assorbimento elettrico dei servizi d'impianto (pompe alimentazione, agitatori digestori, desolforatore, soffiante, PLC, illuminazione, trattamento digestato). Tipico 8-10% del lordo. Impianti ben ottimizzati 5-7% (con FV a supporto). Impianti vecchi/biologie difficili 10-13%."),
-        ) / 100.0
-        # Potenza netta immessa in rete (quella che fattura)
-        plant_kwe_net = plant_kwe * (1.0 - aux_el_pct)
-        # Conversione: il CH4 serve per il LORDO (prima del prelievo aux)
-        # 1 Sm3/h CH4 eq → η_el × 9.97 kW_el lordo
-        plant_net_smch = plant_kwe / (eta_el * 9.97)  # Sm3/h CH4 eq al motore
-        st.caption(
-            f"📐 **{_t('Bilancio elettrico')}**: "
-            f"{fmt_it(plant_kwe, 0)} {_t('kW_el lordi −')} "
-            f"{fmt_it(plant_kwe * aux_el_pct, 0)} {_t('kW aux')} "
-            f"({fmt_it(aux_el_pct*100, 1, '%')}) = "
-            f"**{fmt_it(plant_kwe_net, 0)} {_t('kW_el netti')}** {_t('(rete). CH₄ al motore:')} "
-            f"{fmt_it(plant_net_smch, 1)} {_t('Sm³/h.')}"
-        )
-        colA, colB, colC = st.columns(3)
-        colA.metric("🔌 " + _t("Lordo motore"), fmt_it(plant_kwe, 0, " kWₑ"))
-        colB.metric("⚡ " + _t("Netto in rete"), fmt_it(plant_kwe_net, 0, " kWₑ"),
-                    delta=f"-{fmt_it(aux_el_pct*100, 1, '%')} {_t('aux')}")
-        colC.metric("🔥 " + _t("Termico"), fmt_it(plant_kwe * eta_th / eta_el, 0, " kW_th"))
+            # Aggiorno aux_factor in session_state per coerenza globale
+            if plant_net_smch > 0:
+                st.session_state["aux_factor"] = plant_gross_smch / plant_net_smch
+        else:
+            plant_gross_smch = _gross_suggested
+            st.caption(f"💡 {_t('Lordo calcolato')}: **{fmt_it(plant_gross_smch, 1)} Sm³/h** (aux {fmt_it(_aux_base, 3)})")
     else:
-        # ── Modalità unità di misura: Netti o Lordi ──────────────────────────
-        _unit_key = "plant_input_unit"
-        if _unit_key not in st.session_state:
-            st.session_state[_unit_key] = "netti"
-
-        _unit_opts = [_t("Sm³/h NETTI"), _t("Sm³/h LORDI")]
-        _unit_idx  = 0 if st.session_state[_unit_key] == "netti" else 1
-        _unit_sel  = st.radio(
-            _t("📐 Inserisci taglia come"),
-            options=_unit_opts,
-            index=_unit_idx,
-            horizontal=True,
-            help=_t(
-                "• **Netti**: Sm³/h di biometano a valle dell'upgrading, pronti per l'iniezione o l'utilizzo (valore del Decreto e del contatore di rete).\n"
-                "• **Lordi**: Sm³/h di biogas grezzo in ingresso all'upgrading, prima della rimozione di CO₂ e delle perdite di processo."
-            ),
-            key="plant_unit_radio",
+        # Modalità inserimento LORDI
+        _plant_input_gross = st.number_input(
+            "🎯 " + _t("Portata biogas grezzo [Sm³/h lordi]"),
+            min_value=10.0, max_value=10000.0,
+            value=float(st.session_state.get("plant_gross_smch_saved", DEFAULT_PLANT_NET_SMCH * _aux_base)),
+            step=5.0,
+            help=_t("Portata di biogas **lordo** in ingresso all'upgrading."),
+            key="input_smch_lordi",
         )
-        st.session_state[_unit_key] = "netti" if _unit_sel == _unit_opts[0] else "lordi"
-
-        # Fattore globale lordi->netti: legge aux_factor da Config. Tecnica
-        # (include upgrading slip + caldaia + CHP interno + margini)
-        # Default = DEFAULT_AUX_FACTOR = 1.29 (calcolato JRC-CONCAWE)
-        _aux_base = st.session_state.get("aux_factor", DEFAULT_AUX_FACTOR)
+        plant_gross_smch = _plant_input_gross
         
-        # Toggle per sincronizzazione automatica o override manuale del lordo
-        if "override_gross_manual" not in st.session_state:
-            st.session_state.override_gross_manual = False
-            
-        _sync = st.toggle(
-            _t("Sincronizza Lordo con Config. Tecnica"), 
-            value=not st.session_state.override_gross_manual,
-            help=_t("Se attivo, il Lordo è calcolato automaticamente come Netto × aux_factor (da Config. Tecnica). Se disattivato, puoi inserire il Lordo manualmente.")
+        if st.session_state.override_gross_manual:
+            plant_net_smch = st.number_input(
+                "📤 " + _t("Netto manuale [Sm³/h netti]"),
+                min_value=10.0, max_value=plant_gross_smch,
+                value=float(st.session_state.get("plant_net_smch_saved", plant_gross_smch / _aux_base)),
+                step=5.0,
+                key="input_smch_netti_manual",
+            )
+            if plant_net_smch > 0:
+                st.session_state["aux_factor"] = plant_gross_smch / plant_net_smch
+        else:
+            plant_net_smch = plant_gross_smch / _aux_base
+            st.caption(f"💡 {_t('Netto calcolato')}: **{fmt_it(plant_net_smch, 1)} Sm³/h** (aux {fmt_it(_aux_base, 3)})")
+
+    # Salvo i valori in session_state per ricordarli al prossimo switch
+    st.session_state["plant_net_smch_saved"]   = plant_net_smch
+    st.session_state["plant_gross_smch_saved"] = plant_gross_smch
+
+    # Riepilogo visivo lordi ↔ netti
+    _c1, _c2, _c3 = st.columns(3)
+    _c1.metric("📥 " + _t("Lordi"), fmt_it(plant_gross_smch, 0, " Sm³/h"))
+    _c2.metric("📤 " + _t("Netti"), fmt_it(plant_net_smch, 0, " Sm³/h"))
+    _c3.metric("⚙️ " + _t("aux"), fmt_it(st.session_state.get("aux_factor", _aux_base), 3))
+    
+    # Breakdown autoconsumi se disponibile (solo se non manuale o se vogliamo mostrare comunque i teorici)
+    _detail = st.session_state.get("aux_factor_detail", {})
+    if _detail and not st.session_state.override_gross_manual:
+        _f_heat = _detail.get("f_heat", 0)
+        _f_elec = _detail.get("f_elec", 0)
+        _f_slip = _detail.get("f_slip", 0)
+        _f_marg = _detail.get("f_margin", 0)
+        st.caption(
+            f"📊 **Breakdown autoconsumo** (% del lordo): "
+            f"🔥 Caldaia {fmt_it(_f_heat*100, 1, '%')} · "
+            f"⚡ CHP {fmt_it(_f_elec*100, 1, '%')} · "
+            f"💨 Slip {fmt_it(_f_slip*100, 1, '%')} · "
+            f"🔧 Margine {fmt_it(_f_marg*100, 1, '%')} "
+            f"→ Totale {fmt_it((_f_heat+_f_elec+_f_slip+_f_marg)*100, 1, '%')} ≡ aux {fmt_it(_aux_base, 3)}"
         )
-        st.session_state.override_gross_manual = not _sync
+    else:
+        _up_eff_base = 1.0 / _aux_base if _aux_base > 0 else 0.8
+        st.caption(
+            _t("ℹ️ Vai in **Config. Tecnica** per calcolare il fattore lordi/netti reale "
+               "(include upgrading, caldaia e CHP interno). Ora uso default: "
+               f"aux = {fmt_it(_aux_base, 3)} ({fmt_it((1-_up_eff_base)*100, 0, '%')} autoconsumo totale).")
+        )
 
-        if st.session_state[_unit_key] == "netti":
-            _plant_input_net = st.number_input(
-                "🎯 " + _t("Netto autorizzato [Sm³/h netti]"),
-                min_value=10.0, max_value=2000.0,
-                value=float(st.session_state.get("plant_net_smch_saved", DEFAULT_PLANT_NET_SMCH)),
-                step=5.0,
-                help=_t("Portata di biometano **netto** a valle upgrading. Valore contatore rete / decreto."),
-                key="input_smch_netti",
-            )
-            plant_net_smch = _plant_input_net
-            
-            # Calcolo lordo base
-            _gross_suggested = plant_net_smch * _aux_base
-            
-            if st.session_state.override_gross_manual:
-                # Inserimento manuale del lordo
-                plant_gross_smch = st.number_input(
-                    "📥 " + _t("Lordo manuale [Sm³/h lordi]"),
-                    min_value=plant_net_smch, max_value=10000.0,
-                    value=float(st.session_state.get("plant_gross_smch_saved", _gross_suggested)),
-                    step=5.0,
-                    help=_t("Inserisci manualmente la portata di biogas lordo. Questo sovrascrive il fattore aux calcolato."),
-                    key="input_smch_lordi_manual",
-                )
-                # Aggiorno aux_factor in session_state per coerenza globale
-                if plant_net_smch > 0:
-                    st.session_state["aux_factor"] = plant_gross_smch / plant_net_smch
-            else:
-                plant_gross_smch = _gross_suggested
-                st.caption(f"💡 {_t('Lordo calcolato')}: **{fmt_it(plant_gross_smch, 1)} Sm³/h** (aux {fmt_it(_aux_base, 3)})")
-        else:
-            # Modalità inserimento LORDI
-            _plant_input_gross = st.number_input(
-                "🎯 " + _t("Portata biogas grezzo [Sm³/h lordi]"),
-                min_value=10.0, max_value=10000.0,
-                value=float(st.session_state.get("plant_gross_smch_saved", DEFAULT_PLANT_NET_SMCH * _aux_base)),
-                step=5.0,
-                help=_t("Portata di biogas **lordo** in ingresso all'upgrading."),
-                key="input_smch_lordi",
-            )
-            plant_gross_smch = _plant_input_gross
-            
-            if st.session_state.override_gross_manual:
-                plant_net_smch = st.number_input(
-                    "📤 " + _t("Netto manuale [Sm³/h netti]"),
-                    min_value=10.0, max_value=plant_gross_smch,
-                    value=float(st.session_state.get("plant_net_smch_saved", plant_gross_smch / _aux_base)),
-                    step=5.0,
-                    key="input_smch_netti_manual",
-                )
-                if plant_net_smch > 0:
-                    st.session_state["aux_factor"] = plant_gross_smch / plant_net_smch
-            else:
-                plant_net_smch = plant_gross_smch / _aux_base
-                st.caption(f"💡 {_t('Netto calcolato')}: **{fmt_it(plant_net_smch, 1)} Sm³/h** (aux {fmt_it(_aux_base, 3)})")
-
-        # Salvo i valori in session_state per ricordarli al prossimo switch
-        st.session_state["plant_net_smch_saved"]   = plant_net_smch
-        st.session_state["plant_gross_smch_saved"] = plant_gross_smch
-
-        # Riepilogo visivo lordi ↔ netti
-        _c1, _c2, _c3 = st.columns(3)
-        _c1.metric("📥 " + _t("Lordi"), fmt_it(plant_gross_smch, 0, " Sm³/h"))
-        _c2.metric("📤 " + _t("Netti"), fmt_it(plant_net_smch, 0, " Sm³/h"))
-        _c3.metric("⚙️ " + _t("aux"), fmt_it(st.session_state.get("aux_factor", _aux_base), 3))
-        
-        # Breakdown autoconsumi se disponibile (solo se non manuale o se vogliamo mostrare comunque i teorici)
-        _detail = st.session_state.get("aux_factor_detail", {})
-        if _detail and not st.session_state.override_gross_manual:
-            _f_heat = _detail.get("f_heat", 0)
-            _f_elec = _detail.get("f_elec", 0)
-            _f_slip = _detail.get("f_slip", 0)
-            _f_marg = _detail.get("f_margin", 0)
-            st.caption(
-                f"📊 **Breakdown autoconsumo** (% del lordo): "
-                f"🔥 Caldaia {fmt_it(_f_heat*100, 1, '%')} · "
-                f"⚡ CHP {fmt_it(_f_elec*100, 1, '%')} · "
-                f"💨 Slip {fmt_it(_f_slip*100, 1, '%')} · "
-                f"🔧 Margine {fmt_it(_f_marg*100, 1, '%')} "
-                f"→ Totale {fmt_it((_f_heat+_f_elec+_f_slip+_f_marg)*100, 1, '%')} ≡ aux {fmt_it(_aux_base, 3)}"
-            )
-        else:
-            _up_eff_base = 1.0 / _aux_base if _aux_base > 0 else 0.8
-            st.caption(
-                _t("ℹ️ Vai in **Config. Tecnica** per calcolare il fattore lordi/netti reale "
-                   "(include upgrading, caldaia e CHP interno). Ora uso default: "
-                   f"aux = {fmt_it(_aux_base, 3)} ({fmt_it((1-_up_eff_base)*100, 0, '%')} autoconsumo totale).")
-            )
-
-        # Per coerenza in mode biometano: eta_el/eta_th/aux_el_pct non usati
-        eta_el      = ETA_EL_DEFAULT
-        eta_th      = ETA_TH_DEFAULT
-        aux_el_pct  = 0.0
-        plant_kwe     = plant_net_smch * eta_el * 9.97   # info-only
-        plant_kwe_net = plant_kwe
+    # Per coerenza in mode biometano: eta_el/eta_th/aux_el_pct non usati
+    eta_el      = ETA_EL_DEFAULT
+    eta_th      = ETA_TH_DEFAULT
+    aux_el_pct  = 0.0
+    plant_kwe     = plant_net_smch * eta_el * 9.97   # info-only
+    plant_kwe_net = plant_kwe
 
     st.markdown("---")
     with st.sidebar.expander("⚙️ " + _t("Config. Tecnica & GHG"), expanded=False):
@@ -2500,23 +2369,16 @@ with st.sidebar:
             help=_t("RED III All.V Parte C: APERTO o CHIUSO con recupero gas."),
         )
         
-        if IS_CHP:
-            upgrading_opt = None
-            offgas_opt = None
-            injection_opt = None
-            ep_upgrading = 0.0
-            ep_offgas = 0.0
-        else:
-            upgrading_opt = st.selectbox(_t("Tecnologia upgrading"),
-                                          list(EP_UPGRADING.keys()), index=1)
-            offgas_opt = st.selectbox(_t("Combustione off-gas"),
-                                       list(EP_OFFGAS.keys()), index=0)
-            ep_upgrading = EP_UPGRADING[upgrading_opt]
-            ep_offgas = EP_OFFGAS[offgas_opt]
-            injection_opt = st.selectbox(
-                _t("Iniezione in rete"),
-                list(INJECTION_PRESSURE.keys()), index=1
-            )
+        upgrading_opt = st.selectbox(_t("Tecnologia upgrading"),
+                                      list(EP_UPGRADING.keys()), index=1)
+        offgas_opt = st.selectbox(_t("Combustione off-gas"),
+                                   list(EP_OFFGAS.keys()), index=0)
+        ep_upgrading = EP_UPGRADING[upgrading_opt]
+        ep_offgas = EP_OFFGAS[offgas_opt]
+        injection_opt = st.selectbox(
+            _t("Iniezione in rete"),
+            list(INJECTION_PRESSURE.keys()), index=1
+        )
 
         heat_opt = st.selectbox(_t("Fonte calore"), list(EP_HEAT.keys()), index=0)
         elec_opt = st.selectbox(_t("Elettricità ausiliari"), list(EP_ELEC.keys()), index=1)
@@ -2532,25 +2394,19 @@ with st.sidebar:
         st.markdown("---")
         margin_pct = st.slider(_t("Margine/Downtime [%]"), 0.0, 10.0, 3.0, 0.5)
         
-        if IS_CHP:
-            aux_auto = 1.0 / max(1.0 - margin_pct / 100.0, 0.80)
-            aux_auto_data = None
-            cogen_frac = 0.0
-            recover_chp_heat = False
-        else:
-            cogen_frac = 0.6
-            recover_chp_heat = True
-            if elec_opt == ELEC_IS_INTERNAL:
-                c1, c2 = st.columns(2)
-                cogen_frac = c1.number_input("% Cogen", 0.0, 100.0, 60.0) / 100.0
-                recover_chp_heat = c2.checkbox("Recupero Q", True)
-            
-            aux_auto_data = compute_aux_factor(
-                upgrading_opt=upgrading_opt, heat_opt=heat_opt, elec_opt=elec_opt,
-                injection_opt=injection_opt, margin=margin_pct/100.0,
-                cogen_fraction=cogen_frac, recover_chp_heat=recover_chp_heat
-            )
-            aux_auto = aux_auto_data["aux_factor"]
+        cogen_frac = 0.6
+        recover_chp_heat = True
+        if elec_opt == ELEC_IS_INTERNAL:
+            c1, c2 = st.columns(2)
+            cogen_frac = c1.number_input("% Cogen", 0.0, 100.0, 60.0) / 100.0
+            recover_chp_heat = c2.checkbox("Recupero Q", True)
+
+        aux_auto_data = compute_aux_factor(
+            upgrading_opt=upgrading_opt, heat_opt=heat_opt, elec_opt=elec_opt,
+            injection_opt=injection_opt, margin=margin_pct/100.0,
+            cogen_fraction=cogen_frac, recover_chp_heat=recover_chp_heat
+        )
+        aux_auto = aux_auto_data["aux_factor"]
             
         manual_aux_on = st.checkbox(_t("Override aux manuale"), False)
         if manual_aux_on:
@@ -3083,63 +2939,22 @@ with tab_tech:
     st.header(_t("🏭 Configurazione impianto (ep)"))
     st.caption(_t("I parametri impiantistici concorrono a `ep` (processing), che incide direttamente sul saving GHG ex RED III."))
 
-    # Destinazione d'uso -> soglia GHG saving (mode-aware)
-    if IS_CHP:
-        # Per biogas CHP: solo destinazione elettrica, soglia 80% (RED III).
-        # Comparator 183 gCO2/MJ (mix elettrico EU).
-        end_use = ("Elettricità CHP — FER 2 (DM 19/06/2024, ≤300 kW)"
-                   if IS_FER2 else "Elettricità CHP — DM 6/7/2012 (≤1 MW)")
-        ghg_threshold = 0.80
-        # FOSSIL_COMPARATOR gia' settato a 183 nel mode selector
-        if IS_FER2:
-            st.info(
-                "🔋 **Biogas → CHP FER 2** (DM 19/06/2024) · Taglia max "
-                f"**{fmt_it(FER2_KWE_CAP, 0)} kWe** · Comparator fossile "
-                "RED III: **183 gCO₂/MJ** (mix elettrico EU) · "
-                "Soglia saving: 80% · Periodo incentivo: 20 anni"
-            )
-        else:
-            st.info(
-                "⚡ **Biogas → CHP DM 6/7/2012** · Taglia tipica ≤1 MWe "
-                "agricolo · Comparator fossile RED III: **183 gCO₂/MJ** "
-                "(mix elettrico EU) · Soglia saving: 80%"
-            )
-    elif IS_DM2018:
-        # DM 2 marzo 2018: 4 destinazioni d'uso con soglie/comparator distinti.
-        end_use = st.selectbox(
-            "🎯 " + _t("Destinazione biometano (→ soglia saving + comparator)"),
-            list(DM2018_END_USES.keys()),
-            index=0,
-            help=_t("DM 2018: trasporti -> CIC con double counting per matrici Annex IX (avanzato). Altri usi/CAR -> tariffa diretta €/MWh (no CIC). Soglia saving e comparator fossile cambiano per uso finale."),
-        )
-        _du = DM2018_END_USES[end_use]
-        ghg_threshold = _du["sav"]
-        FOSSIL_COMPARATOR = _du["cmp"]
-        st.caption(
-            f"📐 Comparator fossile **{fmt_it(FOSSIL_COMPARATOR, 0)} "
-            f"gCO₂/MJ** "
-            + ("(diesel sostituito · trasporti)" if FOSSIL_COMPARATOR == 94.0
-               else "(gas naturale sostituito · rete/calore/CAR)")
-            + (" · CIC double-counting attivo se matrice Annex IX"
-               if _du["cic_premium"] else " · sistema tariffa fissa (no CIC)")
-        )
-    else:
-        # DM 15 settembre 2022 (default biometano)
-        end_use = st.selectbox(
-            "🎯 " + _t("Destinazione biometano (→ soglia saving + comparator)"),
-            list(END_USE_THRESHOLDS.keys()),
-            index=0,
-            help=_t("RED III + D.Lgs. 5/2026: 80% per elettricita'/calore (impianto nuovo ≥20/11/2023), 70% per esistenti <10 MW primi 15 anni, 65% per trasporti. Il comparator fossile (80 per rete/calore, 94 per trasporti) viene aggiornato di conseguenza."),
-        )
-        ghg_threshold = END_USE_THRESHOLDS[end_use]
-        # Comparator mode-aware: 80 per rete/elec/calore, 94 per trasporti
-        FOSSIL_COMPARATOR = COMPARATOR_BY_END_USE[end_use]
-        st.caption(
-            f"📐 Comparator fossile RED III: **{fmt_it(FOSSIL_COMPARATOR, 0)} "
-            f"gCO₂/MJ** "
-            + ("(gas naturale sostituito)" if FOSSIL_COMPARATOR == 80.0
-               else "(diesel sostituito)")
-        )
+    # Destinazione d'uso -> soglia GHG saving (DM 2022)
+    end_use = st.selectbox(
+        "🎯 " + _t("Destinazione biometano (→ soglia saving + comparator)"),
+        list(END_USE_THRESHOLDS.keys()),
+        index=0,
+        help=_t("RED III + D.Lgs. 5/2026: 80% per elettricita'/calore (impianto nuovo ≥20/11/2023), 70% per esistenti <10 MW primi 15 anni, 65% per trasporti. Il comparator fossile (80 per rete/calore, 94 per trasporti) viene aggiornato di conseguenza."),
+    )
+    ghg_threshold = END_USE_THRESHOLDS[end_use]
+    # Comparator mode-aware: 80 per rete/elec/calore, 94 per trasporti
+    FOSSIL_COMPARATOR = COMPARATOR_BY_END_USE[end_use]
+    st.caption(
+        f"📐 Comparator fossile RED III: **{fmt_it(FOSSIL_COMPARATOR, 0)} "
+        f"gCO₂/MJ** "
+        + ("(gas naturale sostituito)" if FOSSIL_COMPARATOR == 80.0
+           else "(diesel sostituito)")
+    )
     target_saving = ghg_threshold + 0.01  # +1 pp margine sicurezza
     target_e_max = FOSSIL_COMPARATOR * (1 - target_saving)
     max_allowed_e = FOSSIL_COMPARATOR * (1 - ghg_threshold)
@@ -3148,161 +2963,16 @@ with tab_tech:
               delta=f"{_t('target solver')} {fmt_it(target_saving * 100, 0, '%')}")
 
 with tab_bp:
-    # ============================================================
-    # DM 2018 — Configurazione CIC e classificazione avanzato
-    # ============================================================
-    if IS_DM2018:
-        st.divider()
-        st.header(_t("🌿 DM 2018 — Sistema CIC"))
-
-        # Conteggio Annex IX tra biomasse attive
-        n_annex = sum(
-            1 for f in active_feeds
-            if FEEDSTOCK_DB[f].get("annex_ix") in ("A", "B")
-        )
-        n_total = max(len(active_feeds), 1)
-        annex_pct_count = n_annex / n_total
-
-        st.caption(
-            f"📋 **Matrice attiva**: {n_annex} di {n_total} biomasse "
-            f"selezionate sono classificate Annex IX RED II/III "
-            f"({fmt_it(annex_pct_count*100, 0, '%')} per numero). "
-            f"La quota effettiva in MASSA dell'impianto viene calcolata in "
-            f"tab «🥧 Mix annuale» ed e' quella che determina lo status "
-            f"avanzato dell'impianto."
-        )
-
-        # Soglia configurabile per "avanzato"
-        annex_threshold = st.slider(
-            _t("Soglia massa Annex IX per status «avanzato» [%]"),
-            min_value=50.0, max_value=100.0,
-            value=ANNEX_IX_THRESHOLD * 100, step=5.0,
-            help=_t("Quota minima in MASSA di feedstock Annex IX richiesta per qualificare l'impianto come «biometano avanzato» (double counting CIC). Default 70% (interpretazione GSE). Alcune autorita' richiedono 100% per evitare contestazioni."),
-        ) / 100.0
-
-        advanced_mode = st.radio(
-            _t("Classificazione impianto"),
-            [_t("Auto (calcolata da matrice annuale)"),
-             _t("Forza AVANZATO (override manuale)"),
-             _t("Forza NON avanzato (override manuale)")],
-            index=0,
-            help=_t("«Auto» determina lo status dalla quota in massa Annex IX vs soglia. Override solo se hai certificazione GSE specifica o vincoli contrattuali."),
-        )
-
-        # Valore CIC
-        cic_price = st.number_input(
-            "💰 " + _t("Valore CIC [€/CIC]"),
-            min_value=0.0, max_value=600.0,
-            value=CIC_PRICE_DEFAULT, step=5.0,
-            help=f"{_t('Prezzo medio unitario del CIC. Riferimento GSE base ~')}{fmt_it(CIC_PRICE_DEFAULT, 0)} {_t('€/CIC; sul mercato secondario (operatori obbligati) tipicamente 300-450 €/CIC. Valore solo per simulazione ricavi.')}",
-        )
-
-        # Caption attiva CIC double counting solo se uso ammette CIC
-        _cic_active = DM2018_END_USES[end_use]["cic_premium"]
-        if _cic_active:
-            st.success(
-                f"✅ **Sistema CIC attivo** · 1 CIC = "
-                f"{fmt_it(MWH_PER_CIC, 2)} MWh "
-                f"({fmt_it(GCAL_PER_CIC, 0)} Gcal). Biometano avanzato → "
-                f"double counting → 1 CIC ogni "
-                f"{fmt_it(MWH_PER_CIC/2, 2)} MWh "
-                f"({fmt_it(GCAL_PER_CIC/2, 0)} Gcal)."
-            )
-        else:
-            st.warning(
-                "ℹ️ **Uso non ammesso al sistema CIC**: per «altri usi» "
-                "e CAR il DM 2018 prevede tariffa diretta €/MWh, NON CIC. "
-                "Il prezzo CIC inserito sopra non viene applicato."
-            )
-    else:
-        # Default per tutte le mode che non sono DM 2018 (dummy non usati)
-        annex_threshold = ANNEX_IX_THRESHOLD
-        advanced_mode = "Auto (calcolata da matrice annuale)"
-        cic_price = 0.0
-
-    # ============================================================
-    # FER 2 — Configurazione tariffa + premi + check matrice
-    # ============================================================
-    if IS_FER2:
-        st.divider()
-        st.header(_t("🔋 FER 2 — Tariffa e premi"))
-
-        # Sottoprodotti = Annex IX A/B + effluenti zootecnici (gia' tutti
-        # marcati Annex IX A nel DB), tutto tranne le colture dedicate.
-        # Soglia FER 2: ≥ 80% in MASSA da NON colture dedicate.
-        # Gia' calcolato in tab4 (annex_mass_share usa Annex IX A/B che
-        # corrisponde a tutto cio' che NON e' coltura dedicata).
-        n_subprod = sum(
-            1 for f in active_feeds
-            if FEEDSTOCK_DB[f].get("annex_ix") in ("A", "B")
-        )
-        n_total = max(len(active_feeds), 1)
-        st.caption(
-            f"📋 **Matrice attiva**: {n_subprod} di {n_total} biomasse "
-            f"sono sottoprodotti/effluenti (no colture dedicate). "
-            f"FER 2 richiede **≥ 80% in MASSA** da sottoprodotti — "
-            f"verifica reale calcolata in tab «🥧 Mix annuale» con "
-            f"i tonnellaggi mensili."
-        )
-
-        fer2_matrice_threshold = st.slider(
-            _t("Soglia massa sottoprodotti per accesso FER 2 [%]"),
-            min_value=70.0, max_value=100.0,
-            value=FER2_FEEDSTOCK_REQ_THRESHOLD * 100, step=5.0,
-            help=_t("Quota minima sottoprodotti/effluenti zootecnici/residui per qualificare l'impianto a FER 2. Default ") + f"{fmt_it(FER2_FEEDSTOCK_REQ_THRESHOLD*100, 0, '%')} " + _t("(DM 18/9/2024). Cap residuo per colture dedicate: 20%."),
-        ) / 100.0
-
-        st.subheader(_t("💰 Tariffa FER 2 [€/MWh_el]"))
-        fer2_tariffa_base = st.number_input(
-            _t("Tariffa di Riferimento (TR) base"),
-            min_value=0.0, max_value=500.0,
-            value=FER2_TARIFFA_BASE_DEFAULT, step=1.0,
-            help=f"{_t('Tariffa di Riferimento FER 2 base, applicata ai MWh_el NETTI immessi in rete. Default ')}{fmt_it(FER2_TARIFFA_BASE_DEFAULT, 0)} {_t('€/MWh_el (piccoli impianti agricoli ≤300 kWe). Variabile per fascia/asta/registro: aggiorna se hai aggiudicato con tariffa specifica.')}",
-        )
-
-        col_pa, col_pb = st.columns(2)
-        with col_pa:
-            fer2_premio_matrice_attivo = st.checkbox(
-                f"{_t('Premio matrice')} (+{fmt_it(FER2_PREMIO_MATRICE_DEFAULT, 0)} €/MWh)",
-                value=True,
-                help=f"{_t('Premio per matrice ≥')}{fmt_it(FER2_FEEDSTOCK_REQ_THRESHOLD*100, 0, '%')} {_t('sottoprodotti/effluenti. Si attiva automaticamente in tab «Ricavi» se la quota in massa supera la soglia.')}",
-            )
-        with col_pb:
-            fer2_premio_car_attivo = st.checkbox(
-                f"{_t('Premio CAR')} (+{fmt_it(FER2_PREMIO_CAR_DEFAULT, 0)} €/MWh)",
-                value=True,
-                help=_t("Premio Cogenerazione ad Alto Rendimento. Richiede PES > 10% (η_el + η_th_recuperato ≥ 75-80%). Verifica certificato CAR del GSE."),
-            )
-
-        fer2_premio_matrice_eur = st.number_input(
-            _t("Valore premio matrice [€/MWh]"),
-            min_value=0.0, max_value=100.0,
-            value=FER2_PREMIO_MATRICE_DEFAULT, step=1.0,
-            help=_t("Valore del premio matrice (sommato alla TR base se la soglia matrice e' raggiunta)."),
-        )
-        fer2_premio_car_eur = st.number_input(
-            _t("Valore premio CAR [€/MWh]"),
-            min_value=0.0, max_value=50.0,
-            value=FER2_PREMIO_CAR_DEFAULT, step=1.0,
-            help=_t("Valore del premio CAR (sommato alla TR base se attivo)."),
-        )
-
-        st.success(
-            f"📐 **Tariffa target** (se entrambi i premi attivi): "
-            f"{fmt_it(fer2_tariffa_base, 0)} TR + "
-            f"{fmt_it(fer2_premio_matrice_eur, 0)} matrice + "
-            f"{fmt_it(fer2_premio_car_eur, 0)} CAR = "
-            f"**{fmt_it(fer2_tariffa_base + fer2_premio_matrice_eur + fer2_premio_car_eur, 0)} "
-            f"€/MWh_el** · Periodo: {FER2_PERIODO_ANNI} anni"
-        )
-    else:
-        # Default per non-FER 2 (dummy non usati)
-        fer2_matrice_threshold     = FER2_FEEDSTOCK_REQ_THRESHOLD
-        fer2_tariffa_base          = 0.0
-        fer2_premio_matrice_attivo = False
-        fer2_premio_car_attivo     = False
-        fer2_premio_matrice_eur    = 0.0
-        fer2_premio_car_eur        = 0.0
+    # DM 2022 only — DM 2018/FER 2 not applicable
+    annex_threshold = ANNEX_IX_THRESHOLD
+    advanced_mode = "Auto (calcolata da matrice annuale)"
+    cic_price = 0.0
+    fer2_matrice_threshold     = FER2_FEEDSTOCK_REQ_THRESHOLD
+    fer2_tariffa_base          = 0.0
+    fer2_premio_matrice_attivo = False
+    fer2_premio_car_attivo     = False
+    fer2_premio_matrice_eur    = 0.0
+    fer2_premio_car_eur        = 0.0
 
     # ============================================================
     # PRO FORMA / BUSINESS PLAN (solo DM 2022)
@@ -4187,23 +3857,6 @@ with tab_solver:
         res["Sm³ lordi"] = summary["nm3_gross"]
         res["Sm³ netti"] = summary["nm3_net"]
         res["MWh netti"] = summary["mwh_net"]
-        if IS_CHP:
-            # In modalita' CHP: MWh_netti rappresenta l'energia CH4 equivalente
-            # entrante nel cogeneratore → split in elettrico + termico.
-            # MWh_el_lordo = CH4 × η_el (ai morsetti alternatore)
-            # MWh_el_netto = lordo × (1 − aux%) (immessi in rete, fatturabili)
-            _mwh_el_lordo = summary["mwh_net"] * eta_el
-            res["MWh elettrici lordi"] = _mwh_el_lordo
-            res["MWh elettrici netti"] = _mwh_el_lordo * (1.0 - aux_el_pct)
-            res["MWh termici"] = summary["mwh_net"] * eta_th
-            # kW lordi medi sull'ora = MWh_el_lordi × 1000 / Ore
-            # E' la metrica chiave per il vincolo CHP: deve restare <= plant_kwe
-            # (potenza LORDA targa motore). Quando l'utente lavora in modalita'
-            # CHP, vede "kW lordi" invece di "Sm3/h netti" perche' e' la grandezza
-            # rilevante autorizzativa.
-            res["kW lordi medi"] = (
-                (_mwh_el_lordo * 1000.0 / hours) if hours > 0 else 0.0
-            )
         res["GHG (gCO₂/MJ)"] = summary["e_w"]
         res["Saving %"] = summary["saving"]
         res["Sm³/h netti"] = net_smch
@@ -4231,20 +3884,6 @@ with tab_solver:
     df_disp["Sm³ lordi"]   = df_disp["Sm³ lordi"].apply(lambda v: fmt_it(v, 0))
     df_disp["Sm³ netti"]   = df_disp["Sm³ netti"].apply(lambda v: fmt_it(v, 0))
     df_disp["MWh netti"]   = df_disp["MWh netti"].apply(lambda v: fmt_it(v, 1))
-    if IS_CHP:
-        df_disp["MWh elettrici lordi"] = df_disp["MWh elettrici lordi"].apply(
-            lambda v: fmt_it(v, 1)
-        )
-        df_disp["MWh elettrici netti"] = df_disp["MWh elettrici netti"].apply(
-            lambda v: fmt_it(v, 1)
-        )
-        df_disp["MWh termici"] = df_disp["MWh termici"].apply(
-            lambda v: fmt_it(v, 1)
-        )
-        # kW lordi medi: vincolo CHP (<= plant_kwe targa motore)
-        df_disp["kW lordi medi"] = df_disp["kW lordi medi"].apply(
-            lambda v: fmt_it(v, 0)
-        )
     df_disp["GHG (gCO₂/MJ)"] = df_disp["GHG (gCO₂/MJ)"].apply(lambda v: fmt_it(v, 2))
     df_disp["Saving %"]    = df_disp["Saving %"].apply(lambda v: fmt_it(v, 1, "%"))
     df_disp["Sm³/h netti"] = df_disp["Sm³/h netti"].apply(lambda v: fmt_it(v, 1))
@@ -4269,48 +3908,19 @@ with tab_solver:
             help=f"CALCOLATA dal solver – Resa {fmt_it(_yield_of(u), 0)} Nm³/t FM",
         )
     col_cfg["Totale biomasse (t)"] = st.column_config.TextColumn("Tot. t", disabled=True)
-    _lbl_lordo_col = "Sm³ CH₄ lordi" if IS_CHP else "Sm³ lordi"
-    _lbl_netto_col = "Sm³ CH₄ motore" if IS_CHP else "Sm³ netti"
     col_cfg["Sm³ lordi"]   = st.column_config.TextColumn(
-        _lbl_lordo_col, disabled=True,
-        help=("CH₄ equivalente prodotto dalle biomasse (pre-perdite)"
-              if IS_CHP else "Sm³ biometano lordi (pre-perdite upgrading/processo)"),
+        "Sm³ lordi", disabled=True,
+        help="Sm³ biometano lordi (pre-perdite upgrading/processo)",
     )
     col_cfg["Sm³ netti"]   = st.column_config.TextColumn(
-        _lbl_netto_col, disabled=True,
-        help=("CH₄ effettivamente bruciato dal cogeneratore (post-perdite)"
-              if IS_CHP else "Sm³ biometano immessi in rete (post-aux_factor)"),
+        "Sm³ netti", disabled=True,
+        help="Sm³ biometano immessi in rete (post-aux_factor)",
     )
     col_cfg["MWh netti"]   = st.column_config.TextColumn(
-        "MWh_CH₄ netti" if IS_CHP else "MWh netti",
+        "MWh netti",
         disabled=True,
-        help=("Energia CH₄ in ingresso al cogeneratore (pre-conversione elettrica)"
-              if IS_CHP else "Energia biometano netta immessa in rete"),
+        help="Energia biometano netta immessa in rete",
     )
-    if IS_CHP:
-        col_cfg["MWh elettrici lordi"] = st.column_config.TextColumn(
-            "MWh_el lordi", disabled=True,
-            help="MWh elettrici ai morsetti alternatore = MWh_CH₄ × η_el. "
-                 "Non fatturabili: occorre sottrarre gli autoconsumi ausiliari.",
-        )
-        col_cfg["MWh elettrici netti"] = st.column_config.TextColumn(
-            "MWh_el netti rete", disabled=True,
-            help="MWh elettrici NETTI immessi in rete = lordi × (1 − aux%). "
-                 "Base di calcolo della tariffa T.O. GSE.",
-        )
-        col_cfg["MWh termici"] = st.column_config.TextColumn(
-            "MWh_th", disabled=True,
-            help="MWh termici recuperati dal CHP = MWh_CH₄ × η_th. "
-                 "Utilizzabili per digestori, teleriscaldamento, processo.",
-        )
-        # kW lordi medi: il VINCOLO autorizzativo CHP (vs plant_kwe targa).
-        col_cfg["kW lordi medi"] = st.column_config.TextColumn(
-            "kW lordi (medi)", disabled=True,
-            help=f"Potenza media oraria ai morsetti alternatore "
-                 f"(MWh_el lordi × 1000 / Ore). "
-                 f"VINCOLO normativo: ≤ {fmt_it(plant_kwe, 0)} kWe LORDI "
-                 f"(targa motore — dato di autorizzazione).",
-        )
     col_cfg["GHG (gCO₂/MJ)"] = st.column_config.TextColumn(
         "e_w", disabled=True, help="Emissioni pesate gCO₂eq/MJ",
     )
@@ -4318,25 +3928,10 @@ with tab_solver:
         "Saving %", disabled=True,
         help=f"Obbligatorio ≥ {fmt_it(ghg_threshold*100, 0, '%')} (RED III – {end_use})",
     )
-    # Sm³/h netti: visibile in biometano (vincolo autorizzativo).
-    # In CHP il vincolo e' kW lordi (mostrato sopra), Sm³/h CH4 e' solo
-    # informativo (CH4 al motore) - lo lasciamo nascosto al display tabella
-    # per ridurre rumore. La taglia CH4 motore e' gia' visibile in sidebar.
-    if IS_CHP:
-        # Nascondiamo Sm³/h netti dalla vista (esiste in df_res ma non
-        # appare in df_disp grazie a column_order).
-        col_cfg["Sm³/h netti"] = st.column_config.TextColumn(
-            "Sm³/h CH₄ motore", disabled=True,
-            help=f"Flusso CH₄ al motore = MWh_CH₄ × 1000 / (Ore × {fmt_it(NM3_TO_MWH*1000, 2)}). "
-                 f"Info-only (il vincolo CHP e' kW lordi a sinistra). "
-                 f"Equivale a {fmt_it(plant_net_smch, 0)} Sm³/h come dato "
-                 f"di dimensionamento.",
-        )
-    else:
-        col_cfg["Sm³/h netti"] = st.column_config.TextColumn(
-            "Sm³/h netti", disabled=True,
-            help=f"Obbligatorio ≤ {fmt_it(plant_net_smch, 0)} (tetto autorizzativo)",
-        )
+    col_cfg["Sm³/h netti"] = st.column_config.TextColumn(
+        "Sm³/h netti", disabled=True,
+        help=f"Obbligatorio ≤ {fmt_it(plant_net_smch, 0)} (tetto autorizzativo)",
+    )
     col_cfg["Validità"] = st.column_config.TextColumn("Validità", disabled=True, width="medium")
     col_cfg["Note"] = st.column_config.TextColumn("Note", disabled=True, width="medium")
 
