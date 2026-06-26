@@ -1,7 +1,9 @@
 # Metan.iQ — runtime dependencies.
 # Pin con range upper bound per evitare breaking changes da major release
 # inaspettati, ma permettere patch/minor updates di sicurezza.
-streamlit>=1.30.0,<2.0.0
+# Floor 1.43.2: sotto questa versione st.file_uploader applica i limiti di tipo
+# file solo lato client (bypassabile via proxy) + path traversal Windows <1.37.0.
+streamlit>=1.43.2,<2.0.0
 plotly>=5.18.0,<7.0.0
 pandas>=2.1.0,<3.0.0
 numpy>=1.26.0,<3.0.0
