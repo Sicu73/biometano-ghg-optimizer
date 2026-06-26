@@ -128,16 +128,46 @@ def _verify_password(password: str, hashed: str) -> bool:
 # ============================================================================
 # JWT
 # ============================================================================
+# Placeholder noti che NON devono mai firmare token reali in produzione.
+_INSECURE_JWT_SECRETS = {
+    "dev-insecure-secret-CHANGE-ME",
+    "change-me-to-a-random-long-string",
+    "",
+}
+_JWT_SECRET_MIN_LEN = 32
+
+
 def _jwt_secret() -> str:
+    """Secret HS256 per firmare i JWT.
+
+    In produzione (auth gate attivo, demo_mode=false) un secret assente o
+    debole è fatale: con HS256 chi conosce il secret forgia token arbitrari
+    e impersona qualsiasi utente. Quindi secret reale obbligatorio (>=32
+    byte, non placeholder), altrimenti RuntimeError bloccante.
+    Il fallback dev è tollerato SOLO in demo_mode (auth disabilitata).
+    """
+    s = ""
     try:
         import streamlit as st
-        s = st.secrets.get("auth", {}).get("jwt_secret", "")
-        if s:
-            return str(s)
+        s = str(st.secrets.get("auth", {}).get("jwt_secret", "") or "")
     except Exception:
-        pass
-    # Fallback insecure per dev locale (warning visibile)
-    return os.environ.get("METANIQ_JWT_SECRET", "dev-insecure-secret-CHANGE-ME")
+        s = ""
+    if not s:
+        s = os.environ.get("METANIQ_JWT_SECRET", "")
+
+    if s and s not in _INSECURE_JWT_SECRETS and len(s) >= _JWT_SECRET_MIN_LEN:
+        return s
+
+    # Nessun secret valido: in produzione è errore bloccante, non fallback.
+    if not is_demo_mode():
+        raise RuntimeError(
+            "jwt_secret mancante o debole: in produzione (demo_mode=false) "
+            "imposta [auth].jwt_secret (>=32 byte random) in .streamlit/secrets.toml "
+            "oppure la variabile d'ambiente METANIQ_JWT_SECRET. "
+            "Fallback insicuro disabilitato per impedire la forgia dei token."
+        )
+    # Dev/demo: auth disabilitata, fallback tollerato.
+    return s or "dev-insecure-secret-CHANGE-ME"
 
 
 def _encode_token(user_id: str) -> str:
