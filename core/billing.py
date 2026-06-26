@@ -201,6 +201,13 @@ def handle_webhook(payload: bytes, signature: str) -> dict:
         raise ValueError(f"Webhook signature non valida: {exc}")
 
     et = event["type"]
+    ev_id = event.get("id")
+    # Idempotency: Stripe ritrasmette gli eventi (retry su 5xx, replay). Un
+    # claim atomico su event.id evita di applicare due volte lo stesso cambio
+    # di piano. Se l'evento e' gia' stato visto, short-circuit.
+    if ev_id and not _claim_event(ev_id, et):
+        return {"received": True, "type": et, "id": ev_id, "duplicate": True}
+
     data = event["data"]["object"]
     if et == "checkout.session.completed":
         _on_checkout_completed(data)
@@ -224,6 +231,38 @@ def handle_webhook(payload: bytes, signature: str) -> dict:
         pass
 
     return {"received": True, "type": et, "id": event.get("id")}
+
+
+# ============================================================================
+# IDEMPOTENCY STORE (dedup eventi Stripe)
+# ============================================================================
+def _claim_event(event_id: str, event_type: str) -> bool:
+    """Registra un evento Stripe in modo atomico.
+
+    Ritorna True se l'evento e' nuovo (claim riuscito, da processare),
+    False se gia' presente (duplicato/replay -> da ignorare). La UNICITA'
+    della PRIMARY KEY + INSERT OR IGNORE rende il claim atomico anche con
+    consegne concorrenti. In caso di errore DB, fail-open (True): meglio
+    riprocessare che perdere un evento di pagamento.
+    """
+    try:
+        from core import auth
+        with auth._conn() as c:  # noqa: SLF001
+            c.execute(
+                "CREATE TABLE IF NOT EXISTS processed_stripe_events ("
+                "  id TEXT PRIMARY KEY,"
+                "  type TEXT,"
+                "  processed_at TEXT DEFAULT (datetime('now'))"
+                ")"
+            )
+            cur = c.execute(
+                "INSERT OR IGNORE INTO processed_stripe_events (id, type) "
+                "VALUES (?, ?)",
+                (event_id, event_type),
+            )
+            return cur.rowcount > 0
+    except Exception:
+        return True
 
 
 # ============================================================================
