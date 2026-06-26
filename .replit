@@ -1,0 +1,18 @@
+# Configurazione Replit per Metan.iQ (Streamlit)
+# Avvio dell'app sulla porta 8080 esposta da Replit, in modalita' headless.
+run = "streamlit run app_mensile.py --server.port 8080 --server.address 0.0.0.0 --server.headless true"
+
+modules = ["python-3.11"]
+
+# Installa le dipendenze al primo avvio (Replit usa pip su requirements.txt).
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["streamlit", "run", "app_mensile.py", "--server.port", "8080", "--server.address", "0.0.0.0", "--server.headless", "true"]
+deploymentTarget = "cloudrun"
+
+# Mappa la porta interna 8080 sulla 80 pubblica del webview Replit.
+[[ports]]
+localPort = 8080
+externalPort = 80
