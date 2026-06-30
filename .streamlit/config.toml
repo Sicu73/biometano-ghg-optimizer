@@ -4,10 +4,10 @@
 [theme]
 # Tema light by default (lo switcher in-app gestisce light/dark dinamicamente)
 base = "light"
-primaryColor = "#F59E0B"           # Amber (accent brand)
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F8FAFC"
-textColor = "#0F1F33"               # Navy dark
+primaryColor = "#9A7B3C"            # Brass (accento editoriale, allineato a theme_editorial)
+backgroundColor = "#F7F4EC"         # Paper (sfondo editoriale, evita flash bianco in caricamento)
+secondaryBackgroundColor = "#FBF9F3"  # Paper2 (superfici secondarie editoriali)
+textColor = "#1C1B16"               # Ink (testo editoriale)
 font = "sans serif"
 
 [browser]
