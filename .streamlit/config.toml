@@ -16,8 +16,9 @@ gatherUsageStats = false
 [server]
 # Limita upload a 50 MB (override default 200 MB) — riduce abuso
 maxUploadSize = 50
+# XSRF attiva: con essa enableCORS è gestito da Streamlit (forzato a true).
+# Non impostare enableCORS=false qui: è incompatibile con XSRF e genera un warning.
 enableXsrfProtection = true
-enableCORS = false
 
 [client]
 showErrorDetails = false           # in produzione: niente stack trace visibili all'utente
