@@ -150,7 +150,7 @@ def render_lang_selector() -> str:
         if st.button(
             "Italiano",
             key="btn_lang_it",
-            use_container_width=True,
+            width='stretch',
             type=("primary" if lang == "it" else "secondary"),
         ):
             st.session_state["lang"] = "it"
@@ -167,7 +167,7 @@ def render_lang_selector() -> str:
         if st.button(
             "English",
             key="btn_lang_en",
-            use_container_width=True,
+            width='stretch',
             type=("primary" if lang == "en" else "secondary"),
         ):
             st.session_state["lang"] = "en"

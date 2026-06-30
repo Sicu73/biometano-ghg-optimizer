@@ -30,9 +30,9 @@ def _login_form() -> bool:
         col1, col2 = st.columns([1, 1])
         with col1:
             submitted = st.form_submit_button("Accedi", type="primary",
-                                                use_container_width=True)
+                                                width='stretch')
         with col2:
-            st.form_submit_button("Vai a Registrazione", use_container_width=True,
+            st.form_submit_button("Vai a Registrazione", width='stretch',
                                    on_click=lambda: st.session_state.update(
                                        {"_auth_view": "signup"}))
         if submitted:
@@ -68,9 +68,9 @@ def _signup_form() -> bool:
         col_a, col_b = st.columns([1, 1])
         with col_a:
             submitted = st.form_submit_button("Registrati", type="primary",
-                                                use_container_width=True)
+                                                width='stretch')
         with col_b:
-            st.form_submit_button("Torna al Login", use_container_width=True,
+            st.form_submit_button("Torna al Login", width='stretch',
                                    on_click=lambda: st.session_state.update(
                                        {"_auth_view": "login"}))
         if submitted:
@@ -195,7 +195,7 @@ def render_account_widget() -> None:
         with st.expander("⚙️ Gestione account", expanded=False):
             _render_account_panel(u)
 
-        if st.button("🚪 Logout", key="btn_logout", use_container_width=True):
+        if st.button("🚪 Logout", key="btn_logout", width='stretch'):
             auth.logout()
             st.rerun()
 
@@ -213,31 +213,31 @@ def _render_account_panel(u) -> None:
             colp1, colp2 = st.columns(2)
             with colp1:
                 if st.button("⬆️ Pro 49€", key="upgrade_pro",
-                              use_container_width=True):
+                              width='stretch'):
                     try:
                         url = billing.start_checkout(u, "pro", cycle)
                         st.link_button("Vai a Stripe", url, type="primary",
-                                        use_container_width=True)
+                                        width='stretch')
                     except Exception as exc:  # noqa: BLE001
                         st.error(f"Checkout error: {exc}")
             with colp2:
                 if st.button("🏢 Enterprise", key="upgrade_ent",
-                              use_container_width=True):
+                              width='stretch'):
                     try:
                         url = billing.start_checkout(u, "enterprise", cycle)
                         st.link_button("Vai a Stripe", url, type="primary",
-                                        use_container_width=True)
+                                        width='stretch')
                     except Exception as exc:  # noqa: BLE001
                         st.error(f"Checkout error: {exc}")
         else:
             st.info("ℹ️ Billing non ancora attivo. Contatta il supporto.")
     elif u.stripe_customer_id:
-        if st.button("💳 Gestisci abbonamento", use_container_width=True,
+        if st.button("💳 Gestisci abbonamento", width='stretch',
                       key="manage_sub"):
             try:
                 url = billing.open_customer_portal(u)
                 st.link_button("Vai a Stripe Portal", url, type="primary",
-                                use_container_width=True)
+                                width='stretch')
             except Exception as exc:  # noqa: BLE001
                 st.error(f"Portal error: {exc}")
 
@@ -248,7 +248,7 @@ def _render_account_panel(u) -> None:
                                 key="old_pw")
         new_pw = st.text_input("Nuova password (min 8 char)", type="password",
                                 key="new_pw")
-        if st.form_submit_button("Aggiorna password", use_container_width=True):
+        if st.form_submit_button("Aggiorna password", width='stretch'):
             try:
                 ok = auth.change_password(u.id, old_pw, new_pw)
                 if ok:
@@ -261,14 +261,14 @@ def _render_account_panel(u) -> None:
     st.markdown("---")
     st.markdown("**Privacy / GDPR**")
     if st.button("📥 Esporta tutti i miei dati (JSON)",
-                  use_container_width=True, key="gdpr_export"):
+                  width='stretch', key="gdpr_export"):
         try:
             from core.audit import export_user_log
             data = export_user_log(u.id)
             st.download_button("Scarica audit log",
                                 data, file_name=f"metaniq_audit_{u.email}.json",
                                 mime="application/json",
-                                use_container_width=True)
+                                width='stretch')
         except Exception as exc:  # noqa: BLE001
             st.error(f"Export error: {exc}")
 
@@ -278,7 +278,7 @@ def _render_account_panel(u) -> None:
         confirm = st.text_input("Digita 'ELIMINA' per confermare",
                                  key="del_confirm")
         if st.button("🗑️ Cancella il mio account", type="secondary",
-                      use_container_width=True, key="del_btn"):
+                      width='stretch', key="del_btn"):
             if confirm == "ELIMINA":
                 auth.delete_account(u.id, hard=False)
                 auth.logout()

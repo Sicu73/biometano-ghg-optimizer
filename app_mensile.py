@@ -1282,7 +1282,7 @@ with st.sidebar:
     with _tc1:
         if st.button(
             "☀️ Light",
-            use_container_width=True,
+            width='stretch',
             type="primary" if st.session_state.methaniq_theme == "light" else "secondary",
             key="btn_theme_light",
         ):
@@ -1291,7 +1291,7 @@ with st.sidebar:
     with _tc2:
         if st.button(
             "🌙 Dark",
-            use_container_width=True,
+            width='stretch',
             type="primary" if st.session_state.methaniq_theme == "dark" else "secondary",
             key="btn_theme_dark",
         ):
@@ -2859,7 +2859,7 @@ with st.sidebar:
             }
             for _n in active_feeds
         ]
-        st.dataframe(_pd.DataFrame(_rows_src), use_container_width=True, hide_index=True)
+        st.dataframe(_pd.DataFrame(_rows_src), width='stretch', hide_index=True)
         st.caption(_t(
             "Tier difendibilità eec: A = default normativo (UNI/TS A.5 / RED III) · "
             "B = zero da regola (residuo/rifiuto Annex IX) · C = stima conservativa "
@@ -2901,7 +2901,7 @@ with st.sidebar:
                 data=_dossier_bytes,
                 file_name=f"dossier_conformita_metaniq_{_date.today().isoformat()}.pdf",
                 mime="application/pdf",
-                use_container_width=True,
+                width='stretch',
                 key="dl_dossier_conformita",
             )
             st.caption(_t(
@@ -3211,7 +3211,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             _bcol1, _bcol2 = st.columns(2)
             with _bcol1:
                 if st.button("🔄 " + _t("Ricarica da DB"),
-                             key=f"{_key_prefix}do_btn_reload", use_container_width=True):
+                             key=f"{_key_prefix}do_btn_reload", width='stretch'):
                     try:
                         _init_db()
                         _loaded = _load_month(int(_do_year), int(_do_month),
@@ -3243,7 +3243,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                         st.warning(_t("Errore ricarica:") + f" {_exc}")
             with _bcol2:
                 if st.button("🆕 " + _t("Azzera mese"),
-                             key=f"{_key_prefix}do_btn_new", use_container_width=True):
+                             key=f"{_key_prefix}do_btn_new", width='stretch'):
                     _all_days = _gen_days(int(_do_year), int(_do_month))
                     st.session_state[_do_key] = {d: {} for d in _all_days}
                     # Default 0h dopo azzeramento: impianto spento.
@@ -3707,7 +3707,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                     help=_t("Portata media reale misurata al REMI = Sm³ reali / ore di funzionamento."),
                 ),
             },
-            use_container_width=True,
+            width='stretch',
         )
 
         # NB: _data_map e _hours_map sono GIÀ aggiornati dal blocco
@@ -4029,7 +4029,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             st.dataframe(
                 translate_df(_pd_cmp.DataFrame(_cmp_rows), _LANG),
                 hide_index=True,
-                use_container_width=True,
+                width='stretch',
             )
 
             _std_compliant = _kpis_standard.get("compliant", False)
@@ -4247,7 +4247,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                     _build_daily_csv(_daily_df_full) if not _disabled else b"",
                     file_name=f"{_fname_base}.csv",
                     mime="text/csv", key=f"{_key_prefix}do_btn_csv",
-                    use_container_width=True, disabled=_disabled,
+                    width='stretch', disabled=_disabled,
                 )
             except Exception as _exc:  # noqa: BLE001
                 _LOG.exception("Daily CSV export failed")
@@ -4278,7 +4278,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                     file_name=f"{_fname_base}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     key=f"{_key_prefix}do_btn_xlsx",
-                    use_container_width=True, disabled=_disabled,
+                    width='stretch', disabled=_disabled,
                 )
             except Exception as _exc:  # noqa: BLE001
                 _LOG.exception("Daily XLSX export failed")
@@ -4306,7 +4306,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                     _pdf_bytes,
                     file_name=f"{_fname_base}.pdf",
                     mime="application/pdf", key=f"{_key_prefix}do_btn_pdf",
-                    use_container_width=True, disabled=_disabled,
+                    width='stretch', disabled=_disabled,
                 )
             except Exception as _exc:  # noqa: BLE001
                 _LOG.exception("Daily PDF export failed")
@@ -4346,35 +4346,35 @@ def _render_annual_charts(df_src, key_prefix: str = ""):
         )
         _f1.update_layout(barmode="stack", height=450)
         apply_metaniq_theme(_f1, dark=IS_DARK)
-        st.plotly_chart(_f1, use_container_width=True, key=f"{key_prefix}ch_biom")
+        st.plotly_chart(_f1, width='stretch', key=f"{key_prefix}ch_biom")
     with _ct2:
         _f2 = go.Figure()
         _f2.add_trace(go.Bar(
             x=df_src["Mese"], y=df_src["Saving %"],
             marker=dict(
                 color=df_src["Saving %"],
-                colorscale=[[0, "#DC2626"], [0.5, "#F59E0B"], [1, "#059669"]],
+                colorscale=[[0, "#C0392B"], [0.5, "#9A7B3C"], [1, "#3C6A52"]],
                 cmin=70, cmax=100, colorbar=dict(title="Saving %"),
             ),
             text=[fmt_it(v, 1, "%") for v in df_src["Saving %"]],
             textposition="outside",
         ))
         _f2.add_hline(
-            y=ghg_threshold*100, line_dash="dash", line_color="#DC2626",
+            y=ghg_threshold*100, line_dash="dash", line_color="#C0392B",
             annotation_text=f"Soglia RED III {fmt_it(ghg_threshold*100, 0, '%')}",
             annotation_position="top right",
         )
         _f2.update_layout(title="Saving GHG mensile (%)", yaxis_title="Saving (%)",
                           height=450, yaxis=dict(range=[60, 160]))
         apply_metaniq_theme(_f2, dark=IS_DARK)
-        st.plotly_chart(_f2, use_container_width=True, key=f"{key_prefix}ch_sav")
+        st.plotly_chart(_f2, width='stretch', key=f"{key_prefix}ch_sav")
     with _ct3:
         _lordi = df_src["Sm³ lordi"].astype(float)
         _netti = df_src["Sm³ netti"].astype(float)
         _f3 = go.Figure()
         _f3.add_trace(go.Bar(
             x=df_src["Mese"], y=_lordi, name="Sm³ lordi (biomasse)",
-            marker_color="#94A3B8",
+            marker_color="#A49D8C",
             text=[fmt_it(v, 0) for v in _lordi], textposition="outside",
         ))
         _f3.add_trace(go.Bar(
@@ -4390,7 +4390,7 @@ def _render_annual_charts(df_src, key_prefix: str = ""):
                         xanchor="right", x=1),
         )
         apply_metaniq_theme(_f3, dark=IS_DARK)
-        st.plotly_chart(_f3, use_container_width=True, key=f"{key_prefix}ch_prod")
+        st.plotly_chart(_f3, width='stretch', key=f"{key_prefix}ch_prod")
     with _ct4:
         _at = {n: max(df_src[n].sum(), 0) for n in active_feeds}
         _amwh = {n: max(df_src[n].sum(), 0) * _yield_of(n) / aux_factor * NM3_TO_MWH
@@ -4408,7 +4408,7 @@ def _render_annual_charts(df_src, key_prefix: str = ""):
             )
             _fa.update_traces(textposition="inside", textinfo="percent+label")
             apply_metaniq_theme(_fa, dark=IS_DARK)
-            st.plotly_chart(_fa, use_container_width=True, key=f"{key_prefix}pie_t")
+            st.plotly_chart(_fa, width='stretch', key=f"{key_prefix}pie_t")
         with _pb:
             _fb = px.pie(
                 names=list(_amwh.keys()), values=list(_amwh.values()),
@@ -4418,7 +4418,7 @@ def _render_annual_charts(df_src, key_prefix: str = ""):
             )
             _fb.update_traces(textposition="inside", textinfo="percent+label")
             apply_metaniq_theme(_fb, dark=IS_DARK)
-            st.plotly_chart(_fb, use_container_width=True, key=f"{key_prefix}pie_mwh")
+            st.plotly_chart(_fb, width='stretch', key=f"{key_prefix}pie_mwh")
 
 
 # =============================================================================
@@ -5491,7 +5491,7 @@ with tab_results:
             "Ore": "{:.0f}", "Sm³ lordi": "{:,.0f}", "Sm³ netti": "{:,.0f}",
             "MWh netti": "{:,.1f}", "e_w": "{:.2f}", "Saving %": "{:.1f}%",
             "Totale biomasse (t)": "{:,.0f}"
-        }.items()}), use_container_width=True, hide_index=True)
+        }.items()}), width='stretch', hide_index=True)
 
         # --- SEZIONE REMI ---
         if "remi_vb" in df_res.columns and df_res["remi_vb"].sum() > 0:
@@ -5512,7 +5512,7 @@ with tab_results:
                 "remi_portata_media": st.column_config.NumberColumn(_t("Portata Media (Sm³/h)"), format="%.1f"),
                 "remi_potenza_media": st.column_config.NumberColumn(_t("Potenza Media (MW)"), format="%.3f"),
                 "remi_energia_specifica": st.column_config.NumberColumn(_t("Energia Specif. (kWh/Sm³)"), format="%.3f"),
-            }, use_container_width=True, hide_index=True)
+            }, width='stretch', hide_index=True)
 
         # Logica Export (estratta dal Solver)
         try:
@@ -5563,7 +5563,7 @@ with tab_results:
                 try:
                     from excel_export import build_metaniq_xlsx
                     _xlsx_buf = build_metaniq_xlsx(_xlsx_ctx)
-                    st.download_button(_t("📊 Scarica Excel"), data=_xlsx_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_consolidato.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True, type="primary")
+                    st.download_button(_t("📊 Scarica Excel"), data=_xlsx_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_consolidato.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", width='stretch', type="primary")
                 except Exception as _e: st.error(f"XLSX Error: {_e}")
 
             with _dl_col2:
@@ -5571,14 +5571,14 @@ with tab_results:
                     from pdf_export import build_metaniq_pdf
                     # Re-use _xlsx_ctx or build specific one
                     _pdf_buf = build_metaniq_pdf(_xlsx_ctx)
-                    st.download_button(_t("📄 Scarica PDF"), data=_pdf_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_report.pdf", mime="application/pdf", use_container_width=True, type="primary")
+                    st.download_button(_t("📄 Scarica PDF"), data=_pdf_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_report.pdf", mime="application/pdf", width='stretch', type="primary")
                 except Exception as _e: st.error(f"PDF Error: {_e}")
 
             with _dl_col_pptx:
                 try:
                     from export.pptx_export import build_metaniq_pptx
                     _pptx_buf = build_metaniq_pptx(_xlsx_ctx)
-                    st.download_button(_t("📊 Presentazione"), data=_pptx_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_slides.pptx", mime="application/vnd.openxmlformats-officedocument.presentationml.presentation", use_container_width=True, type="primary")
+                    st.download_button(_t("📊 Presentazione"), data=_pptx_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_slides.pptx", mime="application/vnd.openxmlformats-officedocument.presentationml.presentation", width='stretch', type="primary")
                 except Exception as _e: st.error(f"PPTX Error: {_e}")
 
         except Exception as _exp_ui_exc:
@@ -5599,7 +5599,7 @@ with tab_results:
             lambda v: fmt_it(v, 1)
         )
         st.dataframe(
-            translate_df(df_yield_audit_disp, _LANG), hide_index=True, use_container_width=True,
+            translate_df(df_yield_audit_disp, _LANG), hide_index=True, width='stretch',
         )
         st.caption(
             f"Origine resa = `{SOURCE_BMT}` se l'utente ha caricato un "
@@ -5637,7 +5637,7 @@ with tab_results:
                 df_ef_audit_disp[_c] = df_ef_audit_disp[_c].apply(
                     lambda v: fmt_it(v, 2, signed=(_c in ("eec standard", "eec usato", "e_total")))
                 )
-        st.dataframe(translate_df(df_ef_audit_disp, _LANG), hide_index=True, use_container_width=True)
+        st.dataframe(translate_df(df_ef_audit_disp, _LANG), hide_index=True, width='stretch')
         st.caption(
             f"Origine = `{EF_SOURCE_REAL}` se l'utente ha caricato la relazione "
             f"tecnica E ha attivato l'override per quella biomassa; altrimenti "
@@ -5713,7 +5713,7 @@ with tab_plan:
              f"{N_active} soluzioni mono, sceglie quella con massa totale minima che "
              "soddisfa entrambi i vincoli (produzione + saving GHG). "
              "Le biomasse non selezionate vengono azzerate.",
-        use_container_width=True,
+        width='stretch',
         type="primary",
         key="btn_optimize",
     )
@@ -5940,7 +5940,7 @@ with tab_plan:
     with col_tab_btn_db:
         if st.button(
             "🔄 " + _t("Ricarica dati reali dal DB"),
-            use_container_width=True,
+            width='stretch',
             disabled=not _db_has_data,
             help=(
                 _t("Sovrascrive la tabella con i valori reali aggregati dal "
@@ -5958,7 +5958,7 @@ with tab_plan:
             st.session_state[f"{state_key}__source"] = "db"
             st.rerun()
     with col_tab_btn:
-        if st.button("🔄 Reset", use_container_width=True,
+        if st.button("🔄 Reset", width='stretch',
                      help=_t("Ripristina i valori iniziali di default per questa configurazione.")):
             st.session_state.pop(state_key, None)
             st.session_state.pop(f"{state_key}__source", None)
@@ -6135,7 +6135,7 @@ with tab_plan:
         df_disp,
         column_config=col_cfg,
         hide_index=True,
-        use_container_width=True,
+        width='stretch',
         num_rows="fixed",
         height=470,
         key=f"editor_unified_{state_key}",
@@ -6267,7 +6267,7 @@ with tab_plan:
         )
         fig.update_layout(barmode="stack", height=450)
         apply_metaniq_theme(fig, dark=IS_DARK)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with tab2:
         fig2 = go.Figure()
@@ -6275,14 +6275,14 @@ with tab_plan:
             x=df_res["Mese"], y=df_res["Saving %"],
             marker=dict(
                 color=df_res["Saving %"],
-                colorscale=[[0, "#DC2626"], [0.5, "#F59E0B"], [1, "#059669"]],
+                colorscale=[[0, "#C0392B"], [0.5, "#9A7B3C"], [1, "#3C6A52"]],
                 cmin=70, cmax=100,
                 colorbar=dict(title="Saving %"),
             ),
             text=[fmt_it(v, 1, "%") for v in df_res["Saving %"]],
             textposition="outside",
         ))
-        fig2.add_hline(y=ghg_threshold*100, line_dash="dash", line_color="#DC2626",
+        fig2.add_hline(y=ghg_threshold*100, line_dash="dash", line_color="#C0392B",
                        annotation_text=f"Soglia RED III {fmt_it(ghg_threshold*100, 0, '%')}",
                        annotation_position="top right")
         fig2.add_hline(y=target_saving*100, line_dash="dot", line_color="#3C6A52",
@@ -6292,7 +6292,7 @@ with tab_plan:
                            yaxis_title="Saving (%)", height=450,
                            yaxis=dict(range=[60, 160]))
         apply_metaniq_theme(fig2, dark=IS_DARK)
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width='stretch')
 
     with tab3:
         # Etichette numeriche leggibili coerenti con la tabella (formato IT: 287.928)
@@ -6311,7 +6311,7 @@ with tab_plan:
         fig3 = go.Figure()
         fig3.add_trace(go.Bar(
             x=df_res["Mese"], y=lordi_vals,
-            name=_lbl_lordo, marker_color="#94A3B8",
+            name=_lbl_lordo, marker_color="#A49D8C",
             text=lordi_labels, textposition="outside",
             hovertemplate=f"<b>%{{x}}</b><br>{_lbl_lordo}: %{{text}}<extra></extra>",
         ))
@@ -6329,7 +6329,7 @@ with tab_plan:
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
         apply_metaniq_theme(fig3, dark=IS_DARK)
-        st.plotly_chart(fig3, use_container_width=True)
+        st.plotly_chart(fig3, width='stretch')
 
         st.caption(
             f"📐 **Dimensionamento**: Sm³ lordi = {fmt_it(plant_net_smch, 0)} × "
@@ -6373,7 +6373,7 @@ with tab_plan:
                 )
                 fig4a.update_traces(textposition="inside", textinfo="percent+label")
                 apply_metaniq_theme(fig4a, dark=IS_DARK)
-                st.plotly_chart(fig4a, use_container_width=True)
+                st.plotly_chart(fig4a, width='stretch')
 
         with colB:
             _pie_mwh_label = "MWh netti"
@@ -6391,7 +6391,7 @@ with tab_plan:
                 )
                 fig4b.update_traces(textposition="inside", textinfo="percent+label")
                 apply_metaniq_theme(fig4b, dark=IS_DARK)
-                st.plotly_chart(fig4b, use_container_width=True)
+                st.plotly_chart(fig4b, width='stretch')
 
         # ============================================================
         # CALCOLO STATUS AVANZATO IMPIANTO (solo DM 2018)
@@ -6495,7 +6495,7 @@ with tab_plan:
             df_detail,
             column_config=detail_col_cfg,
             hide_index=True,
-            use_container_width=True,
+            width='stretch',
             num_rows="fixed",
             key=f"editor_revenue_detail_{APP_MODE}",
         )
@@ -6714,7 +6714,7 @@ with tab_plan:
                 data=_xlsx_data,
                 file_name=f"metaniq_{APP_MODE}_editabile.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
+                width='stretch',
                 type="primary",
                 help="Excel autocalcolante (.xlsx). Apri il file e modifica "
                      "DIRETTAMENTE in Excel le celle gialle (Ore + Biomasse). "
@@ -6808,7 +6808,7 @@ with tab_plan:
                 data=_pdf_data,
                 file_name=f"metaniq_{APP_MODE}_report.pdf",
                 mime="application/pdf",
-                use_container_width=True,
+                width='stretch',
                 type="primary",
                 help="Report PDF consulting-grade: cover, executive summary, "
                      "configurazione impianto, pianificazione mensile, "
@@ -6835,7 +6835,7 @@ with tab_plan:
                 data=_pptx_data,
                 file_name=f"metaniq_{APP_MODE}_presentazione.pptx",
                 mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                use_container_width=True,
+                width='stretch',
                 type="primary",
                 help="Scarica una presentazione di 8 slide ad alto impatto con i risultati del progetto (stile moderno).",
             )
@@ -6861,7 +6861,7 @@ with tab_plan:
                 data=_xlsx_snap_data,
                 file_name=f"metaniq_{APP_MODE}_snapshot.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
+                width='stretch',
                 type="primary",
                 help="Excel di sola lettura (snapshot dei numeri attuali, "
                      "no formule). Stessa estetica del file modificabile ma "
@@ -6903,7 +6903,7 @@ with tab_plan:
                 data=_csv_data,
                 file_name=_csv_fn,
                 mime="text/csv",
-                use_container_width=True,
+                width='stretch',
                 type="secondary",
                 help="CSV del piano mensile con intestazioni tradotte." if _LANG != "en"
                      else "CSV of the monthly plan with translated headers.",
@@ -7104,7 +7104,7 @@ with tab_plan:
         } for r in _bp.rows])
         st.dataframe(_bp_df.style.format({
             c: "{:,.0f}" for c in _bp_df.columns if c != _t("Anno")
-        }), use_container_width=True, hide_index=True)
+        }), width='stretch', hide_index=True)
 
         # Grafico cash flow cumulato
         try:
@@ -7114,7 +7114,7 @@ with tab_plan:
                 x=[r.year for r in _bp.rows],
                 y=[r.fcf_equity for r in _bp.rows],
                 name="FCF Equity",
-                marker_color=["#DC2626" if r.fcf_equity < 0 else "#059669"
+                marker_color=["#C0392B" if r.fcf_equity < 0 else "#3C6A52"
                               for r in _bp.rows],
             ))
             _bp_fig.add_trace(_go_bp.Scatter(
@@ -7132,7 +7132,7 @@ with tab_plan:
                 height=400,
                 hovermode="x unified",
             )
-            st.plotly_chart(_bp_fig, use_container_width=True)
+            st.plotly_chart(_bp_fig, width='stretch')
         except Exception:  # noqa: BLE001
             pass
 
@@ -7163,7 +7163,7 @@ with tab_plan:
                 data=_bp_pdf_buf.getvalue(),
                 file_name=f"metaniq_{APP_MODE}_business_plan_15anni.pdf",
                 mime="application/pdf",
-                use_container_width=True,
+                width='stretch',
                 type="primary",
                 key="dl_bp_completo_pdf",
                 help=_t("PDF della sezione Business Plan: parametri di input, "
@@ -7233,7 +7233,7 @@ with st.sidebar:
                     data=_manual_bytes,
                     file_name=_manual_filename,
                     mime="application/pdf",
-                    use_container_width=True,
+                    width='stretch',
                     key="dl_user_manual_sidebar",
                 )
             except Exception as _man_exc:  # noqa: BLE001
@@ -7256,7 +7256,7 @@ with st.sidebar:
                 _t("Messaggio (opzionale)"), key="lead_msg", height=80
             )
             _lead_submit = st.form_submit_button(
-                "📨 " + _t("Invia richiesta"), use_container_width=True
+                "📨 " + _t("Invia richiesta"), width='stretch'
             )
         if _lead_submit:
             if not (_lead_email or "").strip():

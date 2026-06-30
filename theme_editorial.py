@@ -30,7 +30,7 @@ def inject_editorial_theme(is_dark: bool = False):
 <style>
 html, body, .stApp, [class*="css"] {{ font-family:'Outfit', system-ui, sans-serif !important; }}
 .stApp {{ background:{t['PAPER']} !important; color:{t['INK']} !important; }}
-.block-container {{ padding-top:2rem !important; max-width:1220px !important; }}
+.block-container {{ padding-top:1.25rem !important; max-width:1220px !important; }}
 header[data-testid="stHeader"] {{ background:transparent !important; height:0 !important; }}
 .stApp h1, .stApp h2, .stApp h3, .stApp h4 {{ font-family:'Spectral', Georgia, serif !important; font-weight:600 !important; letter-spacing:-.01em !important; }}
 section[data-testid="stSidebar"] {{ background:{t['PAPER2']} !important; border-right:1px solid {t['LINE']} !important; }}
@@ -41,10 +41,10 @@ section[data-testid="stSidebar"] [data-baseweb="select"] > div, section[data-tes
    sovrapponeva ai tag e ne copriva le prime lettere. */
 section[data-testid="stSidebar"] [data-baseweb="input"] input, section[data-testid="stSidebar"] [data-baseweb="base-input"] input {{ background:{t['SURFACE']} !important; color:{t['INK']} !important; }}
 section[data-testid="stSidebar"] [data-baseweb="select"] input {{ background:transparent !important; box-shadow:none !important; }}
-.methaniq-header, .metaniq-header, div[class*="header"][style*="gradient"] {{ background:{t['NAVY']} !important; background-image:none !important; border:1px solid #243743 !important; border-radius:10px !important; box-shadow:none !important; position:relative !important; overflow:hidden !important; padding:38px 42px !important; }}
+.stApp [data-testid="stMarkdownContainer"] .methaniq-header, .stApp [data-testid="stMarkdownContainer"] .metaniq-header, div[class*="header"][style*="gradient"] {{ background:{t['NAVY']} !important; background-image:none !important; border:1px solid #243743 !important; border-radius:10px !important; box-shadow:none !important; position:relative !important; overflow:hidden !important; padding:26px 42px !important; }}
 .methaniq-header::before {{ content:"" !important; position:absolute !important; top:0 !important; left:0 !important; right:0 !important; height:2px !important; background:linear-gradient(90deg, {t['BRASS']}, {t['BRASS2']}) !important; }}
 .methaniq-header::after {{ display:none !important; }}
-.methaniq-header h1 {{ font-family:'Outfit', sans-serif !important; font-size:2.9rem !important; font-weight:700 !important; letter-spacing:-.035em !important; color:#F7F4EC !important; }}
+.methaniq-header h1 {{ font-family:'Outfit', sans-serif !important; font-size:2.4rem !important; font-weight:700 !important; letter-spacing:-.035em !important; color:#F7F4EC !important; }}
 .methaniq-header p, .methaniq-header .tagline {{ font-family:'Spectral', serif !important; color:rgba(244,241,232,.80) !important; font-size:1.1rem !important; font-weight:400 !important; }}
 /* Brand card navy in sidebar: SEMPRE navy -> testo chiaro in entrambi i temi.
    La regola sidebar che forza il testo a TEXT_SECOND la sovrascriveva (scuro
@@ -80,7 +80,7 @@ div[data-testid="stExpander"] {{ background:{t['SURFACE']} !important; border:1p
 [data-testid="stDataFrame"] {{ border:1px solid {t['LINE']} !important; border-radius:10px !important; }}
 [data-testid="stAlert"] {{ border-radius:8px !important; }}
 /* --- Polish editoriale rifinito --- */
-.methaniq-header .eyebrow {{ font-family:'IBM Plex Mono', monospace !important; color:{t['BRASS2']} !important; letter-spacing:.22em !important; font-size:.7rem !important; font-weight:600 !important; text-transform:uppercase !important; }}
+.stApp [data-testid="stMarkdownContainer"] .methaniq-header .eyebrow {{ font-family:'IBM Plex Mono', monospace !important; color:{t['BRASS2']} !important; letter-spacing:.22em !important; font-size:.7rem !important; font-weight:600 !important; text-transform:uppercase !important; }}
 .methaniq-header .pills {{ gap:8px !important; }}
 .methaniq-header .pill {{ background:rgba(255,255,255,.04) !important; border:1px solid rgba(201,169,104,.32) !important; color:#E5DFCF !important; border-radius:6px !important; letter-spacing:.04em !important; font-family:'IBM Plex Mono', monospace !important; font-size:.68rem !important; padding:4px 10px !important; }}
 .methaniq-header .pill.accent {{ background:rgba(201,169,104,.18) !important; border-color:rgba(201,169,104,.55) !important; color:#F1E7CF !important; }}
