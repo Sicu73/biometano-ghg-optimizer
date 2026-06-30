@@ -1506,6 +1506,11 @@ if IS_DARK:
     HERO_TAGLINE  = "#F7F4EC"
     HERO_EYEBROW  = "#FFFFFF"
     HERO_DOT      = "#F2C76B"
+    # Barre alert semantiche: varianti CHIARE per restare leggibili sulla
+    # superficie scura (#1E1C16). Navy/foresta pieni sparirebbero.
+    ALERT_INFO_BAR = "#5E96B5"   # petrolio chiaro
+    ALERT_OK_BAR   = "#5AA37F"   # foresta chiara
+    ALERT_ERR_BAR  = "#E0695E"   # rosso tenue chiaro
 else:
     # Editorial LIGHT — carta avorio, inchiostro caldo, ottone.
     BG_APP        = "#F7F4EC"   # PAPER
@@ -1531,6 +1536,10 @@ else:
     HERO_TAGLINE  = "#FFFFFF"
     HERO_EYEBROW  = "#FFFFFF"
     HERO_DOT      = "#F2C76B"
+    # Barre alert semantiche: navy e foresta pieni, leggibili sulla carta bianca.
+    ALERT_INFO_BAR = "#1F343F"   # navy (SECONDARY)
+    ALERT_OK_BAR   = "#3C6A52"   # foresta (TERTIARY)
+    ALERT_ERR_BAR  = "#C0392B"   # rosso
 
 st.markdown(
     f"""
@@ -1912,23 +1921,23 @@ st.markdown(
     /* ---------- Dev banner (software in fase di sviluppo) ---------- */
     @keyframes metaniqDevBlink {{
         0%, 100% {{ opacity: 1; }}
-        50%      {{ opacity: 0.35; }}
+        50%      {{ opacity: 0.74; }}
     }}
     .methaniq-dev-banner {{
-        background: #F59E0B;
-        color: #15242E;
+        background: {SECTION_PILL_BG};
+        color: {SECTION_PILL_COLOR};
         text-align: center;
-        font-family: 'Outfit', sans-serif;
-        font-weight: 700;
-        font-size: 0.82rem;
-        letter-spacing: 2px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 600;
+        font-size: 0.72rem;
+        letter-spacing: 2.5px;
         text-transform: uppercase;
-        padding: 10px 16px;
+        padding: 9px 16px;
         border-radius: 8px;
-        border: 1px solid #B45309;
+        border: 1px solid {ACCENT};
         margin-bottom: 16px;
         box-shadow: none;
-        animation: metaniqDevBlink 1.2s ease-in-out infinite;
+        animation: metaniqDevBlink 2.6s ease-in-out infinite;
     }}
     @media (prefers-reduced-motion: reduce) {{
         .methaniq-dev-banner {{ animation: none; }}
@@ -2246,12 +2255,26 @@ st.markdown(
         font-variant-numeric: tabular-nums;
     }}
 
-    /* --- Alert semantici con barra sinistra coerente alla palette --- */
+    /* --- Alert semantici: card carta + barra sinistra colorata per TIPO
+       (info/success/warning/error) cosi' la gravita' si distingue a colpo
+       d'occhio, restando nella palette editoriale. --- */
     div[data-testid="stAlert"] {{
         background-color: {BG_SURFACE} !important;
         border: 1px solid {BORDER} !important;
         border-left: 3px solid {ACCENT} !important;
         border-radius: 8px !important;
+    }}
+    div[data-testid="stAlert"]:has([data-testid="stAlertContentInfo"]) {{
+        border-left-color: {ALERT_INFO_BAR} !important;
+    }}
+    div[data-testid="stAlert"]:has([data-testid="stAlertContentSuccess"]) {{
+        border-left-color: {ALERT_OK_BAR} !important;
+    }}
+    div[data-testid="stAlert"]:has([data-testid="stAlertContentWarning"]) {{
+        border-left-color: {ACCENT} !important;
+    }}
+    div[data-testid="stAlert"]:has([data-testid="stAlertContentError"]) {{
+        border-left-color: {ALERT_ERR_BAR} !important;
     }}
 
     /* --- Caption Streamlit: corsivo serif discreto --- */
