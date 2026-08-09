@@ -1,0 +1,53 @@
+{
+  "skill_name": "ramble-brief",
+  "evals": [
+    {
+      "id": 0,
+      "name": "ramble-modulo-app",
+      "prompt": "allora ti spiego a voce quello che mi serve poi mettilo in ordine tu... dunque nell'app mensile c'è il problema che quando carico i dati del digestore di Casalbuttano, no aspetta non Casalbuttano, quello di Soresina, insomma quando carico i dati mi calcola il risparmio GHG sul lordo invece che sul netto e il cliente se n'è accorto perché gli usciva ottantasei percento che è troppo bello per essere vero... comunque il punto è che vorrei una specie di controllo che quando il valore supera diciamo il novanta percento mi dà un warning, anzi no facciamo che me lo dà già sopra l'ottantacinque perché tanto sopra quella soglia è quasi sempre un errore di inserimento... poi c'è la questione delle unità perché alcuni fornitori mi mandano i dati in metri cubi normali e altri in standard e nessuno lo specifica mai... e comunque questa cosa va pronta prima dell'audit dell'OdC che dovrebbe essere a fine mese, forse il ventidue non ricordo. ah e ricordati che il calcolo deve restare conforme alla UNI/TS 11567 quindi non inventarti formule nuove",
+      "expected_output": "Ricostruzione strutturata senza produrre codice: separa quanto detto da quanto inferito, segnala la contraddizione Casalbuttano/Soresina e 90%/85%, elenca da confermare i numeri (86, 90, 85, il 22), l'ambiguità Nm3/Sm3 e il riferimento UNI/TS 11567.",
+      "files": [],
+      "assertions": [
+        "Non produce codice ne modifica file del repo in questo turno",
+        "Segnala la contraddizione sull'impianto (Casalbuttano vs Soresina) invece di sceglierne uno",
+        "Segnala la contraddizione sulla soglia di warning (90% vs 85%) invece di sceglierne una",
+        "Contiene una sezione esplicita di assunzioni proprie, distinta da quanto detto dall'utente",
+        "Contiene una sezione esplicita di informazioni mancanti",
+        "Chiede conferma scritta dell'ambiguita di unita Nm3 vs Sm3",
+        "Chiede conferma della data incerta dell'audit OdC",
+        "La risposta e piu corta del messaggio originale dell'utente"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "ramble-sopralluogo-filiera",
+      "prompt": "scusa il disordine sto dettando in macchina... ho appena finito il sopralluogo dal cliente nuovo in provincia di Lodi, hanno tre linee di alimentazione, letame bovino paglia e un po' di scarto di lavorazione del pomodoro che secondo me è sottoprodotto ma loro lo trattano come rifiuto e questa cosa cambia tutto per l'allegato nono... la parte a intendo, no forse la b... comunque il letame dovrebbe essere il sessanta percento in tal quale ma il tizio mi ha detto una cosa e il registro ne diceva un'altra... loro vogliono qualificarsi per il biometano avanzato entro l'anno prossimo e mi hanno chiesto se ce la fanno... poi c'è il fatto che non hanno mai fatto il mass balance separato per lotto quindi i LS sono un casino e non so neanche da dove partire onestamente",
+      "expected_output": "Ricostruzione strutturata senza produrre documenti: segnala l'incertezza Allegato IX parte A vs parte B, il conflitto sul 60% tal quale tra dichiarazione e registro, la classificazione sottoprodotto vs rifiuto come nodo aperto, e chiede i dati mancanti per rispondere sulla fattibilità.",
+      "files": [],
+      "assertions": [
+        "Segnala l'incertezza Allegato IX parte A vs parte B invece di sceglierne una",
+        "Segnala il conflitto sul 60% tal quale tra dichiarazione verbale e registro",
+        "Tratta la classificazione sottoprodotto vs rifiuto come nodo aperto e non risolto",
+        "Contiene una sezione esplicita di assunzioni proprie, distinta da quanto detto dall'utente",
+        "Contiene una sezione esplicita di informazioni mancanti",
+        "Non dichiara se il cliente riesce a qualificarsi entro l'anno prossimo in assenza dei dati mancanti",
+        "Non produce dossier o documenti in questo turno"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "richiesta-breve-precisa",
+      "prompt": "in core/validators.py aggiungi un check che rifiuta un valore di percentuale di sostanza secca fuori dal range 0-100 e alza ValueError con messaggio in italiano. segui lo stile degli altri validator nel file.",
+      "expected_output": "Esegue direttamente il lavoro. Controllo di non-sovra-attivazione: la skill non deve imporre il protocollo di ricostruzione né bloccare la produzione su una richiesta già precisa e circoscritta.",
+      "files": [],
+      "assertions": [
+        "Produce effettivamente il codice del validator richiesto",
+        "Il ValueError sollevato ha un messaggio in italiano",
+        "Il controllo di range copre correttamente gli estremi 0 e 100",
+        "Segue lo stile dei validator gia presenti nel file",
+        "NON applica il template di ricostruzione (nessuna sezione 'Cosa mi hai detto' o 'Assunzioni che ho fatto io')",
+        "NON blocca il lavoro chiedendo conferme preliminari prima di produrre"
+      ]
+    }
+  ]
+}
