@@ -206,6 +206,54 @@ def test_daily_data_reaches_annual_section(tmp_db, plant_id):
     )
 
 
+def test_sustainability_lot_uses_reported_period_and_mass_balance(tmp_db, monkeypatch):
+    """Sezione "Tracciabilita' Lotto di Sostenibilita'" (UNI/TS 11567).
+
+    LS-ID e "Periodo di rendicontazione" derivano da ctx["year"]/["month"],
+    e il bilancio di massa da feedstock_totals_t / sm3_gross / sm3_netti.
+    Quei campi venivano letti da chiavi session_state che nessun widget
+    scrive (`daily_year`, `daily_month`, `monthly_*`): il report usciva con
+    il mese corrente al posto del periodo rendicontato e con il bilancio di
+    massa azzerato - due errori documentali in sede di audit OdC.
+    """
+    import report_pdf as pdf_mod
+
+    captured: list[dict] = []
+    real = pdf_mod.build_metaniq_pdf
+
+    def _spy(ctx, *a, **kw):
+        captured.append(dict(ctx))
+        return real(ctx, *a, **kw)
+
+    monkeypatch.setattr(pdf_mod, "build_metaniq_pdf", _spy)
+
+    year, month, plant = 2024, 3, "default"
+    qty = 150.0
+    _seed_year(year, plant, "Liquame suino", qty)
+
+    at = AppTest.from_file(APP, default_timeout=TIMEOUT)
+    at.session_state["do_year"] = year
+    at.session_state["do_month"] = month
+    at.session_state["do_plant_id"] = plant
+    at.run()
+    captured.clear()   # il primo run popola le chiavi lette dal ctx
+    at.run()           # rerun: come dopo una qualunque interazione utente
+    _assert_clean(at, "lotto-sostenibilita")
+
+    assert captured, "report PDF non generato"
+    for ctx in captured:
+        assert int(ctx["year"]) == year and int(ctx["month"]) == month, (
+            f"periodo di rendicontazione errato: {ctx['month']}/{ctx['year']} "
+            f"invece di {month}/{year} (LS-ID sbagliato)"
+        )
+        totals = ctx.get("feedstock_totals_t") or {}
+        assert totals, "bilancio di massa senza biomasse in INPUT"
+        # 28 giorni seminati per mese
+        assert totals.get("Liquame suino") == pytest.approx(qty * 28), totals
+        assert float(ctx.get("sm3_netti") or 0) > 0, "OUTPUT Sm3 netti azzerato"
+        assert float(ctx.get("sm3_gross") or 0) > 0, "OUTPUT Sm3 lordi azzerato"
+
+
 def test_valid_months_not_inflated_when_saving_below_threshold(tmp_db, monkeypatch):
     """`valid_months` non deve dichiarare mesi conformi sotto soglia.
 

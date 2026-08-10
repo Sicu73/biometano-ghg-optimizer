@@ -3461,6 +3461,20 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         _kpis = _build_kpis(_agg, _sust)
         _thr_pct = float(_kpis["threshold"])
 
+        # Espone l'aggregato del periodo al report PDF: la sezione
+        # "Tracciabilita' Lotto di Sostenibilita'" (UNI/TS 11567) legge queste
+        # chiavi per il bilancio di massa INPUT/OUTPUT. Senza, la tabella
+        # usciva con biomasse vuote e Sm3 lordi/netti a zero.
+        # Solo il pannello principale: quello del tab Analisi
+        # (_key_prefix="tech_") lavora su un plant_id separato e
+        # sovrascriverebbe il periodo rendicontato.
+        if not _key_prefix:
+            st.session_state["daily_year"] = int(_do_year)
+            st.session_state["daily_month"] = int(_do_month)
+            st.session_state["monthly_feed_totals"] = dict(_agg.feedstock_totals_t)
+            st.session_state["monthly_sm3_gross"] = float(_agg.sm3_gross)
+            st.session_state["monthly_sm3_netti"] = float(_agg.sm3_netti)
+
 
         # =================================================================
         # COMPUTE KPI STANDARD (senza override BMT / emission factor).
@@ -5602,6 +5616,28 @@ with tab_results:
                 **_om_ctx,
                 "annex_mass_share": globals().get("annex_mass_share", 0.0),
                 "tot_mwh_basis": float(globals().get("tot_revenue_base_mwh", 0.0) or 0.0),
+                # Anagrafica + periodo per la sezione "Tracciabilita' Lotto di
+                # Sostenibilita'" (UNI/TS 11567): senza questi campi il PDF
+                # ripiegava su LS-ID con la data odierna, intestazione vuota e
+                # bilancio di massa a zero.
+                "company_name": COMPANY_NAME,
+                "company_legal_address": COMPANY_LEGAL_ADDRESS,
+                "plant_name": PLANT_NAME,
+                "plant_operational_address": PLANT_OPERATIONAL_ADDRESS,
+                "company_vat": COMPANY_VAT,
+                "plant_cui": PLANT_CUI,
+                "responsible_name": RESPONSIBLE_NAME,
+                "year": (st.session_state.get("do_year")
+                         or st.session_state.get("daily_year")
+                         or _current_year),
+                "month": (st.session_state.get("do_month")
+                          or st.session_state.get("daily_month") or 1),
+                "feedstock_totals_t": st.session_state.get("monthly_feed_totals", {}),
+                "sm3_gross": st.session_state.get("monthly_sm3_gross", 0.0),
+                "sm3_netti": st.session_state.get("monthly_sm3_netti", 0.0),
+                "saving_threshold_pct": float(ghg_threshold) * 100.0 if ghg_threshold else 80.0,
+                "sustainability_basis": "LORDO (RED III All. V Parte C)",
+                "suppliers_registry": st.session_state.get("suppliers_registry", []),
             }
 
             with _dl_col1:
@@ -6823,10 +6859,18 @@ with tab_plan:
             "plant_cui":                 PLANT_CUI,
             "responsible_name":          RESPONSIBLE_NAME,
             # Periodo di rendicontazione (usato per ID Lotto di Sostenibilità).
-            # Default: data corrente. La tab "Gestione Giornaliera" sovrascrive
-            # con anno/mese reali del periodo selezionato dall'utente.
-            "year":  st.session_state.get("daily_year")  or __import__("datetime").datetime.now().year,
-            "month": st.session_state.get("daily_month") or __import__("datetime").datetime.now().month,
+            # `do_year`/`do_month` sono le key dei widget del pannello
+            # giornaliero: Streamlit le aggiorna prima del rerun, quindi il
+            # periodo e' sempre quello selezionato. Prima si leggevano
+            # `daily_year`/`daily_month`, che nessun widget scrive: LS-ID e
+            # "Periodo di rendicontazione" riportavano il mese corrente
+            # invece del periodo rendicontato (errore documentale in audit).
+            "year":  (st.session_state.get("do_year")
+                      or st.session_state.get("daily_year")
+                      or __import__("datetime").datetime.now().year),
+            "month": (st.session_state.get("do_month")
+                      or st.session_state.get("daily_month")
+                      or __import__("datetime").datetime.now().month),
             # Espone FEEDSTOCK_DB al PDF per popolare la sezione mass balance
             # (Annex IX / categoria per ciascuna biomassa attiva).
             "FEEDSTOCK_DB":              FEEDSTOCK_DB,
