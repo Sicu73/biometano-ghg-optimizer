@@ -2974,6 +2974,17 @@ try:
             })
     df_res = pd.DataFrame(_all_months_data)
 
+    # MonthlyAggregate.to_dict() espone SOLO le biomasse effettivamente
+    # caricate nel mese: se nessun mese e' vuoto (fallback con tutte le
+    # FEED_NAMES), le biomasse non movimentate restano senza colonna e i
+    # KPI sotto sollevano KeyError -> tutta la sezione annuale sparirebbe
+    # dietro un "Errore aggregazione DB". Garantiamo colonna + 0.0.
+    for _feed_col in FEED_NAMES:
+        if _feed_col not in df_res.columns:
+            df_res[_feed_col] = 0.0
+        else:
+            df_res[_feed_col] = df_res[_feed_col].fillna(0.0)
+
     # --- KPI ANNUALI ---
     annual_t = {n: float(max(df_res[n].sum(), 0.0)) for n in active_feeds}
     annual_mwh = {n: float(max(df_res[n].sum(), 0.0)) * _yield_of(n) / aux_factor * NM3_TO_MWH for n in active_feeds}
@@ -5559,6 +5570,17 @@ with tab_results:
                 "actual_emissions": {_f: _emission_factors_of(_f) for _f in active_feeds},
             }
 
+            # Contesto per i deliverable narrativi (PDF report + PPTX):
+            # oltre ai parametri tecnici di _xlsx_ctx servono gli aggregati
+            # annuali di _om_ctx. Senza, il PDF va in KeyError e il PPTX
+            # stampa saving 0%, ricavi 0 e "non conforme" senza segnalare nulla.
+            _report_ctx = {
+                **_xlsx_ctx,
+                **_om_ctx,
+                "annex_mass_share": globals().get("annex_mass_share", 0.0),
+                "tot_mwh_basis": float(globals().get("tot_revenue_base_mwh", 0.0) or 0.0),
+            }
+
             with _dl_col1:
                 try:
                     from excel_export import build_metaniq_xlsx
@@ -5568,16 +5590,15 @@ with tab_results:
 
             with _dl_col2:
                 try:
-                    from pdf_export import build_metaniq_pdf
-                    # Re-use _xlsx_ctx or build specific one
-                    _pdf_buf = build_metaniq_pdf(_xlsx_ctx)
+                    from report_pdf import build_metaniq_pdf
+                    _pdf_buf = build_metaniq_pdf(dict(_report_ctx))
                     st.download_button(_t("📄 Scarica PDF"), data=_pdf_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_report.pdf", mime="application/pdf", width='stretch', type="primary")
                 except Exception as _e: st.error(f"PDF Error: {_e}")
 
             with _dl_col_pptx:
                 try:
                     from export.pptx_export import build_metaniq_pptx
-                    _pptx_buf = build_metaniq_pptx(_xlsx_ctx)
+                    _pptx_buf = build_metaniq_pptx(dict(_report_ctx))
                     st.download_button(_t("📊 Presentazione"), data=_pptx_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_slides.pptx", mime="application/vnd.openxmlformats-officedocument.presentationml.presentation", width='stretch', type="primary")
                 except Exception as _e: st.error(f"PPTX Error: {_e}")
 

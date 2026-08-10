@@ -45,8 +45,18 @@ from core.constants import (  # noqa: E402
     DEFAULT_AUX_FACTOR,
 )
 
-FEEDSTOCK_DB: dict = {}
-FEED_NAMES: list = []
+# Fonte canonica del database biomasse: e' lo STESSO oggetto che app_mensile
+# importa a sua volta (`from core.feedstock_db import FEEDSTOCK_DB`), quindi
+# il fallback non introduce una seconda verita'.
+# Senza questo default il modulo restava con FEEDSTOCK_DB/FEED_NAMES vuoti
+# ogni volta che veniva importato prima di app_mensile con streamlit gia'
+# in sys.modules (vedi Step 2: in quel caso l'import legacy viene saltato
+# per non innescare import circolari), e i consumatori a valle leggevano
+# zero biomasse senza alcun errore.
+from core.feedstock_db import FEEDSTOCK_DB as _FEEDSTOCK_DB_CANON  # noqa: E402
+
+FEEDSTOCK_DB: dict = _FEEDSTOCK_DB_CANON
+FEED_NAMES: list = list(_FEEDSTOCK_DB_CANON.keys())
 FEEDSTOCK_CATEGORIES: dict = {}
 MONTHS = [
     "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
@@ -252,7 +262,12 @@ def _emission_factors_of(name, ep_default=0.0):
 
 
 def _yield_of(name):
-    return _live_call("_yield_of", name, _fallback=0.0)
+    # Fallback = resa tabellare della fonte canonica. Il vecchio 0.0
+    # azzerava silenziosamente Sm3 e MWh quando app_mensile non era
+    # caricato (script, export, job fuori da Streamlit). Nessuna formula
+    # duplicata: senza override BMT la normalizzazione ST vale 1.
+    _fb = float((FEEDSTOCK_DB.get(name) or {}).get("yield", 0.0) or 0.0)
+    return _live_call("_yield_of", name, _fallback=_fb)
 
 
 def _feeds_by_category():
