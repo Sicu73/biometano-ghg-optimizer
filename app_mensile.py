@@ -2942,7 +2942,19 @@ try:
     _init_db_main()
     
     _current_year = int(st.session_state.get("do_year", 2024))
-    _plant_id = st.session_state.get("do_plant", "default_plant")
+    # Stesso identificativo impianto usato dal pannello giornaliero per
+    # SALVARE (_do_plant_safe, riga ~3168): il widget "Impianto" scrive su
+    # `do_plant_id`, non su `do_plant`. Leggendo `do_plant` — chiave che
+    # nessun widget popola — questa sezione restava per sempre su
+    # "default_plant" e mostrava "Nessun dato annuale disponibile" anche
+    # con un anno intero di dati salvati, rendendo irraggiungibili gli
+    # export consolidati. Al primo run il widget non e' ancora renderizzato:
+    # si ricade sul nome impianto dell'anagrafica, come fa il suo default.
+    _plant_id = (
+        (st.session_state.get("do_plant_id") or "").strip()
+        or (PLANT_NAME or "").strip()
+        or "default"
+    )
     
     # Contesto per il calcolo (ricalcolo dinamico in base alla sidebar).
     # Comparator: legge session_state se gia' popolato (rerun successivi al primo),

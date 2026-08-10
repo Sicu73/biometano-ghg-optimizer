@@ -114,7 +114,7 @@ def test_app_runs_with_populated_db(tmp_db):
     year, plant = 2024, "default_plant"
     _seed_year(year, plant, "Liquame bovino", 120.0)
 
-    at = _run(do_year=year, do_plant=plant)
+    at = _run(do_year=year, do_plant_id=plant)
     _assert_clean(at, "db-popolato")
 
     labels = [b.label for b in at.get("download_button")]
@@ -159,7 +159,7 @@ def test_narrative_exports_receive_annual_aggregates(tmp_db, monkeypatch):
     # con ricavi e MWh non nulli (l'altro test usa di proposito una
     # biomassa non attiva, per coprire le colonne df_res mancanti).
     _seed_year(year, plant, "Trinciato di mais", 120.0)
-    at = _run(do_year=year, do_plant=plant)
+    at = _run(do_year=year, do_plant_id=plant)
     _assert_clean(at, "export-narrativi")
 
     kinds = {k for k, _ in captured}
@@ -175,6 +175,35 @@ def test_narrative_exports_receive_annual_aggregates(tmp_db, monkeypatch):
             "dichiarerebbe l'impianto non conforme"
         )
         assert float(ctx["tot_revenue"]) > 0, f"[{kind}] tot_revenue nullo"
+
+
+@pytest.mark.parametrize("plant_id", ["default", "CAB Bagnacavallo"])
+def test_daily_data_reaches_annual_section(tmp_db, plant_id):
+    """I dati salvati dalla Gestione Giornaliera devono arrivare all'annuale.
+
+    Il pannello giornaliero salva con l'ID del campo "Impianto"
+    (session_state `do_plant_id`, default "default" o il nome impianto
+    dell'anagrafica). La sezione annuale leggeva invece `do_plant`, chiave
+    che nessun widget dell'app scrive: restava sempre sul fallback
+    "default_plant" e mostrava "Nessun dato annuale disponibile" anche con
+    un anno intero di dati a DB, rendendo irraggiungibili tutti gli export
+    consolidati.
+    """
+    year = 2024
+    _seed_year(year, plant_id, "Liquame suino", 150.0)
+
+    at = _run(do_year=year, do_plant_id=plant_id)
+    _assert_clean(at, f"annuale/{plant_id}")
+
+    infos = [str(i.value) for i in at.get("info")]
+    assert not [t for t in infos if "Nessun dato annuale" in t], (
+        f"plant_id={plant_id!r}: la sezione annuale non vede i dati salvati "
+        "dalla gestione giornaliera"
+    )
+    labels = [b.label for b in at.get("download_button")]
+    assert "📄 Scarica PDF" in labels, (
+        f"plant_id={plant_id!r}: export consolidati irraggiungibili ({labels})"
+    )
 
 
 def test_valid_months_not_inflated_when_saving_below_threshold(tmp_db, monkeypatch):
@@ -197,7 +226,7 @@ def test_valid_months_not_inflated_when_saving_below_threshold(tmp_db, monkeypat
 
     year, plant = 2024, "default_plant"
     _seed_year(year, plant, "Trinciato di mais", 120.0)
-    at = _run(do_year=year, do_plant=plant)
+    at = _run(do_year=year, do_plant_id=plant)
     _assert_clean(at, "valid-months")
 
     assert captured, "report PDF non generato"
