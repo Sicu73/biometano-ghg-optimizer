@@ -1170,6 +1170,17 @@ except ImportError:
     # Auth module non disponibile (es. deploy senza bcrypt installato) → skip
     pass
 
+# Gate sui soli download: l'app resta aperta a chiunque, i report chiedono
+# nome/email/azienda. Vedi core/download_gate.py per il modello e per i
+# canali di recapito dei contatti.
+try:
+    from core.download_gate_ui import gated_download_button as _gated_dl
+except ImportError:  # modulo assente → nessun gate, download liberi
+    def _gated_dl(label, data=None, file_name=None, mime=None, key=None,
+                  t=None, document=None, **kwargs):
+        return st.download_button(label, data=data, file_name=file_name,
+                                  mime=mime, key=key, **kwargs)
+
 if "methaniq_theme" not in st.session_state:
     st.session_state.methaniq_theme = "light"
 
@@ -2923,7 +2934,7 @@ with st.sidebar:
                 manure_credit_declared=bool(
                     st.session_state.get("manure_credit_declared", True)),
             )
-            st.download_button(
+            _gated_dl(
                 "📋 " + _t("Scarica dossier di conformità (OdC)"),
                 data=_dossier_bytes,
                 file_name=f"dossier_conformita_metaniq_{_date.today().isoformat()}.pdf",
@@ -4314,7 +4325,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
         _fname_base = f"metaniq_{int(_do_year)}_{int(_do_month):02d}"
         with _scol1:
             try:
-                st.download_button(
+                _gated_dl(
                     "⬇️ CSV",
                     _build_daily_csv(_daily_df_full) if not _disabled else b"",
                     file_name=f"{_fname_base}.csv",
@@ -4339,7 +4350,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                     "plant_name": PLANT_NAME or "—",
                     "max_sm3h": _cap_smch,
                 }
-                st.download_button(
+                _gated_dl(
                     "⬇️ Excel",
                     _build_daily_xlsx(
                         _daily_df_full, _kpis, _audit,
@@ -4373,7 +4384,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                         )
                 else:
                     _pdf_bytes = b""
-                st.download_button(
+                _gated_dl(
                     "⬇️ PDF",
                     _pdf_bytes,
                     file_name=f"{_fname_base}.pdf",
@@ -5674,21 +5685,21 @@ with tab_results:
                 try:
                     from excel_export import build_metaniq_xlsx
                     _xlsx_buf = build_metaniq_xlsx(_xlsx_ctx)
-                    st.download_button(_t("📊 Scarica Excel"), data=_xlsx_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_consolidato.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", width='stretch', type="primary")
+                    _gated_dl(_t("📊 Scarica Excel"), data=_xlsx_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_consolidato.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", width='stretch', type="primary")
                 except Exception as _e: st.error(f"XLSX Error: {_e}")
 
             with _dl_col2:
                 try:
                     from report_pdf import build_metaniq_pdf
                     _pdf_buf = build_metaniq_pdf(dict(_report_ctx))
-                    st.download_button(_t("📄 Scarica PDF"), data=_pdf_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_report.pdf", mime="application/pdf", width='stretch', type="primary")
+                    _gated_dl(_t("📄 Scarica PDF"), data=_pdf_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_report.pdf", mime="application/pdf", width='stretch', type="primary")
                 except Exception as _e: st.error(f"PDF Error: {_e}")
 
             with _dl_col_pptx:
                 try:
                     from export.pptx_export import build_metaniq_pptx
                     _pptx_buf = build_metaniq_pptx(dict(_report_ctx))
-                    st.download_button(_t("📊 Presentazione"), data=_pptx_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_slides.pptx", mime="application/vnd.openxmlformats-officedocument.presentationml.presentation", width='stretch', type="primary")
+                    _gated_dl(_t("📊 Presentazione"), data=_pptx_buf.getvalue(), file_name=f"metaniq_{APP_MODE}_slides.pptx", mime="application/vnd.openxmlformats-officedocument.presentationml.presentation", width='stretch', type="primary")
                 except Exception as _e: st.error(f"PPTX Error: {_e}")
 
         except Exception as _exp_ui_exc:
@@ -6819,7 +6830,7 @@ with tab_plan:
             _xlsx_err = str(_xlsx_exc)
 
         if _xlsx_ok:
-            st.download_button(
+            _gated_dl(
                 _t("📊 Scarica Excel modificabile"),
                 data=_xlsx_data,
                 file_name=f"metaniq_{APP_MODE}_editabile.xlsx",
@@ -6921,7 +6932,7 @@ with tab_plan:
             _pdf_ok = False
             _pdf_err = str(_exc)
         if _pdf_ok:
-            st.download_button(
+            _gated_dl(
                 _t("📄 Scarica Report PDF"),
                 data=_pdf_data,
                 file_name=f"metaniq_{APP_MODE}_report.pdf",
@@ -6948,7 +6959,7 @@ with tab_plan:
             _pptx_err = str(_exc)
         
         if _pptx_ok:
-            st.download_button(
+            _gated_dl(
                 _t("📊 Presentazione PPTX"),
                 data=_pptx_data,
                 file_name=f"metaniq_{APP_MODE}_presentazione.pptx",
@@ -6974,7 +6985,7 @@ with tab_plan:
             _xlsx_snap_ok = False
             _xlsx_snap_err = str(_xs_exc)
         if _xlsx_snap_ok:
-            st.download_button(
+            _gated_dl(
                 _t("📋 Excel snapshot"),
                 data=_xlsx_snap_data,
                 file_name=f"metaniq_{APP_MODE}_snapshot.xlsx",
@@ -7016,7 +7027,7 @@ with tab_plan:
                 _csv_err = str(_csv_exc)
         if _csv_ok:
             _csv_fn = f"metaniq_{APP_MODE}_{'monthly_plan' if _LANG=='en' else 'piano_mensile'}.csv"
-            st.download_button(
+            _gated_dl(
                 _t("📥 Scarica CSV"),
                 data=_csv_data,
                 file_name=_csv_fn,
@@ -7276,7 +7287,7 @@ with tab_plan:
                 "lang": _LANG,
             }
             _bp_pdf_buf = build_business_plan_pdf(_bp, _bp_meta)
-            st.download_button(
+            _gated_dl(
                 "📄 " + _t("Scarica PDF Business Plan (15 anni)"),
                 data=_bp_pdf_buf.getvalue(),
                 file_name=f"metaniq_{APP_MODE}_business_plan_15anni.pdf",

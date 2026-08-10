@@ -110,11 +110,15 @@ def test_app_runs_with_empty_db(tmp_db):
 
 
 def test_app_runs_with_populated_db(tmp_db):
-    """Ramo consolidato: nessun errore e gli export sono raggiungibili."""
+    """Ramo consolidato: nessun errore e gli export sono raggiungibili.
+
+    `_dl_unlocked` simula l'utente che si e' gia' identificato: senza,
+    i report stanno dietro il gate (vedi test_report_downloads_are_gated).
+    """
     year, plant = 2024, "default_plant"
     _seed_year(year, plant, "Liquame bovino", 120.0)
 
-    at = _run(do_year=year, do_plant_id=plant)
+    at = _run(do_year=year, do_plant_id=plant, _dl_unlocked=True)
     _assert_clean(at, "db-popolato")
 
     labels = [b.label for b in at.get("download_button")]
@@ -192,7 +196,7 @@ def test_daily_data_reaches_annual_section(tmp_db, plant_id):
     year = 2024
     _seed_year(year, plant_id, "Liquame suino", 150.0)
 
-    at = _run(do_year=year, do_plant_id=plant_id)
+    at = _run(do_year=year, do_plant_id=plant_id, _dl_unlocked=True)
     _assert_clean(at, f"annuale/{plant_id}")
 
     infos = [str(i.value) for i in at.get("info")]
@@ -204,6 +208,88 @@ def test_daily_data_reaches_annual_section(tmp_db, plant_id):
     assert "📄 Scarica PDF" in labels, (
         f"plant_id={plant_id!r}: export consolidati irraggiungibili ({labels})"
     )
+
+
+def test_report_downloads_are_gated_but_manual_stays_public(tmp_db):
+    """I report chiedono un contatto; l'app e il manuale restano liberi."""
+    year, plant = 2024, "default"
+    _seed_year(year, plant, "Liquame suino", 150.0)
+
+    at = _run(do_year=year, do_plant_id=plant)     # nessuna identificazione
+    _assert_clean(at, "gate-attivo")
+
+    labels = [b.label for b in at.get("download_button")]
+    for blocked in ("📄 Scarica PDF", "📊 Scarica Excel", "📄 Scarica Report PDF",
+                    "📋 Excel snapshot"):
+        assert blocked not in labels, (
+            f"{blocked!r} scaricabile senza identificarsi: {labels}"
+        )
+    # il manuale utente e' documentazione, non un deliverable
+    assert any("Manuale" in lbl for lbl in labels), (
+        f"il manuale non deve stare dietro il gate: {labels}"
+    )
+    # l'app resta navigabile
+    assert at.tabs, "il gate non deve bloccare l'uso dell'app"
+
+
+def test_unlock_flow_end_to_end(tmp_db, monkeypatch):
+    """Compilo il form nell'app reale e i report diventano scaricabili."""
+    from core import download_gate
+
+    delivered: list = []
+    monkeypatch.setattr(download_gate, "deliver",
+                        lambda ident, doc: delivered.append((ident, doc)) or {})
+
+    year, plant = 2024, "default"
+    _seed_year(year, plant, "Liquame suino", 150.0)
+    at = _run(do_year=year, do_plant_id=plant)
+
+    assert "📄 Scarica PDF" not in [b.label for b in at.get("download_button")]
+
+    # ogni report ha il proprio popover, quindi il proprio form: compilo tutti
+    # i campi cosi' il submit cliccato trova i dati (l'utente ne usa uno solo)
+    # NB: i report con `key` esplicita generano campi `<key>__gate__name`,
+    # non `dlgate_...`: si filtra sul suffisso, non sul prefisso.
+    for w in at.get("text_input"):
+        k = str(w.key or "")
+        if k.endswith("__name"):
+            w.set_value("Carlo Sicurini")
+        elif k.endswith("__email"):
+            w.set_value("carlo.sicurini@gmail.com")
+        elif k.endswith("__company"):
+            w.set_value("CAB Bagnacavallo")
+
+    submits = [b for b in at.get("button")
+               if "Sblocca" in str(getattr(b, "label", ""))]
+    assert submits, "nessun pulsante di sblocco renderizzato"
+    submits[0].click().run()
+    _assert_clean(at, "sblocco")
+
+    assert at.session_state["_dl_unlocked"] is True
+    identity = at.session_state["_dl_identity"]
+    assert identity["email"] == "carlo.sicurini@gmail.com"
+    assert identity["company"] == "CAB Bagnacavallo"
+
+    labels = [b.label for b in at.get("download_button")]
+    assert "📄 Scarica PDF" in labels, labels
+
+    assert delivered, "il contatto non e' stato recapitato"
+    ident, doc = delivered[0]
+    assert ident.email == "carlo.sicurini@gmail.com"
+    assert doc, "il documento richiesto deve essere tracciato"
+
+
+def test_identified_user_gets_the_reports(tmp_db):
+    """Chi si identifica vede gli stessi download di prima."""
+    year, plant = 2024, "default"
+    _seed_year(year, plant, "Liquame suino", 150.0)
+
+    at = _run(do_year=year, do_plant_id=plant, _dl_unlocked=True)
+    _assert_clean(at, "gate-sbloccato")
+
+    labels = [b.label for b in at.get("download_button")]
+    assert "📄 Scarica PDF" in labels, labels
+    assert "📊 Scarica Excel" in labels, labels
 
 
 def test_sustainability_lot_uses_reported_period_and_mass_balance(tmp_db, monkeypatch):

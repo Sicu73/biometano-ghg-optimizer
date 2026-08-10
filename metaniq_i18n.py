@@ -625,6 +625,17 @@ IT_EN: dict = {
     # Contatore visite (sidebar)
     "visite totali": "total visits",
     "ultimi 30 giorni": "last 30 days",
+    # Gate identificazione sui download dei report
+    "Per scaricare i report lascia un contatto: l'app resta libera, "
+    "i documenti no.":
+        "Leave a contact to download the reports: the app stays open, "
+        "the documents don't.",
+    "Sblocca i download": "Unlock downloads",
+    "Grazie. I download sono attivi per questa sessione.":
+        "Thank you. Downloads are enabled for this session.",
+    "Inserisci nome e cognome.": "Enter your full name.",
+    "Inserisci un'email.": "Enter an email address.",
+    "L'email non sembra valida.": "That email doesn't look valid.",
 
     # UI live polish: sidebar, daily operation, incentives/export.
     "Anagrafica simulazione": "Simulation profile",
