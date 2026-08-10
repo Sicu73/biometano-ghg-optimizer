@@ -7432,15 +7432,22 @@ with st.sidebar:
     try:
         _vstats = _cached_visit_stats()
         if _vstats.available and _vstats.total > 0:
-            _vs_label = _t("visite totali")
-            _vs_30 = _t("ultimi 30 giorni")
+            # La riga "ultimi 30 giorni" compare solo se il backend la
+            # espone davvero (Abacus restituisce solo il totale): meglio
+            # nessun dato che uno zero che sembra un calo di traffico.
+            _vs_detail = ""
+            if _vstats.last_30d > 0:
+                _vs_detail = (
+                    f"<span style='font-size:0.6rem; display:block; opacity:0.75;'>"
+                    f"{fmt_it(_vstats.last_30d, 0)} "
+                    f"{_html.escape(_t('ultimi 30 giorni'))}</span>"
+                )
             st.markdown(
                 f"<div style='font-size:0.68rem; color:#94A3B8; margin-top:10px; "
                 f"text-align:center; opacity:0.9;'>"
                 f"👁 <b style='color:{AMBER};'>{fmt_it(_vstats.total, 0)}</b> "
-                f"{_html.escape(_vs_label)}"
-                f"<span style='font-size:0.6rem; display:block; opacity:0.75;'>"
-                f"{fmt_it(_vstats.last_30d, 0)} {_html.escape(_vs_30)}</span>"
+                f"{_html.escape(_t('visite totali'))}"
+                f"{_vs_detail}"
                 f"</div>",
                 unsafe_allow_html=True,
             )

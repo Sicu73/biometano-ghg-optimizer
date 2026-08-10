@@ -13,12 +13,21 @@ sopravviva serve uno store esterno.
 Backend, scelti automaticamente:
 
   1. Supabase (REST)  se ``st.secrets["analytics"]["supabase_url"]`` e
-                      ``["service_key"]`` sono configurati. Persistente,
-                      e' quello da usare in produzione. Nessuna dipendenza
-                      nuova: usa ``requests``, gia' richiesto da streamlit.
-  2. SQLite locale    fallback sempre disponibile (``data/analytics.db``).
-                      Utile in sviluppo e in self-hosting; su Cloud si
-                      azzera a ogni riciclo del container.
+                      ``["service_key"]`` sono configurati. E' l'unico che
+                      da' le statistiche complete (finestre temporali,
+                      ripartizione per lingua).
+  2. Abacus           DEFAULT, nessuna configurazione: servizio di conteggio
+                      pubblico e gratuito (abacus.jasoncameron.dev), senza
+                      account ne' chiavi. Persiste tra i riavvii del Cloud,
+                      ma espone solo un totale: le finestre temporali non
+                      sono disponibili. Il namespace e' pubblico, quindi il
+                      totale e' teoricamente gonfiabile da terzi: e' una
+                      metrica indicativa, non un dato di fatturazione.
+  3. SQLite locale    ultimo fallback, se la rete non e' disponibile
+                      (``data/analytics.db``). Su Cloud si azzera a ogni
+                      riciclo del container.
+
+Nessuna dipendenza nuova: si usa ``requests``, gia' richiesto da streamlit.
 
 GDPR: si registra una riga per SESSIONE con un identificativo casuale
 generato al volo, il timestamp UTC, la lingua UI e la versione app. Nessun
@@ -44,6 +53,10 @@ _LOG = get_logger(__name__)
 
 _TIMEOUT_S = 2.5          # lo store non deve rallentare il primo render
 _TABLE = "visits"
+
+# Totale restituito dall'ultimo `hit` remoto: evita una seconda chiamata HTTP
+# per disegnare il badge nello stesso run.
+_LAST_REMOTE_TOTAL: int | None = None
 
 
 # ============================================================================
@@ -224,6 +237,69 @@ class SupabaseBackend:
 
 
 # ============================================================================
+# BACKEND — Abacus (nessuna configurazione)
+# ============================================================================
+class AbacusBackend:
+    """Contatore pubblico gratuito, senza account ne' chiavi.
+
+    API: ``/hit/<ns>/<key>`` incrementa e restituisce il nuovo valore,
+    ``/get/<ns>/<key>`` legge senza incrementare (404 se mai creata).
+
+    Limiti accettati consapevolmente: espone un solo intero, quindi niente
+    finestre temporali ne' ripartizione per lingua; e il namespace viaggia
+    in chiaro nel codice, quindi il totale e' gonfiabile da chi lo conosce.
+    Per statistiche affidabili si configura Supabase.
+    """
+
+    name = "abacus"
+    BASE = "https://abacus.jasoncameron.dev"
+    # namespace fisso dell'app: non e' un segreto, solo poco indovinabile
+    NAMESPACE = "metaniq-8f3c2a1b"
+    KEY = "app-visits"
+
+    def __init__(self, namespace: str | None = None, key: str | None = None,
+                 base: str | None = None):
+        self.namespace = namespace or os.environ.get(
+            "METANIQ_ABACUS_NS", "").strip() or self.NAMESPACE
+        self.key = key or self.KEY
+        self.base = (base or self.BASE).rstrip("/")
+
+    def _call(self, verb: str) -> int | None:
+        import requests
+
+        r = requests.get(
+            f"{self.base}/{verb}/{self.namespace}/{self.key}", timeout=_TIMEOUT_S
+        )
+        if r.status_code == 404:      # chiave non ancora creata
+            return 0
+        if r.status_code >= 300:
+            return None
+        val = r.json().get("value")
+        return int(val) if val is not None else None
+
+    def record(self, visit_id: str, ts: str, lang: str, app_version: str) -> bool:
+        # `hit` restituisce gia' il nuovo totale: lo memorizziamo a livello di
+        # modulo (non di istanza: get_backend() ne costruisce una nuova a ogni
+        # chiamata) per evitare una seconda HTTP quando si disegna il badge.
+        global _LAST_REMOTE_TOTAL
+        val = self._call("hit")
+        if val is None:
+            return False
+        _LAST_REMOTE_TOTAL = val
+        return True
+
+    def stats(self) -> VisitStats:
+        val = _LAST_REMOTE_TOTAL
+        if val is None:
+            val = self._call("get")
+        if val is None:
+            return VisitStats()
+        # last_30d/7d/today restano a 0: il servizio non li espone e la UI
+        # nasconde le righe a zero invece di mostrare numeri inventati.
+        return VisitStats(total=int(val), backend=self.name)
+
+
+# ============================================================================
 # SELEZIONE BACKEND
 # ============================================================================
 def _secrets_section(name: str) -> dict:
@@ -235,7 +311,12 @@ def _secrets_section(name: str) -> dict:
 
 
 def get_backend():
-    """Supabase se configurato, altrimenti SQLite locale, altrimenti None."""
+    """Supabase se configurato, altrimenti Abacus, altrimenti SQLite locale.
+
+    L'ordine mette per primo l'unico backend con statistiche complete, poi
+    quello che non richiede alcuna configurazione ma persiste comunque tra i
+    riavvii del Cloud, e per ultimo il file locale (che sul Cloud si perde).
+    """
     cfg = _secrets_section("analytics")
     url = str(cfg.get("supabase_url", "") or os.environ.get("METANIQ_ANALYTICS_URL", "")).strip()
     key = str(cfg.get("service_key", "") or os.environ.get("METANIQ_ANALYTICS_KEY", "")).strip()
@@ -244,6 +325,20 @@ def get_backend():
             return SupabaseBackend(url, key)
         except Exception as exc:  # noqa: BLE001
             _LOG.warning("analytics: backend Supabase non inizializzabile: %s", exc)
+
+    # Il contatore remoto e' condiviso e incrementale: sotto pytest va evitato,
+    # altrimenti ogni esecuzione della suite (che avvia l'app headless) gonfia
+    # il totale di produzione. Override esplicito con METANIQ_ANALYTICS_REMOTE=1.
+    _forced = os.environ.get("METANIQ_ANALYTICS_REMOTE", "").lower() in ("1", "true", "yes")
+    _under_pytest = bool(os.environ.get("PYTEST_CURRENT_TEST")) and not _forced
+    _disabled = str(cfg.get("disable_remote", "")).lower() in ("1", "true", "yes")
+
+    if not _disabled and not _under_pytest:
+        try:
+            return AbacusBackend()
+        except Exception as exc:  # noqa: BLE001
+            _LOG.warning("analytics: backend Abacus non inizializzabile: %s", exc)
+
     try:
         return SqliteBackend()
     except Exception as exc:  # noqa: BLE001

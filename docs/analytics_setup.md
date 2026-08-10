@@ -1,24 +1,55 @@
-# Contatore visite — configurazione
+# Contatore visite
 
-Il contatore vive in [`core/analytics.py`](../core/analytics.py) e registra
-**una riga per sessione browser**: identificativo casuale, timestamp UTC,
-lingua UI, versione app. Nessun IP, nessun user agent, nessun cookie, nessun
-dato che permetta di risalire alla persona — è un conteggio aggregato, quindi
-non richiede banner di consenso.
+**Non serve configurare niente.** Il contatore è attivo e funziona da solo.
+
+Vive in [`core/analytics.py`](../core/analytics.py) e conta **una visita per
+sessione browser**, non per interazione: Streamlit rilancia lo script a ogni
+click, senza il guard un singolo utente conterebbe decine di visite.
+
+Il numero compare in fondo alla barra laterale:
+
+```
+👁 128 visite totali
+```
+
+## Privacy
+
+Non si registra nulla di personale: né indirizzo IP, né user agent, né
+cookie, né referer. È un conteggio aggregato, non un profilo — per questo non
+serve alcun banner di consenso.
 
 ## Backend
 
-| Backend | Quando si attiva | Persistenza |
-|---|---|---|
-| Supabase (REST) | `st.secrets["analytics"]` compilato | Sì, è quello da usare in produzione |
-| SQLite locale | sempre, come fallback | No su Streamlit Cloud: il container viene riciclato e il file sparisce |
+Il modulo sceglie da solo, in quest'ordine:
 
-Senza configurazione l'app funziona identica: il contatore usa SQLite e il
-badge in sidebar mostra i numeri della sessione corrente del container.
+| Backend | Quando | Cosa dà | Configurazione |
+|---|---|---|---|
+| **Abacus** | default | totale complessivo | nessuna |
+| Supabase | se compili i secrets | totale, ultimi 30/7 giorni, oggi, ripartizione per lingua | opzionale |
+| SQLite locale | se la rete non è disponibile | tutto, ma solo in locale | nessuna |
 
-## Setup Supabase (gratuito, ~5 minuti)
+### Abacus (quello attivo)
 
-1. Crea un progetto su [supabase.com](https://supabase.com) (piano free).
+[abacus.jasoncameron.dev](https://abacus.jasoncameron.dev) è un servizio di
+conteggio pubblico e gratuito, senza account né chiavi. Persiste ai riavvii di
+Streamlit Cloud, dove invece un file locale verrebbe cancellato a ogni riciclo
+del container.
+
+Due limiti dichiarati:
+
+- espone **solo il totale**: le finestre temporali non esistono, e la UI le
+  nasconde invece di mostrare zeri fuorvianti;
+- il namespace è scritto nel codice, quindi chi lo conosce può incrementare il
+  contatore. È una metrica indicativa, non un dato contrattuale.
+
+Se il servizio non risponde, il badge semplicemente non compare: un contatore
+non deve mai impedire all'app di funzionare.
+
+### Supabase (opzionale, per le statistiche complete)
+
+Serve solo se vuoi le finestre temporali e la ripartizione per lingua.
+
+1. Crea un progetto gratuito su [supabase.com](https://supabase.com).
 2. Nel **SQL Editor** esegui:
 
 ```sql
@@ -30,14 +61,12 @@ create table if not exists visits (
 );
 
 create index if not exists idx_visits_ts on visits (ts);
-
--- Nessun accesso anonimo: si scrive solo con la service key lato server.
 alter table visits enable row level security;
 ```
 
 3. In **Project Settings → API** copia `Project URL` e la chiave
    `service_role`.
-4. Su Streamlit Cloud, **Settings → Secrets** dell'app, incolla:
+4. Su Streamlit Cloud, **Settings → Secrets**, aggiungi:
 
 ```toml
 [analytics]
@@ -45,40 +74,38 @@ supabase_url = "https://xxxxxxxx.supabase.co"
 service_key  = "eyJhbGciOi..."   # service_role, NON la anon key
 ```
 
-5. Riavvia l'app (**Reboot**, non basta il redeploy).
+5. **Reboot** dell'app.
 
-La `service_role` key bypassa la row level security: va messa solo nei
-secrets del server, mai in codice o in pagine pubbliche.
+La `service_role` bypassa la row level security: solo nei secrets del server,
+mai nel codice.
 
-## In locale
+## Variabili d'ambiente
 
-Per non sporcare `data/analytics.db` durante i test:
+| Variabile | Effetto |
+|---|---|
+| `METANIQ_ABACUS_NS` | namespace alternativo (utile per prove senza toccare il contatore vero) |
+| `METANIQ_ANALYTICS_DB` | path del file SQLite |
+| `METANIQ_ANALYTICS_REMOTE=1` | forza il contatore remoto anche sotto pytest |
+| `METANIQ_ANALYTICS_URL` / `_KEY` | equivalenti dei secrets Supabase |
+
+In `[analytics]` si può anche mettere `disable_remote = true` per tenere tutto
+in locale.
+
+## Nei test
+
+La suite **non** incrementa il contatore di produzione: `get_backend()` rileva
+`PYTEST_CURRENT_TEST` e ripiega su SQLite. Senza questo guard, ogni esecuzione
+dei test — che avvia l'app headless — avrebbe gonfiato il totale.
+
+## Leggere i numeri da riga di comando
 
 ```bash
-METANIQ_ANALYTICS_DB=/tmp/analytics.db streamlit run app_mensile.py
+python -c "from core.analytics import get_stats; print(get_stats())"
 ```
-
-In alternativa a Supabase si possono usare le variabili d'ambiente
-`METANIQ_ANALYTICS_URL` e `METANIQ_ANALYTICS_KEY`, equivalenti ai secrets.
-
-## Leggere i numeri
-
-Il badge in fondo alla sidebar mostra totale e ultimi 30 giorni, con letture
-**in cache 5 minuti** (con Supabase ogni statistica costa chiamate HTTP).
-
-Per il dettaglio completo, da shell:
-
-```bash
-python -c "from core.analytics import get_stats; s = get_stats(); print(s)"
-```
-
-Restituisce totale, ultimi 30/7 giorni, oggi, prima e ultima visita, e la
-ripartizione per lingua.
 
 ## Cosa NON misura
 
-Le visite alla pagina GitHub e i cloni del repo stanno in
-**GitHub → Insights → Traffic** (14 giorni di storico). Le visite viste da
-Streamlit stanno nella dashboard di Streamlit Cloud → **Analytics**. Questo
-contatore è indipendente da entrambe e conta le sessioni che aprono davvero
-l'app.
+- Visite e cloni del repo → GitHub, **Insights → Traffic** (storico 14 giorni).
+- Sessioni viste da Streamlit → dashboard Streamlit Cloud, **Analytics**.
+
+Questo contatore è indipendente da entrambi e conta chi apre davvero l'app.
