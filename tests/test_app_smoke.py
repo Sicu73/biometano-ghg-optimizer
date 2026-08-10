@@ -175,3 +175,37 @@ def test_narrative_exports_receive_annual_aggregates(tmp_db, monkeypatch):
             "dichiarerebbe l'impianto non conforme"
         )
         assert float(ctx["tot_revenue"]) > 0, f"[{kind}] tot_revenue nullo"
+
+
+def test_valid_months_not_inflated_when_saving_below_threshold(tmp_db, monkeypatch):
+    """`valid_months` non deve dichiarare mesi conformi sotto soglia.
+
+    Il PDF stampa "Validita' mensile: N/12 mesi (tutti conformi) rispetto
+    alle due condizioni RED III". Con il trinciato di mais il saving resta
+    sotto l'80%: N deve essere 0, non 12.
+    """
+    import report_pdf as pdf_mod
+
+    captured: list[dict] = []
+    real = pdf_mod.build_metaniq_pdf
+
+    def _spy(ctx, *a, **kw):
+        captured.append(dict(ctx))
+        return real(ctx, *a, **kw)
+
+    monkeypatch.setattr(pdf_mod, "build_metaniq_pdf", _spy)
+
+    year, plant = 2024, "default_plant"
+    _seed_year(year, plant, "Trinciato di mais", 120.0)
+    at = _run(do_year=year, do_plant=plant)
+    _assert_clean(at, "valid-months")
+
+    assert captured, "report PDF non generato"
+    for ctx in captured:
+        saving = float(ctx["saving_avg"])
+        threshold = float(ctx["ghg_threshold"]) * 100.0
+        if saving < threshold:
+            assert int(ctx["valid_months"]) == 0, (
+                f"saving {saving:.1f}% < soglia {threshold:.0f}% ma il report "
+                f"dichiara {ctx['valid_months']}/12 mesi conformi"
+            )

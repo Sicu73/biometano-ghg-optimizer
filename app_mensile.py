@@ -2952,6 +2952,14 @@ try:
         "ep": ep_total,
         "fossil_comparator": st.session_state.get("fossil_comparator_active", FOSSIL_COMPARATOR),
         "plant_net_smch": plant_net_smch,
+        # Soglia saving RED III: senza di essa l'aggregato marca "OK" ogni
+        # mese che abbia dei dati, e il report PDF lo presenta come mese
+        # conforme (vedi core/monthly_aggregate.validity_label). Stesso
+        # pattern del comparator: session_state se gia' scelto in sidebar,
+        # altrimenti il default del selettore (prima voce di END_USE_THRESHOLDS).
+        "ghg_threshold": st.session_state.get(
+            "ghg_threshold_active", next(iter(END_USE_THRESHOLDS.values()))
+        ),
     }
 
     _all_months_data = []
@@ -5053,6 +5061,9 @@ with tab_tech:
     # corrente senza mutare la costante globale (anti-pattern audit/test).
     fossil_comparator = COMPARATOR_BY_END_USE[end_use]
     st.session_state["fossil_comparator_active"] = fossil_comparator
+    # Idem per la soglia: l'aggregazione DB gira prima di questo punto e la
+    # rilegge al rerun successivo per marcare la validita' mensile.
+    st.session_state["ghg_threshold_active"] = ghg_threshold
     st.caption(
         f"📐 Comparator fossile RED III: **{fmt_it(fossil_comparator, 0)} "
         f"gCO₂/MJ** "

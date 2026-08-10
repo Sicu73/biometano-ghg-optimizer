@@ -63,6 +63,10 @@ class MonthlyAggregate:
     daily_count: int = 0
     cap_ok_days: int = 0
     cap_violation_days: list[date] = field(default_factory=list)
+    # Soglia GHG saving applicabile, in PERCENTUALE (80.0 = RED III
+    # rete/calore). 0.0 = non fornita dal chiamante -> la validita' resta
+    # sul comportamento storico (solo presenza di dati).
+    ghg_threshold_pct: float = 0.0
 
     # REMI metrics (consolidate mese)
     remi_vb_total: float = 0.0
@@ -76,6 +80,41 @@ class MonthlyAggregate:
     remi_energia_specifica_kwh_smc: float = 0.0
     total_hours: float = 0.0
 
+    def validity_label(self) -> str:
+        """Etichetta di validita' del mese.
+
+        Stessa semantica del simulatore what-if (app_mensile ~6037): un mese
+        e' valido se il saving GHG raggiunge la soglia RED III applicabile E
+        la produzione resta entro il tetto autorizzativo. L'etichetta finisce
+        nel report PDF e in `valid_months`, che il PDF presenta come
+        conformita': marcarla "OK" per la sola presenza di dati produceva una
+        dichiarazione falsa (es. saving 62,7% riportato come mese conforme).
+
+        Senza soglia nota (`ghg_threshold_pct == 0`) resta il comportamento
+        storico, per non alterare i chiamanti che non la passano.
+        """
+        if self.n_days_with_data <= 0:
+            return "❌ Nessun dato"
+        if self.ghg_threshold_pct <= 0:
+            return "✅ OK"
+
+        # tolleranza 1e-6: evita falsi negativi da arrotondamenti float
+        saving_ok = self.saving_pct >= self.ghg_threshold_pct - 1e-6
+        cap_ok = not self.cap_violation_days
+        if saving_ok and cap_ok:
+            return "✅ Valido"
+
+        motivi = []
+        if not saving_ok:
+            motivi.append(
+                f"saving {self.saving_pct:.1f}% < {self.ghg_threshold_pct:.0f}%"
+            )
+        if not cap_ok:
+            motivi.append(
+                f"{len(self.cap_violation_days)} giorni oltre il tetto autorizzativo"
+            )
+        return "❌ Non valido: " + "; ".join(motivi)
+
     def to_dict(self) -> dict:
         """Converte l'aggregato in un dizionario per compatibilità UI (df_res)."""
         d = {
@@ -87,7 +126,7 @@ class MonthlyAggregate:
             "e_w": self.e_total,
             "Saving %": self.saving_pct,
             "Totale biomasse (t)": self.biomass_total_t,
-            "Validità": "✅ OK" if self.n_days_with_data > 0 else "❌ Nessun dato",
+            "Validità": self.validity_label(),
         }
 
         d.update({
@@ -116,6 +155,9 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
 
     agg = MonthlyAggregate(year=year, month=month)
     agg.daily_count = len(daily_list)
+    # Soglia in frazione (0-1) nel ctx, come nel resto dell'app; qui in %
+    # per il confronto diretto con saving_pct.
+    agg.ghg_threshold_pct = float(ctx.get("ghg_threshold") or 0.0) * 100.0
 
     feed_totals: dict[str, float] = {}
     cap_violations: list[date] = []
