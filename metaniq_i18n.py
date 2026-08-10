@@ -622,6 +622,9 @@ IT_EN: dict = {
     "Documento non disponibile": "Document not available",
     "Licenza non disponibile.": "License not available.",
     "Tutti i diritti riservati": "All rights reserved",
+    # Contatore visite (sidebar)
+    "visite totali": "total visits",
+    "ultimi 30 giorni": "last 30 days",
 
     # UI live polish: sidebar, daily operation, incentives/export.
     "Anagrafica simulazione": "Simulation profile",

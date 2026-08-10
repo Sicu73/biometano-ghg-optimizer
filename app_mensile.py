@@ -1258,6 +1258,28 @@ except (NameError, Exception):  # noqa: BLE001
 # Selettore Italiano / English subito sotto il brand badge.
 _LANG = render_lang_selector()
 
+# ── Contatore visite ───────────────────────────────────────────────────────
+# Una registrazione per sessione browser (il guard e' dentro record_visit:
+# Streamlit rilancia lo script a ogni interazione). Conteggio anonimo e
+# aggregato, senza IP ne' cookie: vedi core/analytics.
+# Lo store esterno (Supabase) e' opzionale; senza secrets si usa SQLite
+# locale, che su Streamlit Cloud si azzera al riciclo del container.
+try:
+    from core.analytics import get_stats as _get_visit_stats, record_visit as _record_visit
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def _cached_visit_stats():
+        """Statistiche in cache: con Supabase ogni lettura costa HTTP."""
+        return _get_visit_stats()
+
+    _record_visit(lang=_LANG)
+except Exception as _an_exc:  # noqa: BLE001
+    _LOG.debug("contatore visite disattivato: %s", _an_exc)
+
+    def _cached_visit_stats():
+        from core.analytics import VisitStats
+        return VisitStats()
+
 with st.sidebar:
     st.markdown(
         f"""
@@ -7403,6 +7425,28 @@ with st.sidebar:
                 st.text(_lic_path.read_text(encoding="utf-8"))
             except Exception:  # noqa: BLE001
                 st.caption(_t("Licenza non disponibile."))
+    # ── Contatore visite ───────────────────────────────────────────────────
+    # Conteggio aggregato e anonimo (vedi core/analytics): nessun IP, nessun
+    # cookie, una riga per sessione. Le letture sono in cache 5 minuti perche'
+    # con backend Supabase ogni statistica costa chiamate HTTP.
+    try:
+        _vstats = _cached_visit_stats()
+        if _vstats.available and _vstats.total > 0:
+            _vs_label = _t("visite totali")
+            _vs_30 = _t("ultimi 30 giorni")
+            st.markdown(
+                f"<div style='font-size:0.68rem; color:#94A3B8; margin-top:10px; "
+                f"text-align:center; opacity:0.9;'>"
+                f"👁 <b style='color:{AMBER};'>{fmt_it(_vstats.total, 0)}</b> "
+                f"{_html.escape(_vs_label)}"
+                f"<span style='font-size:0.6rem; display:block; opacity:0.75;'>"
+                f"{fmt_it(_vstats.last_30d, 0)} {_html.escape(_vs_30)}</span>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+    except Exception as _vs_exc:  # noqa: BLE001
+        _LOG.debug("contatore visite non disponibile: %s", _vs_exc)
+
     st.markdown(
         f"<div style='font-size:0.65rem; color:#94A3B8; margin-top:6px; "
         f"text-align:center; opacity:0.8;'>"
