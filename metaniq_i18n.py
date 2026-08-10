@@ -11,18 +11,15 @@ IT_EN: dict = {
     "Settembre":"September","Ottobre":"October","Novembre":"November","Dicembre":"December",
     # Fogli Excel / sezioni PDF
     "Piano mensile":"Monthly plan","Database feedstock":"Feedstock database",
-    "Sintesi annuale":"Annual summary","Business Plan":"Business Plan",
+    "Business Plan":"Business Plan",
     # Colonne tabella mensile
-    "Mese":"Month","Ore":"Hours","Totale biomasse (t)":"Total feedstocks (t)",
-    "Sm³ lordi":"Gross Sm³","Sm³ netti":"Net Sm³",
-    "Sm³/h netti":"Net Sm³/h","MWh netti":"Net MWh",
     "MWh elettrici lordi":"Gross MWh el.","MWh elettrici netti":"Net MWh el.",
     "MWh termici":"Thermal MWh","kW lordi medi":"Avg. gross kW",
     "GHG (gCO₂/MJ)":"GHG (gCO₂/MJ)","Saving %":"Saving %",
-    "Validità":"Validity","Note":"Notes",
+    "Validità":"Validity",
     # Colonne database
-    "Biomassa":"Feedstock","Biomasse":"Feedstocks","Categoria":"Category",
-    "Resa (Nm³/t)":"Yield (Nm³/t)","All. IX":"Ann. IX",
+    "Biomassa":"Feedstock","Categoria":"Category",
+    "All. IX":"Ann. IX",
     # KPI / sintesi
     "Parametro":"Parameter","Valore":"Value","Unità":"Unit","Totale":"Total",
     "Fonte fattore eec":"eec source","Tier difendibilità":"Defendability tier",
@@ -35,19 +32,18 @@ IT_EN: dict = {
     "✅ {n} crediti manure azzerati (nessuna dichiarazione baseline): valori standard conservativi e inattaccabili in audit.":
         "✅ {n} manure credits zeroed (no baseline declaration): conservative standard values, audit-proof by construction.",
     "Media":"Average","Minimo":"Minimum","Massimo":"Maximum",
-    "Mesi validi":"Valid months","Soglia GHG":"GHG threshold","Esito":"Outcome",
+    "Soglia GHG":"GHG threshold",
     "Conforme":"Compliant","Non conforme":"Non-compliant",
     # Ricavi
     "Ricavo (€)":"Revenue (€)","Ricavi (€)":"Revenue (€)",
     "Ricavo annuo (€)":"Annual revenue (€)",
     "Tariffa (€/MWh)":"Tariff (€/MWh)","t/anno":"t/year",
-    "MWh netti/anno":"Net MWh/year","Premio matrice":"Feedstock bonus","Premio CAR":"CAR bonus",
     # Business Plan
-    "Anno":"Year","CAPEX (k€)":"CAPEX (k€)","OPEX (k€)":"OPEX (k€)",
+    "CAPEX (k€)":"CAPEX (k€)","OPEX (k€)":"OPEX (k€)",
     "Ricavi (k€)":"Revenue (k€)","EBITDA (k€)":"EBITDA (k€)",
     "Cash flow (k€)":"Cash flow (k€)","Flusso netto (k€)":"Net flow (k€)",
     "Rata annua (k€)":"Annual instalment (k€)",
-    "Debito residuo (k€)":"Residual debt (k€)","Investimento":"Investment",
+    "Debito residuo (k€)":"Outstanding debt (k€)","Investimento":"Investment",
     "Periodo tariffa":"Tariff period","Tasso LT":"LT rate","Leva fin.":"Fin. leverage",
     "VAN (k€)":"NPV (k€)","Payback (anni)":"Payback (years)",
     # Sidebar
@@ -72,11 +68,8 @@ IT_EN: dict = {
     "🌾 Biomasse del tuo impianto":"🌾 Your plant feedstocks",
     "⚙️ Parametri impianto":"⚙️ Plant parameters",
     "🏭 Configurazione impianto (ep)":"🏭 Plant configuration (ep)",
-    "🌿 DM 2018 — Sistema CIC":"🌿 DM 2018 — CIC system",
     "🌿 DM 2018 - Sistema CIC":"🌿 DM 2018 — CIC system",
-    "🔋 FER 2 — Tariffa e premi":"🔋 FER 2 — Tariff & bonuses",
     "🔋 FER 2 - Tariffa e premi":"🔋 FER 2 — Tariff & bonuses",
-    "⚡ Fattore netto→lordo (aux_factor)":"⚡ Net→gross factor (aux_factor)",
     "⚡ Fattore netto lordo (aux_factor)":"⚡ Net→gross factor (aux_factor)",
     "💰 Tariffa FER 2 [€/MWh_el]":"💰 FER 2 tariff [€/MWh_el]",
     # Download
@@ -85,7 +78,7 @@ IT_EN: dict = {
     "📋 Excel snapshot":"📋 Excel snapshot",
     "📥 Scarica CSV":"📥 Download CSV",
     "Scarica CSV":"Download CSV","Scarica Excel":"Download Excel",
-    "Scarica PDF":"Download PDF","Report PDF":"PDF report",
+    "Report PDF":"PDF report",
     "Excel modificabile":"Editable Excel",
     # Validità
     "✅ Valido":"✅ Valid","❌ Non valido":"❌ Invalid",
@@ -106,26 +99,20 @@ IT_EN: dict = {
     "Colture dedicate":"Dedicated crops","Effluenti zootecnici":"Livestock effluents",
     "Sottoprodotti agroindustriali":"Agro-industrial by-products","FORSU/Rifiuti":"OFMSW/Waste",
     # BMT Override (resa certificata laboratorio)
-    "🧪 Override resa BMT certificata (opzionale, per biomassa)":
-        "🧪 BMT certified yield override (optional, per feedstock)",
     "Audit rese BMT":"BMT yield audit",
     "Audit rese biomasse (BMT certificato vs tabella standard)":
         "Feedstock yield audit (BMT certificate vs standard table)",
-    "Resa standard":"Standard yield","Resa usata":"Used yield",
-    "Origine resa":"Yield source","Certificato":"Certificate",
-    "Laboratorio":"Laboratory","Data certificato":"Certificate date",
-    "Riferimento campione":"Sample reference",
+    "Certificato":"Certificate",
+    "Data certificato":"Certificate date",
     "BMT certificato laboratorio":"BMT certified laboratory",
     "Tabella standard software / UNI-TS / default interno":
         "Software standard table / UNI-TS / internal default",
     # Override fattori emissivi reali (relazione tecnica)
-    "🧬 Fattori emissivi reali da relazione tecnica (opzionale)":
-        "🧬 Real emission factors from technical report (optional)",
     "Audit fattori emissivi":"Emission factors audit",
-    "Origine fattori":"Factors source","Relazione tecnica":"Technical report",
-    "Titolo relazione":"Report title","Autore":"Author",
+    "Relazione tecnica":"Technical report",
+    "Autore":"Author",
     "Societa'":"Company","Data relazione":"Report date",
-    "Impianto rif.":"Plant ref.","Riferimento campione":"Sample reference",
+    "Impianto rif.":"Plant ref.",
     "Note metodologiche":"Methodology notes",
     "Relazione tecnica impianto":"Plant technical report",
     "Valori standard software / normativa / default interno":
@@ -139,7 +126,6 @@ IT_EN: dict = {
     "Pianificazione mensile e ottimizzazione GHG per impianti di biometano da digestione anaerobica con immissione in rete (DM 2022 / RED III).":
         "Monthly planning and GHG optimization for biomethane plants from anaerobic digestion with grid injection (DM 2022 / RED III).",
     "Pianificazione mensile e ottimizzazione GHG per impianti di biometano e biogas cogenerativo.": "Decision intelligence platform for monthly planning and GHG optimization of biomethane and biogas CHP plants.",
-    "Tutti i diritti riservati": "All rights reserved",
     "Software fornito «così com'è», senza garanzie né assistenza": "Software provided \"as-is\", without warranty or support",
     "biomasse fisse + 2 calcolate  (saving target + produzione)": "fixed feedstocks + 2 calculated (saving target + production)",
     "biomasse fisse + 1 calcolata  (solo produzione)": "fixed feedstocks + 1 calculated (production only)",
@@ -167,7 +153,6 @@ IT_EN: dict = {
     "Seleziona": "Select",
     "biomasse fisse (le altre 2 saranno calcolate):": "fixed feedstocks (the other 2 will be calculated):",
     "Suggerimento: lascia come 'calcolate' almeno 1 biomassa ad alta eec (mais/sorgo) + 1 a manure credit (liquami). Il sistema risolve 2 equazioni: produzione + saving.": "Tip: leave at least 1 high-eec feedstock (corn/sorghum) + 1 manure-credit feedstock (slurry) as 'calculated'. The system solves 2 equations: production + saving.",
-    "Biomassa incognita (calcolata automaticamente):": "Unknown feedstock (calculated automatically):",
     "Seleziona esattamente": "Select exactly",
     "biomasse fisse (le altre 2 saranno calcolate). Attualmente:": "fixed feedstocks (the other 2 will be calculated). Currently:",
     "Ottimo LP – MONO biomassa": "LP Optimum – MONO feedstock",
@@ -178,7 +163,6 @@ IT_EN: dict = {
     "biomasse attive": "active feedstocks",
     "Regime applicato:": "Applied regime:",
     "Saving mese ad oggi:": "Month saving to date:",
-    "soglia": "threshold",
     "Margine:": "Margin:",
     "punti percentuali.": "percentage points.",
     "Esito provvisorio: COMPLIANT. Mantenere il mix attuale fino a fine mese.": "Provisional outcome: COMPLIANT. Maintain current mix until end of month.",
@@ -191,7 +175,6 @@ IT_EN: dict = {
     "giorno/i": "day(s)",
     "Ridurre l'alimentazione giornaliera.": "Reduce daily feeding.",
     "NB: il controllo ufficiale e' MENSILE. Singoli giorni 'non sostenibili' sono ammessi se il totale mese rispetta la soglia.": "NB: official control is MONTHLY. Single 'unsustainable' days are allowed if the month total meets the threshold.",
-    "⚠️ Mesi con problemi di fattibilità:": "⚠️ Months with feasibility issues:",
     "pt vs soglia": "pt vs threshold",
     "Soglia normativa": "Regulatory threshold",
     "Biomassa totale": "Total biomass",
@@ -212,7 +195,6 @@ IT_EN: dict = {
     "Il controllo ufficiale è MENSILE.": "Official control is MONTHLY.",
     "Gli indicatori giornalieri (saving) sono solo informativi: anche se alcuni giorni risultano isolatamente \"non sostenibili\", il mese può chiudere sostenibile aggregando il totale biomasse.": "Daily indicators (saving) are for information only: even if some days are individually \"unsustainable\", the month can close sustainably by aggregating the total feedstocks.",
     "Inserisci le biomasse t/giorno. Mese:": "Insert feedstocks t/day. Month:",
-    "giorni": "days",
     "Tipologie modificabili:": "Editable types:",
     "(basate sulle biomasse attive nella sidebar).": "(based on active feedstocks in the sidebar).",
     "**Excel autocalcolante** ✏️: scarica il file `.xlsx`, modifica le celle gialle (Ore + Biomasse) direttamente in Excel/Numbers/LibreOffice e tutti i calcoli (produzione, saving GHG, validità) si aggiornano **istantaneamente** grazie alle formule live integrate. Niente upload, niente roundtrip — il file fa tutto da solo.": "**Self-calculating Excel** ✏️: download the `.xlsx` file, edit the yellow cells (Hours + Feedstocks) directly in Excel/Numbers/LibreOffice and all calculations (production, GHG saving, validity) update **instantly** thanks to integrated live formulas. No upload, no roundtrip — the file does everything by itself.",
@@ -229,14 +211,6 @@ IT_EN: dict = {
     "Decision intelligence platform per la pianificazione mensile e l'ottimizzazione GHG di impianti di biometano e biogas cogenerativo.": "Decision intelligence platform for monthly planning and GHG optimization of biomethane and biogas CHP plants.",
     "l'ottimizzazione GHG di impianti di biometano e biogas cogenerativo.": "GHG optimization of biomethane and biogas CHP plants.",
     "Sistema singolare: le 2 biomasse incognite sono linearmente dipendenti.": "Singular system: the 2 unknown feedstocks are linearly dependent.",
-    "richiederebbe": "would require",
-    "t (<0)": "t (<0)",
-    "anche": "also",
-    "entrambe azzerate": "both set to 0",
-    "Infeasibile:": "Infeasible:",
-    "Saving e/o produzione non saranno entrambi soddisfatti.": "Saving and/or production will not be both satisfied.",
-    "📚 Origine dei dati e metodo di calcolo (rese, fattori emissivi, GHG, base normativa)": "📚 Data origin and calculation method (yields, emission factors, GHG, regulatory basis)",
-    "Origine delle rese biomassa": "Biomass yields origin",
     "Origine dei fattori emissivi": "Emission factors origin",
     "Metodo di calcolo GHG (RED III)": "GHG calculation method (RED III)",
     "📅 Gestione Giornaliera non disponibile in questa build ": "📅 Daily Management not available in this build ",
@@ -396,8 +370,6 @@ IT_EN: dict = {
     "Mesi con problemi di fattibilità:": "Months with feasibility issues:",
     "anche": "also",
     "entrambe azzerate": "both zeroed",
-    "Anno": "Year",
-    "Mese": "Month",
     "ID impianto": "Plant ID",
     "Trinciato di mais": "Maize silage",
     "Trinciato di sorgo da foraggio": "Forage sorghum silage",
@@ -466,7 +438,6 @@ IT_EN: dict = {
     "Nessun dato annuale ancora disponibile.":
         "No annual data available yet.",
     # Confronto Standard vs Analisi
-    "Confronto Standard vs Analisi": "Standard vs Analysis Comparison",
     "Modalità Analisi attiva": "Analysis mode active",
     "override applicati sopra i valori tabellari standard.":
         "overrides applied on top of standard tabular values.",
@@ -536,16 +507,10 @@ IT_EN: dict = {
     "lettura reale del contatore REMI.":
         "Compile the daily **E (kWh)** column to use the real REMI meter reading.",
     # Daily panel
-    "Operatività Giornaliera": "Daily Operation",
-    "Tabella giornaliera": "Daily table",
     "Auto-salvato": "Auto-saved",
     "Auto-save non riuscito": "Auto-save failed",
-    "Esporta report": "Export report",
-    "I bottoni si attivano dopo aver inserito almeno un giorno con biomassa > 0.":
-        "Buttons activate after entering at least one day with feedstock > 0.",
     "Inserisci almeno un giorno di dati per salvare ed esportare.":
         "Enter at least one day of data to save and export.",
-    "TOTALE MESE": "MONTHLY TOTAL",
     "Totale Mensile · Riepilogo": "Monthly Total · Summary",
     "SOSTENIBILE": "COMPLIANT",
     "NON SOSTENIBILE": "NON-COMPLIANT",
@@ -591,10 +556,8 @@ IT_EN: dict = {
         "GHG saving recalculated on annual totals (RED III), not arithmetic "
         "mean of months.",
     # Common
-    "Anno": "Year",
     "Inserisci i dati da «Gestione Giornaliera».":
         "Enter data from «Daily Management».",
-    "Gestione Giornaliera": "Daily Management",
     # Footer legale sidebar
     # Business Plan engine (Fase 2 — sezione Risultati & BP)
     "Business Plan Completo (15 anni)": "Complete Business Plan (15 years)",
@@ -623,15 +586,11 @@ IT_EN: dict = {
     "Tasso interesse": "Interest rate",
     "Durata mutuo": "Loan duration",
     "WACC discount": "WACC discount",
-    "anni": "years",
     "Ricavi": "Revenue",
     "OPEX": "OPEX",
     "Interessi": "Interest",
     "Imposte": "Taxes",
     "CFO": "OCF",
-    "Rata capitale": "Principal payment",
-    "Debito residuo": "Outstanding debt",
-    "FCF cumulato": "Cumulative FCF",
     "Anno": "Year",
     "Ricavo annuo": "Annual revenue",
     "CAPEX totale": "Total CAPEX",
@@ -703,7 +662,6 @@ IT_EN: dict = {
     "Mese azzerato. Inserisci nuovi dati nella tabella.": "Month reset. Enter new data in the table.",
     "Tabella giornaliera": "Daily table",
     "Inserisci **ore di funzionamento** (formato decimale: 16.50 = 16h 30min) e **biomasse t/giorno**. Sm³/h lordi, Sm³/h netti, Saving GHG e Esito si aggiornano automaticamente.": "Enter **operating hours** (decimal format: 16.50 = 16h 30min) and **feedstocks t/day**. Gross Sm³/h, net Sm³/h, GHG saving and outcome update automatically.",
-    "TOTALE MESE": "MONTH TOTAL",
     "Totale Progressivo Mese": "Month-to-date total",
     "Biomasse": "Feedstocks",
     "Reali": "Actual",
@@ -875,11 +833,14 @@ IT_EN: dict = {
     "Ore": "Hours",
     "Totale Biomasse (t)": "Total feedstock (t)",
     "Totale biomasse (t)": "Total feedstock (t)",
-    "Sm³/h lordi": "Sm³/h gross",
-    "Sm³/h netti": "Sm³/h net",
-    "Sm³ lordi": "Sm³ gross",
-    "Sm³ netti": "Sm³ net",
-    "MWh netti": "MWh net",
+    # Unita' di misura: in inglese tecnico l'attributo precede il sostantivo
+    # ("Net Sm³", non "Sm³ net"). Forma gia' usata altrove nel file, es.
+    # "Sm³/h NETTI" -> "Net Sm³/h".
+    "Sm³/h lordi": "Gross Sm³/h",
+    "Sm³/h netti": "Net Sm³/h",
+    "Sm³ lordi": "Gross Sm³",
+    "Sm³ netti": "Net Sm³",
+    "MWh netti": "Net MWh",
     "Saving GHG (%)": "GHG saving (%)",
     "Esito": "Outcome",
     "Note": "Notes",
@@ -891,10 +852,12 @@ IT_EN: dict = {
     "Portata Media (Sm³/h)": "Average flow (Sm³/h)",
     "Potenza Media (MW)": "Average power (MW)",
     "Energia Specif. (kWh/Sm³)": "Specific energy (kWh/Sm³)",
-    "TOTALE MESE": "MONTH TOTAL",
+    "TOTALE MESE": "MONTHLY TOTAL",
     "Ore ✏️": "Hours ✏️",
     "Rata capitale": "Principal instalment",
-    "Debito residuo": "Residual debt",
+    # "Outstanding debt" e' il termine finanziario standard (allineato a
+    # "Debito residuo (k€)" nella sezione Business Plan).
+    "Debito residuo": "Outstanding debt",
     "FCF cumulato": "Cumulative FCF",
     "Resa standard": "Standard yield",
     "Resa usata": "Yield used",
