@@ -2659,6 +2659,11 @@ with st.sidebar:
         upgrading_opt = st.selectbox(
             _t("Tecnologia upgrading"),
             list(EP_UPGRADING.keys()), index=1,
+            # key = la chiave letta dal Business Plan per riconoscere le
+            # tecnologie che qualificano il premio upgrading. Prima non era
+            # scritta da nessuno: il premio risultava sempre "da verificare"
+            # anche con membrane/amminico selezionati.
+            key="upgrading_opt_saved",
             help=_t("Seleziona la tecnologia di upgrading (separazione CO2). Ognuna ha consumi e perdite (slip) differenti.")
         )
         offgas_opt = st.selectbox(
@@ -5367,7 +5372,10 @@ with tab_plan:
             f"{fmt_it(BP_MASSIMALE_SPESA_EUR_PER_SMCH, 0)} €/Smc/h). "
             "Default 40% (M2C2 PNRR). Aumenta a 50-60% per aree del Sud (ZES/deroghe regionali)."
         ),
-        key="bp_pnrr",
+        # La key era "bp_pnrr" mentre il contesto dell'Excel consolidato
+        # legge "bp_pnrr_pct": l'export restava inchiodato al 40% di default
+        # anche dopo che l'utente cambiava la quota. Nomi allineati.
+        key="bp_pnrr_pct",
     )
 
     # ── RIEPILOGO TARIFFA ──────────────────────────────────────────────
