@@ -43,7 +43,30 @@ In ordine di affidabilità, tutti opzionali e cumulativi:
 Senza almeno uno dei primi due il gate funziona lo stesso, ma **i contatti
 raccolti non ti raggiungono**: restano nel database effimero.
 
-### Webhook (il più veloce)
+### Discord (configurato)
+
+Se l'URL del webhook è di Discord, il payload viene convertito automaticamente
+nel formato che Discord richiede (`embeds`): un JSON generico verrebbe
+rifiutato con 400. Nel canale arriva un messaggio come:
+
+```
+📥 Nuovo download report
+Nome: Carlo Sicurini      Email: carlo@example.com
+Azienda / Impianto: CAB Bagnacavallo
+Documento: 📄 Scarica Report PDF
+```
+
+Nei secrets:
+
+```toml
+[leads]
+webhook_url = "https://discord.com/api/webhooks/123456/abcdef..."
+```
+
+Il riconoscimento avviene sull'URL (`discord.com/api/webhooks`), non serve
+altra configurazione.
+
+### Webhook generico
 
 Un POST JSON con questo corpo:
 

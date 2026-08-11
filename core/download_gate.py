@@ -125,13 +125,43 @@ def validate(name: str, email: str) -> str | None:
 # ============================================================================
 # RECAPITO DEI CONTATTI
 # ============================================================================
+def _is_discord(url: str) -> bool:
+    return "discord.com/api/webhooks" in url or "discordapp.com/api/webhooks" in url
+
+
+def _discord_payload(payload: dict) -> dict:
+    """Discord non accetta JSON arbitrario: vuole `content` o `embeds`.
+
+    Si costruisce un embed leggibile nel canale, con i colori del brand.
+    """
+    fields = [
+        {"name": "Nome", "value": payload.get("name") or "—", "inline": True},
+        {"name": "Email", "value": payload.get("email") or "—", "inline": True},
+        {"name": "Azienda / Impianto",
+         "value": payload.get("company") or "—", "inline": False},
+        {"name": "Documento",
+         "value": payload.get("document") or "—", "inline": False},
+    ]
+    return {
+        "username": "Metan.iQ",
+        "embeds": [{
+            "title": "📥 Nuovo download report",
+            "color": 0xF59E0B,          # amber del brand
+            "fields": fields,
+            "timestamp": payload.get("created_at"),
+            "footer": {"text": "metaniq · download_gate"},
+        }],
+    }
+
+
 def _post_webhook(payload: dict) -> bool:
     url = str(_secrets("leads").get("webhook_url", "") or "").strip()
     if not url:
         return False
+    body = _discord_payload(payload) if _is_discord(url) else payload
     try:
         import requests
-        r = requests.post(url, json=payload, timeout=_TIMEOUT_S)
+        r = requests.post(url, json=body, timeout=_TIMEOUT_S)
         return r.status_code < 300
     except Exception as exc:  # noqa: BLE001
         _LOG.warning("download_gate: webhook fallito (%s)", exc)

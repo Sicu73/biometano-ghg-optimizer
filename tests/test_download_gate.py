@@ -104,6 +104,62 @@ def test_deliver_uses_webhook_when_configured(monkeypatch, clean_session):
     assert sent["json"]["source"] == "download_gate"
 
 
+def test_discord_webhook_uses_embed_format(monkeypatch, clean_session):
+    """Discord rifiuta il JSON generico: serve `content` o `embeds`."""
+    sent = {}
+    monkeypatch.setattr(
+        gate, "_secrets",
+        lambda section: {
+            "webhook_url": "https://discord.com/api/webhooks/123/abc"
+        } if section == "leads" else {},
+    )
+
+    class _R:
+        status_code = 204          # Discord risponde 204 sul successo
+
+    def fake_post(url, json=None, timeout=None, **kw):
+        sent["json"] = json
+        return _R()
+
+    import requests
+    monkeypatch.setattr(requests, "post", fake_post)
+
+    res = gate.deliver(Identity("Carlo Sicurini", "c@example.com", "CAB Faenza"),
+                       "Report PDF")
+    assert res["webhook"] is True
+
+    body = sent["json"]
+    assert "embeds" in body, f"payload non compatibile con Discord: {body}"
+    embed = body["embeds"][0]
+    valori = " ".join(str(f["value"]) for f in embed["fields"])
+    assert "Carlo Sicurini" in valori
+    assert "c@example.com" in valori
+    assert "CAB Faenza" in valori
+    assert "Report PDF" in valori
+    assert embed["color"] == 0xF59E0B
+
+
+def test_generic_webhook_keeps_plain_json(monkeypatch, clean_session):
+    """Un endpoint non-Discord riceve il JSON piatto, piu' facile da mappare."""
+    sent = {}
+    monkeypatch.setattr(
+        gate, "_secrets",
+        lambda section: {"webhook_url": "https://hooks.zapier.com/x"} if section == "leads" else {},
+    )
+
+    class _R:
+        status_code = 200
+
+    import requests
+    monkeypatch.setattr(requests, "post",
+                        lambda url, json=None, timeout=None, **kw: (
+                            sent.update(json=json) or _R()))
+
+    gate.deliver(Identity("Carlo", "c@example.com"), "Excel")
+    assert "embeds" not in sent["json"]
+    assert sent["json"]["email"] == "c@example.com"
+
+
 def test_deliver_reports_volatile_when_no_remote(monkeypatch, clean_session, tmp_path):
     """Senza webhook ne' Supabase il contatto e' raccolto ma non recapitato."""
     from core import leads
