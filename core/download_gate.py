@@ -17,15 +17,21 @@ piu' ad accedere domani. Il form di contatto ottiene lo stesso risultato
 (sapere chi scarica) senza promettere una persistenza che l'infrastruttura
 non garantisce.
 
-Dove finiscono i contatti, in ordine di affidabilita':
+Dove finiscono i contatti (canali cumulativi):
 
-  1. webhook   ``st.secrets["leads"]["webhook_url"]`` -> POST JSON. Funziona
-               con Zapier, Make, n8n, Discord, Slack, un bot Telegram...
-  2. Supabase  ``st.secrets["leads"]["supabase_url"]`` + ``["service_key"]``
-  3. SQLite    via ``core.leads.log_lead`` — best effort, si perde al riciclo
+  1. email     DEFAULT, nessuna configurazione: formsubmit.co inoltra il
+               contatto alla casella di ``core.leads.CONTACT_EMAIL``. Va
+               attivato una sola volta cliccando il link "Activate Form"
+               che il servizio manda al proprietario della casella.
+  2. webhook   ``st.secrets["leads"]["webhook_url"]`` -> POST JSON. Funziona
+               con Zapier, Make, n8n, Discord (payload convertito in embed),
+               Slack, un bot Telegram...
+  3. Supabase  ``st.secrets["leads"]["supabase_url"]`` + ``["service_key"]``
+  4. SQLite    via ``core.leads.log_lead`` — best effort, si perde al riciclo
 
-Senza almeno uno dei primi due i contatti raccolti vengono persi al riavvio
-del container: il gate continua a funzionare, ma il dato non ti raggiunge.
+`deliver()` riporta quali canali hanno funzionato: `persisted` distingue
+"raccolto" da "recapitato davvero". Con il solo SQLite il contatto si perde
+al riavvio del container.
 """
 from __future__ import annotations
 
@@ -39,6 +45,7 @@ _LOG = get_logger(__name__)
 
 _EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 _TIMEOUT_S = 4.0
+_APP_URL = "https://appco-6lmzj97bbbw8ndlwnvnocf.streamlit.app"
 
 # chiavi di sessione
 _SS_UNLOCKED = "_dl_unlocked"
@@ -168,6 +175,65 @@ def _post_webhook(payload: dict) -> bool:
         return False
 
 
+def _post_formsubmit(payload: dict) -> bool:
+    """Recapito via email SENZA account ne' chiavi (formsubmit.co).
+
+    Il servizio accetta un POST verso l'indirizzo del destinatario e gli
+    inoltra il contenuto per email. Alla primissima richiesta manda al
+    proprietario della casella un messaggio "Activate Form": finche' quel
+    link non viene cliccato risponde success=false, e qui lo si tratta come
+    "non ancora recapitato" invece di dichiarare un falso successo.
+
+    Serve un Referer valido: senza, il servizio scambia la chiamata per una
+    pagina HTML aperta da disco e rifiuta.
+    """
+    cfg = _secrets("leads")
+    if str(cfg.get("disable_email", "")).strip().lower() in ("1", "true", "yes"):
+        return False
+    to = str(cfg.get("email", "") or "").strip()
+    if not to:
+        try:
+            from core.leads import CONTACT_EMAIL
+            to = CONTACT_EMAIL
+        except Exception:
+            return False
+    try:
+        import requests
+        r = requests.post(
+            f"https://formsubmit.co/ajax/{to}",
+            json={
+                "_subject": f"Metan.iQ · download: {payload.get('document') or 'report'}",
+                "_template": "table",
+                "_captcha": "false",
+                "Nome": payload.get("name") or "",
+                "Email": payload.get("email") or "",
+                "Azienda / Impianto": payload.get("company") or "",
+                "Documento": payload.get("document") or "",
+                "Data (UTC)": payload.get("created_at") or "",
+            },
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Referer": _APP_URL + "/",
+                "Origin": _APP_URL,
+            },
+            timeout=_TIMEOUT_S,
+        )
+        if r.status_code >= 300:
+            return False
+        body = r.json() if r.content else {}
+        ok = str(body.get("success", "")).lower() == "true"
+        if not ok and "activ" in str(body.get("message", "")).lower():
+            _LOG.warning(
+                "download_gate: formsubmit in attesa di attivazione — "
+                "cliccare il link 'Activate Form' ricevuto su %s", to
+            )
+        return ok
+    except Exception as exc:  # noqa: BLE001
+        _LOG.warning("download_gate: formsubmit fallito (%s)", exc)
+        return False
+
+
 def _post_supabase(payload: dict) -> bool:
     cfg = _secrets("leads")
     url = str(cfg.get("supabase_url", "") or "").strip()
@@ -204,6 +270,7 @@ def deliver(identity: Identity, document: str) -> dict:
     }
     out = {
         "webhook": _post_webhook(payload),
+        "email": _post_formsubmit(payload),
         "supabase": _post_supabase(payload),
         "sqlite": False,
     }
@@ -215,7 +282,7 @@ def deliver(identity: Identity, document: str) -> dict:
         ))
     except Exception as exc:  # noqa: BLE001
         _LOG.warning("download_gate: log locale fallito (%s)", exc)
-    out["persisted"] = out["webhook"] or out["supabase"]
+    out["persisted"] = out["webhook"] or out["email"] or out["supabase"]
     return out
 
 

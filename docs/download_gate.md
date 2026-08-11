@@ -36,12 +36,39 @@ In ordine di affidabilità, tutti opzionali e cumulativi:
 
 | Canale | Secret | Persiste |
 |---|---|---|
+| **Email** (attivo di default) | nessuno | sì, arriva in casella |
 | Webhook | `[leads] webhook_url` | sì, dove punta il webhook |
 | Supabase | `[leads] supabase_url` + `service_key` | sì |
 | SQLite locale | — | **no**, si perde al riciclo del container |
 
-Senza almeno uno dei primi due il gate funziona lo stesso, ma **i contatti
-raccolti non ti raggiungono**: restano nel database effimero.
+I canali sono cumulativi: se configuri anche il webhook, il contatto arriva
+sia per email sia lì.
+
+### Email (nessuna configurazione)
+
+Il contatto viene inoltrato via [formsubmit.co](https://formsubmit.co) alla
+casella in `core.leads.CONTACT_EMAIL`. Non serve account né chiave: il
+servizio chiede **una sola conferma iniziale**, mandando al proprietario
+della casella un messaggio con un link *Activate Form*. Finché quel link non
+viene cliccato, `deliver()` riporta `email: False` — cioè "raccolto ma non
+ancora recapitato", non un falso successo.
+
+Per disattivarlo:
+
+```toml
+[leads]
+disable_email = true
+```
+
+Per usare un indirizzo diverso da CONTACT_EMAIL:
+
+```toml
+[leads]
+email = "altro@indirizzo.it"
+```
+
+Nota GDPR: i contatti transitano da un servizio terzo (come accadrebbe con
+Discord o Zapier). Se serve il controllo completo sul dato, usa Supabase.
 
 ### Discord (configurato)
 

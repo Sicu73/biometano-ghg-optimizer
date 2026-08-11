@@ -8,6 +8,36 @@ from core import download_gate as gate
 from core.download_gate import Identity
 
 
+def _capture_posts(monkeypatch, status: int = 200, payload: dict | None = None):
+    """Intercetta TUTTE le POST e le restituisce in ordine.
+
+    `deliver()` prova piu' canali nello stesso giro (email, webhook,
+    Supabase): un mock che tiene solo l'ultima chiamata testerebbe il canale
+    sbagliato. Si filtra per URL con `_find_call`.
+    """
+    calls: list[dict] = []
+
+    class _R:
+        status_code = status
+        content = b"{}"
+
+        @staticmethod
+        def json():
+            return payload if payload is not None else {"success": "false"}
+
+    def fake_post(url, json=None, headers=None, timeout=None, **kw):
+        calls.append({"url": url, "json": json, "headers": headers or {}})
+        return _R()
+
+    import requests
+    monkeypatch.setattr(requests, "post", fake_post)
+    return calls
+
+
+def _find_call(calls: list[dict], needle: str) -> dict | None:
+    return next((c for c in calls if needle in str(c["url"])), None)
+
+
 @pytest.fixture(autouse=True)
 def clean_session(monkeypatch):
     """Sessione finta: i test non girano dentro il runtime Streamlit."""
@@ -84,21 +114,14 @@ def test_deliver_uses_webhook_when_configured(monkeypatch, clean_session):
         lambda section: {"webhook_url": "https://hook.example/x"} if section == "leads" else {},
     )
 
-    class _R:
-        status_code = 200
-
-    def fake_post(url, json=None, timeout=None, **kw):
-        sent["url"] = url
-        sent["json"] = json
-        return _R()
-
-    import requests
-    monkeypatch.setattr(requests, "post", fake_post)
+    calls = _capture_posts(monkeypatch)
 
     res = gate.deliver(Identity("Carlo", "c@example.com", "CAB"), "Report PDF")
     assert res["webhook"] is True
     assert res["persisted"] is True
-    assert sent["url"] == "https://hook.example/x"
+
+    sent = _find_call(calls, "hook.example")
+    assert sent, f"webhook non chiamato: {[c['url'] for c in calls]}"
     assert sent["json"]["email"] == "c@example.com"
     assert sent["json"]["document"] == "Report PDF"
     assert sent["json"]["source"] == "download_gate"
@@ -114,20 +137,14 @@ def test_discord_webhook_uses_embed_format(monkeypatch, clean_session):
         } if section == "leads" else {},
     )
 
-    class _R:
-        status_code = 204          # Discord risponde 204 sul successo
-
-    def fake_post(url, json=None, timeout=None, **kw):
-        sent["json"] = json
-        return _R()
-
-    import requests
-    monkeypatch.setattr(requests, "post", fake_post)
+    calls = _capture_posts(monkeypatch, status=204)
 
     res = gate.deliver(Identity("Carlo Sicurini", "c@example.com", "CAB Faenza"),
                        "Report PDF")
     assert res["webhook"] is True
 
+    sent = _find_call(calls, "discord.com")
+    assert sent, f"webhook Discord non chiamato: {[c['url'] for c in calls]}"
     body = sent["json"]
     assert "embeds" in body, f"payload non compatibile con Discord: {body}"
     embed = body["embeds"][0]
@@ -147,17 +164,80 @@ def test_generic_webhook_keeps_plain_json(monkeypatch, clean_session):
         lambda section: {"webhook_url": "https://hooks.zapier.com/x"} if section == "leads" else {},
     )
 
+    calls = _capture_posts(monkeypatch)
+
+    gate.deliver(Identity("Carlo", "c@example.com"), "Excel")
+    sent = _find_call(calls, "hooks.zapier.com")
+    assert sent, f"webhook non chiamato: {[c['url'] for c in calls]}"
+    assert "embeds" not in sent["json"]
+    assert sent["json"]["email"] == "c@example.com"
+
+
+def test_email_channel_needs_no_configuration(monkeypatch, clean_session):
+    """Il canale email deve partire senza secrets, verso CONTACT_EMAIL."""
+    sent = {}
+
     class _R:
         status_code = 200
+        content = b"{}"
+
+        @staticmethod
+        def json():
+            return {"success": "true", "message": "sent"}
 
     import requests
     monkeypatch.setattr(requests, "post",
-                        lambda url, json=None, timeout=None, **kw: (
-                            sent.update(json=json) or _R()))
+                        lambda url, json=None, headers=None, timeout=None, **kw: (
+                            sent.update(url=url, json=json, headers=headers or {}) or _R()))
 
-    gate.deliver(Identity("Carlo", "c@example.com"), "Excel")
-    assert "embeds" not in sent["json"]
-    assert sent["json"]["email"] == "c@example.com"
+    res = gate.deliver(Identity("Carlo", "c@example.com", "CAB"), "Report PDF")
+    assert res["email"] is True
+    assert res["persisted"] is True
+
+    from core.leads import CONTACT_EMAIL
+    assert CONTACT_EMAIL in sent["url"], sent["url"]
+    # senza Referer il servizio rifiuta scambiando la chiamata per file locale
+    assert sent["headers"].get("Referer"), "Referer mancante"
+    assert sent["json"]["Email"] == "c@example.com"
+    assert sent["json"]["Documento"] == "Report PDF"
+
+
+def test_email_pending_activation_is_not_a_success(monkeypatch, clean_session):
+    """Finche' il link di attivazione non e' cliccato, non e' recapitato."""
+
+    class _R:
+        status_code = 200
+        content = b"{}"
+
+        @staticmethod
+        def json():
+            return {"success": "false",
+                    "message": "This form needs Activation. We've sent you an email..."}
+
+    import requests
+    monkeypatch.setattr(requests, "post",
+                        lambda *a, **kw: _R())
+
+    res = gate.deliver(Identity("Carlo", "c@example.com"), "Excel")
+    assert res["email"] is False, (
+        "in attesa di attivazione non si deve dichiarare il contatto recapitato"
+    )
+
+
+def test_email_channel_can_be_disabled(monkeypatch, clean_session):
+    monkeypatch.setattr(
+        gate, "_secrets",
+        lambda section: {"disable_email": "true"} if section == "leads" else {},
+    )
+
+    import requests
+
+    def boom(*a, **kw):
+        raise AssertionError("nessuna chiamata attesa")
+
+    monkeypatch.setattr(requests, "post", boom)
+    res = gate.deliver(Identity("Carlo", "c@example.com"), "PDF")
+    assert res["email"] is False
 
 
 def test_deliver_reports_volatile_when_no_remote(monkeypatch, clean_session, tmp_path):
