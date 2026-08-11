@@ -173,8 +173,26 @@ def test_generic_webhook_keeps_plain_json(monkeypatch, clean_session):
     assert sent["json"]["email"] == "c@example.com"
 
 
+def test_email_channel_is_off_under_pytest(monkeypatch, clean_session):
+    """La suite non deve spedire email vere al Titolare."""
+    import os
+
+    import requests
+
+    def boom(*a, **kw):
+        raise AssertionError("nessuna chiamata di rete attesa sotto pytest")
+
+    monkeypatch.setattr(requests, "post", boom)
+    monkeypatch.delenv("METANIQ_LEADS_EMAIL_REMOTE", raising=False)
+    assert os.environ.get("PYTEST_CURRENT_TEST"), "atteso ambiente pytest"
+
+    res = gate.deliver(Identity("Carlo", "c@example.com"), "PDF")
+    assert res["email"] is False
+
+
 def test_email_channel_needs_no_configuration(monkeypatch, clean_session):
     """Il canale email deve partire senza secrets, verso CONTACT_EMAIL."""
+    monkeypatch.setenv("METANIQ_LEADS_EMAIL_REMOTE", "1")   # bypassa il guard
     sent = {}
 
     class _R:
@@ -204,6 +222,7 @@ def test_email_channel_needs_no_configuration(monkeypatch, clean_session):
 
 def test_email_pending_activation_is_not_a_success(monkeypatch, clean_session):
     """Finche' il link di attivazione non e' cliccato, non e' recapitato."""
+    monkeypatch.setenv("METANIQ_LEADS_EMAIL_REMOTE", "1")
 
     class _R:
         status_code = 200

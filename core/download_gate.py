@@ -35,6 +35,7 @@ al riavvio del container.
 """
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -189,6 +190,13 @@ def _post_formsubmit(payload: dict) -> bool:
     """
     cfg = _secrets("leads")
     if str(cfg.get("disable_email", "")).strip().lower() in ("1", "true", "yes"):
+        return False
+    # Sotto pytest non si spedisce nulla: la suite esercita il gate decine di
+    # volte e riempirebbe la casella del Titolare di email di prova.
+    # Override esplicito con METANIQ_LEADS_EMAIL_REMOTE=1.
+    if (os.environ.get("PYTEST_CURRENT_TEST")
+            and os.environ.get("METANIQ_LEADS_EMAIL_REMOTE", "").lower()
+            not in ("1", "true", "yes")):
         return False
     to = str(cfg.get("email", "") or "").strip()
     if not to:
