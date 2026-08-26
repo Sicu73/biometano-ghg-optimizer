@@ -23,6 +23,7 @@ from core.calculation_engine import (
     ghg_summary,
     MONTHS,
 )
+from core.constants import PCI_BIOMETHANE_KWH_SMC
 from core.daily_model import DailyComputed
 
 
@@ -219,7 +220,7 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
     # Caso tipico: legge il volume dal contatore REMI ma non l'energia
     # totalizzata. Usa PCI medio compilato; se assente, PCI standard biometano
     # da NM3_TO_MWH (single source of truth, UNI EN 16723-1).
-    PCI_BIOMETANO_STD = NM3_TO_MWH * 1000.0  # kWh/Sm³
+    PCI_BIOMETANO_STD = PCI_BIOMETHANE_KWH_SMC  # 9.79 kWh/Sm³ (core.constants, single source)
     if tot_e == 0 and tot_vb > 0:
         _pci_use = (pci_sum / remi_days) if remi_days > 0 and pci_sum > 0 else PCI_BIOMETANO_STD
         tot_e = tot_vb * _pci_use

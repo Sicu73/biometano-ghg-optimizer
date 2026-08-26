@@ -56,7 +56,7 @@ try:
     from core.version import __version__ as _SOFTWARE_VERSION, __product__ as _SOFTWARE_NAME
 except Exception:  # noqa: BLE001
     _SOFTWARE_NAME = "Metan.iQ"
-    _SOFTWARE_VERSION = "0.4.0"
+    _SOFTWARE_VERSION = "0.5.0"
 
 
 # ---------------------------------------------------------------------------

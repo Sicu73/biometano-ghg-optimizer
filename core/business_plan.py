@@ -204,7 +204,12 @@ def build_business_plan(
     """
     # CAPEX totale & ripartizione
     capex_total = float(plant_smch) * float(capex_eur_per_smch)
-    pnrr_grant = capex_total * float(pnrr_quota_pct) / 100.0
+    # Clamp difensivo: quota PNRR in [0, 100] così capex_net non diventa mai
+    # negativo (uno slider mal configurato o un input >100 farebbe collassare
+    # IRR/NPV). Il cap economico reale (40% M2C2, 50-60% ZES Sud) resta scelta
+    # dell'utente, non imposto qui.
+    _pnrr_pct = max(0.0, min(100.0, float(pnrr_quota_pct)))
+    pnrr_grant = capex_total * _pnrr_pct / 100.0
     capex_net = capex_total - pnrr_grant
     capex_debt = capex_net * float(leverage_pct) / 100.0
     capex_equity = capex_net - capex_debt

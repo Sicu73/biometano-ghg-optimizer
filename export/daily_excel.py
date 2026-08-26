@@ -170,10 +170,14 @@ def build_daily_excel(
     # Caption esportazione
     ws.merge_cells("A4:F4")
     c = ws["A4"]
+    _thr_cap = plant_info.get('threshold_pct', monthly_kpis.get('threshold', 0)) or 0.0
+    # threshold_pct è una FRAZIONE (0.80); il fallback monthly_kpis['threshold']
+    # è già in punti percentuali (80.0). Normalizza a % per la caption.
+    _thr_cap = _thr_cap * 100.0 if _thr_cap <= 1.0 else _thr_cap
     c.value = (
         f"Esportato il {datetime.now().strftime('%d/%m/%Y %H:%M')}  ·  "
         f"Regime: {plant_info.get('regime') or audit_trail.get('Regime applicato', '—')}  ·  "
-        f"Soglia normativa: {plant_info.get('threshold_pct', monthly_kpis.get('threshold', 0)):.2f}%"
+        f"Soglia normativa: {_thr_cap:.2f}%"
     )
     c.font = _font_caption
     c.alignment = Alignment(horizontal="left", vertical="center", indent=1)

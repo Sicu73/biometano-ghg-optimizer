@@ -450,7 +450,7 @@ def _build_piano(ws, ctx, db_sheet_name, snapshot: bool = False, lang='it'):
     # === Parametri impianto (rows 4-10 biometano, 4-13 CHP) ===
     aux_factor       = float(ctx.get("aux_factor", DEFAULT_AUX_FACTOR))
     comparator       = float(ctx.get("fossil_comparator", 80.0))
-    ghg_threshold    = float(ctx.get("ghg_threshold", 0.65)) * 100
+    ghg_threshold    = float(ctx.get("ghg_threshold", 0.80)) * 100
     plant_max_smch   = float(ctx.get("plant_net_smch", 300.0))
     ep_total         = float(ctx.get("ep_total", 0.0))
     nm3_to_mwh       = float(ctx.get("NM3_TO_MWH", _NM3_TO_MWH_STD))

@@ -98,7 +98,7 @@ FEEDSTOCK_DB: dict = {
     },
     "Loietto insilato (ryegrass)": {
         "eec": 18.0, "esca": 0.0, "etd": 0.8, "yield": 93.7, "dry_matter_std": 0.35,
-        "color": "#9CCC65", "cat": "Colture dedicate",
+        "color": "#7CB342", "cat": "Colture dedicate",
         "annex_ix": None, "e_l": 0.0,
         "requires_no_luc_declaration": True,
         "src": "eec JEC v5/KTBL (non in Prosp. A.5); ST agronomica (CRPA/KTBL)",
@@ -112,7 +112,7 @@ FEEDSTOCK_DB: dict = {
     },
     "Doppia coltura (2° raccolto)": {
         "eec": 15.0, "esca": 0.0, "etd": 0.8, "yield": 95.0, "dry_matter_std": 0.35,
-        "color": "#689F38", "cat": "Colture dedicate",
+        "color": "#558B2F", "cat": "Colture dedicate",
         "annex_ix": None, "e_l": 0.0,
         "requires_no_luc_declaration": True,
         "src": "GSE LG 2024 (art. doppia coltura)",
@@ -349,7 +349,7 @@ FEEDSTOCK_DB: dict = {
     },
     "Melasso di barbabietola": {
         "eec": 0.0, "esca": 0.0, "etd": 1.5, "yield": 280.0, "dry_matter_std": 0.75,
-        "color": "#C2185B", "cat": "Sottoprodotti agroindustriali",
+        "color": "#AD1457", "cat": "Sottoprodotti agroindustriali",
         "annex_ix": "A",
         "src": "All. IX RED III (residuo); eec JEC WTT v5 (non in Prosp. A.5)",
     },

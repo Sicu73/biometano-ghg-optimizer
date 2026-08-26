@@ -3,8 +3,6 @@
 # Metan.iQ - Biometano GHG Optimizer (DM 2022 / RED III)
 # Proprietary and confidential. See LICENSE for terms.
 # Commercial licensing: carlo.sicurini@gmail.com
-# build-marker 2026-06-10-i18n-en: forza redeploy completo Streamlit Cloud
-# (re-import metaniq_i18n fresco). Vedi footer "build EN-2" come canary live.
 """
 BioMethane Monthly Planner - Dual-Constraint Solver
 ---------------------------------------------------
@@ -66,8 +64,8 @@ from i18n_runtime import t as _t, get_lang, render_lang_selector, translate_df
 try:
     from core.version import __version__ as _APP_VERSION, FOOTER as _APP_FOOTER
 except Exception:  # noqa: BLE001
-    _APP_VERSION = "0.4.0"
-    _APP_FOOTER = "Metan.iQ v0.4.0 — © 2026"
+    _APP_VERSION = "0.5.0"
+    _APP_FOOTER = "Metan.iQ v0.5.0 — © 2026"
 
 # ── BMT (Biochemical Methane Test) — override resa certificata laboratorio ──
 from bmt_override import (
@@ -980,7 +978,8 @@ def solve_1_unknown_production(fixed_masses: dict, unknown: str,
         for n in fixed_masses.keys() if n != unknown
     )
     remaining = gross_target - covered
-    return remaining / _yield_of(unknown)
+    _y = _yield_of(unknown)
+    return remaining / _y if _y > 0 else 0.0
 
 
 def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
@@ -2203,7 +2202,7 @@ st.markdown(
         font-family: 'Outfit', sans-serif;
     }}
     </style>
-    <div class="methaniq-fixed-footer">METAN.iQ · v{_APP_VERSION} · build EN-2</div>
+    <div class="methaniq-fixed-footer">METAN.iQ · v{_APP_VERSION}</div>
     """,
     unsafe_allow_html=True,
 )
@@ -5774,8 +5773,6 @@ with tab_plan:
     st.subheader(_t("🎯 Modalità di calcolo"))
 
     N_active = len(active_feeds)
-    MODE_DUAL = f"{N_active-2} {_t('biomasse fisse + 2 calcolate  (saving target + produzione)')}"
-    MODE_SINGLE = f"{N_active-1} {_t('biomasse fisse + 1 calcolata  (solo produzione)')}"
 
     # --- Applica eventuali risultati ottimizzazione PRIMA di creare i widget ---
     # (Streamlit non consente di modificare session_state di una chiave-widget

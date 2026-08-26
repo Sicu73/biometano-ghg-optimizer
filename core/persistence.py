@@ -236,8 +236,18 @@ def load_month(year: int, month: int, plant_id: str = "default",
                 "remi_rho": float(row[6]) if row[6] is not None else 0.0,
             }
 
+    # Giorni con SOLA lettura REMI (Vb/E > 0) ma senza biomasse: sono scritti
+    # in daily_hours da save_month ma assenti da daily_entries. Vanno ricaricati
+    # comunque, altrimenti i loro Sm³/MWh spariscono dopo un salva+ricarica.
+    # I giorni con hours ma REMI a zero e nessuna biomassa restano esclusi
+    # (giorni realmente vuoti — cfr. test_persistence_empty_days).
+    extra_remi_days = {
+        d for d, rm in remi_by_day.items()
+        if d not in rows and (rm.get("remi_vb", 0.0) > 0.0 or rm.get("remi_e", 0.0) > 0.0)
+    }
+
     entries: list[DailyEntry] = []
-    for d_iso in sorted(rows.keys()):
+    for d_iso in sorted(set(rows.keys()) | extra_remi_days):
         try:
             d_obj = date.fromisoformat(d_iso)
         except ValueError:
@@ -245,7 +255,7 @@ def load_month(year: int, month: int, plant_id: str = "default",
         rm = remi_by_day.get(d_iso, {})
         entries.append(DailyEntry(
             date=d_obj,
-            feedstocks=rows[d_iso],
+            feedstocks=rows.get(d_iso, {}),
             notes=notes_by_day.get(d_iso, ""),
             hours_per_day=hours_by_day.get(d_iso, 24.0),
             remi_vb=rm.get("remi_vb", 0.0),

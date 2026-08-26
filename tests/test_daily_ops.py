@@ -223,6 +223,24 @@ def test_persistence_empty_days(tmp_path):
     assert loaded == []
 
 
+def test_persistence_remi_only_roundtrip(tmp_path):
+    """Un giorno con SOLA lettura REMI (Vb>0) senza biomasse deve sopravvivere
+    a salva+ricarica: regressione sul bug per cui load_month iterava solo i
+    giorni con feedstock, scartando i giorni REMI-only scritti in daily_hours."""
+    db = str(tmp_path / "remi_only.db")
+    init_db(db)
+    entries = [
+        DailyEntry(date=date(2025, 9, 1), feedstocks={"FeedA": 10.0}),
+        DailyEntry(date=date(2025, 9, 2), feedstocks={}, remi_vb=1234.0, remi_e=9800.0),
+    ]
+    save_month(2025, 9, entries, plant_id="P1", path=db)
+    loaded = load_month(2025, 9, plant_id="P1", path=db)
+    by_date = {e.date: e for e in loaded}
+    assert date(2025, 9, 2) in by_date, "il giorno REMI-only non deve sparire"
+    assert by_date[date(2025, 9, 2)].remi_vb == 1234.0
+    assert by_date[date(2025, 9, 2)].feedstocks == {}
+
+
 def test_persistence_hours_roundtrip(tmp_path):
     """Le ore di funzionamento vengono salvate e ricaricate correttamente."""
     db = str(tmp_path / "hours.db")
