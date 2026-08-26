@@ -102,6 +102,34 @@ def test_month_over_authorised_cap_is_not_valid():
     assert "tetto" in label.lower()
 
 
+def test_month_daily_peaks_but_mean_under_cap_is_valid():
+    """Verifica MENSILE del cap: giorni di picco isolati non rendono il mese
+    non conforme se la portata MEDIA resta entro il tetto autorizzativo."""
+    ctx = _ctx()
+    days = []
+    for day in range(1, 29):
+        # metà giorni a 330 Sm³/h (sopra il tetto 300), metà a 250: media ~290
+        vb = 7_920.0 if day % 2 == 0 else 6_000.0
+        days.append(compute_daily(
+            DailyEntry(
+                date=_dt.date(2024, 1, day),
+                feedstocks={FEED_HIGH_SAVING: 200.0},
+                hours_per_day=24.0,
+                remi_vb=vb,
+                remi_pci=9.79,
+            ),
+            ctx=ctx,
+        ))
+    agg = aggregate_month(days, ctx=ctx, year=2024, month=1)
+    portata_media = agg.sm3_netti / agg.total_hours
+    assert portata_media <= 300.0, f"media {portata_media:.0f} non sotto il tetto"
+    assert agg.cap_violation_days, "lo scenario deve avere giorni di picco"
+    assert str(agg.to_dict()["Validità"]).startswith("✅"), (
+        f"mese con media {portata_media:.0f} Sm³/h ≤ 300 marcato non valido "
+        f"per i picchi giornalieri: {agg.to_dict()['Validità']!r}"
+    )
+
+
 def test_month_without_data_is_not_valid():
     agg = aggregate_month([], ctx=_ctx(), year=2024, month=1)
     assert not str(agg.to_dict()["Validità"]).startswith("✅")

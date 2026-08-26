@@ -42,6 +42,10 @@ from core.constants import (  # noqa: E402
     LHV_BIOMETHANE_MJ_NM3                as LHV_BIOMETHANE,
     NM3_TO_MWH,
     COMPARATOR_GRID_HEAT_GCO2_MJ         as FOSSIL_COMPARATOR,
+    COMPARATOR_TRANSPORT_GCO2_MJ         as _COMP_TRANSPORT,
+    SAVING_THRESHOLD_GRID_HEAT           as _THR_GRID_HEAT,
+    SAVING_THRESHOLD_GRID_HEAT_EXISTING  as _THR_GRID_HEAT_EXISTING,
+    SAVING_THRESHOLD_TRANSPORT           as _THR_TRANSPORT,
     DEFAULT_AUX_FACTOR,
 )
 
@@ -68,14 +72,14 @@ DEFAULT_PLANT_NET_SMCH = 300.0
 # Usato quando l'overwrite lazy non scatta (app_mensile a meta' caricamento
 # quando questo modulo viene importato). Tenere sincronizzato con app_mensile.
 COMPARATOR_BY_END_USE = {
-    "Elettricità/calore/immissione rete (nuovo ≥1/1/2026)": 80.0,
-    "Immissione rete/calore (esistente <10 MW, primi 15 anni)": 80.0,
-    "Trasporti (BioGNL/BioCNG)": 94.0,
+    "Elettricità/calore/immissione rete (nuovo ≥1/1/2026)": FOSSIL_COMPARATOR,
+    "Immissione rete/calore (esistente <10 MW, primi 15 anni)": FOSSIL_COMPARATOR,
+    "Trasporti (BioGNL/BioCNG)": _COMP_TRANSPORT,
 }
 END_USE_THRESHOLDS = {
-    "Elettricità/calore/immissione rete (nuovo ≥1/1/2026)": 0.80,
-    "Immissione rete/calore (esistente <10 MW, primi 15 anni)": 0.70,
-    "Trasporti (BioGNL/BioCNG)": 0.65,
+    "Elettricità/calore/immissione rete (nuovo ≥1/1/2026)": _THR_GRID_HEAT,
+    "Immissione rete/calore (esistente <10 MW, primi 15 anni)": _THR_GRID_HEAT_EXISTING,
+    "Trasporti (BioGNL/BioCNG)": _THR_TRANSPORT,
 }
 EP_DIGESTATE: dict = {}
 EP_UPGRADING: dict = {}

@@ -64,6 +64,9 @@ class MonthlyAggregate:
     daily_count: int = 0
     cap_ok_days: int = 0
     cap_violation_days: list[date] = field(default_factory=list)
+    # Tetto autorizzativo Sm³/h netti (AUA/AIA). 0.0 = non fornito dal chiamante
+    # -> il cap non blocca la validita' (comportamento storico).
+    cap_authorized_smch: float = 0.0
     # Soglia GHG saving applicabile, in PERCENTUALE (80.0 = RED III
     # rete/calore). 0.0 = non fornita dal chiamante -> la validita' resta
     # sul comportamento storico (solo presenza di dati).
@@ -101,7 +104,19 @@ class MonthlyAggregate:
 
         # tolleranza 1e-6: evita falsi negativi da arrotondamenti float
         saving_ok = self.saving_pct >= self.ghg_threshold_pct - 1e-6
-        cap_ok = not self.cap_violation_days
+
+        # Cap autorizzativo: la verifica RED III / UNI-TS 11567 e la prassi GSE
+        # sono MENSILI. Si confronta la PORTATA MEDIA del mese (Sm³/h netti)
+        # col tetto, NON i singoli giorni di picco: un picco isolato non rende
+        # il mese non conforme se la media resta entro il tetto (coerente con
+        # evaluate_monthly_sustainability). I cap_violation_days restano come
+        # dato informativo ma non bloccano il verdetto.
+        portata_media = (self.sm3_netti / self.total_hours
+                         if self.total_hours > 0 else 0.0)
+        cap_ok = True
+        if self.cap_authorized_smch > 0:
+            cap_ok = portata_media <= self.cap_authorized_smch + 1e-6
+
         if saving_ok and cap_ok:
             return "✅ Valido"
 
@@ -112,7 +127,8 @@ class MonthlyAggregate:
             )
         if not cap_ok:
             motivi.append(
-                f"{len(self.cap_violation_days)} giorni oltre il tetto autorizzativo"
+                f"portata media {portata_media:.0f} Sm³/h oltre il tetto "
+                f"autorizzativo di {self.cap_authorized_smch:.0f} Sm³/h"
             )
         return "❌ Non valido: " + "; ".join(motivi)
 
@@ -182,6 +198,7 @@ def _aggregate(daily_list: list[DailyComputed], ctx: dict | None = None,
     agg.n_days_with_data = days_with_data
     agg.cap_ok_days = cap_ok_days
     agg.cap_violation_days = cap_violations
+    agg.cap_authorized_smch = float(ctx.get("plant_net_smch") or 0.0)
 
     # Aggregazione REMI
     tot_vb = 0.0

@@ -349,33 +349,42 @@ def parse_it(value) -> float:
 #     [RED III Annex VI Part B - natural gas reference]
 #   - Biogas CHP (elettricita' diretta da motore): 183 gCO2eq/MJ (mix elettrico EU)
 #     [RED III Annex VI - electricity generation]
-COMPARATOR_BY_END_USE = {
-    "Elettricità/calore/immissione rete (nuovo ≥1/1/2026)": 80.0,
-    "Immissione rete/calore (esistente <10 MW, primi 15 anni)":   80.0,
-    "Trasporti (BioGNL/BioCNG)":                              94.0,
-}
 # Costanti normative/energetiche: fonte di verità centralizzata in
-# core/constants.py (importate qui con i nomi storici dell'app).
+# core/constants.py (importate qui con i nomi storici dell'app). Soglie e
+# comparatori vengono da lì: NON ricablare valori letterali qui sotto.
 from core.constants import (
     LHV_BIOMETHANE_MJ_NM3            as LHV_BIOMETHANE,
     PCI_BIOMETHANE_KWH_SMC,
     NM3_TO_MWH,
     COMPARATOR_GRID_HEAT_GCO2_MJ     as _COMP_GRID_HEAT,
+    COMPARATOR_TRANSPORT_GCO2_MJ     as _COMP_TRANSPORT,
+    SAVING_THRESHOLD_GRID_HEAT,
+    SAVING_THRESHOLD_GRID_HEAT_EXISTING,
+    SAVING_THRESHOLD_TRANSPORT,
     DEFAULT_AUX_FACTOR,
 )
 
 FOSSIL_COMPARATOR = _COMP_GRID_HEAT
 DEFAULT_PLANT_NET_SMCH = 300.0                 # Sm3/h netti autorizzati (default)
 
+# Comparatore fossile per destinazione d'uso (gCO2eq/MJ), da core.constants:
+#   - Biometano -> rete / elettricita' / calore: 80 (NG sostituito, Annex VI B)
+#   - Trasporti (BioGNL/BioCNG): 94 (Annex V C)
+COMPARATOR_BY_END_USE = {
+    "Elettricità/calore/immissione rete (nuovo ≥1/1/2026)": _COMP_GRID_HEAT,
+    "Immissione rete/calore (esistente <10 MW, primi 15 anni)": _COMP_GRID_HEAT,
+    "Trasporti (BioGNL/BioCNG)": _COMP_TRANSPORT,
+}
+
 # ============================================================
-# SOGLIE RED III per destinazione d'uso biometano
+# SOGLIE RED III per destinazione d'uso biometano (da core.constants)
 # (80% per impianti in esercizio dal 1/1/2026 — art. 29(10)(d) Dir. 2018/2001
-#  consolidata post-RED III; per il transitorio vedi D.Lgs. 5/2026)
+#  consolidata post-RED III; 70% per esistenti <10 MW nel transitorio)
 # ============================================================
 END_USE_THRESHOLDS = {
-    "Elettricità/calore/immissione rete (nuovo ≥1/1/2026)": 0.80,
-    "Immissione rete/calore (esistente <10 MW, primi 15 anni)": 0.70,
-    "Trasporti (BioGNL/BioCNG)": 0.65,
+    "Elettricità/calore/immissione rete (nuovo ≥1/1/2026)": SAVING_THRESHOLD_GRID_HEAT,
+    "Immissione rete/calore (esistente <10 MW, primi 15 anni)": SAVING_THRESHOLD_GRID_HEAT_EXISTING,
+    "Trasporti (BioGNL/BioCNG)": SAVING_THRESHOLD_TRANSPORT,
 }
 
 
@@ -396,9 +405,9 @@ BP_PLANT_TYPE_DEFAULT = "Nuova costruzione"
 
 # --- Destinazione d'uso biometano ---------------------------
 BP_DEST_USE = {
-    "Rete gas / industria / calore":        {"ghg_thr": 0.80, "cmp": 80.0,  "cic": False},
-    "Trasporti (Bio-CNG / Bio-GNL)":       {"ghg_thr": 0.65, "cmp": 94.0,  "cic": False},
-    "Uso termico residenziale/terziario":   {"ghg_thr": 0.80, "cmp": 80.0,  "cic": False},
+    "Rete gas / industria / calore":        {"ghg_thr": SAVING_THRESHOLD_GRID_HEAT, "cmp": _COMP_GRID_HEAT,  "cic": False},
+    "Trasporti (Bio-CNG / Bio-GNL)":       {"ghg_thr": SAVING_THRESHOLD_TRANSPORT, "cmp": _COMP_TRANSPORT,  "cic": False},
+    "Uso termico residenziale/terziario":   {"ghg_thr": SAVING_THRESHOLD_GRID_HEAT, "cmp": _COMP_GRID_HEAT,  "cic": False},
 }
 BP_DEST_USE_DEFAULT = "Rete gas / industria / calore"
 
@@ -7126,13 +7135,14 @@ with tab_plan:
                     help=_t("Benchmark settore 2025: 30-45k €/Smc/h "
                             "per nuova costruzione chiavi in mano"),
                 )
-                _bp_pnrr = st.slider(
-                    "PNRR % " + _t("a fondo perduto"),
-                    min_value=0.0, max_value=100.0, value=0.0, step=5.0,
-                    key="bp_input_pnrr",
-                    help=_t("Quota CAPEX coperta da contributo PNRR. "
-                            "Tipico 30-40% se selezionato"),
-                )
+                # PNRR: un solo controllo per l'intera app. Il valore è quello
+                # impostato in «DM 2022 — Incentivi» (bp_pnrr_pct); qui viene
+                # ereditato per coerenza, così l'utente non vede due percentuali
+                # diverse sullo stesso impianto.
+                _bp_pnrr = float(st.session_state.get(
+                    "bp_pnrr_pct", BP_PNRR_QUOTA_PCT_DEFAULT))
+                st.metric("🇪🇺 PNRR " + _t("a fondo perduto"), f"{_bp_pnrr:.0f}%")
+                st.caption(_t("Impostato in «DM 2022 — Incentivi»"))
             with _bpc2:
                 st.markdown("**" + _t("Costi operativi (OPEX)") + "**")
                 _bp_opex_unit = st.number_input(
