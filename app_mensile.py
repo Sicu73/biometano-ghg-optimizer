@@ -357,12 +357,18 @@ from core.constants import (
     PCI_BIOMETHANE_KWH_SMC,
     NM3_TO_MWH,
     COMPARATOR_GRID_HEAT_GCO2_MJ     as _COMP_GRID_HEAT,
-    COMPARATOR_TRANSPORT_GCO2_MJ     as _COMP_TRANSPORT,
-    SAVING_THRESHOLD_GRID_HEAT,
-    SAVING_THRESHOLD_GRID_HEAT_EXISTING,
-    SAVING_THRESHOLD_TRANSPORT,
     DEFAULT_AUX_FACTOR,
 )
+# Costanti soglia/comparator aggiunte di recente: lette con getattr + default
+# così un bytecode core/constants.pyc STALE su Streamlit Cloud (redeploy che
+# non rigenera il .pyc) NON fa crashare l'app con ImportError. Con constants
+# aggiornato i valori vengono dal single source; i default sono solo la rete
+# di sicurezza (identici ai canonici RED III).
+import core.constants as _CONST
+_COMP_TRANSPORT = getattr(_CONST, "COMPARATOR_TRANSPORT_GCO2_MJ", 94.0)
+SAVING_THRESHOLD_GRID_HEAT = getattr(_CONST, "SAVING_THRESHOLD_GRID_HEAT", 0.80)
+SAVING_THRESHOLD_GRID_HEAT_EXISTING = getattr(_CONST, "SAVING_THRESHOLD_GRID_HEAT_EXISTING", 0.70)
+SAVING_THRESHOLD_TRANSPORT = getattr(_CONST, "SAVING_THRESHOLD_TRANSPORT", 0.65)
 
 FOSSIL_COMPARATOR = _COMP_GRID_HEAT
 DEFAULT_PLANT_NET_SMCH = 300.0                 # Sm3/h netti autorizzati (default)

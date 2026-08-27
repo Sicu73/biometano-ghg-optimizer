@@ -42,12 +42,15 @@ from core.constants import (  # noqa: E402
     LHV_BIOMETHANE_MJ_NM3                as LHV_BIOMETHANE,
     NM3_TO_MWH,
     COMPARATOR_GRID_HEAT_GCO2_MJ         as FOSSIL_COMPARATOR,
-    COMPARATOR_TRANSPORT_GCO2_MJ         as _COMP_TRANSPORT,
-    SAVING_THRESHOLD_GRID_HEAT           as _THR_GRID_HEAT,
-    SAVING_THRESHOLD_GRID_HEAT_EXISTING  as _THR_GRID_HEAT_EXISTING,
-    SAVING_THRESHOLD_TRANSPORT           as _THR_TRANSPORT,
     DEFAULT_AUX_FACTOR,
 )
+# getattr + default: resiliente a un core/constants.pyc stale su Streamlit
+# Cloud (vedi nota analoga in app_mensile). Valori identici ai canonici.
+import core.constants as _CONST
+_COMP_TRANSPORT = getattr(_CONST, "COMPARATOR_TRANSPORT_GCO2_MJ", 94.0)
+_THR_GRID_HEAT = getattr(_CONST, "SAVING_THRESHOLD_GRID_HEAT", 0.80)
+_THR_GRID_HEAT_EXISTING = getattr(_CONST, "SAVING_THRESHOLD_GRID_HEAT_EXISTING", 0.70)
+_THR_TRANSPORT = getattr(_CONST, "SAVING_THRESHOLD_TRANSPORT", 0.65)
 
 # Fonte canonica del database biomasse: e' lo STESSO oggetto che app_mensile
 # importa a sua volta (`from core.feedstock_db import FEEDSTOCK_DB`), quindi
