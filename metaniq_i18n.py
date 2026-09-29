@@ -774,7 +774,7 @@ IT_EN: dict = {
     "Ricavo lordo stimato per il primo anno di esercizio commerciale, comprensivo di tariffa base e premi.": "Estimated gross revenue for the first year of commercial operation, including base tariff and premiums.",
     "Investimento totale stimato per la realizzazione dell'impianto chiavi in mano, comprensivo di costi forfait e PNRR.": "Estimated total investment for the turnkey plant, including lump-sum costs and PNRR.",
     "Tasso Interno di Rendimento calcolato sui flussi di cassa del capitale proprio (Equity IRR).": "Internal Rate of Return computed on equity cash flows (Equity IRR).",
-    "Valore Attuale Netto (NPV) del progetto calcolato su base 15 anni attualizzato al tasso del 6.0%.": "Net Present Value (NPV) of the project over a 15-year horizon, discounted at 6.0%.",
+    "Valore Attuale Netto (NPV) del progetto calcolato su base 15 anni, attualizzato al WACC impostato nel Business Plan completo.": "Net Present Value (NPV) of the project over a 15-year horizon, discounted at the WACC set in the full Business Plan.",
     "Tempo di recupero (in anni) del capitale proprio investito, al netto del finanziamento e del PNRR.": "Payback time (in years) of the invested equity, net of financing and PNRR.",
     "Produzione oraria lorda di biogas necessaria per garantire la produzione netta immessa in rete, tenuto conto dell'aux_factor.": "Gross hourly biogas production required to ensure the net output injected into the grid, accounting for the aux_factor.",
     "ℹ️ Nessun dato annuale disponibile. Inserisci e salva i dati nella «Gestione Giornaliera» per generare i report.": "ℹ️ No annual data available. Enter and save data in «Daily Operations» to generate the reports.",

@@ -2634,7 +2634,7 @@ with st.sidebar:
                 st.session_state["aux_factor"] = plant_gross_smch / plant_net_smch
         else:
             plant_gross_smch = _gross_suggested
-            st.caption(f"💡 {_t('Lordo calcolato')}: **{fmt_it(plant_gross_smch, 1)} Sm³/h** (aux {fmt_it(_aux_base, 3)})")
+            _sizing_hint = st.empty()   # riempito dopo il calcolo di aux_factor
     else:
         # Modalità inserimento LORDI
         _plant_input_gross = st.number_input(
@@ -2659,40 +2659,11 @@ with st.sidebar:
                 st.session_state["aux_factor"] = plant_gross_smch / plant_net_smch
         else:
             plant_net_smch = plant_gross_smch / _aux_base
-            st.caption(f"💡 {_t('Netto calcolato')}: **{fmt_it(plant_net_smch, 1)} Sm³/h** (aux {fmt_it(_aux_base, 3)})")
+            _sizing_hint = st.empty()   # riempito dopo il calcolo di aux_factor
 
-    # Salvo i valori in session_state per ricordarli al prossimo switch
-    st.session_state["plant_net_smch_saved"]   = plant_net_smch
-    st.session_state["plant_gross_smch_saved"] = plant_gross_smch
-
-    # Riepilogo visivo lordi ↔ netti
-    _c1, _c2, _c3 = st.columns(3)
-    _c1.metric("📥 " + _t("Lordi"), fmt_it(plant_gross_smch, 0, " Sm³/h"))
-    _c2.metric("📤 " + _t("Netti"), fmt_it(plant_net_smch, 0, " Sm³/h"))
-    _c3.metric("⚙️ " + _t("aux"), fmt_it(st.session_state.get("aux_factor", _aux_base), 3))
-
-    # Breakdown autoconsumi se disponibile (solo se non manuale o se vogliamo mostrare comunque i teorici)
-    _detail = st.session_state.get("aux_factor_detail", {})
-    if _detail and not st.session_state.override_gross_manual:
-        _f_heat = _detail.get("f_heat", 0)
-        _f_elec = _detail.get("f_elec", 0)
-        _f_slip = _detail.get("f_slip", 0)
-        _f_marg = _detail.get("f_margin", 0)
-        st.caption(
-            f"📊 **{_t('Breakdown autoconsumo')}** ({_t('% del lordo')}): "
-            f"🔥 {_t('Caldaia')} {fmt_it(_f_heat*100, 1, '%')} · "
-            f"⚡ {_t('Elettrico')} {fmt_it(_f_elec*100, 1, '%')} · "
-            f"💨 Slip {fmt_it(_f_slip*100, 1, '%')} · "
-            f"🔧 {_t('Margine')} {fmt_it(_f_marg*100, 1, '%')} "
-            f"→ {_t('Totale')} {fmt_it((_f_heat+_f_elec+_f_slip+_f_marg)*100, 1, '%')} ≡ aux {fmt_it(_aux_base, 3)}"
-        )
-    else:
-        _up_eff_base = 1.0 / _aux_base if _aux_base > 0 else 0.8
-        st.caption(
-            _t("ℹ️ Vai in **Config. Tecnica** per calcolare il fattore lordi/netti reale "
-               "(include upgrading e caldaia). Ora uso default: "
-               f"aux = {fmt_it(_aux_base, 3)} ({fmt_it((1-_up_eff_base)*100, 0, '%')} autoconsumo totale).")
-        )
+    # Riepilogo lordi ↔ netti: segnaposto riempito DOPO «Config. Tecnica»,
+    # quando aux_factor di questo run è noto (vedi «Finalizza taglia impianto»).
+    _sizing_box = st.container()
 
     st.markdown("---")
     with st.sidebar.expander("⚙️ " + _t("Config. Tecnica & GHG"), expanded=False):
@@ -2782,8 +2753,47 @@ with st.sidebar:
         else:
             aux_factor = aux_auto
 
-        st.session_state["aux_factor"] = aux_factor
         st.session_state["aux_factor_detail"] = aux_auto_data
+
+    # ── Finalizza taglia impianto con l'aux DEFINITIVO di questo run ─────
+    # Il riquadro «Taglia Impianto» sta sopra «Config. Tecnica» ma dipende
+    # dall'aux calcolato qui. Prima leggeva l'aux del run precedente (al
+    # primo avvio 1,290 di default contro 1,241 calcolato) e il lordo
+    # manuale veniva poi sovrascritto dall'aux automatico nei calcoli.
+    if st.session_state.override_gross_manual and plant_net_smch > 0:
+        aux_factor = plant_gross_smch / plant_net_smch   # il lordo manuale vince
+    elif st.session_state[_unit_key] == "netti":
+        plant_gross_smch = plant_net_smch * aux_factor
+    else:
+        plant_net_smch = plant_gross_smch / aux_factor
+    st.session_state["aux_factor"] = aux_factor
+    st.session_state["plant_net_smch_saved"]   = plant_net_smch
+    st.session_state["plant_gross_smch_saved"] = plant_gross_smch
+
+    if not st.session_state.override_gross_manual:
+        if st.session_state[_unit_key] == "netti":
+            _sizing_hint.caption(f"💡 {_t('Lordo calcolato')}: **{fmt_it(plant_gross_smch, 1)} Sm³/h** (aux {fmt_it(aux_factor, 3)})")
+        else:
+            _sizing_hint.caption(f"💡 {_t('Netto calcolato')}: **{fmt_it(plant_net_smch, 1)} Sm³/h** (aux {fmt_it(aux_factor, 3)})")
+
+    with _sizing_box:
+        _c1, _c2, _c3 = st.columns(3)
+        _c1.metric("📥 " + _t("Lordi"), fmt_it(plant_gross_smch, 0, " Sm³/h"))
+        _c2.metric("📤 " + _t("Netti"), fmt_it(plant_net_smch, 0, " Sm³/h"))
+        _c3.metric("⚙️ " + _t("aux"), fmt_it(aux_factor, 3))
+        if not st.session_state.override_gross_manual:
+            _f_heat = aux_auto_data.get("f_heat", 0)
+            _f_elec = aux_auto_data.get("f_elec", 0)
+            _f_slip = aux_auto_data.get("f_slip", 0)
+            _f_marg = aux_auto_data.get("f_margin", 0)
+            st.caption(
+                f"📊 **{_t('Breakdown autoconsumo')}** ({_t('% del lordo')}): "
+                f"🔥 {_t('Caldaia')} {fmt_it(_f_heat*100, 1, '%')} · "
+                f"⚡ {_t('Elettrico')} {fmt_it(_f_elec*100, 1, '%')} · "
+                f"💨 Slip {fmt_it(_f_slip*100, 1, '%')} · "
+                f"🔧 {_t('Margine')} {fmt_it(_f_marg*100, 1, '%')} "
+                f"→ {_t('Totale')} {fmt_it((_f_heat+_f_elec+_f_slip+_f_marg)*100, 1, '%')} ≡ aux {fmt_it(aux_auto, 3)}"
+            )
 
     st.markdown("---")
     st.markdown("### " + _t("🌾 Biomasse attive"))
@@ -5464,25 +5474,40 @@ with tab_plan:
     # `core.business_plan.build_business_plan()`.
     # =================================================================
     try:
-        from core.business_plan import build_business_plan as _build_bp_engine
+        from core.business_plan import (
+            build_business_plan as _build_bp_engine,
+            DEFAULT_LEVERAGE_PCT as _H_LEV,
+            DEFAULT_INTEREST_RATE_PCT as _H_RATE,
+            DEFAULT_TAX_RATE_PCT as _H_TAX,
+            DEFAULT_INFLATION_PCT as _H_INFL,
+            DEFAULT_DISCOUNT_RATE_PCT as _H_DISC,
+            DEFAULT_LOAN_DURATION_YEARS as _H_LOAN,
+        )
         from core.calculation_engine import (
             BP_CAPEX_DEFAULTS_PER_SMCH as _BP_CAPEX,
             BP_OPEX_DEFAULTS_PER_SMCH_YEAR as _BP_OPEX,
         )
         _capex_unit = float(_BP_CAPEX.get(bp_plant_type, _BP_CAPEX.get("nuova_costruzione", 38_000)))
         _opex_unit = float(sum(_BP_OPEX.values()) if _BP_OPEX else 5_350)
-        # Stato pre-form: si usano default; user può modificare nel sub-tab BP sotto.
-        _bp_hero_state_key = "_bp_hero_overrides"
-        _overrides = st.session_state.get(_bp_hero_state_key, {})
-        _capex_unit = float(_overrides.get("capex_unit", _capex_unit))
-        _opex_unit = float(_overrides.get("opex_unit", _opex_unit))
-        _pnrr_pct = float(_overrides.get("pnrr_pct", 0.0))
+        # Stessi input del «Business Plan completo» più sotto, letti dalle
+        # chiavi dei suoi widget: session_state le aggiorna PRIMA del rerun,
+        # quindi il valore è quello corrente. Prima si leggeva una copia
+        # salvata a fine run precedente (un run in ritardo: PNRR 0% al primo
+        # avvio, IRR 11,9% contro 38,0%) e NPV sempre @6% senza leva/WACC.
+        _ss = st.session_state
+        _h_disc = float(_ss.get("bp_input_discount", _H_DISC))
         _bp_hero = _build_bp_engine(
             plant_smch=plant_net_smch,
             tariffa_eur_mwh=bp_tariffa_eff,
-            capex_eur_per_smch=_capex_unit,
-            opex_eur_per_smch_year=_opex_unit,
-            pnrr_quota_pct=_pnrr_pct,
+            capex_eur_per_smch=float(_ss.get("bp_input_capex", _capex_unit)),
+            opex_eur_per_smch_year=float(_ss.get("bp_input_opex", _opex_unit)),
+            pnrr_quota_pct=float(bp_pnrr_pct),
+            leverage_pct=float(_ss.get("bp_input_leverage", _H_LEV)),
+            interest_rate_pct=float(_ss.get("bp_input_rate", _H_RATE)),
+            loan_duration_years=int(_ss.get("bp_input_loan", _H_LOAN)),
+            tax_rate_pct=_H_TAX,
+            inflation_pct=float(_ss.get("bp_input_inflation", _H_INFL)),
+            discount_rate_pct=_h_disc,
         )
         _hero_cols = st.columns(5)
         _hero_cols[0].metric(
@@ -5501,9 +5526,9 @@ with tab_plan:
             help=_t("Tasso Interno di Rendimento calcolato sui flussi di cassa del capitale proprio (Equity IRR).")
         )
         _hero_cols[3].metric(
-            "NPV @ 6%",
+            "NPV @ " + f"{_h_disc:.1f}%",
             f"{fmt_it(_bp_hero.npv_project / 1_000_000, 1)}M €",
-            help=_t("Valore Attuale Netto (NPV) del progetto calcolato su base 15 anni attualizzato al tasso del 6.0%.")
+            help=_t("Valore Attuale Netto (NPV) del progetto calcolato su base 15 anni, attualizzato al WACC impostato nel Business Plan completo.")
         )
         _hero_cols[4].metric(
             _t("Payback"),
@@ -7187,13 +7212,6 @@ with tab_plan:
                 min_value=2.0, max_value=15.0, value=DEFAULT_DISCOUNT_RATE_PCT,
                 step=0.5, key="bp_input_discount",
             )
-
-        # Persisto override per hero KPI in cima
-        st.session_state["_bp_hero_overrides"] = {
-            "capex_unit": _bp_capex_unit,
-            "opex_unit": _bp_opex_unit,
-            "pnrr_pct": _bp_pnrr,
-        }
 
         _bp = _build_bp(
             plant_smch=plant_net_smch,
