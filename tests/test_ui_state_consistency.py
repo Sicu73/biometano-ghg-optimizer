@@ -25,9 +25,11 @@ TIMEOUT = 180
 
 def _num(s: str) -> float:
     """'1.234,5 Sm³/h' -> 1234.5 · '38.0%' -> 38.0 · '-0,39 M€' -> -0.39"""
-    tok = re.search(r"-?[\d.,]+", str(s)).group(0)
+    tok = re.search(r"-?[\d.,]+", str(s)).group(0).rstrip(".,")
     if "," in tok:
         tok = tok.replace(".", "").replace(",", ".")
+    elif re.fullmatch(r"-?\d{1,3}(\.\d{3})+", tok):   # '3.218.588', '25.728'
+        tok = tok.replace(".", "")
     return float(tok)
 
 
@@ -87,6 +89,45 @@ def test_hero_bp_matches_full_bp_on_first_run_and_after_pnrr_change(tmp_db):  # 
     assert irr2[0] == irr2[1], irr2
     assert irr2[0] != irr[0], "il PNRR non ha modificato l'IRR"
     assert abs(npv2[0] - npv2[1]) < 0.051, npv2
+
+
+def test_default_scenario_is_valid_every_month(tmp_db):  # noqa: F811
+    """Al primo avvio (soglia 80%) il simulatore non deve aprirsi con 12 mesi
+    non validi: prima mais 1800 + sorgo 400 t/mese davano saving 72-75%."""
+    at = _app(tmp_db)
+    assert [m.value for m in _metrics(at, "Mesi validi")] == ["12/12"]
+    assert not [w for w in at.warning if "fattibilit" in str(w.value)]
+
+
+def test_revenue_table_inherits_plant_tariff(tmp_db):  # noqa: F811
+    """DM 2022: tariffa d'impianto (TR aggiudicata + premi). La tabella
+    ricavi per biomassa partiva da 120 €/MWh fissi mentre il BP usava
+    TR + premi (129,8): ricavi a video, export e BP divergevano."""
+    at = _app(tmp_db)
+    # «Tariffa applicata» ha 1 decimale, la media ponderata 2: tolleranza 0,05
+    assert abs(_one(at, "Tariffa media ponderata") - _one(at, "Tariffa applicata")) <= 0.05
+
+    [s for s in at.slider if s.key == "bp_ribasso"][0].set_value(5.0).run()
+    applicata = _one(at, "Tariffa applicata")
+    media = _one(at, "Tariffa media ponderata")
+    assert abs(media - applicata) <= 0.05, (media, applicata)
+    mwh = _one(at, "MWh netti totali/anno")
+    ricavi = _one(at, "💰 Ricavi totali/anno")
+    assert abs(ricavi - mwh * media) <= 0.001 * ricavi, (ricavi, mwh, media)
+
+
+def test_manual_tariff_override_survives_plant_tariff_change(tmp_db):  # noqa: F811
+    """Una tariffa modificata a mano resta; le altre seguono il BP."""
+    at = AppTest.from_file(APP, default_timeout=TIMEOUT)
+    at.session_state["tariff_overrides_eur_mwh_biometano"] = {"Liquame suino": 50.0}
+    at.run()
+    assert not at.exception
+    media0 = _one(at, "Tariffa media ponderata")
+    assert media0 < _one(at, "Tariffa applicata") - 0.5, "override non applicato"
+
+    [s for s in at.slider if s.key == "bp_ribasso"][0].set_value(5.0).run()
+    assert at.session_state["tariff_overrides_eur_mwh_biometano"] == {"Liquame suino": 50.0}
+    assert _one(at, "Tariffa media ponderata") < media0   # le altre sono scese col ribasso
 
 
 def test_hero_npv_uses_current_wacc(tmp_db):  # noqa: F811

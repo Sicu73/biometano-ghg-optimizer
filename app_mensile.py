@@ -1065,6 +1065,20 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
         if mx < 0:
             mx = 0.0
             note.append(f"{_t('anche')} **{_t(x)}** <0: {_t('entrambe azzerate')}")
+
+    # Il saving è un vincolo di DISUGUAGLIANZA (e_w <= target_e_max), come in
+    # find_optimal_pair. Se la massa negativa nasce da un saving in ECCESSO,
+    # il mix clampato chiude la produzione e rispetta la soglia: è fattibile.
+    # Prima veniva segnalato "Infeasibile" mentre la Validità diceva "Valido".
+    _mix = {n: (m or 0.0) for n, m in fixed_masses.items()}
+    _mix[x], _mix[y_name] = mx, my
+    _gross = sum(m * _yield_of(n) for n, m in _mix.items())
+    if _gross > 0 and abs(_gross - gross_target) <= 1e-9 * gross_target:
+        _e_w = sum(m * _yield_of(n) * e_total_feedstock(n, ep)
+                   for n, m in _mix.items()) / _gross
+        if _e_w <= target_e_max + 1e-9:
+            return {x: mx, y_name: my}, True, ""
+
     msg = _t("Infeasibile:") + " " + "; ".join(note) + ". " + _t("Saving e/o produzione non saranno entrambi soddisfatti.")
     return {x: mx, y_name: my}, False, msg
 
@@ -2990,6 +3004,34 @@ tot_revenue_base_mwh     = 0.0
 tariffa_media_ponderata  = 0.0
 tot_mwh                  = 0.0
 
+# Tariffa DM 2022: è di IMPIANTO (TR aggiudicata + premi), non di biomassa.
+# La colonna per biomassa resta editabile per scenari what-if, ma di default
+# eredita la tariffa del Business Plan (bp_tariffa_eff). Prima partiva da
+# 120 €/MWh fissi: ricavi a video, export e BP divergevano (120 vs 129,8).
+# In session_state si salvano SOLO le tariffe modificate a mano.
+_TAR_OVERRIDE_KEY = f"tariff_overrides_eur_mwh_{APP_MODE}"
+
+
+def _tariff_of(feed: str, plant_tariff: float) -> float:
+    return float(st.session_state.get(_TAR_OVERRIDE_KEY, {}).get(feed, plant_tariff))
+
+
+def _revenue_summary(annual_t: dict, annual_mwh: dict, feeds: list,
+                     plant_tariff: float):
+    """-> (revenue_rows, tot_revenue, tot_mwh, tariffa_media_ponderata)"""
+    _tot = sum(annual_mwh.values())
+    rows = []
+    for n in feeds:
+        tar, mwh = _tariff_of(n, plant_tariff), annual_mwh[n]
+        rows.append((n, {
+            "t_anno": annual_t[n], "yield": _yield_of(n),
+            "mwh_netti": mwh, "mwh_basis": mwh, "tariffa": tar,
+            "ricavi": mwh * tar, "quota": (mwh / _tot * 100) if _tot > 0 else 0,
+            "annex_ix": FEEDSTOCK_DB[n].get("annex_ix"), "n_cic": 0.0,
+        }))
+    rev = sum(r["ricavi"] for _, r in rows)
+    return rows, rev, _tot, (rev / _tot) if _tot > 0 else 0.0
+
 # ============================================================
 # AGGREGAZIONE DATI DAL DATABASE (Sostituisce il Solver)
 # ------------------------------------------------------------
@@ -3073,29 +3115,11 @@ try:
     _tot_t = sum(annual_t.values())
     annex_mass_share = (sum(t for n, t in annual_t.items() if FEEDSTOCK_DB[n].get("annex_ix") in ("A", "B")) / _tot_t) if _tot_t > 0 else 0.0
 
-    _tar_key = f"tariffs_eur_mwh_{APP_MODE}"
-    _tar_default = 120.0  # €/MWh biometano rete (DM 15/9/2022, baseline editabile)
-    if _tar_key not in st.session_state:
-        st.session_state[_tar_key] = {n: _tar_default for n in active_feeds}
-    for n in active_feeds:
-        if n not in st.session_state[_tar_key]:
-            st.session_state[_tar_key][n] = _tar_default
-
-    pdf_revenue_rows = []
-    tot_n_cic = 0.0
-    for n in active_feeds:
-        t, mwh_netti = annual_t[n], annual_mwh[n]
-        mwh_rev = mwh_netti
-        tariffa = st.session_state[_tar_key][n]
-        ricavi = mwh_rev * tariffa
-        n_cic = 0.0
-        _tot_mwh_b = sum(annual_mwh.values())
-        pdf_revenue_rows.append((n, {"t_anno": t, "yield": _yield_of(n), "mwh_netti": mwh_netti, "mwh_basis": mwh_rev, "tariffa": tariffa, "ricavi": ricavi, "quota": (mwh_netti / _tot_mwh_b * 100) if _tot_mwh_b > 0 else 0, "annex_ix": FEEDSTOCK_DB[n].get("annex_ix"), "n_cic": n_cic}))
-
     tot_mwh = sum(annual_mwh.values())
     tot_revenue_base_mwh = tot_mwh
-    tot_revenue = sum(annual_mwh[n] * st.session_state[_tar_key][n] for n in active_feeds)
-    tariffa_media_ponderata = (tot_revenue / tot_revenue_base_mwh) if tot_revenue_base_mwh > 0 else 0.0
+    # Ricavi (pdf_revenue_rows, tot_revenue, tariffa_media_ponderata): calcolati
+    # con _revenue_summary() dopo il «Riepilogo tariffa», quando la tariffa
+    # d'impianto bp_tariffa_eff è nota. Nessun consumatore li legge prima.
 
 except Exception as _agg_exc:
     st.error(f"Errore aggregazione DB: {_agg_exc}")
@@ -5463,6 +5487,11 @@ with tab_plan:
 
     st.success(f"📐 **Riepilogo tariffa**: " + _recap_line + f" · Durata: **{BP_DURATA_TARIFFA_ANNI} anni**")
 
+    # Ricavi del consuntivo DB con la tariffa d'impianto appena definita
+    # (usati dagli export del tab Risultati).
+    pdf_revenue_rows, tot_revenue, tot_revenue_base_mwh, tariffa_media_ponderata = \
+        _revenue_summary(annual_t, annual_mwh, active_feeds, bp_tariffa_eff)
+
 
     bp_result = compute_revenues(plant_smch=plant_net_smch, tariffa_eur_mwh=bp_tariffa_eff)
     # Riutilizzo delle variabili calcolate nella sidebar
@@ -5955,9 +5984,13 @@ with tab_plan:
 
     # Valori di default plausibili per biomasse comuni; fallback generico per il resto
     # (il cliente li riaggiusta a mano in tabella mensile)
+    # Mais/sorgo tarati sul mix di default (DEFAULT_ACTIVE_FEEDS, soglia 80%):
+    # con 1800/400 t/mese il saving restava 72-75% e tutti i 12 mesi uscivano
+    # non validi. 1200/300 chiude produzione e saving anche a febbraio (672 h),
+    # con pollina e liquame entrambi > 0 (test_default_scenario_is_valid_every_month).
     defaults_all = {
-        "Trinciato di mais": 1800.0,
-        "Trinciato di sorgo da foraggio": 400.0,
+        "Trinciato di mais": 1200.0,
+        "Trinciato di sorgo da foraggio": 300.0,
         "Trinciato di sorgo uso energetico (biodigestori)": 400.0,
         "Pollina ovaiole (aerobico)": 300.0,
         "Pollina broiler (lettiera)": 250.0,
@@ -6574,61 +6607,34 @@ with tab_plan:
         # TARIFFA PER BIOMASSA (DM 2022 — tariffa diretta €/MWh)
         # ============================================================
         _tar_unit = "€/MWh"
-        _tar_default = 120.0
+        _plant_tar = float(bp_tariffa_eff)   # TR aggiudicata + premi (BP)
         st.markdown(
             f"##### 💶 Dettaglio per tipologia di biomassa"
             f" (tariffa {_tar_unit} editabile ✏️)"
         )
+        st.caption(
+            f"Default = tariffa d'impianto del Business Plan "
+            f"(**{fmt_it(_plant_tar, 2)} €/MWh**, TR aggiudicata + premi). "
+            f"Le tariffe modificate a mano restano fino a nuova modifica."
+        )
 
-        # Stato persistente: tariffe per biomassa.
-        _tar_key = f"tariffs_eur_mwh_{APP_MODE}"
-        if _tar_key not in st.session_state:
-            st.session_state[_tar_key] = {n: _tar_default for n in active_feeds}
-        # Retrocompat: se mancano chiavi per nuove biomasse
-        for n in active_feeds:
-            if n not in st.session_state[_tar_key]:
-                st.session_state[_tar_key][n] = _tar_default
-
-        _tot_mwh_basis_raw = sum(annual_mwh.values())  # MWh CH4 netto per biometano
+        # Ricavi con tariffa d'impianto + eventuali override per biomassa
+        pdf_revenue_rows, tot_revenue, tot_revenue_base_mwh, tariffa_media_ponderata =             _revenue_summary(annual_t, annual_mwh, active_feeds, _plant_tar)
+        tot_mwh = tot_revenue_base_mwh
+        tot_n_cic = 0.0
 
         detail_rows = []
-        pdf_revenue_rows = []  # raw numerics per il report PDF
-        tot_n_cic = 0.0
-        for n in active_feeds:
-            t = annual_t[n]
-            nm3_lordi = t * _yield_of(n)  # resa effettiva (BMT override se attivo)
-            nm3_netti = nm3_lordi / aux_factor
-            mwh_netti = nm3_netti * NM3_TO_MWH
-
-            # DM 2022: tariffa diretta €/MWh
-            mwh_revenue = mwh_netti
-            tariffa = st.session_state[_tar_key][n]
-            ricavi = mwh_revenue * tariffa
-            n_cic = 0.0
-            quota = ((mwh_netti / _tot_mwh_basis_raw * 100)
-                     if _tot_mwh_basis_raw > 0 else 0)
-            pdf_revenue_rows.append((n, {
-                "t_anno": t,
-                "yield": _yield_of(n),  # resa effettiva (BMT override se attivo)
-                "mwh_netti": mwh_netti,
-                "mwh_basis": mwh_revenue,  # base ricavi
-                "tariffa": tariffa,
-                "ricavi": ricavi,
-                "quota": quota,
-                "annex_ix": FEEDSTOCK_DB[n].get("annex_ix"),
-                "n_cic": n_cic,
-            }))
-            row_detail = {
+        for n, r in pdf_revenue_rows:
+            detail_rows.append({
                 "Biomassa": n,
-                "t/anno (FM)":     fmt_it(t, 0),
-                "Resa (Nm³/t)":    fmt_it(_yield_of(n), 0),  # resa effettiva
-                "Sm³ netti/anno":  fmt_it(nm3_netti, 0),
-                "MWh netti/anno":  fmt_it(mwh_netti, 1),
-                "Quota % MWh":     fmt_it(quota, 1, "%"),
-                f"Tariffa {_tar_unit}": fmt_it(tariffa, 2),
-                "Ricavi €/anno":   fmt_it(ricavi, 0, " €"),
-            }
-            detail_rows.append(row_detail)
+                "t/anno (FM)":     fmt_it(r["t_anno"], 0),
+                "Resa (Nm³/t)":    fmt_it(r["yield"], 0),  # resa effettiva
+                "Sm³ netti/anno":  fmt_it(r["mwh_netti"] / NM3_TO_MWH, 0),
+                "MWh netti/anno":  fmt_it(r["mwh_netti"], 1),
+                "Quota % MWh":     fmt_it(r["quota"], 1, "%"),
+                f"Tariffa {_tar_unit}": fmt_it(r["tariffa"], 2),
+                "Ricavi €/anno":   fmt_it(r["ricavi"], 0, " €"),
+            })
         df_detail = pd.DataFrame(detail_rows)
 
         detail_col_cfg = {
@@ -6658,29 +6664,25 @@ with tab_plan:
             key=f"editor_revenue_detail_{APP_MODE}",
         )
 
-        # Se l'utente ha modificato una tariffa -> salva e rerun.
+        # Salva SOLO le tariffe diverse da quella d'impianto (override): le
+        # altre seguono il Business Plan quando cambiano TR, ribasso o premi.
         # Clamp: tariffe negative non hanno senso fisico -> >=0.
         _tar_col = f"Tariffa {_tar_unit}"
-        new_tariffs = {
-            row["Biomassa"]: max(parse_it(row[_tar_col]), 0.0)
-            for _, row in edited_detail.iterrows()
-        }
-        if new_tariffs != st.session_state[_tar_key]:
-            st.session_state[_tar_key] = new_tariffs
+        _new_over = {}
+        for _, row in edited_detail.iterrows():
+            _v = max(parse_it(row[_tar_col]), 0.0)
+            if abs(_v - _tariff_of(row["Biomassa"], _plant_tar)) > 0.005:
+                _new_over[row["Biomassa"]] = _v          # modificata ora
+            elif row["Biomassa"] in st.session_state.get(_TAR_OVERRIDE_KEY, {}):
+                _new_over[row["Biomassa"]] = _tariff_of(row["Biomassa"], _plant_tar)
+        _new_over = {k: v for k, v in _new_over.items() if abs(v - _plant_tar) > 0.005}
+        if _new_over != st.session_state.get(_TAR_OVERRIDE_KEY, {}):
+            st.session_state[_TAR_OVERRIDE_KEY] = _new_over
             st.rerun()
 
         # ============================================================
         # TOTALI RICAVI (DM 2022 — tariffa diretta €/MWh)
         # ============================================================
-        tot_mwh = sum(annual_mwh.values())
-        tot_revenue_base_mwh = tot_mwh
-        tot_revenue = sum(
-            annual_mwh[n] * st.session_state[_tar_key][n]
-            for n in active_feeds
-        )
-        tariffa_media_ponderata = (
-            (tot_revenue / tot_revenue_base_mwh) if tot_revenue_base_mwh > 0 else 0.0
-        )
         cA, cB, cC = st.columns(3)
         cA.metric("MWh netti totali/anno", fmt_it(tot_mwh, 0))
         cB.metric("Tariffa media ponderata",
