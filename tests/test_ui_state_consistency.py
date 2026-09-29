@@ -130,6 +130,21 @@ def test_manual_tariff_override_survives_plant_tariff_change(tmp_db):  # noqa: F
     assert _one(at, "Tariffa media ponderata") < media0   # le altre sono scese col ribasso
 
 
+def test_plant_tariff_with_third_decimal_5_creates_no_override(tmp_db):  # noqa: F811
+    """53,985 €/MWh è mostrata 53,98: non deve diventare un override."""
+    at = _app(tmp_db)
+    [s for s in at.slider if s.key == "bp_ribasso"][0].set_value(0.0).run()
+    [c for c in at.checkbox if c.key == "bp_pm_on"][0].uncheck().run()
+    [c for c in at.checkbox if c.key == "bp_pu_on"][0].uncheck().run()
+    [n for n in at.number_input if n.key == "bp_tariffa_base_input"][0].set_value(53.985).run()
+    at.run()
+    _k = "tariff_overrides_eur_mwh_biometano"
+    over = at.session_state[_k] if _k in at.session_state else {}
+    assert over == {}, over
+    [s for s in at.slider if s.key == "bp_ribasso"][0].set_value(10.0).run()
+    assert abs(_one(at, "Tariffa media ponderata") - _one(at, "Tariffa applicata")) <= 0.05
+
+
 def test_hero_npv_uses_current_wacc(tmp_db):  # noqa: F811
     at = _app(tmp_db)
     [s for s in at.slider if s.key == "bp_input_discount"][0].set_value(9.0).run()

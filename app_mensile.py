@@ -1039,18 +1039,30 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
                   [yx * ex, yy * ey]], dtype=float)
     b = np.array([rhs_prod, rhs_sust], dtype=float)
 
+    note = []
     if abs(np.linalg.det(A)) < 1e-9:
-        return {x: 0.0, y_name: 0.0}, False, _t("Sistema singolare: le 2 biomasse incognite sono linearmente dipendenti.")
+        # Singolare: stesso e_total (es. liquame suino/bovino) o resa nulla.
+        # Il vincolo di saving non distingue le due incognite: ogni
+        # ripartizione ha lo stesso e_w. Si chiude la produzione con quella a
+        # resa maggiore (massa minima) e si verifica il saving qui sotto, come
+        # per il mix clampato. Prima: masse 0/0 e "infeasibile" anche quando
+        # il problema era risolvibile.
+        mx = my = 0.0
+        if max(yx, yy) > 0 and rhs_prod > 0:
+            if yx >= yy:
+                mx = rhs_prod / yx
+            else:
+                my = rhs_prod / yy
+        note.append(_t("Sistema singolare: le 2 biomasse incognite sono linearmente dipendenti."))
+    else:
+        sol = np.linalg.solve(A, b)
+        mx, my = float(sol[0]), float(sol[1])
 
-    sol = np.linalg.solve(A, b)
-    mx, my = float(sol[0]), float(sol[1])
-
-    # Check feasibility
-    if mx >= -1e-6 and my >= -1e-6:
-        return {x: max(mx, 0), y_name: max(my, 0)}, True, ""
+        # Check feasibility
+        if mx >= -1e-6 and my >= -1e-6:
+            return {x: max(mx, 0), y_name: max(my, 0)}, True, ""
 
     # Infeasibile: forza il negativo a 0 e ricalcola l'altro con sola produzione
-    note = []
     if mx < 0:
         note.append(f"**{_t(x)}** {_t('richiederebbe')} {fmt_it(mx, 1)} {_t('t (<0)')}")
         mx = 0.0
@@ -1081,6 +1093,28 @@ def solve_2_unknowns_dual(fixed_masses: dict, unknowns: list,
 
     msg = _t("Infeasibile:") + " " + "; ".join(note) + ". " + _t("Saving e/o produzione non saranno entrambi soddisfatti.")
     return {x: mx, y_name: my}, False, msg
+
+
+def _solve_month_dual(fixed_masses: dict, unknowns: list, hours: float,
+                      aux: float, plant_net: float, ep: float,
+                      e_max_target: float, e_max_threshold: float):
+    """Solver mensile a 2 incognite con margine di sicurezza.
+
+    Punta a e_max_target (soglia + margine, es. 81%). Se il margine non è
+    raggiungibile ma la soglia normativa sì (e_max_threshold, es. 80%), usa
+    il mix alla soglia: il mese è VALIDO, solo senza margine. Prima veniva
+    segnalato "Infeasibile" mentre la colonna Validità diceva "Valido".
+    -> (sol, feasible, msg, below_margin)
+    """
+    sol, ok, msg = solve_2_unknowns_dual(
+        fixed_masses, unknowns, hours, aux, plant_net, ep, e_max_target)
+    if ok or e_max_threshold <= e_max_target:
+        return sol, ok, msg, False
+    sol_t, ok_t, _ = solve_2_unknowns_dual(
+        fixed_masses, unknowns, hours, aux, plant_net, ep, e_max_threshold)
+    if ok_t:
+        return sol_t, True, "", True
+    return sol, ok, msg, False
 
 
 def find_optimal_pair(aux: float, plant_net: float, ep: float,
@@ -6166,18 +6200,22 @@ with tab_plan:
     # ------------------------- CALCOLI PER MESE -------------------------
     results = []
     warnings_list = []
+    below_margin_months = []   # validi alla soglia, ma senza il +1 pp del solver
     for _, row in input_df.iterrows():
         fixed_map = {n: float(row[n]) for n in fixed_feeds}
         hours = float(row["Ore"])
 
         if len(unknown_feeds) >= 2:
-            sol, feasible, msg = solve_2_unknowns_dual(
+            sol, feasible, msg, _below = _solve_month_dual(
                 fixed_map, unknown_feeds, hours, aux_factor, plant_net_smch,
                 ep_total, target_e_max,
+                fossil_comparator * (1 - ghg_threshold),
             )
             all_masses = {**fixed_map, **sol}
             if not feasible:
                 warnings_list.append(f"**{row['Mese']}**: {msg}")
+            elif _below:
+                below_margin_months.append(_t(row["Mese"]))
         elif len(unknown_feeds) == 1:
             computed = solve_1_unknown_production(
                 fixed_map, unknown_feeds[0], hours, aux_factor, plant_net_smch
@@ -6368,6 +6406,14 @@ with tab_plan:
 
     if warnings_list:
         st.warning(_t("⚠️ Mesi con problemi di fattibilità:") + "\n\n" + "\n\n".join(f"- {w}" for w in warnings_list))
+    if below_margin_months:
+        st.info(
+            f"ℹ️ **{', '.join(below_margin_months)}**: "
+            f"saving ≥ {fmt_it(ghg_threshold*100, 0, '%')} ({_t('valido')}) "
+            f"{_t('ma sotto il margine di sicurezza del solver')} "
+            f"({fmt_it(target_saving*100, 0, '%')}): "
+            f"{_t('mix calcolato alla soglia normativa.')}"
+        )
 
     # ------------------------- SINTESI -------------------------
     st.subheader(_t("📈 Sintesi annuale (simulazione what-if)"))
@@ -6619,7 +6665,8 @@ with tab_plan:
         )
 
         # Ricavi con tariffa d'impianto + eventuali override per biomassa
-        pdf_revenue_rows, tot_revenue, tot_revenue_base_mwh, tariffa_media_ponderata =             _revenue_summary(annual_t, annual_mwh, active_feeds, _plant_tar)
+        pdf_revenue_rows, tot_revenue, tot_revenue_base_mwh, tariffa_media_ponderata = \
+            _revenue_summary(annual_t, annual_mwh, active_feeds, _plant_tar)
         tot_mwh = tot_revenue_base_mwh
         tot_n_cic = 0.0
 
@@ -6667,15 +6714,20 @@ with tab_plan:
         # Salva SOLO le tariffe diverse da quella d'impianto (override): le
         # altre seguono il Business Plan quando cambiano TR, ribasso o premi.
         # Clamp: tariffe negative non hanno senso fisico -> >=0.
+        # Confronto sul valore COME MOSTRATO (2 decimali): con una tolleranza
+        # 0,005 sul valore grezzo, una tariffa tipo 53,985 (mostrata 53,98)
+        # veniva salvata come override per tutte le biomasse e poi congelata.
         _tar_col = f"Tariffa {_tar_unit}"
+        _shown = lambda v: parse_it(fmt_it(v, 2))  # noqa: E731
+        _plant_shown = _shown(_plant_tar)
         _new_over = {}
         for _, row in edited_detail.iterrows():
             _v = max(parse_it(row[_tar_col]), 0.0)
-            if abs(_v - _tariff_of(row["Biomassa"], _plant_tar)) > 0.005:
+            if abs(_v - _shown(_tariff_of(row["Biomassa"], _plant_tar))) > 1e-6:
                 _new_over[row["Biomassa"]] = _v          # modificata ora
             elif row["Biomassa"] in st.session_state.get(_TAR_OVERRIDE_KEY, {}):
                 _new_over[row["Biomassa"]] = _tariff_of(row["Biomassa"], _plant_tar)
-        _new_over = {k: v for k, v in _new_over.items() if abs(v - _plant_tar) > 0.005}
+        _new_over = {k: v for k, v in _new_over.items() if abs(v - _plant_shown) > 1e-6}
         if _new_over != st.session_state.get(_TAR_OVERRIDE_KEY, {}):
             st.session_state[_TAR_OVERRIDE_KEY] = _new_over
             st.rerun()
