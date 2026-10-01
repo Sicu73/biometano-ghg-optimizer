@@ -372,6 +372,9 @@ SAVING_THRESHOLD_TRANSPORT = getattr(_CONST, "SAVING_THRESHOLD_TRANSPORT", 0.65)
 
 FOSSIL_COMPARATOR = _COMP_GRID_HEAT
 DEFAULT_PLANT_NET_SMCH = 300.0                 # Sm3/h netti autorizzati (default)
+# Intervallo ammesso per l'aux (lordo/netto) impostato a mano, sia come aux
+# manuale sia come rapporto lordo/netto manuale: 1,0-2,0 = autoconsumi 0-50%.
+AUX_MANUAL_MIN, AUX_MANUAL_MAX = 1.0, 2.0
 
 # Comparatore fossile per destinazione d'uso (gCO2eq/MJ), da core.constants:
 #   - Biometano -> rete / elettricita' / calore: 80 (NG sostituito, Annex VI B)
@@ -408,6 +411,15 @@ BP_PLANT_TYPES = {
     "Ampliamento":              {"label": "📈 Ampliamento",             "tr_factor": 1.00},
 }
 BP_PLANT_TYPE_DEFAULT = "Nuova costruzione"
+# Chiavi di BP_CAPEX_DEFAULTS_PER_SMCH (core.calculation_engine). Senza questa
+# mappa .get("Nuova costruzione") falliva sempre e il CAPEX restava 38.000
+# €/Smc/h per qualunque tipo di intervento.
+BP_PLANT_TYPE_CAPEX_KEY = {
+    "Nuova costruzione":      "nuova_costruzione",
+    "Riconversione totale":   "riconversione_totale",
+    "Riconversione parziale": "riconversione_parz",
+    "Ampliamento":            "ampliamento",
+}
 
 # --- Destinazione d'uso biometano ---------------------------
 BP_DEST_USE = {
@@ -2795,9 +2807,18 @@ with st.sidebar:
         )
         aux_auto = aux_auto_data["aux_factor"]
 
-        manual_aux_on = st.checkbox(_t("Override aux manuale"), False)
+        # Con il lordo manuale attivo è il rapporto lordo/netto a fissare
+        # l'aux: prima l'override aux restava spuntato ma veniva ignorato
+        # senza avviso. Ora è disattivato e lo si dichiara.
+        _gross_manual = bool(st.session_state.override_gross_manual)
+        manual_aux_on = st.checkbox(_t("Override aux manuale"), False,
+                                    disabled=_gross_manual)
+        if _gross_manual:
+            manual_aux_on = False
+            st.caption(_t("aux fissato dal lordo manuale in «Taglia Impianto»."))
         if manual_aux_on:
-            aux_factor = st.number_input(_t("aux manuale"), 1.0, 2.0, round(aux_auto, 3), 0.005)
+            aux_factor = st.number_input(_t("aux manuale"), AUX_MANUAL_MIN, AUX_MANUAL_MAX,
+                                         round(aux_auto, 3), 0.005)
         else:
             aux_factor = aux_auto
 
@@ -2808,8 +2829,19 @@ with st.sidebar:
     # dall'aux calcolato qui. Prima leggeva l'aux del run precedente (al
     # primo avvio 1,290 di default contro 1,241 calcolato) e il lordo
     # manuale veniva poi sovrascritto dall'aux automatico nei calcoli.
+    _aux_ratio_out = None   # rapporto lordo/netto manuale fuori range
     if st.session_state.override_gross_manual and plant_net_smch > 0:
-        aux_factor = plant_gross_smch / plant_net_smch   # il lordo manuale vince
+        # Il lordo manuale vince, entro lo stesso intervallo dell'aux
+        # manuale (1,0-2,0 = autoconsumi 0-50%). Prima nessun limite: lordo
+        # 2000 su netto 100 dava aux 20 e un saving gonfiato.
+        _ratio = plant_gross_smch / plant_net_smch
+        aux_factor = min(max(_ratio, AUX_MANUAL_MIN), AUX_MANUAL_MAX)
+        if abs(aux_factor - _ratio) > 1e-9:
+            _aux_ratio_out = _ratio
+            if st.session_state[_unit_key] == "netti":
+                plant_gross_smch = plant_net_smch * aux_factor
+            else:
+                plant_net_smch = plant_gross_smch / aux_factor
     elif st.session_state[_unit_key] == "netti":
         plant_gross_smch = plant_net_smch * aux_factor
     else:
@@ -2829,7 +2861,16 @@ with st.sidebar:
         _c1.metric("📥 " + _t("Lordi"), fmt_it(plant_gross_smch, 0, " Sm³/h"))
         _c2.metric("📤 " + _t("Netti"), fmt_it(plant_net_smch, 0, " Sm³/h"))
         _c3.metric("⚙️ " + _t("aux"), fmt_it(aux_factor, 3))
-        if not st.session_state.override_gross_manual:
+        if _aux_ratio_out is not None:
+            st.warning(
+                "⚠️ " + _t("Rapporto lordo/netto fuori dall’intervallo ammesso (autoconsumi 0–50%)")
+                + f": {fmt_it(_aux_ratio_out, 3)} → aux {fmt_it(aux_factor, 3)} "
+                f"({fmt_it(AUX_MANUAL_MIN, 2)}–{fmt_it(AUX_MANUAL_MAX, 2)})."
+            )
+        if manual_aux_on:
+            st.caption(f"✍️ {_t('aux manuale')} {fmt_it(aux_factor, 3)} · "
+                       f"{_t('aux calcolato')} {fmt_it(aux_auto, 3)}")
+        elif not st.session_state.override_gross_manual:
             _f_heat = aux_auto_data.get("f_heat", 0)
             _f_elec = aux_auto_data.get("f_elec", 0)
             _f_slip = aux_auto_data.get("f_slip", 0)
@@ -2846,6 +2887,13 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### " + _t("🌾 Biomasse attive"))
 
+    # Lingua CONGELATA al render. Streamlit richiama format_func anche fuori
+    # dal contesto della pagina (per ricondurre il valore del widget alle
+    # opzioni): lì _t()/fmt_it() senza lang ricadono su "it", le etichette
+    # non combaciano con quelle inglesi e in EN le biomasse selezionate
+    # sparivano al secondo run ("Select at least 1 feedstock").
+    _feed_lang = _LANG
+
     # Origine del fattore emissivo eec (per tag inline ⓘ e cerchietto ?).
     def _eec_origin(_name):
         _src = (FEEDSTOCK_DB.get(_name, {}) or {}).get("src", "") or ""
@@ -2860,13 +2908,14 @@ with st.sidebar:
             return "GSE"
         if "ipcc" in _s:
             return "IPCC"
-        return _t("altro")
+        return _t("altro", _feed_lang)
 
     def _fmt_feed(_x):
         _d = FEEDSTOCK_DB[_x]
         _adv = ('🌽 cap30%' if _d.get('annex_ix') is None
-                else f"IX-{_d.get('annex_ix')} ✓{_t('avanzato')}")
-        return (f"{_t(_x)} · eec={fmt_it(_d['eec'], 1, signed=True)} · "
+                else f"IX-{_d.get('annex_ix')} ✓{_t('avanzato', _feed_lang)}")
+        return (f"{_t(_x, _feed_lang)} · "
+                f"eec={fmt_it(_d['eec'], 1, signed=True, lang=_feed_lang)} · "
                 f"{_adv} · ⓘ {_eec_origin(_x)}")
 
     # 🔍 Lente di ricerca rapida (filtra i blocchi per nome IT/EN).
@@ -3046,6 +3095,64 @@ tot_mwh                  = 0.0
 _TAR_OVERRIDE_KEY = f"tariff_overrides_eur_mwh_{APP_MODE}"
 
 
+def _follow_auto_default(key: str, auto: float) -> None:
+    """Widget con default CALCOLATO (es. TR per tipo/fascia, CAPEX per tipo).
+
+    Streamlit ignora `value=` dopo il primo render di un widget con key
+    fissa: il default calcolato non si aggiornava più. Qui il valore segue
+    il default finché l'utente non lo modifica a mano; da quel momento resta
+    suo. Va chiamata PRIMA di creare il widget, che non deve passare
+    `value=` (lo stato arriva da session_state).
+    """
+    prev_key = f"_{key}__auto"
+    prev, cur = st.session_state.get(prev_key), st.session_state.get(key)
+    if cur is None or prev is None or abs(float(cur) - float(prev)) < 1e-9:
+        st.session_state[key] = float(auto)
+    st.session_state[prev_key] = float(auto)
+
+
+def _mark_do_period(prefix: str) -> None:
+    """on_change dei selettori anno/impianto dei pannelli giornalieri."""
+    st.session_state["_do_active_prefix"] = prefix
+
+
+def _active_do_period() -> tuple:
+    """(anno, impianto) del pannello «Gestione giornaliera» modificato per
+    ultimo (tab giornaliero: prefisso "", tab tecnico: "tech_").
+
+    Prima l'aggregazione DB leggeva solo `do_year` con fallback 2024 (il
+    widget parte dall'anno corrente: al primo avvio si leggeva l'anno
+    sbagliato) e ignorava `tech_do_year` / `tech_do_plant_id`.
+    """
+    import datetime   # `_dt` è importato più sotto, dopo l'aggregazione
+    pfx = st.session_state.get("_do_active_prefix", "")
+    year = st.session_state.get(f"{pfx}do_year") or datetime.date.today().year
+    plant = ((st.session_state.get(f"{pfx}do_plant_id") or "").strip()
+             or (PLANT_NAME or "").strip() or "default")
+    return int(year), plant
+
+
+def _active_end_use() -> tuple:
+    """(soglia saving, comparator) della destinazione d'uso SELEZIONATA.
+
+    Legge la key del selectbox (session_state aggiornato prima del rerun),
+    quindi vale anche per il codice che gira PRIMA del selectbox, come
+    l'aggregazione DB. Prima si leggevano fossil_comparator_active /
+    ghg_threshold_active, scritti più sotto: un run in ritardo (cambiando
+    destinazione, validità mensile ed export restavano sulla soglia vecchia).
+    """
+    eu = st.session_state.get("end_use_sel")
+    if eu not in END_USE_THRESHOLDS:
+        eu = next(iter(END_USE_THRESHOLDS))
+    return END_USE_THRESHOLDS[eu], COMPARATOR_BY_END_USE[eu]
+
+
+def _bp_capex_default(plant_type: str) -> float:
+    from core.calculation_engine import BP_CAPEX_DEFAULTS_PER_SMCH as _cx
+    return float(_cx.get(BP_PLANT_TYPE_CAPEX_KEY.get(plant_type, ""),
+                         _cx.get("nuova_costruzione", 38_000)))
+
+
 def _tariff_of(feed: str, plant_tariff: float) -> float:
     return float(st.session_state.get(_TAR_OVERRIDE_KEY, {}).get(feed, plant_tariff))
 
@@ -3079,37 +3186,27 @@ try:
     
     _init_db_main()
     
-    _current_year = int(st.session_state.get("do_year", 2024))
-    # Stesso identificativo impianto usato dal pannello giornaliero per
-    # SALVARE (_do_plant_safe, riga ~3168): il widget "Impianto" scrive su
-    # `do_plant_id`, non su `do_plant`. Leggendo `do_plant` — chiave che
-    # nessun widget popola — questa sezione restava per sempre su
-    # "default_plant" e mostrava "Nessun dato annuale disponibile" anche
-    # con un anno intero di dati salvati, rendendo irraggiungibili gli
-    # export consolidati. Al primo run il widget non e' ancora renderizzato:
-    # si ricade sul nome impianto dell'anagrafica, come fa il suo default.
-    _plant_id = (
-        (st.session_state.get("do_plant_id") or "").strip()
-        or (PLANT_NAME or "").strip()
-        or "default"
-    )
+    # Stesso anno/impianto usati dal pannello giornaliero per SALVARE
+    # (_do_plant_safe): il widget "Impianto" scrive su `do_plant_id` (o
+    # `tech_do_plant_id` nel tab tecnico). Al primo run il widget non e'
+    # ancora renderizzato: anno corrente e nome impianto dell'anagrafica,
+    # come i default dei widget. Vedi _active_do_period().
+    _current_year, _plant_id = _active_do_period()
     
     # Contesto per il calcolo (ricalcolo dinamico in base alla sidebar).
     # Comparator: legge session_state se gia' popolato (rerun successivi al primo),
     # altrimenti fallback alla costante FOSSIL_COMPARATOR=80 (default RED III rete/calore).
+    # Soglia saving RED III: senza di essa l'aggregato marca "OK" ogni mese
+    # che abbia dei dati, e il report PDF lo presenta come mese conforme
+    # (vedi core/monthly_aggregate.validity_label). Soglia e comparator
+    # della destinazione d'uso CORRENTE (vedi _active_end_use).
+    _thr_now, _cmp_now = _active_end_use()
     _ctx = {
         "aux_factor": aux_factor,
         "ep": ep_total,
-        "fossil_comparator": st.session_state.get("fossil_comparator_active", FOSSIL_COMPARATOR),
+        "fossil_comparator": _cmp_now,
         "plant_net_smch": plant_net_smch,
-        # Soglia saving RED III: senza di essa l'aggregato marca "OK" ogni
-        # mese che abbia dei dati, e il report PDF lo presenta come mese
-        # conforme (vedi core/monthly_aggregate.validity_label). Stesso
-        # pattern del comparator: session_state se gia' scelto in sidebar,
-        # altrimenti il default del selettore (prima voce di END_USE_THRESHOLDS).
-        "ghg_threshold": st.session_state.get(
-            "ghg_threshold_active", next(iter(END_USE_THRESHOLDS.values()))
-        ),
+        "ghg_threshold": _thr_now,
     }
 
     _all_months_data = []
@@ -3264,6 +3361,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
             _do_year = st.number_input(
                 _t("Anno"), min_value=2020, max_value=2100,
                 value=int(_today.year), step=1, key=f"{_key_prefix}do_year",
+                on_change=_mark_do_period, args=(_key_prefix,),
                 help=_t("Seleziona l'anno solare per la rendicontazione giornaliera dei dati.")
             )
         with _csel2:
@@ -3285,6 +3383,7 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                 _t("Impianto"),
                 value=_plant_id_default,
                 key=f"{_key_prefix}do_plant_id",
+                on_change=_mark_do_period, args=(_key_prefix,),
                 help=_t("ID per separare i dati nel database. Auto-compilato "
                         "dal Nome impianto in Anagrafica simulazione (sidebar)."),
             )
@@ -5198,6 +5297,9 @@ with tab_tech:
         "🎯 " + _t("Destinazione biometano (→ soglia saving + comparator)"),
         list(END_USE_THRESHOLDS.keys()),
         index=0,
+        # key: l'aggregazione DB (più in alto nello script) legge da qui la
+        # destinazione CORRENTE via _active_end_use().
+        key="end_use_sel",
         help=_t("RED III + D.Lgs. 5/2026: 80% per elettricita'/calore (impianto nuovo ≥1/1/2026), 70% per esistenti <10 MW primi 15 anni, 65% per trasporti. Il comparator fossile (80 per rete/calore, 94 per trasporti) viene aggiornato di conseguenza."),
     )
     ghg_threshold = END_USE_THRESHOLDS[end_use]
@@ -5390,10 +5492,15 @@ with tab_plan:
         f"(fonte: DM 15/9/2022 + adeguamento ISTAT 4° bando PNRR)"
     )
 
+    # Segue la TR normativa (tipo + fascia) finché l'utente non la modifica.
+    _follow_auto_default("bp_tariffa_base_input", float(_tr_auto))
+    # CAPEX di default del tipo impianto: allineato QUI perché l'hero KPI
+    # (più sotto) lo legge prima del «Business Plan completo» che lo mostra.
+    _follow_auto_default("bp_input_capex", _bp_capex_default(bp_plant_type))
     bp_tariffa_eur_mwh = st.number_input(
         _t("Tariffa di riferimento [€/MWh] — modificabile"),
         min_value=50.0, max_value=300.0,
-        value=float(_tr_auto), step=0.5,
+        step=0.5,
         help=_t(
             "Valore normativo pre-calcolato in base alla tipologia e alla fascia produttiva. "
             "Modificalo se hai ricevuto una TR diversa dal GSE o per scenari what-if."
@@ -5550,7 +5657,7 @@ with tab_plan:
             BP_CAPEX_DEFAULTS_PER_SMCH as _BP_CAPEX,
             BP_OPEX_DEFAULTS_PER_SMCH_YEAR as _BP_OPEX,
         )
-        _capex_unit = float(_BP_CAPEX.get(bp_plant_type, _BP_CAPEX.get("nuova_costruzione", 38_000)))
+        _capex_unit = _bp_capex_default(bp_plant_type)
         _opex_unit = float(sum(_BP_OPEX.values()) if _BP_OPEX else 5_350)
         # Stessi input del «Business Plan completo» più sotto, letti dalle
         # chiavi dei suoi widget: session_state le aggiorna PRIMA del rerun,
@@ -5599,8 +5706,8 @@ with tab_plan:
             help=_t("Tempo di recupero (in anni) del capitale proprio investito, al netto del finanziamento e del PNRR.")
         )
         st.caption("ℹ️ " + _t(
-            "KPI economici calcolati con CAPEX/OPEX di default. "
-            "Personalizza nella sezione **💼 Business Plan completo** in fondo al tab."
+            "KPI economici con gli stessi parametri del **💼 Business Plan completo** "
+            "(CAPEX, OPEX, PNRR, finanziamento, WACC): si modificano in fondo al tab."
         ))
     except Exception as _bp_exc:  # noqa: BLE001
         _LOG.warning("Business Plan hero KPI failed: %s", _bp_exc)
@@ -6102,8 +6209,8 @@ with tab_plan:
     # Year/plant context: se l'utente cambia anno/impianto in Gestione
     # Giornaliera, il simulatore invalida lo state e ri-popola con i nuovi
     # dati DB.
-    _sim_year = int(st.session_state.get("do_year", _dt.date.today().year))
-    _sim_plant = (st.session_state.get("do_plant_id") or PLANT_NAME or "default").strip() or "default"
+    # Stesso periodo dell'aggregazione DB (df_res_db), vedi _active_do_period().
+    _sim_year, _sim_plant = _active_do_period()
     state_key = f"mens_in_{len(unknown_feeds)}unk_{_active_hash}_{_sim_year}_{_sim_plant}_{'-'.join(fixed_feeds)}"
 
     # Inizializzazione state: pre-fill intelligente da DB.
@@ -6409,10 +6516,8 @@ with tab_plan:
     if below_margin_months:
         st.info(
             f"ℹ️ **{', '.join(below_margin_months)}**: "
-            f"saving ≥ {fmt_it(ghg_threshold*100, 0, '%')} ({_t('valido')}) "
-            f"{_t('ma sotto il margine di sicurezza del solver')} "
-            f"({fmt_it(target_saving*100, 0, '%')}): "
-            f"{_t('mix calcolato alla soglia normativa.')}"
+            + _t("saving sopra la soglia normativa ma sotto il margine di sicurezza del solver: mix calcolato alla soglia")
+            + f" ({fmt_it(ghg_threshold*100, 0, '%')} / {fmt_it(target_saving*100, 0, '%')})."
         )
 
     # ------------------------- SINTESI -------------------------
@@ -6659,9 +6764,10 @@ with tab_plan:
             f" (tariffa {_tar_unit} editabile ✏️)"
         )
         st.caption(
-            f"Default = tariffa d'impianto del Business Plan "
-            f"(**{fmt_it(_plant_tar, 2)} €/MWh**, TR aggiudicata + premi). "
-            f"Le tariffe modificate a mano restano fino a nuova modifica."
+            _t("Default = tariffa d'impianto del Business Plan")
+            + f" (**{fmt_it(_plant_tar, 2)} €/MWh**, "
+            + _t("TR aggiudicata + premi") + "). "
+            + _t("Le tariffe modificate a mano restano fino a nuova modifica.")
         )
 
         # Ricavi con tariffa d'impianto + eventuali override per biomassa
@@ -7205,9 +7311,10 @@ with tab_plan:
             BP_OPEX_DEFAULTS_PER_SMCH_YEAR as _BP_OPEX_D,
         )
 
-        _default_capex = float(_BP_CAPEX_D.get(bp_plant_type,
-                                                _BP_CAPEX_D.get("nuova_costruzione", 38_000)))
         _default_opex = float(sum(_BP_OPEX_D.values()) if _BP_OPEX_D else 5_350)
+        # Valore di bp_input_capex già allineato al tipo impianto da
+        # _follow_auto_default() nella sezione Incentivi (niente value=).
+        _follow_auto_default("bp_input_capex", _bp_capex_default(bp_plant_type))
 
         with st.expander("⚙️ " + _t("Parametri CAPEX / OPEX / Finanziamento"),
                           expanded=False):
@@ -7216,7 +7323,7 @@ with tab_plan:
                 st.markdown("**" + _t("Investimento (CAPEX)") + "**")
                 _bp_capex_unit = st.number_input(
                     "CAPEX €/Smc/h", min_value=5_000.0, max_value=80_000.0,
-                    value=_default_capex, step=500.0, key="bp_input_capex",
+                    step=500.0, key="bp_input_capex",
                     help=_t("Benchmark settore 2025: 30-45k €/Smc/h "
                             "per nuova costruzione chiavi in mano"),
                 )

@@ -30,6 +30,20 @@ class TestIRR:
         # Tutti cash flow negativi (perdita totale): IRR = -100%
         assert _irr([-100, -200, -300]) == -1.0
 
+    def test_irr_multiple_roots_is_nan(self):
+        # -100 + 230/(1+r) - 132/(1+r)^2 = 0  ->  r = 10% e r = 20%
+        import math
+        assert math.isnan(_irr([-100, 230, -132]))
+
+    def test_irr_late_negative_flows_not_floor(self):
+        # OPEX che supera i ricavi negli ultimi anni: prima restituiva -0.99
+        # (floor) pur con NPV positivo a tassi realistici.
+        import math
+        cf = [-1000] + [400] * 9 + [-300] * 6
+        assert _npv(cf, 0.06) > 0
+        irr = _irr(cf)
+        assert math.isnan(irr) or irr > 0, irr
+
     def test_irr_empty(self):
         assert _irr([]) == 0.0
 

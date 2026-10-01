@@ -604,10 +604,10 @@ IT_EN: dict = {
         "Years to recoup invested equity",
     "Cash Flow Equity per anno + Cumulato (break-even visivo)":
         "Annual Equity Cash Flow + Cumulative (visual break-even)",
-    "KPI economici calcolati con CAPEX/OPEX di default. "
-    "Personalizza nella sezione **💼 Business Plan completo** in fondo al tab.":
-        "Economic KPIs computed with default CAPEX/OPEX. Customize in the "
-        "**💼 Complete Business Plan** section at the bottom of the tab.",
+    "KPI economici con gli stessi parametri del **💼 Business Plan completo** "
+    "(CAPEX, OPEX, PNRR, finanziamento, WACC): si modificano in fondo al tab.":
+        "Economic KPIs use the same parameters as the **💼 Complete Business Plan** "
+        "(CAPEX, OPEX, PNRR, financing, WACC): edit them at the bottom of the tab.",
     # Pre-existing
     "Manuale Utente": "User Manual",
     "Scarica Manuale (PDF)": "Download Manual (PDF)",
@@ -892,5 +892,13 @@ IT_EN: dict = {
     "MWh netti × tariffa": "Net MWh × tariff",
     "(si ricalcola al variare dei parametri)": "(recomputed when parameters change)",
     "Tariffa incentivante/PPA": "Incentive/PPA tariff",
-    "in formato italiano (es. 1.234,56). Modificabile per simulazioni.": "in Italian number format (e.g. 1,234.56). Editable for simulations."
+    "in formato italiano (es. 1.234,56). Modificabile per simulazioni.": "in Italian number format (e.g. 1,234.56). Editable for simulations.",
+    # Stringhe introdotte nel fix coerenza KPI/solver/tariffa (2026-09-29)
+    "Default = tariffa d'impianto del Business Plan": "Default = plant tariff from the Business Plan",
+    "TR aggiudicata + premi": "awarded TR + premiums",
+    "Le tariffe modificate a mano restano fino a nuova modifica.": "Manually edited tariffs are kept until changed again.",
+    "aux fissato dal lordo manuale in «Taglia Impianto».": "aux set by the manual gross flow in «Plant Size».",
+    "Rapporto lordo/netto fuori dall’intervallo ammesso (autoconsumi 0–50%)": "Gross/net ratio outside the allowed range (self-consumption 0–50%)",
+    "aux calcolato": "calculated aux",
+    "saving sopra la soglia normativa ma sotto il margine di sicurezza del solver: mix calcolato alla soglia": "saving above the regulatory threshold but below the solver safety margin: mix computed at the threshold",
 }

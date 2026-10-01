@@ -114,6 +114,11 @@ def _irr(cash_flows: list[float], guess: float = 0.10) -> float:
     - Tutti cash_flow negativi: return 0.0
     - NPV(hi=10.0) ancora positivo (IRR > 1000%): return 10.0 (cap)
     - NPV(lo=-0.99) negativo (IRR < -99%): return -0.99
+    - Più radici (flussi con più cambi di segno, es. OPEX che supera i
+      ricavi negli ultimi anni): IRR non univoco -> NaN. Prima la
+      bisezione sui soli estremi vedeva NPV<0 a -99% e a +1000% e
+      restituiva -0.99 anche con NPV positivo ai tassi realistici. La UI e
+      gli export mostrano "—" per valori fuori da (-1, 10), NaN compreso.
     """
     if not cash_flows:
         return 0.0
@@ -123,15 +128,25 @@ def _irr(cash_flows: list[float], guess: float = 0.10) -> float:
     # Tutti negativi (compreso year 0): perdita totale, IRR = -100% (-1.0)
     if all(cf <= 0 for cf in cash_flows):
         return -1.0
-    lo, hi = -0.99, 10.0
+    # Scansione a griglia per individuare TUTTI i cambi di segno dell'NPV
+    # (passo fine fino al 100%, poi più largo fino al 1000%).
+    grid = [-0.99 + 0.005 * i for i in range(398)] + [1.0 + 0.05 * i for i in range(181)]
+    vals = [_npv(cash_flows, r) for r in grid]
+    brackets = [(grid[i], grid[i + 1]) for i in range(len(grid) - 1)
+                if vals[i] == 0 or vals[i] * vals[i + 1] < 0]
+    if len(brackets) > 1:
+        return float("nan")
+    if not brackets:
+        # IRR > 1000%: caso "troppo bello per essere vero". Cap 10.0.
+        if vals[0] > 0 and vals[-1] > 0:
+            return 10.0
+        # IRR < -99%: catastrofico. Floor -0.99.
+        return -0.99
+    lo, hi = brackets[0]
     npv_lo = _npv(cash_flows, lo)
     npv_hi = _npv(cash_flows, hi)
-    # IRR > 1000%: caso "troppo bello per essere vero". Restituisco cap 10.0.
-    if npv_hi > 0 and npv_lo > 0:
-        return 10.0
-    # IRR < -99%: catastrofico. Restituisco floor -0.99.
-    if npv_hi < 0 and npv_lo < 0:
-        return -0.99
+    if npv_lo == 0:
+        return lo
     # Bisezione standard
     for _ in range(200):
         mid = (lo + hi) / 2.0
