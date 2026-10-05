@@ -13,13 +13,15 @@ avanti nello script letti da session_state prima di essere aggiornati.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
 
 # Fixture condivise (pulizia singleton Streamlit + DB isolato).
 from tests.test_app_smoke import _clean_streamlit_singletons, tmp_db  # noqa: F401
 
-APP = "app_mensile.py"
+# Percorso assoluto: Streamlit recenti risolvono i percorsi relativi rispetto al file del test.
+APP = str(Path(__file__).resolve().parent.parent / "app_mensile.py")
 TIMEOUT = 180
 
 

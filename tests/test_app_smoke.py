@@ -13,6 +13,7 @@ ne' `st.error` a schermo. Copre due stati:
 from __future__ import annotations
 
 import datetime as _dt
+from pathlib import Path
 
 import pytest
 
@@ -21,7 +22,8 @@ from streamlit.testing.v1 import AppTest
 from core import persistence
 from core.daily_model import DailyEntry
 
-APP = "app_mensile.py"
+# Percorso assoluto: Streamlit recenti risolvono i percorsi relativi rispetto al file del test.
+APP = str(Path(__file__).resolve().parent.parent / "app_mensile.py")
 TIMEOUT = 180
 
 
