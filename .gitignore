@@ -1,7 +1,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
-.claude/
+.claude/*
+!.claude/skills/
 .streamlit/secrets.toml
 .venv/
 venv/
