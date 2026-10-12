@@ -323,13 +323,13 @@ def make_biomasse_42(lang):
     C = lambda k: categoria(lang, k)
     return [
         ["Trinciato di mais",                  C("colture"),  "+29", "0.8", "116.1", "A"],
-        ["Trinciato di sorgo da foraggio",     C("colture"),  "+26", "0.8",  "81.4", "A"],
-        ["Trinciato di sorgo (energetico)",    C("colture"),  "+26", "0.8",  "90.5", "A"],
+        ["Trinciato di sorgo da foraggio",     C("colture"),  "+26", "0.8",  "78.3", "A"],
+        ["Trinciato di sorgo (energetico)",    C("colture"),  "+26", "0.8",  "86.9", "A"],
         ["Triticale insilato",                 C("colture"),  "+20", "0.8", "106.1", "A"],
-        ["Segale insilata",                    C("colture"),  "+22", "0.8",  "80.0", "A"],
-        ["Orzo insilato",                      C("colture"),  "+22", "0.8",  "82.0", "A"],
+        ["Segale insilata",                    C("colture"),  "+22", "0.8", "101.8", "A"],
+        ["Orzo insilato",                      C("colture"),  "+22", "0.8", "102.9", "A"],
         ["Loietto insilato (ryegrass)",        C("colture"),  "+18", "0.8",  "93.7", "A"],
-        ["Erba medica insilata",               C("colture"),  "+15", "0.8",  "70.0", "A"],
+        ["Erba medica insilata",               C("colture"),  "+15", "0.8",  "85.9", "A"],
         ["Doppia coltura (2° raccolto)",       C("colture"),  "+15", "0.8",  "95.0", "A"],
         ["Erbaio misto insilato",              C("colture"),  "+16", "0.8",  "64.0", "A"],
         ["Barbabietola da zucchero",           C("colture"),  "+12", "0.8", "105.0", "A"],
@@ -362,8 +362,8 @@ def make_biomasse_42(lang):
         ["Polpe di barbabietola fresche",      C("sottop"),     "0",  "2.0",  "50.0", "A/B"],
         ["Polpe di barbabietola insilate",     C("sottop"),     "0",  "2.5",  "75.0", "A/B"],
         ["Melasso di barbabietola",            C("sottop"),     "0",  "1.5", "280.0", "A/B"],
-        ["FORSU selezionata",                  C("forsu"),      "0",  "0.8",  "64.8", "A/B"],
-        ["Fanghi depurazione",                 C("forsu"),      "0",  "0.8",  "13.0", "A/B"],
+        ["FORSU selezionata",                  C("forsu"),      "0",  "0.8",  "95.2", "A/B"],
+        ["Fanghi depurazione",                 C("forsu"),      "0",  "0.8",   "8.0", "A/B"],
     ]
 
 

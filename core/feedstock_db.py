@@ -51,29 +51,33 @@ FEEDSTOCK_DB: dict = {
         "requires_no_luc_declaration": True,
         "src": "UNI-TS 11567:2024 (Prosp. A.5, eec=29); ST agronomica (CRPA/KTBL)",
     },
-    # SORGO — la UNI/TS 11567:2024 (Prosp. A.1) tabula un'unica voce "Sorgo"
-    # (580 Nm3 biogas/t ST · 52% CH4 -> 301,6 Nm3 CH4/t ST) ed eec standard 26
-    # (Prosp. A.5). La norma NON differenzia i tipi: la distinzione e' agronomica
-    # sulla sostanza secca, che riscala la resa per t tal quale via la
-    # normalizzazione A.1 (resa = 301,6 × ST_std). Manteniamo la resa specifica
-    # normativa come ancora e differenziamo solo ST e la destinazione d'uso.
+    # SORGO — la UNI/TS 11567:2024, prospetto A.1 (rese medie, in METANO), tabula
+    # un'unica voce "Sorgo insilato": ST 35%, 315 m3 CH4/t SV x SV/ST 92%
+    # = 290 m3 CH4/t ST -> 101,43 m3 CH4/t t.q. a ST 35% (fonte CRPA-2022).
+    # Ancora per t ST coerente con il valore t.q. pubblicato: 101,43 / 0,35 = 289,8.
+    # La norma NON differenzia i tipi: la distinzione e' agronomica sulla
+    # sostanza secca, che riscala la resa per t tal quale (resa = 289,8 x ST_std).
+    # Corretto il 2026-10-12: prima si usava "580 Nm3 biogas/t ST x 52% CH4
+    # = 301,6", valore non presente nel prospetto A.1.
     "Trinciato di sorgo da foraggio": {
         # Sorgo zuccherino/da foraggio: ST piu' bassa (raccolta lattea-cerosa).
-        "eec": 26.0, "esca": 0.0, "etd": 0.8, "yield": 81.4, "dry_matter_std": 0.27,
+        # Resa = 289,8 x 0,27 = 78,25 m3 CH4/t t.q.
+        "eec": 26.0, "esca": 0.0, "etd": 0.8, "yield": 78.25, "dry_matter_std": 0.27,
         "color": "#9CCC65", "cat": "Colture dedicate",
         "annex_ix": None, "e_l": 0.0,
         "requires_no_luc_declaration": True,
-        "src": "UNI-TS 11567:2024 (Prosp. A.1/A.5); ST agronomica foraggio (CRPA/KTBL)",
+        "src": "UNI-TS 11567:2024 (resa Prosp. A.1 sorgo insilato 289,8 m3CH4/t ST x ST 27%; eec A.5); ST agronomica foraggio (CRPA/KTBL)",
     },
     "Trinciato di sorgo uso energetico (biodigestori)": {
         # Sorgo da biomassa/fibra dedicato a digestione anaerobica: ST piu' alta,
-        # ibridi ad alta produzione di sostanza secca per ettaro. Resa specifica
-        # mantenuta sul valore normativo UNI/TS (la norma non differenzia).
-        "eec": 26.0, "esca": 0.0, "etd": 0.8, "yield": 90.5, "dry_matter_std": 0.30,
+        # ibridi ad alta produzione di sostanza secca per ettaro. Resa per t ST
+        # mantenuta sul valore normativo del prospetto A.1 (la norma non
+        # differenzia): 289,8 x 0,30 = 86,94 m3 CH4/t t.q.
+        "eec": 26.0, "esca": 0.0, "etd": 0.8, "yield": 86.94, "dry_matter_std": 0.30,
         "color": "#689F38", "cat": "Colture dedicate",
         "annex_ix": None, "e_l": 0.0,
         "requires_no_luc_declaration": True,
-        "src": "UNI-TS 11567:2024 (Prosp. A.1/A.5); ST agronomica sorgo da biomassa (CRPA/KTBL)",
+        "src": "UNI-TS 11567:2024 (resa Prosp. A.1 sorgo insilato 289,8 m3CH4/t ST x ST 30%; eec A.5); ST agronomica sorgo da biomassa (CRPA/KTBL)",
     },
     "Triticale insilato": {
         "eec": 20.0, "esca": 0.0, "etd": 0.8, "yield": 106.1, "dry_matter_std": 0.35,
@@ -83,18 +87,22 @@ FEEDSTOCK_DB: dict = {
         "src": "eec da JEC v5/KTBL (non in Prosp. A.5); ST agronomica (CRPA/KTBL)",
     },
     "Segale insilata": {
-        "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 80.0, "dry_matter_std": 0.35,
+        # Resa UNI/TS 11567:2024 Prosp. A.1 "Segale": 306 m3CH4/t SV x 95% = 291 m3CH4/t ST,
+        # 101,75 m3CH4/t t.q. a ST 35% (CRPA-2022). Prima: 80,0 (JEC v5/KTBL).
+        "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 101.75, "dry_matter_std": 0.35,
         "color": "#C5E1A5", "cat": "Colture dedicate",
         "annex_ix": None, "e_l": 0.0,
         "requires_no_luc_declaration": True,
-        "src": "JEC v5 / KTBL",
+        "src": "resa UNI-TS 11567:2024 Prosp. A.1 (segale, ST 35%); eec JEC v5 / KTBL",
     },
     "Orzo insilato": {
-        "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 82.0, "dry_matter_std": 0.35,
+        # Resa UNI/TS 11567:2024 Prosp. A.1 "Orzo insilato": 316 m3CH4/t SV x 93% = 294 m3CH4/t ST,
+        # 102,86 m3CH4/t t.q. a ST 35% (CRPA-2022). Prima: 82,0 (JEC v5).
+        "eec": 22.0, "esca": 0.0, "etd": 0.8, "yield": 102.86, "dry_matter_std": 0.35,
         "color": "#DCEDC8", "cat": "Colture dedicate",
         "annex_ix": None, "e_l": 0.0,
         "requires_no_luc_declaration": True,
-        "src": "JEC v5",
+        "src": "resa UNI-TS 11567:2024 Prosp. A.1 (orzo insilato, ST 35%); eec JEC v5",
     },
     "Loietto insilato (ryegrass)": {
         "eec": 18.0, "esca": 0.0, "etd": 0.8, "yield": 93.7, "dry_matter_std": 0.35,
@@ -104,11 +112,13 @@ FEEDSTOCK_DB: dict = {
         "src": "eec JEC v5/KTBL (non in Prosp. A.5); ST agronomica (CRPA/KTBL)",
     },
     "Erba medica insilata": {
-        "eec": 15.0, "esca": 0.0, "etd": 0.8, "yield": 70.0, "dry_matter_std": 0.35,
+        # Resa UNI/TS 11567:2024 Prosp. A.1 "Erba medica": 282 m3CH4/t SV x 87% = 245 m3CH4/t ST,
+        # 85,87 m3CH4/t t.q. a ST 35% (CRPA-2022). Prima: 70,0 (JEC v5).
+        "eec": 15.0, "esca": 0.0, "etd": 0.8, "yield": 85.87, "dry_matter_std": 0.35,
         "color": "#7CB342", "cat": "Colture dedicate",
         "annex_ix": None, "e_l": 0.0,
         "requires_no_luc_declaration": True,
-        "src": "JEC v5 (azotofissazione)",
+        "src": "resa UNI-TS 11567:2024 Prosp. A.1 (erba medica, ST 35%); eec JEC v5 (azotofissazione)",
     },
     "Doppia coltura (2° raccolto)": {
         "eec": 15.0, "esca": 0.0, "etd": 0.8, "yield": 95.0, "dry_matter_std": 0.35,
@@ -359,18 +369,25 @@ FEEDSTOCK_DB: dict = {
     # Tutti -> AVANZATI con double counting CIC.
     # =========================================================
     "FORSU selezionata": {
-        # Resa da UNI/TS A.3: 450 Nm3 biogas/t ST x 60% CH4 x 0,24 ST = 64,8 Nm3 CH4/t t.q.
-        "eec": 0.0, "esca": 0.0, "etd": 0.8, "yield": 64.8, "dry_matter_std": 0.24,
+        # Resa UNI/TS 11567:2024 par. A.3, prospetto A.1 "FORSU (Biowaste)" (JRC 2017):
+        # 433 m3 CH4/t SV x SV/ST 92% = 397 m3 CH4/t ST -> 95,19 m3 CH4/t t.q. a ST 24%.
+        # Corretto il 2026-10-12: prima 64,8 da "450 Nm3 biogas/t ST x 60% x 0,24",
+        # valore non presente nel prospetto A.1.
+        "eec": 0.0, "esca": 0.0, "etd": 0.8, "yield": 95.19, "dry_matter_std": 0.24,
         "color": "#546E7A", "cat": "FORSU / Rifiuti",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024 (Prosp. A.5 eec=0; resa A.3: 450x60%x0,24)",
+        "src": "UNI-TS 11567:2024 (eec=0 rifiuto; resa Prosp. A.1 FORSU: 397 m3CH4/t ST x ST 24% = 95,19)",
     },
     "Fanghi depurazione": {
-        # Resa da UNI/TS A.3: 350 Nm3 biogas/t ST x 62% CH4 x 0,06 ST = 13,0 Nm3 CH4/t t.q.
-        "eec": 0.0, "esca": 0.0, "etd": 0.8, "yield": 13.0, "dry_matter_std": 0.06,
+        # Resa UNI/TS 11567:2024 par. A.3, prospetto A.1 "Fanghi da depurazione acque
+        # reflue urbane" (Polimi 2020): 191 m3 CH4/t SV x SV/ST 70% = 134 m3 CH4/t ST
+        # -> 8,02 m3 CH4/t t.q. a ST 6%.
+        # Corretto il 2026-10-12: prima 13,0 da "350 Nm3 biogas/t ST x 62% x 0,06",
+        # valore non presente nel prospetto A.1.
+        "eec": 0.0, "esca": 0.0, "etd": 0.8, "yield": 8.02, "dry_matter_std": 0.06,
         "color": "#78909C", "cat": "FORSU / Rifiuti",
         "annex_ix": "A",
-        "src": "UNI-TS 11567:2024 (Prosp. A.5 eec=0; resa A.3: 350x62%x0,06)",
+        "src": "UNI-TS 11567:2024 (eec=0 rifiuto; resa Prosp. A.1 fanghi: 134 m3CH4/t ST x ST 6% = 8,02)",
     },
 }
 

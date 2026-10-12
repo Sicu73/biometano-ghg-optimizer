@@ -1,6 +1,6 @@
 {
   "version": "1.1.0",
-  "last_review": "2026-05-03",
+  "last_review": "2026-10-12",
   "reviewer": "Carlo Sicurini",
   "metadata": {
     "scopo": "Registro centralizzato delle normative biometano/biogas applicate dal software Metan.iQ. Ogni voce documenta i parametri-chiave cablati nel codice e la data di ultima revisione manuale. Aggiornare questo file (commit GitHub) quando si applica una modifica al codice o si segnala una nuova normativa.",
@@ -192,19 +192,23 @@
       "tipo": "norma_tecnica",
       "data_pubblicazione": "2024-01-15",
       "applicato_in_app": true,
-      "ultima_revisione": "2026-04-25",
+      "ultima_revisione": "2026-10-12",
       "valori_chiave": {
         "yield_mais_nm3_ch4_t": 116.1,
-        "yield_sorgo_nm3_ch4_t": 90,
+        "yield_sorgo_nm3_ch4_t_a_ST35": 101.43,
+        "yield_sorgo_nm3_ch4_t_ST": 289.8,
         "yield_triticale_nm3_ch4_t": 106.1,
-        "yield_segale_nm3_ch4_t": 80,
+        "yield_segale_nm3_ch4_t": 101.75,
+        "yield_orzo_nm3_ch4_t": 102.86,
+        "yield_erba_medica_nm3_ch4_t": 85.87,
         "yield_liquame_suino_nm3_ch4_t": 14,
         "yield_pollina_broiler_nm3_ch4_t": 105,
-        "yield_FORSU_nm3_ch4_t": 95.2,
+        "yield_FORSU_nm3_ch4_t": 95.19,
+        "yield_fanghi_depurazione_nm3_ch4_t": 8.02,
         "yield_polpe_barbabietola_fresche_nm3_ch4_t": 50
       },
       "fonte_url": "https://store.uni.com/uni-ts-11567-2024",
-      "note": "Database FEEDSTOCK_DB cablato su UNI/TS 11567:2024 + JRC-JEC WTT v5 per coerenza con certificazioni GSE."
+      "note": "Database FEEDSTOCK_DB cablato su UNI/TS 11567:2024 + JRC-JEC WTT v5 per coerenza con certificazioni GSE. Revisione 2026-10-12: rese allineate al prospetto A.1 (par. A.3, rese medie in metano per t t.q. normalizzate su ST) per sorgo, segale, orzo, erba medica, FORSU e fanghi; i valori precedenti derivavano da una tabella in Nm3 biogas/t ST non presente nella norma. Paglia e pellet di paglia non sono nel prospetto A.1 (classi Residuo per umidita'). Fonte verificata: testo UNI/TS 11567:2024, prospetto A.1."
     },
     {
       "id": "jec_wtt_v5",

@@ -41,13 +41,18 @@ forsu = g("FORSU selezionata", "eec"); fanghi = g("Fanghi depurazione", "eec")
 rec("A2", forsu == 0.0 and fanghi == 0.0,
     f"FORSU eec={forsu}; Fanghi eec={fanghi} (entrambi att. 0)")
 
-# A3 rese vs A.3 (resa = resa_biogas x %CH4 x ST)
+# A3 rese vs UNI/TS 11567:2024 par. A.3, prospetto A.1 (rese medie in METANO,
+# m3 CH4/t t.q. = m3 CH4/t ST x ST). Corretto il 2026-10-12: i valori attesi
+# precedenti (635x52%, 580x52%, 450x60%, 350x62% "biogas/t ST") non sono nel prospetto.
 def approx(a, b, tol=0.5): return abs(a-b) <= tol
 checks_a3 = {
-    "Trinciato di mais": 635*0.52*0.35,
-    "Trinciato di sorgo da foraggio": 580*0.52*0.27,
-    "FORSU selezionata": 450*0.60*0.24,
-    "Fanghi depurazione": 350*0.62*0.06,
+    "Trinciato di mais": 116.14,                       # mais insilato, ST 35%
+    "Trinciato di sorgo da foraggio": 101.43/0.35*0.27, # sorgo insilato 289,8/t ST, ST 27%
+    "Segale insilata": 101.75,                         # ST 35%
+    "Orzo insilato": 102.86,                           # ST 35%
+    "Erba medica insilata": 85.87,                     # ST 35%
+    "FORSU selezionata": 95.19,                        # ST 24%
+    "Fanghi depurazione": 8.02,                        # ST 6%
 }
 a3_ok = True; a3_det = []
 for nm, exp in checks_a3.items():
