@@ -72,6 +72,11 @@ def render_lang_selector() -> str:
 
     lang = st.session_state.get("lang", "it")
     accent = _ACCENT
+    # Stessa regola delle etichette sorelle della sidebar (_SIDEBAR_PRE_LABEL in
+    # app_mensile.py): l'ardesia #64748B in scuro scendeva a 3,7:1.
+    heading_color = (
+        "#CBD5E1" if st.session_state.get("methaniq_theme") == "dark" else "#64748B"
+    )
 
     # SVG bandiere
     FLAG_IT = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 2'>
@@ -103,7 +108,7 @@ def render_lang_selector() -> str:
             font-weight: 700;
             letter-spacing: 1px;
             text-transform: uppercase;
-            color: #64748B;
+            color: {heading_color};
             margin-left: 2px;
             margin-bottom: 8px;
         }}

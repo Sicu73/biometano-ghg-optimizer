@@ -116,12 +116,23 @@ div[data-baseweb="select"] svg {{ color:{t['MUTED']} !important; fill:currentCol
    prime lettere: azzeriamo lo sfondo di ogni figlio e fissiamo il padding sx. */
 .stApp span[data-baseweb="tag"][role="button"], section[data-testid="stSidebar"] span[data-baseweb="tag"][role="button"] {{ background-color:{t['BRASS']} !important; background-image:none !important; color:#1C1B16 !important; padding-left:10px !important; overflow:visible !important; }}
 span[data-baseweb="tag"][role="button"] {{ background:{t['BRASS']} !important; color:#1C1B16 !important; padding-left:10px !important; overflow:visible !important; }}
-span[data-baseweb="tag"][role="button"] > span, span[data-baseweb="tag"][role="button"] > span * {{ color:#1C1B16 !important; background:transparent !important; margin-left:0 !important; }}
+span[data-baseweb="tag"][role="button"] > span, span[data-baseweb="tag"][role="button"] > span * {{ color:#1C1B16 !important; -webkit-text-fill-color:#1C1B16 !important; background:transparent !important; margin-left:0 !important; }}
 /* Nome biomassa nel tag: niente troncamento con ellipsi -> mostra il nome intero
    (il tag si allarga / va a capo). */
 span[data-baseweb="tag"][role="button"] span[title], span[data-baseweb="tag"][role="button"] span[title] * {{ white-space:normal !important; overflow:visible !important; text-overflow:clip !important; max-width:none !important; }}
 span[data-baseweb="tag"][role="button"] [aria-hidden="true"], span[data-baseweb="tag"][role="button"] [role="presentation"] {{ background:transparent !important; }}
 span[data-baseweb="tag"][role="button"] svg {{ fill:#1C1B16 !important; color:#1C1B16 !important; background:transparent !important; }}
+/* --- Fix tema scuro --- */
+/* Etichette biomassa: il -webkit-text-fill-color (TEXT_PRIMARY) messo da app_mensile.py
+   su "div[data-baseweb=select] span" dipingeva il nome in avorio sull'ottone in scuro
+   (2,2:1). Sopra ho fissato anche il fill a #1C1B16 (6,0:1 su #B59450). */
+/* Didascalie: Streamlit aggiunge opacity:0.6 al contenitore; sopra il colore MUTED
+   faceva 3,2:1 in scuro e 2,4:1 in chiaro. A piena opacità: 6,8:1 e 4,8:1. */
+[data-testid="stCaptionContainer"] {{ opacity:1 !important; }}
+/* Pulsanti nativi non coperti da .stButton: menu a comparsa (esportazioni) e invio
+   modulo secondario. In scuro restavano chiari (#FAF9F4) col testo avorio: 1,2:1. */
+[data-testid="stPopoverButton"], .stFormSubmitButton button[kind^="secondary"] {{ background:{t['SURFACE']} !important; border:1px solid {t['LINE']} !important; border-radius:8px !important; color:{t['INK']} !important; box-shadow:none !important; }}
+[data-testid="stPopoverButton"]:hover, .stFormSubmitButton button[kind^="secondary"]:hover {{ border-color:{t['BRASS']} !important; }}
 </style>
 """, unsafe_allow_html=True)
 

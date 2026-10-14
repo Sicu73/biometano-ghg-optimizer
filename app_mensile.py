@@ -32,6 +32,7 @@ import plotly.graph_objects as go
 
 from report_pdf import build_metaniq_pdf
 from excel_export import build_metaniq_xlsx
+from theme_charts import adapt_figure_for_dark
 
 # === Refactor output (Fase 2) — output_model unificato ======================
 # Carica le funzioni nuove con fallback per non rompere il vecchio percorso.
@@ -177,6 +178,10 @@ def apply_metaniq_theme(fig, *, dark: bool = False):
                         size=11, color=axis_color),
         showline=False,
     )
+    if dark:
+        # Su carta scura navy e biomasse scure spariscono: schiarisce solo i
+        # colori sotto 3:1 (vedi theme_charts.py).
+        adapt_figure_for_dark(fig)
     return fig
 
 
@@ -1266,10 +1271,12 @@ _LANG = get_lang()  # bootstrap iniziale dal session_state per i moduli a valle
 MONTHS = [_t(m) for m in MONTHS]
 
 # ── Colori provvisori per sidebar (definiti prima del Design System completo) ──
-AMBER       = "#9A7B3C"   # provvisorio -> BRASS editoriale
-BORDER      = "#E4DDCD"
-TEXT_MUTED   = "#726C5E"
+# Seguono il tema con gli stessi valori del Design System più sotto: con i soli
+# valori chiari, in scuro il titolo «Settings / Opzioni» scendeva a 4,45:1.
 _SIDEBAR_PRE_DARK = st.session_state.methaniq_theme == "dark"
+AMBER       = "#C9A968" if _SIDEBAR_PRE_DARK else "#9A7B3C"   # provvisorio -> BRASS editoriale
+BORDER      = "#33302A" if _SIDEBAR_PRE_DARK else "#E4DDCD"
+TEXT_MUTED  = "#A49D8C" if _SIDEBAR_PRE_DARK else "#726C5E"
 _SIDEBAR_PRE_LABEL = "#CBD5E1" if _SIDEBAR_PRE_DARK else "#64748B"
 
 # =============================================================================
@@ -3337,17 +3344,19 @@ def _render_daily_ops_panel(_key_prefix: str = ""):
                 _badge_parts.append(f"🏭 {_html.escape(str(PLANT_NAME))}")
             _anag_badge = (
                 f"<div style='display:inline-block;background:{AMBER}15;"
-                f"color:{NAVY};padding:4px 10px;border-radius:6px;"
+                f"color:{TEXT_PRIMARY if IS_DARK else NAVY};padding:4px 10px;border-radius:6px;"
                 f"font-size:0.78rem;margin-bottom:8px;border:1px solid {AMBER}30;'>"
                 + " &nbsp;·&nbsp; ".join(_badge_parts)
                 + "</div>"
             )
 
         st.markdown(
-            f"<h2 style='margin-bottom:4px;color:{NAVY};'>📅 "
+            # Navy fisso in scuro = 1,1:1 sulla carta: titolo e badge passano a
+            # TEXT_PRIMARY; il sottotitolo dall'ardesia Tailwind a TEXT_MUTED.
+            f"<h2 style='margin-bottom:4px;color:{TEXT_PRIMARY if IS_DARK else NAVY};'>📅 "
             f"{_t('Operatività Giornaliera')}</h2>"
             + _anag_badge
-            + f"<div style='color:#64748B;font-size:0.85rem;margin-bottom:14px;'>"
+            + f"<div style='color:{TEXT_MUTED};font-size:0.85rem;margin-bottom:14px;'>"
             + _t("Sostenibilità calcolata su base mensile (mass balance RED III · "
                  "Regole Applicative GSE 2025). I valori giornalieri sono solo "
                  "monitoraggio: conta il totale a fine mese.")
@@ -7453,6 +7462,9 @@ with tab_plan:
                 height=400,
                 hovermode="x unified",
             )
+            # Unico grafico che saltava il tema: in scuro titolo e legenda
+            # restavano #1C1B16 sulla carta #15140F (invisibili).
+            apply_metaniq_theme(_bp_fig, dark=IS_DARK)
             st.plotly_chart(_bp_fig, width='stretch')
         except Exception:  # noqa: BLE001
             pass
