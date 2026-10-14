@@ -1260,7 +1260,17 @@ except ImportError:  # modulo assente → nessun gate, download liberi
         return st.download_button(label, data=data, file_name=file_name,
                                   mime=mime, key=key, **kwargs)
 
-if "methaniq_theme" not in st.session_state:
+# Tema: lo decide Streamlit ([theme.light]/[theme.dark] in config.toml, segue il
+# dispositivo); qui lo si legge per allineare CSS, HTML inline e grafici.
+# st.context.theme.type è None finché il browser non l'ha comunicato: si tiene
+# l'ultimo valore noto, altrimenti chiaro.
+try:
+    _ctx_theme_type = st.context.theme.type
+except Exception:  # noqa: BLE001 — Streamlit senza st.context.theme
+    _ctx_theme_type = None
+if _ctx_theme_type in ("light", "dark"):
+    st.session_state.methaniq_theme = _ctx_theme_type
+elif "methaniq_theme" not in st.session_state:
     st.session_state.methaniq_theme = "light"
 
 # Nota: il selettore lingua è renderizzato in sidebar SUBITO DOPO il brand
@@ -1389,28 +1399,14 @@ with st.sidebar:
              text-transform:uppercase; color:{_SIDEBAR_PRE_LABEL}; margin-bottom:8px; margin-left:2px;'>
              🎨 Tema / Appearance
         </div>
+        <div style='font-size:0.78rem; color:{TEXT_MUTED}; margin-left:2px;'>
+             Chiaro o scuro come il dispositivo · Light or dark, as set on your device
+        </div>
         """,
         unsafe_allow_html=True,
     )
-    _tc1, _tc2 = st.columns(2)
-    with _tc1:
-        if st.button(
-            "☀️ Light",
-            width='stretch',
-            type="primary" if st.session_state.methaniq_theme == "light" else "secondary",
-            key="btn_theme_light",
-        ):
-            st.session_state.methaniq_theme = "light"
-            st.rerun()
-    with _tc2:
-        if st.button(
-            "🌙 Dark",
-            width='stretch',
-            type="primary" if st.session_state.methaniq_theme == "dark" else "secondary",
-            key="btn_theme_dark",
-        ):
-            st.session_state.methaniq_theme = "dark"
-            st.rerun()
+    # Niente pulsanti Light/Dark: cambiavano solo il CSS dell'app, non il tema
+    # nativo di Streamlit, e tabelle e widget restavano chiari in scuro.
     st.markdown("<div style='margin-bottom:15px;'></div>", unsafe_allow_html=True)
 
     # =======================================================

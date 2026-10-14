@@ -59,7 +59,9 @@ Metan.iQ aiuta gli operatori di impianti biometano a:
 - **i18n**: dict-based IT/EN con substring replacement, locale-aware
   formatting per numeri (`1,234.56` EN / `1.234,56` IT) e date
   (`May 25, 2026` EN / `25/05/2026` IT)
-- **Theme**: light/dark switcher (palette navy + amber, font Outfit)
+- **Theme**: chiaro/scuro come il dispositivo (`[theme.light]`/`[theme.dark]` in
+  `.streamlit/config.toml`, letto con `st.context.theme`); palette editoriale navy +
+  ottone, font Outfit
 - **Hosting**: Streamlit Cloud (privato, auth-gated)
 
 ## 🚀 Quick start

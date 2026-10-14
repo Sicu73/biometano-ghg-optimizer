@@ -2,13 +2,23 @@
 # Theme brand (Navy + Amber) e impostazioni server.
 
 [theme]
-# Tema light by default (lo switcher in-app gestisce light/dark dinamicamente)
-base = "light"
+# Tema chiaro e scuro definiti entrambi: Streamlit segue l'impostazione
+# chiaro/scuro del dispositivo e l'app la legge con st.context.theme
+# (niente più selettore in-app). Senza la sezione scura, tabelle, interruttori
+# e cursori nativi restavano chiari anche col tema scuro dell'app.
+font = "sans serif"
+
+[theme.light]
 primaryColor = "#9A7B3C"            # Brass (accento editoriale, allineato a theme_editorial)
 backgroundColor = "#F7F4EC"         # Paper (sfondo editoriale, evita flash bianco in caricamento)
 secondaryBackgroundColor = "#FBF9F3"  # Paper2 (superfici secondarie editoriali)
 textColor = "#1C1B16"               # Ink (testo editoriale)
-font = "sans serif"
+
+[theme.dark]
+primaryColor = "#C9A968"            # Brass chiaro (ACCENT dark di app_mensile.py)
+backgroundColor = "#15140F"         # Paper dark
+secondaryBackgroundColor = "#1A1813"  # Paper2 dark
+textColor = "#E8E3D5"               # Ink dark
 
 [browser]
 gatherUsageStats = false

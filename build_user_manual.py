@@ -517,7 +517,7 @@ def build_chapter_2(story, lang):
         ("Export PPTX", "python-pptx (8 yearly slides)"),
         ("Persistenza locale" if L else "Local persistence", "SQLite (data/metaniq_daily.db)"),
         ("i18n", "IT/EN dictionary substring replacement"),
-        ("Theme", "Light / Dark switcher (navy + amber, Outfit font)"),
+        ("Theme", "Light / dark following the device setting (navy + brass, Outfit font)"),
         ("Hosting", "Streamlit Cloud (private, branch dm2022-only)"),
     ]))
 
@@ -538,7 +538,7 @@ def build_chapter_3(story, lang):
         intro = "La sidebar contiene, dall'alto in basso, i seguenti gruppi di controlli:"
         rows = [
             ["Lingua", "Selettore IT / EN", "Cambia label, formato numeri e date"],
-            ["Tema", "Toggle Light / Dark", "Switcher palette chiaro/scuro"],
+            ["Tema", "Nota, nessun comando", "Chiaro o scuro come il dispositivo, anche tabelle e widget"],
             ["Anagrafica simulazione", "Expander: azienda, sede, impianto, P.IVA/CF, CUI/GSE, responsabile sostenibilita'",
              "Tracciabilita' GSE/OdC in report ed export"],
             ["Normative applicate", "Expander informativo", "Registro delle norme cablate nel calcolo"],
@@ -608,7 +608,7 @@ def build_chapter_3(story, lang):
         intro = "From top to bottom, the sidebar contains the following control groups:"
         rows = [
             ["Language", "Selector IT / EN", "Switches labels, number and date format"],
-            ["Theme", "Light / Dark toggle", "Light/dark palette switcher"],
+            ["Theme", "Note, no control", "Light or dark as set on the device, tables and widgets included"],
             ["Simulation registry", "Expander: company, address, plant, VAT, GSE code, sustainability officer",
              "GSE/CB traceability in reports and exports"],
             ["Applied regulations", "Informative expander", "Registry of the norms wired into the engine"],
