@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Colori dei grafici Plotly nel tema scuro di Metan.iQ.
 
 In scuro i grafici hanno fondo trasparente sulla carta scura (#15140F) o su una

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Test dei colori dei grafici nel tema scuro (theme_charts.py)."""
 import re
 import sys
@@ -45,7 +44,7 @@ def test_navy_netti_becomes_visible_on_dark():
 
 def test_lift_keeps_hue_family():
     # Il navy schiarito resta un blu-grigio: il blu supera il rosso.
-    r, g, b = (int(lift_for_dark(NAVY)[i:i + 2], 16) for i in (1, 3, 5))
+    r, _g, b = (int(lift_for_dark(NAVY)[i:i + 2], 16) for i in (1, 3, 5))
     assert b > r
 
 

@@ -1266,7 +1266,7 @@ except ImportError:  # modulo assente → nessun gate, download liberi
 # l'ultimo valore noto, altrimenti chiaro.
 try:
     _ctx_theme_type = st.context.theme.type
-except Exception:  # noqa: BLE001 — Streamlit senza st.context.theme
+except Exception:  # Streamlit senza st.context.theme
     _ctx_theme_type = None
 if _ctx_theme_type in ("light", "dark"):
     st.session_state.methaniq_theme = _ctx_theme_type
