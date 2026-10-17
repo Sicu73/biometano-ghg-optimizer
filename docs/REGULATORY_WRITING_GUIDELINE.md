@@ -11,10 +11,7 @@ in cui valori €/MWh dei premi cumulabili erano presentati come quote fisse
 del DM 15/9/2022 quando in realtà sono **stime di mercato/contratto**
 editabili. Safety score 43% (target 90%).
 
-Questo documento codifica le regole per evitare regressioni. Per ottimizzazione
-automatica via prompt optimization vedi anche il preset
-[`compliance-normativa-DM2022`](file:///C:/Users/CarloSicurini/.claude/skills/teca-evolution/presets/compliance-normativa-DM2022/)
-nel sistema teca-evolution.
+Questo documento codifica le regole per evitare regressioni.
 
 ## Le 7 regole
 
@@ -89,25 +86,6 @@ Ogni microcopy normativa DEVE indicare cosa fare:
 | saving GHG | sustainability saving | GHG reduction (giuridicamente diverso) |
 | matrice avanzata | advanced feedstock | premium feedstock |
 | comparator fossile | fossil fuel comparator | benchmark |
-
-## Verifica automatica
-
-Per stringhe critiche (>5 righe normative), gira la scoring function:
-
-```python
-import sys
-sys.path.insert(0, str(Path.home() / ".claude/skills/teca-evolution/presets/compliance-normativa-DM2022"))
-from metric import score
-
-s = score("la mia microcopy candidata")
-print(f"Score: {s['total']}/100  Safety: {s['safety']*100}%")
-assert s['safety'] >= 0.90, f"Safety sotto target: {s['flags']}"
-```
-
-Target prima del commit:
-- **Total score** ≥ 75/100
-- **Safety score** ≥ 90% (no flag `hallucination_clean`)
-- **Zero flag** rosse
 
 ## Esempi di "prima/dopo" — case study premi cumulabili
 

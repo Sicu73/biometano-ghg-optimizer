@@ -3,7 +3,9 @@
 Metan.iQ: app Streamlit (Python 3.11+) per impianti di biometano DM 2022 / RED III. Pianificazione mensile, calcolo e ottimizzazione GHG, business plan, report PDF/Excel/PPTX.
 Software proprietario di Carlo Sicurini: il codice è pubblico solo come vetrina (vedi `LICENSE`).
 
-Le regole generali di Carlo, il protocollo CTCP-6.2.0 (skill `mao-ctcp`), le skill di settore (`biogas-norme`, `uni-ts-11567`, `biogas-tecnico`) e i prompt stanno nel repo privato `Sicu73/istruzioni-ai`, fonte unica per Claude e Codex. Se è disponibile in questa sessione, leggi il suo `istruzioni/globali.md` prima di iniziare.
+Le regole generali di Carlo, il protocollo CTCP-6.2.0 integrato con Parte C aggiornata al 16 settembre 2026 (skill `mao-ctcp`), le skill di settore (`biogas-norme`, `uni-ts-11567`, `biogas-tecnico`) e i prompt stanno nel repo privato `Sicu73/istruzioni-ai`, fonte unica per Claude e Codex. Se è disponibile in questa sessione, leggi il suo `istruzioni/globali.md` prima di iniziare.
+
+CTCP-6.2.0 è l'unico protocollo. TECA-AGILIS, TECA-CUSTOS e la skill `teca-evolution` sono dismessi: se li trovi caricati, non usarli.
 
 ## Comandi
 
