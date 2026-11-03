@@ -38,11 +38,11 @@ rivelate errate**. Erano basate sulla sola UI deployata, senza accesso al sorgen
 
 | # | Critica iniziale | Verdetto reale | Riferimento |
 |---|---|---|---|
-| 1 | "D.Lgs 5/2026 non esiste, dicitura errata" | ❌ FALSO — esiste come D.Lgs. 9 gennaio 2026 n.5 (GU n.15) | [core/constants.py:24-31](core/constants.py) |
-| 2 | "EF<sub>FF</sub> comparatore non esplicito" | ❌ FALSO — 3 comparator + 3 soglie differenziate per end-use | [core/constants.py:66-72](core/constants.py) |
-| 3 | "80% confonde sostenibilità vs incentivo" | ❌ FALSO — è correttamente `SAVING_THRESHOLD_GRID_HEAT` per impianti ≥20/11/2023 | [core/constants.py:70](core/constants.py) |
-| 4 | "Fonti eec mancanti" | ❌ FALSO — campo `src` per ogni biomassa | [app_mensile.py:945+](app_mensile.py) |
-| 5 | "Classificazione Annex IX mancante" | ❌ FALSO — campo `annex_ix` per ogni biomassa | [app_mensile.py:945+](app_mensile.py) |
+| 1 | "D.Lgs 5/2026 non esiste, dicitura errata" | ❌ FALSO — esiste come D.Lgs. 9 gennaio 2026 n.5 (GU n.15) | [core/constants.py:24-31](../../core/constants.py) |
+| 2 | "EF<sub>FF</sub> comparatore non esplicito" | ❌ FALSO — 3 comparator + 3 soglie differenziate per end-use | [core/constants.py:66-72](../../core/constants.py) |
+| 3 | "80% confonde sostenibilità vs incentivo" | ❌ FALSO — è correttamente `SAVING_THRESHOLD_GRID_HEAT` per impianti ≥20/11/2023 | [core/constants.py:70](../../core/constants.py) |
+| 4 | "Fonti eec mancanti" | ❌ FALSO — campo `src` per ogni biomassa | [app_mensile.py:945+](../../app_mensile.py) |
+| 5 | "Classificazione Annex IX mancante" | ❌ FALSO — campo `annex_ix` per ogni biomassa | [app_mensile.py:945+](../../app_mensile.py) |
 
 ---
 
@@ -57,7 +57,7 @@ rivelate errate**. Erano basate sulla sola UI deployata, senza accesso al sorgen
 - **Sintomo**: utente sceglie "Trinciato di mais" vedendo solo `eec=+26,0`, ignorando che è food/feed crop cap 30%.
 - **Patch**: `format_func` arricchita: `"Trinciato di mais · eec=+26,0 · 🌽 cap30%"` o `"Liquame suino · eec=-45,0 · IX-A ✓avanzato"`.
 - **Patch bonus**: expander "📚 Fonti normative biomasse attive (audit OdC)" sotto il multiselect, con tabella `eec`/`cat`/`annex_ix`/`src` pronta da copiare in relazione tecnica.
-- **File**: [app_mensile.py:2540+](app_mensile.py)
+- **File**: [app_mensile.py:2540+](../../app_mensile.py)
 
 ### 3.3 Doppia fonte di verità pollina ovaiole — ✅ documentato
 - **Sintomo**: `MANURE_CREDIT_POLLINA_OVAIOLE=0.0` in constants vs `eec=+5.0` in FEEDSTOCK_DB.
@@ -67,7 +67,7 @@ rivelate errate**. Erano basate sulla sola UI deployata, senza accesso al sorgen
 ### 3.4 Anagrafica audit incompleta — ✅ risolto
 - **Sintomo**: la sidebar aveva solo `company_name`, `plant_name`, addresses. Mancavano P.IVA, CUI/GSE, Responsabile Sostenibilità.
 - **Patch**: 3 nuovi campi `company_vat`, `plant_cui`, `responsible_name` con tooltip che dichiarano l'obbligo audit OdC.
-- **File**: [app_mensile.py:1688+](app_mensile.py)
+- **File**: [app_mensile.py:1688+](../../app_mensile.py)
 
 ### 3.5 PDF audit-ready — ✅ risolto
 - **Sintomo**: il PDF non aveva LS-ID, anagrafica audit, mass balance esplicito, firma.
@@ -76,10 +76,10 @@ rivelate errate**. Erano basate sulla sola UI deployata, senza accesso al sorgen
   - Tabella mass balance (input biomasse con Annex IX/categoria, output Sm³ lordi/netti)
   - Registro fornitori (se popolato in `ctx["suppliers_registry"]`, altrimenti warning)
   - Disclaimer + blocco firma con data + nome responsabile
-- **File**: [report_pdf.py:1697+](report_pdf.py)
+- **File**: [report_pdf.py:1697+](../../report_pdf.py)
 
 ### 3.6 LS-ID deterministico — ✅ nuovo modulo
-- **Patch**: nuovo modulo [`core/ls_identifier.py`](core/ls_identifier.py).
+- **Patch**: nuovo modulo [`core/ls_identifier.py`](../../core/ls_identifier.py).
 - Funzione `build_ls_id(year, month, plant_cui, plant_name) -> "LS-YYYY-MM-XXXXXX"` con hash SHA1 dei primi 6 char del CUI.
 - Idempotente: stesso CUI + stesso periodo ⇒ stesso ID. Audit-friendly.
 - Funzione `validate_ls_id(s) -> bool` per check formato in test/import.
