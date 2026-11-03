@@ -81,7 +81,7 @@ fallback `getattr(..., default)` ovunque rilevante. 247/247 test verdi.
   vincoli regime, audit trail mese, salvataggio SQLite, download
   CSV/Excel/PDF.
 - **Test**: 18 nuovi test `tests/test_daily_ops.py` (192 totali).
-- **DAILY_OPS_GUIDE.md**: guida operativa utente, esempio mese,
+- **docs/DAILY_OPS_GUIDE.md**: guida operativa utente, esempio mese,
   spiegazione regola compliance mensile vs giornaliero.
 - **.gitignore**: esclusione `data/*.db` (DB locale non versionato).
 
